@@ -38,7 +38,7 @@ final class CompanyEmployeeImportTest extends TestCase
 
         $response = $this->actingAs($this->admin())->get(route('company.employees.template'));
         $response->assertOk();
-        $response->assertDownload('formato-empleados-controla.xlsx');
+        $response->assertDownload('formato-empleados-zentra.xlsx');
 
         $tmp = sys_get_temp_dir().DIRECTORY_SEPARATOR.'formato-empleados-'.uniqid().'.xlsx';
         file_put_contents($tmp, Excel::raw(new EmployeeImportTemplateExport, \Maatwebsite\Excel\Excel::XLSX));

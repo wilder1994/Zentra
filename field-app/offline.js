@@ -1,7 +1,7 @@
 /* Cola offline de Supervisión: IndexedDB por supervisor; flush con el token de quien encoló. */
 (function (global) {
-    const LEGACY_DB = 'controla-sup';
-    const USER_PREFIX = 'controla-sup-u';
+    const LEGACY_DB = 'zentra-sup';
+    const USER_PREFIX = 'zentra-sup-u';
     const DB_VER = 1;
     const USERS_KEY = 'sup_queue_users';
     const TOKENS_KEY = 'sup_sync_tokens';
@@ -361,7 +361,7 @@
         return err.name === 'TypeError';
     }
 
-    global.ControlaOffline = {
+    global.ZentraOffline = {
         setUser,
         restoreUserFromStorage,
         currentUserId,

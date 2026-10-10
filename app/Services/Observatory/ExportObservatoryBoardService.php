@@ -40,8 +40,8 @@ final class ExportObservatoryBoardService
         $ppt = new PhpPresentation;
         $ppt->getLayout()->setDocumentLayout(DocumentLayout::LAYOUT_SCREEN_16X9, true);
         $ppt->getDocumentProperties()
-            ->setCreator('Controla')
-            ->setLastModifiedBy('Controla')
+            ->setCreator('Zentra')
+            ->setLastModifiedBy('Zentra')
             ->setTitle('Observatorio')
             ->setSubject($meta['caption'])
             ->setDescription('Salida del tablero del Observatorio');
@@ -107,7 +107,7 @@ final class ExportObservatoryBoardService
     private function coverSlide(Slide $slide, array $board, array $meta): void
     {
         $this->paintSlide($slide);
-        $this->text($slide, 'CONTROLA', 40, 140, 880, 28, 14, self::GOLD, true);
+        $this->text($slide, 'ZENTRA', 40, 140, 880, 28, 14, self::GOLD, true);
         $this->text($slide, 'Observatorio escolar', 40, 176, 880, 48, 28, self::INK, true);
         $this->text($slide, $meta['scope'], 40, 236, 880, 32, 16, self::CYAN);
         $this->text($slide, $meta['caption'], 40, 280, 880, 28, 14, self::MUTED);
@@ -379,7 +379,7 @@ final class ExportObservatoryBoardService
 
     private function save(PhpPresentation $ppt): string
     {
-        $path = tempnam(sys_get_temp_dir(), 'controla_obs_');
+        $path = tempnam(sys_get_temp_dir(), 'zentra_obs_');
         if ($path === false) {
             throw new \RuntimeException('No se pudo crear el archivo temporal del Observatorio.');
         }

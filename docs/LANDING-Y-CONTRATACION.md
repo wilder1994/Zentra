@@ -17,9 +17,9 @@ Usuarios autenticados son redirigidos a `/home`. Invitados ven la landing comple
 | Zona | Detalle |
 |------|---------|
 | Contenedor | `min-h-screen overflow-x-hidden` — columna flex; pie al fondo si cabe |
-| Header | Logo Controla + botón cyan «Iniciar sesión» (`/login`) |
+| Header | Logo Zentra + botón cyan «Iniciar sesión» (`/login`) |
 | Hero | `flex-1` en el main: grid 40/60 (`lg:grid-cols-5`, texto `col-span-2`, imagen `col-span-3`) |
-| Texto hero | Eyebrow «PLATAFORMA CONTROLA» + H1 «Accesos, supervisión y observatorio» + párrafo corto |
+| Texto hero | Eyebrow «PLATAFORMA ZENTRA» + H1 «Accesos, supervisión y observatorio» + párrafo corto |
 | Tarjeta comercial | Solo `@guest`: pills Licencia SaaS + descuento anual, precio mínimo, CTA «Ver planes y contratar» → `/planes`, enlace secundario login |
 | Imagen | `hero-dashboard.png` (`object-cover`, altura mínima en desktop) |
 | Cards inferiores | 3 cards glass: Accesos, Supervisión, Observatorio |
@@ -38,7 +38,7 @@ El precio mostrado es el **mínimo mensual** (1 conjunto, modalidad manual), no 
 
 | Archivo | Uso |
 |---------|-----|
-| `resources/images/branding/logo-controla.png` | Header |
+| `resources/images/branding/logo-zentra.png` | Header |
 | `resources/images/welcome/hero-background.png` | Fondo fijo |
 | `resources/images/welcome/hero-dashboard.png` | Hero derecho |
 

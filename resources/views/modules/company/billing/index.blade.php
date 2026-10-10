@@ -118,7 +118,7 @@
 
             @if (! $hasAcceptance)
                 <p class="text-sm text-amber-300 rounded-lg border border-amber-800/50 bg-amber-900/20 px-3 py-2">
-                    Pendiente la aceptación contractual. Contacta a soporte Controla para habilitar pagos online.
+                    Pendiente la aceptación contractual. Contacta a soporte Zentra para habilitar pagos online.
                 </p>
             @endif
 

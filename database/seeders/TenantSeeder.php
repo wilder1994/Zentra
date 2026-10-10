@@ -96,7 +96,7 @@ final class TenantSeeder extends Seeder
                 'longitude' => -76.5275,
                 'plan_tier' => ClientPlanTier::Economic,
                 'max_structures' => ClientPlanTier::Economic->maxStructures(),
-                'access_url' => 'https://controla.test',
+                'access_url' => 'https://zentra.test',
                 'is_active' => true,
                 'has_access' => true,
                 'has_supervision' => true,
@@ -125,7 +125,7 @@ final class TenantSeeder extends Seeder
                 'longitude' => -76.5198,
                 'plan_tier' => ClientPlanTier::Economic,
                 'max_structures' => ClientPlanTier::Economic->maxStructures(),
-                'access_url' => 'https://controla.test',
+                'access_url' => 'https://zentra.test',
                 'is_active' => true,
                 'has_access' => true,
                 'panel_modules' => array_merge(ClientPanelModules::defaultOptional(), [

@@ -1,4 +1,4 @@
-package cloud.wcodex.controla.supervision;
+package cloud.wcodex.zentra.supervision;
 
 import android.Manifest;
 import android.content.Intent;

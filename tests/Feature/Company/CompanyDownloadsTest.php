@@ -22,10 +22,10 @@ final class CompanyDownloadsTest extends TestCase
             ->assertOk()
             ->assertSee('Descargas')
             ->assertSee('App de Supervisión')
-            ->assertSee('controla_supervision.test')
+            ->assertSee('zentra_supervision.test')
             ->assertSee('Descargar APK')
             ->assertSee('Abrir web')
-            ->assertDontSee('API de Controla');
+            ->assertDontSee('API de Zentra');
     }
 
     public function test_guard_cannot_open_company_downloads(): void
@@ -44,7 +44,7 @@ final class CompanyDownloadsTest extends TestCase
         $response = $this->actingAs($user)->get(route('company.downloads.apk'));
         $response->assertOk();
         $this->assertStringContainsString(
-            'controla-supervision.apk',
+            'zentra-supervision.apk',
             (string) $response->headers->get('content-disposition'),
         );
     }

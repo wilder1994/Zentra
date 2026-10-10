@@ -1,36 +1,36 @@
-# Hosting VPS (Controla)
+# Hosting VPS (Zentra)
 
 **Última actualización:** 29 septiembre 2026
 
-Catálogo comercial (29 sep 2026): migrate `2026_09_29_010000` (`pricing_settings.catalog`, `has_indexing`, `has_observatory`). Pull + `migrate --force` + `npm run build` + `view:cache` + `route:cache`. Artisan como `wcodex-controla`.
+Catálogo comercial (29 sep 2026): migrate `2026_09_29_010000` (`pricing_settings.catalog`, `has_indexing`, `has_observatory`). Pull + `migrate --force` + `npm run build` + `view:cache` + `route:cache`. Artisan como `wcodex-zentra`.
 
-Sitio público: [https://controla.wcodex.cloud](https://controla.wcodex.cloud)
+Sitio público: [https://zentra.wcodex.cloud](https://zentra.wcodex.cloud)
 
 | Dato | Valor |
 |------|--------|
 | Proveedor | Hostinger VPS KVM 2, São Paulo, Ubuntu 24.04 + CloudPanel |
 | IP | `82.25.66.93` |
-| Usuario del sitio | `wcodex-controla` |
-| Código | `/home/wcodex-controla/htdocs/controla.wcodex.cloud` |
+| Usuario del sitio | `wcodex-zentra` |
+| Código | `/home/wcodex-zentra/htdocs/zentra.wcodex.cloud` |
 | Document root | `…/public` |
 | PHP | 8.3 |
-| Repo | `https://github.com/wilder1994/Controla.git` rama `main` |
+| Repo | `https://github.com/wilder1994/Zentra.git` rama `main` |
 
-Flujo: push local a `origin` (`wilder1994/Controla`, `main`). El VPS solo hace `git pull` + composer/npm/migrate. No FTP ni ZIP. No `migrate:fresh` ni `db:wipe` en producción.
+Flujo: push local a `origin` (`wilder1994/Zentra`, `main`). El VPS solo hace `git pull` + composer/npm/migrate. No FTP ni ZIP. No `migrate:fresh` ni `db:wipe` en producción.
 
 Si el commit añade roles o permisos (`config/access.php`), tras migrate corre `php artisan db:seed --class=RoleAndPermissionSeeder` (sync Spatie; no vacía datos). El resto de seeders no se corre salvo petición explícita.
 
-Este deploy **no** hace `migrate:fresh`. Las `add_*` unificadas en `create_*` solo aplican en instalación limpia. En el VPS ya corrido, `migrate` solo aplica pendientes (p. ej. `user_module_grants`). Backup selectivo de empleados/PDFs: carpeta `controla-YYYYMMDD` en el home del sitio; borrar **después** de restaurar y verificar, no en este pull.
+Este deploy **no** hace `migrate:fresh`. Las `add_*` unificadas en `create_*` solo aplican en instalación limpia. En el VPS ya corrido, `migrate` solo aplica pendientes (p. ej. `user_module_grants`). Backup selectivo de empleados/PDFs: carpeta `zentra-YYYYMMDD` en el home del sitio; borrar **después** de restaurar y verificar, no en este pull.
 
 Observatorio: migrate `2026_09_13_120000` (tipos + módulo). Tras ese migrate: `RoleAndPermissionSeeder` (permiso `observatory.events.update`). Intake `/o/{slug}` (solo colegios). API `/api/observatory/*`. Comunas: `resources/data/cali-comunas.geojson`, el mapa las pide en `/geo/cali-comunas.geojson` (relativo). **No** cargar `libraries=visualization`: Maps JS 3.65 quitó HeatmapLayer. PPTX: `GET /company/observatory/tablero.pptx` y `/client/observatory/tablero.pptx` (mismo permiso `observatory.view`; `route:cache` + `view:cache`). Cortes UX: `npm run build` + `view:cache`. Sin migrate ni seeder.
 
-Avisos en español (13 sep 2026): `lang/es/*`, toast centrado, PWA `controla-sup-v41`.
+Avisos en español (13 sep 2026): `lang/es/*`, toast centrado, PWA `zentra-sup-v41`.
 
 Colaborador + Clientes (13 sep 2026): `ClientController` / `ClientPolicy`. Corte PHP: pull + `view:cache` + `config:cache`. Sin migrate, seeder ni `npm run build`.
 
 Puestos + mapas (14 sep 2026): varios puestos por instalación; pines cliente/instalación en Mi empresa y Supervisión. Pull + `view:cache` + `config:cache` + `route:cache`. Sin migrate ni seeder.
 
-App de campo (14 sep 2026): PWA en `https://controla.wcodex.cloud/campo/` (no hay DNS `controla_supervision.wcodex.cloud`). APK v1.1 en `public/downloads/controla-supervision.apk` (primer ingreso: usuario + clave). En VPS: `SUPERVISION_PWA_URL=https://controla.wcodex.cloud/campo/` + pull + `route:cache` + `view:cache` + `config:cache`. Sin migrate ni seeder.
+App de campo (14 sep 2026): PWA en `https://zentra.wcodex.cloud/campo/` (no hay DNS `zentra_supervision.wcodex.cloud`). APK v1.1 en `public/downloads/zentra-supervision.apk` (primer ingreso: usuario + clave). En VPS: `SUPERVISION_PWA_URL=https://zentra.wcodex.cloud/campo/` + pull + `route:cache` + `view:cache` + `config:cache`. Sin migrate ni seeder.
 
 Observatorio Compartir link (14 sep 2026): modal con scroll y buscador si hay muchos clientes. Pull + `npm run build` + `view:cache`. Sin migrate ni seeder.
 
@@ -46,54 +46,54 @@ Parafiscales planilla (14 sep 2026): recorte = copia del xlsx original (fondo/lo
 
 Plan súper admin (14 sep 2026): ficha empresa aplica Accesos+Supervisión ya / fecha / al corte; cartera de clientes con scroll. Sin migrate ni seeder. Pull + `npm run build` + `route:cache` + `view:cache` + `config:cache`.
 
-Tablero SIG + pánico (14 sep 2026): migrate `operational_alerts`. Resumen cliente e instalaciones (mapa, puestos, novedades, afiliación, gráfica). Pánico sidebar/APK. Overlay poll. Pull + `migrate --force` + `npm run build` + `view:cache` + `route:cache`. Copiar PWA `public/campo` (`controla-sup-v44`). APK v1.3 en `public/downloads/controla-supervision.apk`. Sin seeder. Artisan como `wcodex-controla`.
+Tablero SIG + pánico (14 sep 2026): migrate `operational_alerts`. Resumen cliente e instalaciones (mapa, puestos, novedades, afiliación, gráfica). Pánico sidebar/APK. Overlay poll. Pull + `migrate --force` + `npm run build` + `view:cache` + `route:cache`. Copiar PWA `public/campo` (`zentra-sup-v44`). APK v1.3 en `public/downloads/zentra-supervision.apk`. Sin seeder. Artisan como `wcodex-zentra`.
 
-APK v1.4 (14 sep 2026): GPS de turno no arranca hasta conceder ubicación + notificaciones (ya no cierra la app al reentrar con turno abierto). PWA `controla-sup-v45`. Pull + `view:cache`. El APK va en git (`public/downloads/controla-supervision.apk`). Sin migrate.
+APK v1.4 (14 sep 2026): GPS de turno no arranca hasta conceder ubicación + notificaciones (ya no cierra la app al reentrar con turno abierto). PWA `zentra-sup-v45`. Pull + `view:cache`. El APK va en git (`public/downloads/zentra-supervision.apk`). Sin migrate.
 
 Alpine sidebar + overlay (14 sep 2026): `app.js` debe importar `panelSidebar` y `opsLiveAlerts` (sin el primero el tablero Observatorio no pinta mapa ni gráficas). Pull + `npm run build` + `view:cache`. Sin migrate.
 
-Atención de pánicos (14 sep 2026): migrate `panic_attentions` + `RoleAndPermissionSeeder` (`ops.panic.attend`). Overlay pánico en bucle hasta Enterado/Atender. Pull + `migrate --force` + seeder de roles + `npm run build` + `view:cache` + `route:cache`. Artisan como `wcodex-controla`.
+Atención de pánicos (14 sep 2026): migrate `panic_attentions` + `RoleAndPermissionSeeder` (`ops.panic.attend`). Overlay pánico en bucle hasta Enterado/Atender. Pull + `migrate --force` + seeder de roles + `npm run build` + `view:cache` + `route:cache`. Artisan como `wcodex-zentra`.
 
-Traza GPS En vivo (15 sep 2026): `BuildSupervisorTrailService` filtra precisión > 150 m, saltos > ~130 km/h y picos aislados. Sin migrate, seeder ni `npm`. Pull + `view:cache` + `route:cache`. Artisan como `wcodex-controla`.
+Traza GPS En vivo (15 sep 2026): `BuildSupervisorTrailService` filtra precisión > 150 m, saltos > ~130 km/h y picos aislados. Sin migrate, seeder ni `npm`. Pull + `view:cache` + `route:cache`. Artisan como `wcodex-zentra`.
 
-Permisos + overlay (15 sep 2026): catálogo de matriz (dashboard, instalaciones, pánicos, SIG, etc.) para **admin y colaborador**. Pánico y Observatorio independientes. Overlay palpitante; Observatorio también en bucle. Sin migrate de tablas. Pull + `RoleAndPermissionSeeder` (crea `company.installations.*`, `ops.sig.view` y rellena grants de `company-admin`) + `npm run build` + `view:cache` + `route:cache`. Artisan como `wcodex-controla`.
+Permisos + overlay (15 sep 2026): catálogo de matriz (dashboard, instalaciones, pánicos, SIG, etc.) para **admin y colaborador**. Pánico y Observatorio independientes. Overlay palpitante; Observatorio también en bucle. Sin migrate de tablas. Pull + `RoleAndPermissionSeeder` (crea `company.installations.*`, `ops.sig.view` y rellena grants de `company-admin`) + `npm run build` + `view:cache` + `route:cache`. Artisan como `wcodex-zentra`.
 
-Matriz cliente/sedes (15 sep 2026): catálogo partido (nodos, personas, vehículos, etc.). Empleados/documentos recortados a puestos. Migrate `2026_09_15_150000` + `RoleAndPermissionSeeder` + `npm run build` + `view:cache` + `route:cache`. Artisan como `wcodex-controla`.
+Matriz cliente/sedes (15 sep 2026): catálogo partido (nodos, personas, vehículos, etc.). Empleados/documentos recortados a puestos. Migrate `2026_09_15_150000` + `RoleAndPermissionSeeder` + `npm run build` + `view:cache` + `route:cache`. Artisan como `wcodex-zentra`.
 
-Ficha folio Observatorio (15 sep 2026): grilla 2×2; fila 1 mapa+datos `h-[28rem]`, acciones fijas al pie. Pull + `npm run build` + `view:cache`. Sin migrate ni seeder. Artisan como `wcodex-controla`.
+Ficha folio Observatorio (15 sep 2026): grilla 2×2; fila 1 mapa+datos `h-[28rem]`, acciones fijas al pie. Pull + `npm run build` + `view:cache`. Sin migrate ni seeder. Artisan como `wcodex-zentra`.
 
-Carga de folios (15 sep 2026): medidor verde→rojo (`load_rate`). Título **Atención de folios**; leyenda Cerrados (verde, izq.) · En trámite · Total (rojo, der.). Pull + `npm run build` + `view:cache`. Sin migrate. Artisan como `wcodex-controla`.
+Carga de folios (15 sep 2026): medidor verde→rojo (`load_rate`). Título **Atención de folios**; leyenda Cerrados (verde, izq.) · En trámite · Total (rojo, der.). Pull + `npm run build` + `view:cache`. Sin migrate. Artisan como `wcodex-zentra`.
 
-Pánico inmediato (15 sep 2026): clic dispara el aviso (panel y APK, sin confirmar). **Enterado** silencia solo a ese usuario; **Atender** quita overlay y sonido a todos. PWA `controla-sup-v46`. APK v1.5 en `public/downloads/controla-supervision.apk`. Pull + `npm run build` + `view:cache` + `route:cache`. Sin migrate ni seeder. Artisan como `wcodex-controla`.
+Pánico inmediato (15 sep 2026): clic dispara el aviso (panel y APK, sin confirmar). **Enterado** silencia solo a ese usuario; **Atender** quita overlay y sonido a todos. PWA `zentra-sup-v46`. APK v1.5 en `public/downloads/zentra-supervision.apk`. Pull + `npm run build` + `view:cache` + `route:cache`. Sin migrate ni seeder. Artisan como `wcodex-zentra`.
 
-Selfie de perfil APK/PWA (16 sep 2026): círculo del turno con la foto de inicio (`data:` + `GET /api/supervision/shift-photo/start-selfie`). PWA `controla-sup-v47`. APK v1.6. Pull + `view:cache` + `route:cache`. Sin migrate ni seeder. Artisan como `wcodex-controla`.
+Selfie de perfil APK/PWA (16 sep 2026): círculo del turno con la foto de inicio (`data:` + `GET /api/supervision/shift-photo/start-selfie`). PWA `zentra-sup-v47`. APK v1.6. Pull + `view:cache` + `route:cache`. Sin migrate ni seeder. Artisan como `wcodex-zentra`.
 
-Modalidades de puesto (15 sep 2026): Ajustes → Modalidades (`supervisor_post_modalities`, horas 1–24; semilla 8/12/24). El puesto elige del catálogo. Pull + `migrate --force` + `view:cache` + `route:cache`. Sin seeder ni `npm`. Artisan como `wcodex-controla`.
+Modalidades de puesto (15 sep 2026): Ajustes → Modalidades (`supervisor_post_modalities`, horas 1–24; semilla 8/12/24). El puesto elige del catálogo. Pull + `migrate --force` + `view:cache` + `route:cache`. Sin seeder ni `npm`. Artisan como `wcodex-zentra`.
 
-Mapa Supervisión + ficha de turno (16 sep 2026): En vivo sin filtros; ruta GPS al clic; Historial solo cerrados (una ruta Roads). Ficha `kind=shift` se congela en `supervisor_shifts.sheet_snapshot` al cierre. Pull + `migrate --force` + `view:cache` + `route:cache`. Sin seeder ni `npm`. Artisan como `wcodex-controla`.
+Mapa Supervisión + ficha de turno (16 sep 2026): En vivo sin filtros; ruta GPS al clic; Historial solo cerrados (una ruta Roads). Ficha `kind=shift` se congela en `supervisor_shifts.sheet_snapshot` al cierre. Pull + `migrate --force` + `view:cache` + `route:cache`. Sin seeder ni `npm`. Artisan como `wcodex-zentra`.
 
-Portería consola vigilante (17 sep 2026): pánico `POST /access/ops/panic`. Puerta/turno solo el `guardia`; Operar portería entra al Resumen. Ingreso unificado. Pull + `migrate --force` si falta `2026_09_17_150000` + `view:cache` + `route:cache`. Sin seeder ni `npm` si el HTML ya está. Artisan como `wcodex-controla`.
+Portería consola vigilante (17 sep 2026): pánico `POST /access/ops/panic`. Puerta/turno solo el `guardia`; Operar portería entra al Resumen. Ingreso unificado. Pull + `migrate --force` si falta `2026_09_17_150000` + `view:cache` + `route:cache`. Sin seeder ni `npm` si el HTML ya está. Artisan como `wcodex-zentra`.
 
-Ingreso/salida dos pestañas (17 sep 2026): Movimiento (busca → Ingresa/Sale) + Registros (filtros). Migrate `2026_09_17_180000` (`destination_*`, `authorized_member_id`). Pull + `migrate --force` + `npm run build` + `view:cache` + `route:cache`. Sin seeder. Artisan como `wcodex-controla`.
+Ingreso/salida dos pestañas (17 sep 2026): Movimiento (busca → Ingresa/Sale) + Registros (filtros). Migrate `2026_09_17_180000` (`destination_*`, `authorized_member_id`). Pull + `migrate --force` + `npm run build` + `view:cache` + `route:cache`. Sin seeder. Artisan como `wcodex-zentra`.
 
-Resumen servicios vs revistas (21 sep 2026): puesto = servicio. Novedades de servicio = cambios de puesto + observaciones. Revistas en contenedor aparte. Pull + `npm run build` + `view:cache` + `route:cache`. Sin migrate ni seeder. Artisan como `wcodex-controla`.
+Resumen servicios vs revistas (21 sep 2026): puesto = servicio. Novedades de servicio = cambios de puesto + observaciones. Revistas en contenedor aparte. Pull + `npm run build` + `view:cache` + `route:cache`. Sin migrate ni seeder. Artisan como `wcodex-zentra`.
 
-Preview planilla parafiscal (21 sep 2026): LibreOffice convierte el recorte `.xlsx` a PDF (cache `*.xlsx.preview.pdf`). Apt una vez: `apt-get install -y --no-install-recommends libreoffice-calc fonts-liberation`. Usuario `wcodex-controla` debe poder ejecutar `/usr/bin/soffice`. Sin `soffice` no hay 500: tabla HTML + aviso. Pull + `view:cache` + `config:cache`. Sin migrate ni `npm`. Artisan como `wcodex-controla`.
+Preview planilla parafiscal (21 sep 2026): LibreOffice convierte el recorte `.xlsx` a PDF (cache `*.xlsx.preview.pdf`). Apt una vez: `apt-get install -y --no-install-recommends libreoffice-calc fonts-liberation`. Usuario `wcodex-zentra` debe poder ejecutar `/usr/bin/soffice`. Sin `soffice` no hay 500: tabla HTML + aviso. Pull + `view:cache` + `config:cache`. Sin migrate ni `npm`. Artisan como `wcodex-zentra`.
 
-Documentos Ver vs Gestionar (21 sep 2026): `company.documents.view` solo preview. **Descargar** (PDF/xlsx) exige `company.documents.manage`. Pull + `npm run build` + `route:cache` + `view:cache`. Sin migrate ni seeder. Artisan como `wcodex-controla`.
+Documentos Ver vs Gestionar (21 sep 2026): `company.documents.view` solo preview. **Descargar** (PDF/xlsx) exige `company.documents.manage`. Pull + `npm run build` + `route:cache` + `view:cache`. Sin migrate ni seeder. Artisan como `wcodex-zentra`.
 
-Cupo por instalación + revista 40 m + una sesión (28 sep 2026): migrate `2026_09_28_210000` (`users.single_session_token`, geo opcional en `supervisor_posts`). PWA `controla-sup-v48`. APK v1.7 en `public/downloads/controla-supervision.apk`. Pull + `migrate --force` + `npm run build` + `view:cache` + `route:cache`. Artisan como `wcodex-controla`.
+Cupo por instalación + revista 40 m + una sesión (28 sep 2026): migrate `2026_09_28_210000` (`users.single_session_token`, geo opcional en `supervisor_posts`). PWA `zentra-sup-v48`. APK v1.7 en `public/downloads/zentra-supervision.apk`. Pull + `migrate --force` + `npm run build` + `view:cache` + `route:cache`. Artisan como `wcodex-zentra`.
 
-Favicon único (28 sep 2026): solo `public/favicon.ico`. `partials.favicon` añade `?v=` con `filemtime` para evitar caché. Pull + `view:cache`. Artisan como `wcodex-controla`.
+Favicon único (28 sep 2026): solo `public/favicon.ico`. `partials.favicon` añade `?v=` con `filemtime` para evitar caché. Pull + `view:cache`. Artisan como `wcodex-zentra`.
 
-Suspender acceso (24 sep 2026): ficha empresa, bloque **Acceso al sistema** (Suspender / Reactivar / Archivar). Confirmación en modal del panel. Admin empresa solo lectura + banner. Resto bloqueado. Sin migrate ni seeder. Pull + `view:cache` + `route:cache`. Artisan como `wcodex-controla`.
+Suspender acceso (24 sep 2026): ficha empresa, bloque **Acceso al sistema** (Suspender / Reactivar / Archivar). Confirmación en modal del panel. Admin empresa solo lectura + banner. Resto bloqueado. Sin migrate ni seeder. Pull + `view:cache` + `route:cache`. Artisan como `wcodex-zentra`.
 
 Tableros en vivo (15 sep 2026): Observatorio + SIG + **Mi empresa**. JSON al cambio (Reverb) y sondeo cada 12 s si el socket no está conectado. Crear folio también refresca (alerta Observatorio). Toast de quién cambió. Mapa de conjuntos sigue de un pintado. Pull + `npm run build` + `view:cache` + `route:cache` + `config:cache`.
 
 Para WebSocket (si no, el sondeo basta):
 
-1. En `.env` del VPS: `BROADCAST_CONNECTION=reverb`, `REVERB_APP_ID` / `KEY` / `SECRET` (valores propios), `REVERB_HOST=controla.wcodex.cloud`, `REVERB_PORT=443`, `REVERB_SCHEME=https`, `REVERB_SERVER_HOST=127.0.0.1`, `REVERB_SERVER_PORT=6001` (8080 es Varnish/PHP), `REVERB_BROADCAST_HOST=127.0.0.1`, `REVERB_BROADCAST_PORT=6001`, `REVERB_BROADCAST_SCHEME=http`. Las `VITE_REVERB_*` apuntan al dominio público (`443` / `https`); `npm run build` **después** de fijarlas.
-2. Proceso: `php8.3 artisan reverb:start --no-interaction` como `wcodex-controla` (systemd o Supervisor). No hace falta `queue:work` (`ShouldBroadcastNow`).
+1. En `.env` del VPS: `BROADCAST_CONNECTION=reverb`, `REVERB_APP_ID` / `KEY` / `SECRET` (valores propios), `REVERB_HOST=zentra.wcodex.cloud`, `REVERB_PORT=443`, `REVERB_SCHEME=https`, `REVERB_SERVER_HOST=127.0.0.1`, `REVERB_SERVER_PORT=6001` (8080 es Varnish/PHP), `REVERB_BROADCAST_HOST=127.0.0.1`, `REVERB_BROADCAST_PORT=6001`, `REVERB_BROADCAST_SCHEME=http`. Las `VITE_REVERB_*` apuntan al dominio público (`443` / `https`); `npm run build` **después** de fijarlas.
+2. Proceso: `php8.3 artisan reverb:start --no-interaction` como `wcodex-zentra` (systemd o Supervisor). No hace falta `queue:work` (`ShouldBroadcastNow`).
 3. Nginx (directivas extra CloudPanel), luego `nginx -t && systemctl reload nginx`:
 
 ```nginx
@@ -110,20 +110,20 @@ location /app {
 }
 ```
 
-**Artisan cache siempre como `wcodex-controla`.** Si `view:cache` corre como root, Gestionar ficha da 500 (`Permission denied` al escribir `storage/framework/views`). Tras el cache: `chown -R wcodex-controla:wcodex-controla "$SITE"`.
+**Artisan cache siempre como `wcodex-zentra`.** Si `view:cache` corre como root, Gestionar ficha da 500 (`Permission denied` al escribir `storage/framework/views`). Tras el cache: `chown -R wcodex-zentra:wcodex-zentra "$SITE"`.
 
-APK Supervisión: el VPS no lo fabrica. Va en el repo (`public/downloads/controla-supervision.apk`). Tras pull: `route:cache` + `view:cache`. Descargas: `/company/descargas` y `/admin/descargas`.
+APK Supervisión: el VPS no lo fabrica. Va en el repo (`public/downloads/zentra-supervision.apk`). Tras pull: `route:cache` + `view:cache`. Descargas: `/company/descargas` y `/admin/descargas`.
 
 ```bash
-SITE=/home/wcodex-controla/htdocs/controla.wcodex.cloud
+SITE=/home/wcodex-zentra/htdocs/zentra.wcodex.cloud
 cd "$SITE"
-sudo -u wcodex-controla git pull --ff-only origin main
-sudo -u wcodex-controla -H bash -lc "cd '$SITE' && php8.3 /usr/local/bin/composer install --no-dev --optimize-autoloader --no-interaction"
-sudo -u wcodex-controla -H bash -lc "cd '$SITE' && npm ci && npm run build"
-sudo -u wcodex-controla -H bash -lc "cd '$SITE' && php8.3 artisan migrate --force --no-interaction"
-sudo -u wcodex-controla -H bash -lc "cd '$SITE' && php8.3 artisan db:seed --class=RoleAndPermissionSeeder --force --no-interaction"
-sudo -u wcodex-controla -H bash -lc "cd '$SITE' && php8.3 artisan config:cache && php8.3 artisan route:cache && php8.3 artisan view:cache"
-chown -R wcodex-controla:wcodex-controla "$SITE"
+sudo -u wcodex-zentra git pull --ff-only origin main
+sudo -u wcodex-zentra -H bash -lc "cd '$SITE' && php8.3 /usr/local/bin/composer install --no-dev --optimize-autoloader --no-interaction"
+sudo -u wcodex-zentra -H bash -lc "cd '$SITE' && npm ci && npm run build"
+sudo -u wcodex-zentra -H bash -lc "cd '$SITE' && php8.3 artisan migrate --force --no-interaction"
+sudo -u wcodex-zentra -H bash -lc "cd '$SITE' && php8.3 artisan db:seed --class=RoleAndPermissionSeeder --force --no-interaction"
+sudo -u wcodex-zentra -H bash -lc "cd '$SITE' && php8.3 artisan config:cache && php8.3 artisan route:cache && php8.3 artisan view:cache"
+chown -R wcodex-zentra:wcodex-zentra "$SITE"
 ```
 
 Cron del sitio: `* * * * * php8.3 artisan schedule:run`.

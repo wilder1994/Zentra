@@ -120,7 +120,7 @@
             <div>
                 <x-ui.label for="service_started_at">Inicio de servicio</x-ui.label>
                 <x-ui.input id="service_started_at" type="date" name="service_started_at" :value="old('service_started_at', $client->service_started_at?->format('Y-m-d'))" />
-                <p class="mt-1 text-[11px] text-slate-500">Controla no gestiona cobros de la empresa hacia este cliente.</p>
+                <p class="mt-1 text-[11px] text-slate-500">Zentra no gestiona cobros de la empresa hacia este cliente.</p>
                 <x-ui.field-error :messages="$errors->get('service_started_at')" />
             </div>
 

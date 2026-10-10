@@ -157,7 +157,7 @@ final class ClientController extends Controller
     {
         $this->authorize('create', Client::class);
 
-        return Excel::download(new ClientImportTemplateExport, 'formato-clientes-controla.xlsx');
+        return Excel::download(new ClientImportTemplateExport, 'formato-clientes-zentra.xlsx');
     }
 
     public function storeImportPreview(PreviewClientImportRequest $request): RedirectResponse

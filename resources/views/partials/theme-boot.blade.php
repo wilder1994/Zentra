@@ -1,7 +1,7 @@
 <script>
 (function () {
     try {
-        var t = localStorage.getItem('controla-theme');
+        var t = localStorage.getItem('zentra-theme');
         document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
     } catch (e) {
         document.documentElement.setAttribute('data-theme', 'dark');

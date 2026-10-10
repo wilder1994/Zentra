@@ -27,7 +27,7 @@
         <env name="DB_CONNECTION" value="mysql"/>
         <env name="DB_HOST" value="127.0.0.1"/>
         <env name="DB_PORT" value="3306"/>
-        <env name="DB_DATABASE" value="controla_test"/>
+        <env name="DB_DATABASE" value="zentra_test"/>
         <env name="DB_USERNAME" value="root"/>
         <env name="DB_PASSWORD" value=""/>
         <env name="MAIL_MAILER" value="array"/>
@@ -35,7 +35,7 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
-        <env name="SUPERVISION_PWA_URL" value="http://controla_supervision.test"/>
+        <env name="SUPERVISION_PWA_URL" value="http://zentra_supervision.test"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="LIBREOFFICE_BIN" value="off"/>
     </php>

@@ -1,4 +1,4 @@
-<button type="button" class="ui-theme-toggle" onclick="window.ControlaTheme && window.ControlaTheme.toggle()" title="Tema claro u oscuro" aria-label="Cambiar tema">
+<button type="button" class="ui-theme-toggle" onclick="window.ZentraTheme && window.ZentraTheme.toggle()" title="Tema claro u oscuro" aria-label="Cambiar tema">
     <svg class="icon-moon h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z"/>
     </svg>

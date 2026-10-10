@@ -22,7 +22,7 @@ final class AdminDownloadsTest extends TestCase
             ->assertOk()
             ->assertSee('Descargas')
             ->assertSee('App de Supervisión')
-            ->assertSee('controla_supervision.test')
+            ->assertSee('zentra_supervision.test')
             ->assertSee('Descargar APK')
             ->assertSee('Abrir web');
     }

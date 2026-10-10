@@ -4,9 +4,9 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="description" content="Controla — Accesos, supervisión de campo y observatorio para empresas de seguridad y entidades.">
+        <meta name="description" content="Zentra — Accesos, supervisión de campo y observatorio para empresas de seguridad y entidades.">
 
-        <title>Controla — Accesos, supervisión y observatorio</title>
+        <title>Zentra — Accesos, supervisión y observatorio</title>
 
         @include('partials.favicon')
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -30,8 +30,8 @@
                     <div class="mx-auto flex w-full max-w-[96rem] items-center justify-between px-6 py-3 lg:px-8">
                         <a href="{{ url('/') }}" class="inline-flex shrink-0 items-center">
                             <img
-                                src="{{ asset('images/branding/logo-controla.png') }}"
-                                alt="Controla — WCodex"
+                                src="{{ asset('images/branding/logo-zentra.png') }}"
+                                alt="Zentra — WCodex"
                                 class="h-11 w-auto sm:h-12 lg:h-14"
                             >
                         </a>
@@ -64,7 +64,7 @@
                         <div class="flex flex-col justify-center gap-6 lg:col-span-2">
                             <div class="space-y-3">
                                 <p class="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400">
-                                    PLATAFORMA CONTROLA
+                                    PLATAFORMA ZENTRA
                                 </p>
                                 <h1 class="text-3xl font-bold leading-[1.08] text-white sm:text-4xl lg:text-5xl">
                                     Accesos, supervisión y observatorio
@@ -104,7 +104,7 @@
                             <div class="absolute -inset-3 rounded-3xl bg-cyan-500/15 blur-3xl"></div>
                             <img
                                 src="{{ asset('images/welcome/hero-dashboard.png') }}"
-                                alt="Panel de administración central de Controla"
+                                alt="Panel de administración central de Zentra"
                                 class="relative h-full w-full rounded-xl border border-white/10 object-cover object-center shadow-2xl shadow-black/50 sm:rounded-2xl"
                             >
                         </div>
@@ -168,7 +168,7 @@
 
                 <footer class="shrink-0 border-t border-white/10 bg-slate-950/40 backdrop-blur-sm">
                     <div class="mx-auto flex w-full max-w-[96rem] flex-col items-center justify-between gap-1 px-6 py-3.5 text-sm text-slate-400 sm:flex-row lg:px-8">
-                        <p>Controla &copy; {{ date('Y') }}</p>
+                        <p>Zentra &copy; {{ date('Y') }}</p>
                         <p>WCodex &middot; Innovative Software Solutions</p>
                     </div>
                 </footer>

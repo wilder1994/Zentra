@@ -29,7 +29,7 @@ BILLING_GATEWAY_DRIVER=local
 | Variable | Valor local | Notas |
 |----------|-------------|--------|
 | `BILLING_MODE` | `demo` | Sin API PT / CUFE real |
-| `BILLING_GATEWAY_DRIVER` | `local` | Checkout interno Controla |
+| `BILLING_GATEWAY_DRIVER` | `local` | Checkout interno Zentra |
 
 ---
 

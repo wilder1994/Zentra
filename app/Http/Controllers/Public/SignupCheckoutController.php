@@ -63,7 +63,7 @@ final class SignupCheckoutController extends Controller
 
         return redirect()
             ->route('company.dashboard')
-            ->with('success', 'Cuenta activada. Bienvenido a Controla.');
+            ->with('success', 'Cuenta activada. Bienvenido a Zentra.');
     }
 
     public function reject(CommercialSignupIntent $intent): RedirectResponse

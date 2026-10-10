@@ -1,4 +1,4 @@
-const KEY = 'controla-theme';
+const KEY = 'zentra-theme';
 
 export function currentTheme() {
     return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
@@ -61,12 +61,12 @@ function chartInstances() {
 
 export function registerChartTheme() {
     const Chart = window.Chart;
-    if (!Chart?.register || Chart.__controlaTheme) {
+    if (!Chart?.register || Chart.__zentraTheme) {
         return Boolean(Chart);
     }
-    Chart.__controlaTheme = true;
+    Chart.__zentraTheme = true;
     Chart.register({
-        id: 'controlaTheme',
+        id: 'zentraTheme',
         beforeUpdate(chart) {
             paintChart(chart);
         },
@@ -98,7 +98,7 @@ export function setTheme(theme) {
     if (meta) {
         meta.setAttribute('content', next === 'light' ? '#eaf4f1' : '#020617');
     }
-    window.dispatchEvent(new CustomEvent('controla-theme', { detail: { theme: next } }));
+    window.dispatchEvent(new CustomEvent('zentra-theme', { detail: { theme: next } }));
     refreshCharts();
 }
 
@@ -106,7 +106,7 @@ export function toggleTheme() {
     setTheme(currentTheme() === 'light' ? 'dark' : 'light');
 }
 
-window.ControlaTheme = {
+window.ZentraTheme = {
     current: currentTheme,
     set: setTheme,
     toggle: toggleTheme,
@@ -121,4 +121,4 @@ window.addEventListener('load', () => {
     registerChartTheme();
     refreshCharts();
 });
-window.addEventListener('controla-theme', refreshCharts);
+window.addEventListener('zentra-theme', refreshCharts);

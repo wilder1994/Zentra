@@ -1,6 +1,6 @@
 # Supervisión de campo
 
-Controla es la fuente de verdad. La PWA (`field-app/` y el host `controla_supervision.test`) solo captura.
+Zentra es la fuente de verdad. La PWA (`field-app/` y el host `zentra_supervision.test`) solo captura.
 
 No choca con: minuta de portería (`/access/supervision`), `SupervisorReview`, `PlatformDocument`, zonas/vehículos de Accesos, `locations` (accesos) ni correspondencia.
 
@@ -39,9 +39,9 @@ Flota: `supervisor_fleet_vehicles` (placa/marca la primera vez). **No** es `vehi
 
 ## App de campo
 
-PWA en `field-app/` (copia `public/campo/` y Laragon `Controla_Supervision`). Caché SW `controla-sup-v49`. Hosting: `https://controla.wcodex.cloud/campo`. APK Android v1.8 (Capacitor) en `field-app/android/`; el binario se publica en `public/downloads/controla-supervision.apk`. Selfie de inicio en el círculo de perfil. Login: si hay otra sesión, pregunta si la cierra.
+PWA en `field-app/` (copia `public/campo/` y Laragon `Zentra_Supervision`). Caché SW `zentra-sup-v49`. Hosting: `https://zentra.wcodex.cloud/campo`. APK Android v1.8 (Capacitor) en `field-app/android/`; el binario se publica en `public/downloads/zentra-supervision.apk`. Selfie de inicio en el círculo de perfil. Login: si hay otra sesión, pregunta si la cierra.
 
-Login: **usuario** (`nombre.apellido.####`, igual que el resto de usuarios de empresa) o el correo de cuentas antiguas, más contraseña. En login y primer cambio de clave, icono de ojo para verla. Alta: **Usuarios** → nombre y cédula del empleado → generar usuario y clave; primera entrada pide cambiar clave. El correo corporativo **no** es el login: está en la zona y se resuelve al abrir turno. API **siempre** Controla: host `controla_supervision` → mismo esquema + host `controla` + `/api`; puerto `8085` → mismo host `:8084/api`. No hay campo de API. Instalación: **Descargas** en empresa (`/company/descargas`) y plataforma (`/admin/descargas`); QR + enlace (`SUPERVISION_PWA_URL`). Hard-refresh tras cambios de PWA.
+Login: **usuario** (`nombre.apellido.####`, igual que el resto de usuarios de empresa) o el correo de cuentas antiguas, más contraseña. En login y primer cambio de clave, icono de ojo para verla. Alta: **Usuarios** → nombre y cédula del empleado → generar usuario y clave; primera entrada pide cambiar clave. El correo corporativo **no** es el login: está en la zona y se resuelve al abrir turno. API **siempre** Zentra: host `zentra_supervision` → mismo esquema + host `zentra` + `/api`; puerto `8085` → mismo host `:8084/api`. No hay campo de API. Instalación: **Descargas** en empresa (`/company/descargas`) y plataforma (`/admin/descargas`); QR + enlace (`SUPERVISION_PWA_URL`). Hard-refresh tras cambios de PWA.
 
 Fotos: no se enciende la cámara al abrir. **Trasera** / **Frontal** o **Tomar foto** piden `getUserMedia` (hace falta HTTPS o localhost). Tras capturar se apaga. Galería solo si no hay contexto seguro.
 
@@ -61,7 +61,7 @@ Sin puestos de Supervisión en la ficha del cliente no se guarda revista. Los `l
 
 Login y **abrir turno** requieren internet. Al iniciar turno (o al entrar con turno abierto) la PWA baja un **paquete** (`GET /api/supervision/offline-pack`: clientes, puestos, vigilantes, catálogo) a IndexedDB.
 
-Sin red puede registrar revistas, alarmas, apoyos, documentos y pings GPS: quedan en una **cola por supervisor** (`controla-sup-u{id}`). Con red, la PWA sube **todas** las colas del teléfono usando el token guardado de quien las generó. El supervisor de turno sigue trabajando: un cierre/cola ajena no bloquea Registrar ni GPS. Solo su propio cierre pendiente traba su sesión. Al abrir turno se limpia ese candado.
+Sin red puede registrar revistas, alarmas, apoyos, documentos y pings GPS: quedan en una **cola por supervisor** (`zentra-sup-u{id}`). Con red, la PWA sube **todas** las colas del teléfono usando el token guardado de quien las generó. El supervisor de turno sigue trabajando: un cierre/cola ajena no bloquea Registrar ni GPS. Solo su propio cierre pendiente traba su sesión. Al abrir turno se limpia ese candado.
 
 Cerrar turno sin red también se encola (fotos incluidas). No borrar datos del sitio hasta que el banner desaparezca. iPhone: hay que **abrir la app** al recuperar señal.
 
@@ -139,11 +139,11 @@ Servicios: `BuildSupervisionMapService`, `BuildSupervisorShiftSheetService` (fic
 
 ### Distribución
 
-**APK (corte 2) + PWA de respaldo.** El `.apk` se baja de Descargas y se instala (orígenes desconocidos). Habla con `https://controla.wcodex.cloud/api`. Mismo usuario/clave. No Play Store. No hay un binario por empresa. Con turno abierto el APK muestra una notificación persistente y el GPS sigue con la pantalla apagada (`ShiftTrackingService`, `source=apk`). El plugin pide ubicación y notificaciones **y espera** el resultado; si faltan, no arranca el servicio (evita el cierre en Android 14+) y la app sigue con ping del WebView. La PWA no tiene ese servicio. Web de respaldo: `{APP_URL}/campo` (no un subdominio `controla_supervision` en el VPS). Pánico: último botón, rojo `#b91c1c`, envío inmediato.
+**APK (corte 2) + PWA de respaldo.** El `.apk` se baja de Descargas y se instala (orígenes desconocidos). Habla con `https://zentra.wcodex.cloud/api`. Mismo usuario/clave. No Play Store. No hay un binario por empresa. Con turno abierto el APK muestra una notificación persistente y el GPS sigue con la pantalla apagada (`ShiftTrackingService`, `source=apk`). El plugin pide ubicación y notificaciones **y espera** el resultado; si faltan, no arranca el servicio (evita el cierre en Android 14+) y la app sigue con ping del WebView. La PWA no tiene ese servicio. Web de respaldo: `{APP_URL}/campo` (no un subdominio `zentra_supervision` en el VPS). Pánico: último botón, rojo `#b91c1c`, envío inmediato.
 
-Rebuild: `field-app/` → `npm run sync` → `JAVA_HOME` = JDK 21 → `npm run apk` → copiar `android/app/build/outputs/apk/debug/app-debug.apk` a `public/downloads/controla-supervision.apk`.
+Rebuild: `field-app/` → `npm run sync` → `JAVA_HOME` = JDK 21 → `npm run apk` → copiar `android/app/build/outputs/apk/debug/app-debug.apk` a `public/downloads/zentra-supervision.apk`.
 
-**Tailscale (verificado en consola 4 sep 2026, plan Gratis: MagicDNS sí, registros A custom no).** Vhosts `00-aad-controla-tailscale.conf`: API `:8084`, PWA `:8085`, alias `100.75.176.11`. Cámara: **HTTPS** `https://sjpcanaope.tail5fcfbc.ts.net/` (`tailscale serve`: `/` → 8085, `/api` → 8084). No usar `http://IP:8085` para fotos.
+**Tailscale (verificado en consola 4 sep 2026, plan Gratis: MagicDNS sí, registros A custom no).** Vhosts `00-aad-zentra-tailscale.conf`: API `:8084`, PWA `:8085`, alias `100.75.176.11`. Cámara: **HTTPS** `https://sjpcanaope.tail5fcfbc.ts.net/` (`tailscale serve`: `/` → 8085, `/api` → 8084). No usar `http://IP:8085` para fotos.
 
 Mi empresa muestra la tira **Supervisión de campo (hoy)** aparte de las revistas de portería (incluye recomendaciones del día).
 
@@ -157,7 +157,7 @@ Hoy el PPTX es **solo cifras y gráficos** (`ExportSupervisionExecutiveReportSer
 
 | # | Lámina | Editable |
 |---|--------|----------|
-| 1 | Portada (Controla, título, empresa, periodo) | No |
+| 1 | Portada (Zentra, título, empresa, periodo) | No |
 | 2 | KPIs (cobertura, revistas, km, recomendaciones) + **introducción** | Párrafo intro |
 | 3 | Actividad (grano día/mes) | Un párrafo de esa lámina |
 | 4 | Puesto: inventario, libros, carpetas, documentos | Un párrafo |
@@ -223,7 +223,7 @@ Fuera de alcance de este corte: chatbot en la PWA de campo, app de residentes, W
 | GET | `/api/supervision/sheets/{kind}/{id}` | Carta HTML de la ficha |
 | GET | `/api/supervision/recommendations` | Recomendaciones registradas |
 
-Apertura: todos los ítems EPP y vehículo en sí; si falta uno la API responde en español (`Debe confirmar: Guantes`). Validación 422 y fallos HTTP (401/403/419) también en español. La PWA muestra el texto **al centro ~2,8 s** (`#feedback`) además de `#status`. Cola offline por `user_id` (celular compartido). Panel: mismos avisos (`docs/DISENO-UI-CONTROLA.md`).
+Apertura: todos los ítems EPP y vehículo en sí; si falta uno la API responde en español (`Debe confirmar: Guantes`). Validación 422 y fallos HTTP (401/403/419) también en español. La PWA muestra el texto **al centro ~2,8 s** (`#feedback`) además de `#status`. Cola offline por `user_id` (celular compartido). Panel: mismos avisos (`docs/DISENO-UI-ZENTRA.md`).
 
 ---
 
@@ -247,6 +247,6 @@ Tipos de estructura por empresa: `security_company_id` en `create_structure_type
 php artisan migrate
 ```
 
-Tests contra `controla_test` (`phpunit.xml`). No usar `migrate:fresh` en la BD `controla`.
+Tests contra `zentra_test` (`phpunit.xml`). No usar `migrate:fresh` en la BD `zentra`.
 
-Tests: `SupervisorShiftApiTest`, `SupervisorFieldLogApiTest`, `SupervisorOfflineSyncTest`, `CompanySupervisionCatalogTest`, `CompanySupervisionFieldSheetTest`, `CompanySupervisionMapTest`, `AutoCloseExpiredSupervisorShiftsTest`, `BuildSupervisorTrailTest`, `ResolveSupervisorShiftDeadlineTest`, `SnapSupervisorTrailToRoadsTest`, `CompanyClientSiteTreeTest` (BD `controla_test`).
+Tests: `SupervisorShiftApiTest`, `SupervisorFieldLogApiTest`, `SupervisorOfflineSyncTest`, `CompanySupervisionCatalogTest`, `CompanySupervisionFieldSheetTest`, `CompanySupervisionMapTest`, `AutoCloseExpiredSupervisorShiftsTest`, `BuildSupervisorTrailTest`, `ResolveSupervisorShiftDeadlineTest`, `SnapSupervisorTrailToRoadsTest`, `CompanyClientSiteTreeTest` (BD `zentra_test`).

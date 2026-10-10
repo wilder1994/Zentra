@@ -1,4 +1,4 @@
-# Diseño UI — Controla
+# Diseño UI — Zentra
 
 Referencia oficial del sistema visual. **Panel empresa** (`/company`, acento indigo) y **panel plataforma** (`/admin`, acento violet).
 
@@ -99,7 +99,7 @@ Fuente: **Figtree** (`font-sans`). Base operativa: **14px** (`text-sm`).
 
 ### Temas (oscuro / claro)
 
-`data-theme` en `<html>` (`dark` por defecto). Toggle en headers (`partials.theme-toggle`). Preferencia: `localStorage.controla-theme`. Tokens en `resources/css/theme.css`.
+`data-theme` en `<html>` (`dark` por defecto). Toggle en headers (`partials.theme-toggle`). Preferencia: `localStorage.zentra-theme`. Tokens en `resources/css/theme.css`.
 
 | Token | Uso |
 |-------|-----|
@@ -107,7 +107,7 @@ Fuente: **Figtree** (`font-sans`). Base operativa: **14px** (`text-sm`).
 | `--ui-danger` / `--ui-warning` / `--ui-caution` / `--ui-success` | Solo alertas (grave / media / leve / ok) |
 | `--ui-surface` + `--ui-border` | Tablas, cards, inputs |
 
-Claro: mate verdoso, fondo en degradado suave. Datos, KPIs y cards (incl. `.company-cc-card`) sobre `--ui-surface`. Chart.js toma ticks/grid de `ControlaTheme.chartPalette()`.
+Claro: mate verdoso, fondo en degradado suave. Datos, KPIs y cards (incl. `.company-cc-card`) sobre `--ui-surface`. Chart.js toma ticks/grid de `ZentraTheme.chartPalette()`.
 
 Chips: `.ui-chip` / `.ui-chip-link` (+ `success|caution|warning|danger`). En claro, badges `*-900/30` + `*-300` se remapean a esos tokens para no verse opacos.
 

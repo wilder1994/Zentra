@@ -4,7 +4,7 @@ Gestión de usuarios web (`users`) por panel, perfil de empresa con geolocalizac
 
 **Última actualización:** 28 septiembre 2026
 
-La **ficha de empleado** (listado, 4 bloques SJ-SIG, foto, Excel WM + extras) vive en el sidebar **Empleados**. Es gente de la **empresa**, no del censo del predio. El Excel **no** crea usuario: solo la ficha de empleado. Reimportar el mismo documento **actualiza** la ficha (no duplica). Cargos, tipos y catálogos de Supervisión de campo: **Ajustes**. Ver [`EMPLEADOS-Y-CARGOS.md`](EMPLEADOS-Y-CARGOS.md), [`PORTERIA.md`](PORTERIA.md) y [`SUPERVISION-CAMPO.md`](SUPERVISION-CAMPO.md). Este documento cubre **usuarios** (`users`): login y roles. Login y formularios: mensajes en español al centro de la pantalla ([`DISENO-UI-CONTROLA.md`](DISENO-UI-CONTROLA.md)). **Una sesión** por usuario (web, API y PWA): si ya hay sesión, pregunta «Tienes una sesión abierta. ¿Cerrar la otra y seguir aquí?». Sí invalida la anterior; No deja fuera.
+La **ficha de empleado** (listado, 4 bloques SJ-SIG, foto, Excel WM + extras) vive en el sidebar **Empleados**. Es gente de la **empresa**, no del censo del predio. El Excel **no** crea usuario: solo la ficha de empleado. Reimportar el mismo documento **actualiza** la ficha (no duplica). Cargos, tipos y catálogos de Supervisión de campo: **Ajustes**. Ver [`EMPLEADOS-Y-CARGOS.md`](EMPLEADOS-Y-CARGOS.md), [`PORTERIA.md`](PORTERIA.md) y [`SUPERVISION-CAMPO.md`](SUPERVISION-CAMPO.md). Este documento cubre **usuarios** (`users`): login y roles. Login y formularios: mensajes en español al centro de la pantalla ([`DISENO-UI-ZENTRA.md`](DISENO-UI-ZENTRA.md)). **Una sesión** por usuario (web, API y PWA): si ya hay sesión, pregunta «Tienes una sesión abierta. ¿Cerrar la otra y seguir aquí?». Sí invalida la anterior; No deja fuera.
 
 Sidebar empresa: **Mi empresa** (dashboard) · Facturación · Clientes · **Instalaciones** · **Observatorio** · Supervisión · **Descargas** · **Empleados** · **Documentos** · Usuarios · **Mis datos** (este perfil) · **Ajustes** (Cargos | Tipos | Estructuras | Zonas | Turnos | Modalidades | Preoperacional | Documentos | Libros | Tipos de arma | Marcas | Riesgos | Alarmas | Apoyos). Chatbot de ayuda y PQRS: pendiente, [`SUPERVISION-CAMPO.md`](SUPERVISION-CAMPO.md). Observatorio: [`OBSERVATORIO.md`](OBSERVATORIO.md).
 
@@ -108,7 +108,7 @@ Usar **siempre** estos nombres en UI y documentación de producto. Los slugs Spa
 
 ### Relación empresa ↔ cliente (cobros)
 
-Controla **no** factura ni muestra deuda del cliente hacia la empresa de seguridad. Ese cobro es externo (contrato de vigilancia).
+Zentra **no** factura ni muestra deuda del cliente hacia la empresa de seguridad. Ese cobro es externo (contrato de vigilancia).
 
 En el cliente se registran datos comerciales (`party_type`, documento, contactos, representante, ciudad) y **`service_started_at`**. El **tipo de estructura** se fija en el alta. Instalaciones, accesos y puestos **no** van en el Excel; sedes en `/company/installations` o ficha del cliente; puestos en la ficha de la sede. Ver [`CLIENTES-Y-ESTRUCTURA.md`](CLIENTES-Y-ESTRUCTURA.md).
 
@@ -207,7 +207,7 @@ Reglas:
 
 | Campo | Uso |
 |-------|-----|
-| `service_started_at` | Fecha de inicio de servicio (única fecha comercial operativa del cliente en Controla) |
+| `service_started_at` | Fecha de inicio de servicio (única fecha comercial operativa del cliente en Zentra) |
 
 ---
 

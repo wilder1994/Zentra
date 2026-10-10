@@ -6,7 +6,7 @@ Maestro de colaboradores de la **empresa** de seguridad. **No** son las **person
 
 Distinto de **usuarios** (`/company/users`): la ficha de empleado es el colaborador; el usuario es el login. Ver [`USUARIOS-Y-PERFILES.md`](USUARIOS-Y-PERFILES.md).
 
-La pantalla copia Personal de SJ-SIG (listado, ficha, foto, bloques HR/SS) con estilos Controla. Se mantienen nombres partidos, tipo de documento de catálogo, DIVIPOLA y cargos/tipos por empresa. Fuente Excel: `Maestro Colaboradores WM.xlsx` **ampliado** con columnas SJ-SIG opcionales. **No** van las cuatro de asignación a cliente (razón social, instalaciones, sector, puesto).
+La pantalla copia Personal de SJ-SIG (listado, ficha, foto, bloques HR/SS) con estilos Zentra. Se mantienen nombres partidos, tipo de documento de catálogo, DIVIPOLA y cargos/tipos por empresa. Fuente Excel: `Maestro Colaboradores WM.xlsx` **ampliado** con columnas SJ-SIG opcionales. **No** van las cuatro de asignación a cliente (razón social, instalaciones, sector, puesto).
 
 ---
 
@@ -69,7 +69,7 @@ Catálogos **por empresa**, no seeder de plataforma. El formulario usa select. S
 
 Rojo = obligatorio en el archivo. Gris = opcional en el archivo.
 
-| Col | Encabezado | Controla |
+| Col | Encabezado | Zentra |
 |-----|------------|----------|
 | A–B | Tipo y nro. documento | Obligatorio. Tipo del catálogo (código o nombre). Si el número ya existe, se actualiza la ficha. |
 | C–D | Ap. Paterno / Materno | **Al menos uno.** Los dos es mejor, no obligatorio. |

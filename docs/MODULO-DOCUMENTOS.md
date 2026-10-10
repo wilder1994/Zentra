@@ -30,7 +30,7 @@ No confundir con el **Documentos de personal** de la empresa (`/company/document
 
 | Ítem | Estado hoy | Implicación en producto |
 |------|------------|-------------------------|
-| Registro empresarial / RUT operativo de Controla | **Pendiente** | No hay facturación DIAN real en producción |
+| Registro empresarial / RUT operativo de Zentra | **Pendiente** | No hay facturación DIAN real en producción |
 | Proveedor tecnológico (PT) de factura electrónica | **Pendiente** | Sin API ni portal contratado |
 | Decisión de producto | **Facturación con PT** (no software propio DIAN en arranque) | Integración PT en fase 2 post go-live |
 
@@ -44,7 +44,7 @@ No confundir con el **Documentos de personal** de la empresa (`/company/document
 
 ### Go-live comercial (pendiente)
 
-1. Constitución / RUT de Controla al día.  
+1. Constitución / RUT de Zentra al día.  
 2. Habilitación como facturador electrónico ante DIAN.  
 3. Contrato con **proveedor tecnológico** (portal → API).  
 4. Textos legales revisados por asesoría externa.  
@@ -73,14 +73,14 @@ No confundir con el **Documentos de personal** de la empresa (`/company/document
 
 ## 4. Marco normativo de referencia
 
-| Capa | Norma | Uso en Controla |
+| Capa | Norma | Uso en Zentra |
 |------|--------|-----------------|
 | Datos personales | Ley 1581/2012, Dec. 1377/2013 | Autorización, supresión, encargado/responsable, evidencia ARCO |
 | Mensajes de datos | Ley 527/1999, Dec. 2364/2012 | Clickwrap, contratos electrónicos, integridad |
 | Conservación mercantil | CCom art. 60, Ley 962 art. 28 | Contratos y FE ~10 años |
 | Factura electrónica | Sistema FE DIAN (Res. 000165/2023 y compilaciones) | Emisión vía PT en go-live |
 | Archivo / TRD | Ley 594/2000 (metodología TRD como buena práctica) | Series y disposición documental |
-| Consumo B2C | Ley 1480/2011 | Referencia; Controla B2B prioriza CCom + 527 |
+| Consumo B2C | Ley 1480/2011 | Referencia; Zentra B2B prioriza CCom + 527 |
 
 ---
 
@@ -200,7 +200,7 @@ Alta suscriptor (PJ o PN)
 | **5** | Wizard alta PJ/PN en creación empresas | 🔲 Fase futura — ver §12 |
 | **6** | Pantalla disposición final documental | 🔲 Fase futura — ver §12 |
 | **7** | Go-live legal + PT portal (FE manual/adjunto) | 🔲 Pendiente legal |
-| **8** | API PT DIAN desde Controla (FE automática) | 🔲 Fase futura — ver §12 |
+| **8** | API PT DIAN desde Zentra (FE automática) | 🔲 Fase futura — ver §12 |
 
 ---
 
@@ -226,7 +226,7 @@ Alta suscriptor (PJ o PN)
 - [ ] Revisión legal externa de textos (contrato, T&C, políticas, DPA).
 - [ ] Elección de PT (cotizar 2 opciones).
 - [ ] Pasarela (Wompi / PayU / etc.) y modo sandbox.
-- [ ] Constitución / RUT Controla y habilitación FE DIAN.
+- [ ] Constitución / RUT Zentra y habilitación FE DIAN.
 - [ ] `billing.mode = live` en producción.
 
 ---
@@ -261,7 +261,7 @@ Detalle técnico de lo que **no** está en v1 y cómo integrarlo sin romper el e
 
 | Aspecto | Diseño propuesto |
 |---------|------------------|
-| Prerrequisitos legales | RUT Controla, resolución FE DIAN, contrato PT, textos legales firmados |
+| Prerrequisitos legales | RUT Zentra, resolución FE DIAN, contrato PT, textos legales firmados |
 | Abstracción | `App\Contracts\Billing\ElectronicInvoiceIssuer` → `issue(CommercialPayment, SecurityCompany): IssuedInvoice` |
 | Implementación | `App\Services\Platform\Billing\PtElectronicInvoiceIssuer` (adaptador por PT elegido) |
 | Config | `billing.pt.driver`, `billing.pt.api_url`, `billing.pt.api_key`, `billing.pt.test_mode` |

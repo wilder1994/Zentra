@@ -14,7 +14,7 @@ return [
     'demo_invoice_prefix' => env('BILLING_DEMO_PREFIX', 'DEMO'),
 
     /*
-    | Driver de pasarela: local = checkout simulado en Controla (sin proveedor externo).
+    | Driver de pasarela: local = checkout simulado en Zentra (sin proveedor externo).
     | Futuro: wompi, payu, etc.
     */
     'gateway' => [

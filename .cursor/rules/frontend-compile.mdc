@@ -7,7 +7,7 @@ alwaysApply: true
 
 Tras cualquier ajuste visible (Blade, CSS, JS de Vite o PWA `field-app/`):
 
-1. **Panel Laravel:** `npm run build` en la raíz de Controla. No dar el cambio por cerrado solo con el HTML; Tailwind arbitrario no existe hasta Vite.
-2. **App de campo:** copiar `field-app/` a `C:\laragon\www\Controla_Supervision` y subir la versión de caché en `sw.js` (`controla-sup-vN`).
+1. **Panel Laravel:** `npm run build` en la raíz de Zentra. No dar el cambio por cerrado solo con el HTML; Tailwind arbitrario no existe hasta Vite.
+2. **App de campo:** copiar `field-app/` a `C:\laragon\www\Zentra_Supervision` y subir la versión de caché en `sw.js` (`zentra-sup-vN`).
 
 No omitir el build ni la copia de la PWA.

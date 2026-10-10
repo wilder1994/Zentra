@@ -60,8 +60,8 @@ final class CompanySupervisionFieldSheetTest extends TestCase
         $print->assertSee('Puesto:', false);
         $print->assertSee($client->name);
         $print->assertSee('Decreto 356 de 1994', false);
-        $print->assertDontSee('generado desde Controla');
-        $print->assertDontSee('>Controla<', false);
+        $print->assertDontSee('generado desde Zentra');
+        $print->assertDontSee('>Zentra<', false);
 
         $this->assertDatabaseHas('supervisor_shift_reviews', [
             'id' => $reviewId,

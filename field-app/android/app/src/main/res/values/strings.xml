@@ -1,9 +1,9 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Controla Supervisión</string>
-    <string name="title_activity_main">Controla Supervisión</string>
-    <string name="package_name">cloud.wcodex.controla.supervision</string>
-    <string name="custom_url_scheme">cloud.wcodex.controla.supervision</string>
+    <string name="app_name">Zentra Supervisión</string>
+    <string name="title_activity_main">Zentra Supervisión</string>
+    <string name="package_name">cloud.wcodex.zentra.supervision</string>
+    <string name="custom_url_scheme">cloud.wcodex.zentra.supervision</string>
     <string name="shift_tracking_channel">GPS de turno</string>
     <string name="shift_tracking_title">Turno de supervisión activo</string>
     <string name="shift_tracking_text">El GPS sigue con la pantalla apagada.</string>

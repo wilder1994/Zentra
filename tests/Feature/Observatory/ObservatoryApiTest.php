@@ -26,7 +26,7 @@ final class ObservatoryApiTest extends TestCase
         $this->getJson('/api/observatory/openapi.json')
             ->assertOk()
             ->assertJsonPath('openapi', '3.0.3')
-            ->assertJsonPath('info.title', 'Controla Observatorio API')
+            ->assertJsonPath('info.title', 'Zentra Observatorio API')
             ->assertJsonStructure(['paths' => ['/api/observatory/events', '/api/observatory/reports']]);
     }
 

@@ -10,8 +10,8 @@
 @endphp
 
 <div
-    id="controla-feedback"
-    data-controla-feedback
+    id="zentra-feedback"
+    data-zentra-feedback
     data-initial-text="{{ $text ?? '' }}"
     data-initial-kind="{{ $kind }}"
     data-initial-field="{{ $firstKey }}"
@@ -20,7 +20,7 @@
     aria-atomic="true"
 >
     <p
-        data-controla-feedback-msg
+        data-zentra-feedback-msg
         hidden
         class="max-w-md rounded-xl border px-5 py-3 text-center text-sm font-semibold leading-snug shadow-2xl"
     ></p>

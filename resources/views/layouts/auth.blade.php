@@ -6,7 +6,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ $title }} — Controla</title>
+        <title>{{ $title }} — Zentra</title>
 
         @include('partials.favicon')
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -28,8 +28,8 @@
                 <div class="mb-6 text-center">
                     <a href="{{ url('/') }}" class="inline-flex">
                         <img
-                            src="{{ asset('images/branding/logo-controla.png') }}"
-                            alt="Controla"
+                            src="{{ asset('images/branding/logo-zentra.png') }}"
+                            alt="Zentra"
                             class="mx-auto h-14 w-auto sm:h-16"
                         >
                     </a>

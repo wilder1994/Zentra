@@ -1,27 +1,25 @@
 ---
-description: Remoto Git oficial y política de push para Controla
+description: Remoto Git único y política de push para Zentra
 alwaysApply: true
 ---
 
 # Git — remoto y push
 
-## Remotos
+## Remoto
 
-- **Trabajo / origin (wilder1994):** `https://github.com/wilder1994/Controla.git` — en esta máquina es `origin` (`main`)
-- **Oficial (wmcodesoft):** `https://github.com/wmcodesoft/Controla.git` — remoto `wmcodesoft`
-- **NO** hacer push a `wmcodesoft` ni a `origin` salvo petición explícita del usuario.
+- **Único repositorio:** `https://github.com/wilder1994/Zentra.git` — remoto `origin` (`main`)
+- No existe otro remoto. No agregar remotos nuevos salvo petición explícita del usuario.
 
 ## Política de push
 
 - **NUNCA** hacer `git push` por iniciativa propia.
-- Solo subir cambios cuando el usuario lo pida explícitamente (ej. "sube los cambios", "haz push", "sube a wilder1994").
+- Solo subir cambios cuando el usuario lo pida explícitamente (ej. "sube los cambios", "haz push").
 - Antes de push: verificar `git status`, commitear solo lo que corresponda si el usuario lo pidió.
 
 ## Comandos de referencia
 
 ```bash
-git push -u origin main
+git push origin main
 git push origin creawilder
-git push wmcodesoft main
 git push origin --tags
 ```

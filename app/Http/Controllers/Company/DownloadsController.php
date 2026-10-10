@@ -28,7 +28,7 @@ final class DownloadsController extends Controller
         $path = SupervisionAppUrl::apkPath();
         abort_unless($path !== null, 404);
 
-        return response()->download($path, 'controla-supervision.apk', [
+        return response()->download($path, 'zentra-supervision.apk', [
             'Content-Type' => 'application/vnd.android.package-archive',
         ]);
     }

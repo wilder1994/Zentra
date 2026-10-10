@@ -1,4 +1,4 @@
-package cloud.wcodex.controla.supervision;
+package cloud.wcodex.zentra.supervision;
 
 import android.Manifest;
 import android.app.Notification;
@@ -30,7 +30,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class ShiftTrackingService extends Service implements LocationListener {
-    private static final String CHANNEL = "controla_shift_gps";
+    private static final String CHANNEL = "zentra_shift_gps";
     private static final int NOTICE_ID = 2201;
     private LocationManager locationManager;
     private Location lastLocation;

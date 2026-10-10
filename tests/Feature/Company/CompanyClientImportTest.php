@@ -36,7 +36,7 @@ final class CompanyClientImportTest extends TestCase
 
         $response = $this->actingAs($this->admin())->get(route('company.clients.template'));
         $response->assertOk();
-        $response->assertDownload('formato-clientes-controla.xlsx');
+        $response->assertDownload('formato-clientes-zentra.xlsx');
 
         $tmp = sys_get_temp_dir().DIRECTORY_SEPARATOR.'formato-clientes-'.uniqid().'.xlsx';
         file_put_contents($tmp, Excel::raw(new ClientImportTemplateExport, \Maatwebsite\Excel\Excel::XLSX));

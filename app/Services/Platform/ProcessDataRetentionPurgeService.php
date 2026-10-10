@@ -76,7 +76,7 @@ final class ProcessDataRetentionPurgeService
                     $company->update([
                         'legal_name' => "Empresa archivada #{$company->id}",
                         'trade_name' => "Empresa archivada #{$company->id}",
-                        'email' => "archived-{$company->id}@purged.controla",
+                        'email' => "archived-{$company->id}@purged.zentra",
                         'phone' => null,
                         'logo_path' => null,
                         'commercial_anonymized_at' => $now,

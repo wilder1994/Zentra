@@ -1,10 +1,10 @@
-package cloud.wcodex.controla.supervision;
+package cloud.wcodex.zentra.supervision;
 
 import android.content.Context;
 import android.content.SharedPreferences;
 
 final class ShiftTrackingStore {
-    private static final String PREFS = "controla_shift_tracking";
+    private static final String PREFS = "zentra_shift_tracking";
     private static final String API = "api_base";
     private static final String TOKEN = "token";
 

@@ -20,7 +20,7 @@ final class ClientImportTemplateInstructionsSheet implements FromArray, ShouldAu
     public function array(): array
     {
         return [
-            ['Instrucciones — carga de clientes Controla'],
+            ['Instrucciones — carga de clientes Zentra'],
             [''],
             ['Usa la hoja Clientes. Esta hoja no se importa. La ficha no consume cupo; Accesos y Supervisión sí.'],
             ['Rojo = obligatorio. Gris = opcional.'],

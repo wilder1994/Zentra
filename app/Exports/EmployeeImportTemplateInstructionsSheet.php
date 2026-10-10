@@ -20,10 +20,10 @@ final class EmployeeImportTemplateInstructionsSheet implements FromArray, Should
     public function array(): array
     {
         return [
-            ['Instrucciones — carga de empleados Controla'],
+            ['Instrucciones — carga de empleados Zentra'],
             [''],
             ['Usa la hoja Empleados. Esta hoja no se importa.'],
-            ['Rojo = obligatorio en archivo. Gris = opcional en archivo (el correo sí es obligatorio en Controla).'],
+            ['Rojo = obligatorio en archivo. Gris = opcional en archivo (el correo sí es obligatorio en Zentra).'],
             [''],
             ['Columna', 'Regla'],
             ['Tipo Documento de Identidad', 'Catálogo de la plataforma (CC, CE, PA… o el nombre: Cédula de ciudadanía).'],
@@ -31,13 +31,13 @@ final class EmployeeImportTemplateInstructionsSheet implements FromArray, Should
             ['Ap. Paterno / Materno', 'Al menos uno de los dos. Si puedes, llena ambos.'],
             ['Nombres', 'Obligatorio.'],
             ['Sexo', 'Hombre o Mujer.'],
-            ['Edad', 'No se carga. Controla la calcula con la fecha de nacimiento.'],
+            ['Edad', 'No se carga. Zentra la calcula con la fecha de nacimiento.'],
             ['Tipo Colaborador', 'Obligatorio. Si no existe en Tipos de la empresa, se crea al aceptar.'],
             ['Razón Social / Instalaciones / Sector / Puesto', 'No se usan. Déjalas vacías. El árbol (instalación, acceso, puesto) se crea a mano en la ficha del cliente.'],
             ['Cargo', 'Obligatorio. Si no existe en Cargos de la empresa, se crea al aceptar.'],
             ['Fecha Nacimiento', 'Obligatoria. Formato dd-mm-aaaa o fecha Excel.'],
             ['Nacionalidad', 'Obligatoria. Ej. COLOMBIANA.'],
-            ['Email Ficha', 'Obligatorio en Controla aunque el encabezado sea gris. Único por empresa.'],
+            ['Email Ficha', 'Obligatorio en Zentra aunque el encabezado sea gris. Único por empresa.'],
             ['G.Sanguíneo', 'O+, O-, A+, A-, B+, B-, AB+, AB- o Pendiente (si aún no se conoce). Se ignora el texto entre paréntesis.'],
             ['Mismo CC origen? / Discapacidad', 'SI o NO. Vacío = sin dato / No.'],
             ['Teléfono / residencia / dirección', 'Opcionales. Si no vienen, la ficha queda sin esos datos.'],

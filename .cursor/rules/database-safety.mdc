@@ -3,19 +3,19 @@ description: Proteger la BD de desarrollo — nunca borrar datos sin autorizaci�
 alwaysApply: true
 ---
 
-# Seguridad de base de datos (Controla)
+# Seguridad de base de datos (Zentra)
 
 ## PROHIBIDO sin autorización explícita del usuario
 
 - `php artisan migrate:fresh`
 - `php artisan migrate:refresh`
 - `php artisan db:wipe`
-- Cualquier comando que recree o vacíe tablas en la BD de desarrollo (`controla`)
+- Cualquier comando que recree o vacíe tablas en la BD de desarrollo (`zentra`)
 
 ## Tests
 
 - **Nunca** ejecutar `php artisan test` (suite completa) contra MySQL de desarrollo.
-- Los tests deben usar la BD aislada `controla_test` definida en `phpunit.xml`, nunca `controla`.
+- Los tests deben usar la BD aislada `zentra_test` definida en `phpunit.xml`, nunca `zentra`.
 - Si hay duda sobre el entorno de test, **no correr tests**; avisar al usuario del riesgo.
 
 ## Seed

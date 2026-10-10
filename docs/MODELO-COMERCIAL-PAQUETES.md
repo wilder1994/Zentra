@@ -1,4 +1,4 @@
-# Modelo comercial — Paquetes empresa (Controla)
+# Modelo comercial — Paquetes empresa (Zentra)
 
 Documentación de la implementación de pricing B2B para empresas de seguridad (julio 2026).
 
@@ -64,7 +64,7 @@ Motor: `App\Support\Catalog\CatalogPricer`. Signup público aún usa SKU legacy 
 | GET/PUT | `/admin/pricing` | `platform.companies.view` / `manage` |
 | GET | `/planes` | público |
 
-## Tests (BD `controla_test`)
+## Tests (BD `zentra_test`)
 
 ```bash
 php artisan test --filter=CatalogPricerTest

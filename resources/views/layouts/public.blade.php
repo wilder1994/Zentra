@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title ?? 'Controla' }} — {{ config('app.name') }}</title>
+    <title>{{ $title ?? 'Zentra' }} — {{ config('app.name') }}</title>
     @include('partials.favicon')
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet" />
@@ -15,7 +15,7 @@
     <header class="border-b border-white/10 bg-slate-950/80 backdrop-blur-md sticky top-0 z-20">
         <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
             <a href="{{ url('/') }}" class="inline-flex items-center gap--2">
-                <img src="{{ asset('images/branding/logo-controla.png') }}" alt="Controla" class="h-9 w-auto">
+                <img src="{{ asset('images/branding/logo-zentra.png') }}" alt="Zentra" class="h-9 w-auto">
             </a>
             <nav class="flex items-center gap-3 text-sm">
                 @include('partials.theme-toggle')
@@ -36,7 +36,7 @@
     </main>
 
     <footer class="border-t border-white/10 py-6 text-center text-xs text-slate-500">
-        Controla &copy; {{ date('Y') }} · WCodex · Innovative Software Solutions
+        Zentra &copy; {{ date('Y') }} · WCodex · Innovative Software Solutions
     </footer>
     @stack('scripts')
 </body>

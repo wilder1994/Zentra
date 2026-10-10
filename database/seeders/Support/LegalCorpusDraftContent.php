@@ -15,9 +15,9 @@ final class LegalCorpusDraftContent
     public static function terms(): string
     {
         return <<<'TXT'
-TÉRMINOS Y CONDICIONES DE USO — PLATAFORMA CONTROLA (borrador)
+TÉRMINOS Y CONDICIONES DE USO — PLATAFORMA ZENTRA (borrador)
 
-1. Objeto. Estos términos regulan el acceso y uso de la plataforma SaaS Controla para gestión de control de acceso, visitantes y operaciones asociadas, prestada bajo el paquete comercial contratado.
+1. Objeto. Estos términos regulan el acceso y uso de la plataforma SaaS Zentra para gestión de control de acceso, visitantes y operaciones asociadas, prestada bajo el paquete comercial contratado.
 
 2. Capacidad. El suscriptor declara actuar por sí o mediante representante legal con facultades suficientes (persona natural o jurídica).
 
@@ -27,9 +27,9 @@ TÉRMINOS Y CONDICIONES DE USO — PLATAFORMA CONTROLA (borrador)
 
 5. Pagos. El ciclo de facturación (mensual/anual) y el precio del SKU contratado constan en la oferta aceptada. Mora puede activar el procedimiento de gracia, suspensión y archivo descrito en la Normoteca.
 
-6. Propiedad intelectual. Controla y sus licenciantes conservan derechos sobre el software, marcas y documentación. Se otorga licencia de uso no exclusiva, intransferible y limitada al paquete adquirido.
+6. Propiedad intelectual. Zentra y sus licenciantes conservan derechos sobre el software, marcas y documentación. Se otorga licencia de uso no exclusiva, intransferible y limitada al paquete adquirido.
 
-7. Responsabilidad. En la máxima medida permitida por la ley, la responsabilidad de Controla se limita a los montos efectivamente pagados en los últimos doce (12) meses por el servicio afectado, salvo dolo o culpa grave.
+7. Responsabilidad. En la máxima medida permitida por la ley, la responsabilidad de Zentra se limita a los montos efectivamente pagados en los últimos doce (12) meses por el servicio afectado, salvo dolo o culpa grave.
 
 8. Datos personales. El tratamiento se rige por la Política de Tratamiento de Datos y, cuando aplique, por acuerdos de encargado/responsable conforme a la Ley 1581 de 2012 y el Decreto 1377 de 2013.
 
@@ -49,9 +49,9 @@ TXT;
     public static function privacy(): string
     {
         return <<<'TXT'
-POLÍTICA DE TRATAMIENTO DE DATOS PERSONALES — CONTROLA (borrador)
+POLÍTICA DE TRATAMIENTO DE DATOS PERSONALES — ZENTRA (borrador)
 
-1. Responsable. Controla (en adelante el Responsable) trata datos personales en el marco de la prestación del servicio SaaS y de la relación comercial con suscriptores, conforme a la Ley 1581 de 2012, el Decreto 1377 de 2013 y normas complementarias.
+1. Responsable. Zentra (en adelante el Responsable) trata datos personales en el marco de la prestación del servicio SaaS y de la relación comercial con suscriptores, conforme a la Ley 1581 de 2012, el Decreto 1377 de 2013 y normas complementarias.
 
 2. Alcance. Aplica a datos de representantes legales, usuarios de plataforma, y —cuando el suscriptor lo configure— a datos de visitantes, residentes u otros titulares tratados en el tenant, en los roles que correspondan (responsable o encargado).
 
@@ -59,7 +59,7 @@ POLÍTICA DE TRATAMIENTO DE DATOS PERSONALES — CONTROLA (borrador)
 
 4. Derechos ARCO. Los titulares pueden conocer, actualizar, rectificar y solicitar la supresión de sus datos, y revocar la autorización cuando proceda, canalizando la solicitud al correo de contacto publicado o al administrador del tenant cuando el tratamiento sea del suscriptor.
 
-5. Encargo. Cuando Controla trate datos por cuenta del suscriptor (encargado), lo hará según instrucciones documentadas, medidas de seguridad razonables y retención acordada. El suscriptor garantiza bases legales frente a titulares.
+5. Encargo. Cuando Zentra trate datos por cuenta del suscriptor (encargado), lo hará según instrucciones documentadas, medidas de seguridad razonables y retención acordada. El suscriptor garantiza bases legales frente a titulares.
 
 6. Conservación. Soportes mercantiles y contractuales: plazos mercantiles aplicables (~10 años referencia CCom / Ley 962). Censo operativo del tenant: retención corta post-baja según TRD y política de ciclo de vida (gracia → suspensión → archivo → purga).
 
@@ -76,7 +76,7 @@ TXT;
     public static function procedureLifecycle(): string
     {
         return <<<'TXT'
-PROCEDIMIENTO DE GRACIA, SUSPENSIÓN, ARCHIVO Y PURGA — CONTROLA (borrador)
+PROCEDIMIENTO DE GRACIA, SUSPENSIÓN, ARCHIVO Y PURGA — ZENTRA (borrador)
 
 1. Propósito. Definir el ciclo operativo ante falta de pago o retiro del servicio, preservando evidencias mercantiles y cumpliendo principios de minimización (Ley 1581).
 
@@ -106,18 +106,18 @@ TXT;
         $modality = $sku->modality()->label();
 
         return <<<TXT
-CONTRATO DE LICENCIA DE USO SaaS — CONTROLA (borrador)
+CONTRATO DE LICENCIA DE USO SaaS — ZENTRA (borrador)
 Paquete: {$label} (SKU: {$skuValue})
 
-CLÁUSULA PRIMERA — PARTES. El prestador (Controla) y el suscriptor (persona natural o jurídica identificada en el proceso de contratación), quien declara capacidad y, si actúa por representante, facultades suficientes.
+CLÁUSULA PRIMERA — PARTES. El prestador (Zentra) y el suscriptor (persona natural o jurídica identificada en el proceso de contratación), quien declara capacidad y, si actúa por representante, facultades suficientes.
 
-CLÁUSULA SEGUNDA — OBJETO. Licencia de uso no exclusiva e intransferible de la plataforma Controla para hasta {$size} cliente(s) en modalidad {$modality}, conforme a las funcionalidades del plan publicado al momento de la aceptación.
+CLÁUSULA SEGUNDA — OBJETO. Licencia de uso no exclusiva e intransferible de la plataforma Zentra para hasta {$size} cliente(s) en modalidad {$modality}, conforme a las funcionalidades del plan publicado al momento de la aceptación.
 
 CLÁUSULA TERCERA — PRECIO Y CICLO. El precio y el ciclo de facturación (mensual o anual) son los aceptados en la oferta / checkout. Impuestos aplicables según normativa tributaria vigente.
 
 CLÁUSULA CUARTA — VIGENCIA. Inicia con la aceptación electrónica y el alta del tenant, y se renueva según el ciclo contratado salvo terminación conforme a estos términos y al procedimiento de ciclo de vida.
 
-CLÁUSULA QUINTA — OBLIGACIONES DEL SUSCRIPTOR. Usar el servicio conforme a la ley; configurar y custodiar usuarios; garantizar bases legales del tratamiento de datos en su tenant; no vulnerar seguridad ni propiedad intelectual de Controla.
+CLÁUSULA QUINTA — OBLIGACIONES DEL SUSCRIPTOR. Usar el servicio conforme a la ley; configurar y custodiar usuarios; garantizar bases legales del tratamiento de datos en su tenant; no vulnerar seguridad ni propiedad intelectual de Zentra.
 
 CLÁUSULA SEXTA — OBLIGACIONES DEL PRESTADOR. Poner a disposición el servicio según el SKU; mantener medidas de seguridad razonables; publicar y versionar textos en Normoteca; conservar el corpus aceptado de forma inmutable en el expediente del suscriptor.
 

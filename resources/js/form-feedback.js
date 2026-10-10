@@ -8,11 +8,11 @@ const KINDS = {
 };
 
 function host() {
-    return document.querySelector('[data-controla-feedback]');
+    return document.querySelector('[data-zentra-feedback]');
 }
 
 function msgEl() {
-    return host()?.querySelector('[data-controla-feedback-msg]') ?? null;
+    return host()?.querySelector('[data-zentra-feedback-msg]') ?? null;
 }
 
 function fieldOf(form, name) {

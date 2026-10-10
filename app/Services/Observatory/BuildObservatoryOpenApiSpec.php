@@ -16,7 +16,7 @@ final class BuildObservatoryOpenApiSpec
         return [
             'openapi' => '3.0.3',
             'info' => [
-                'title' => 'Controla Observatorio API',
+                'title' => 'Zentra Observatorio API',
                 'version' => '1.0.0',
                 'description' => implode("\n\n", [
                     'Eventos y riesgos escolares del **Observatorio**. No incluye censo, portería ni facturación.',
@@ -26,7 +26,7 @@ final class BuildObservatoryOpenApiSpec
                 ]),
             ],
             'servers' => [
-                ['url' => $server, 'description' => 'Controla'],
+                ['url' => $server, 'description' => 'Zentra'],
             ],
             'tags' => [
                 ['name' => 'Sesión', 'description' => 'Token Sanctum'],

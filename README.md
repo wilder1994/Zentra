@@ -1,8 +1,8 @@
-# Controla
+# Zentra
 
 Plataforma SaaS B2B de **control de accesos y vigilancia** para empresas de seguridad privada y conjuntos residenciales en Colombia. Construida sobre **Laravel 11** (Laragon).
 
-**Repositorio de trabajo (origin):** [github.com/wilder1994/Controla](https://github.com/wilder1994/Controla) · oficial: [github.com/wmcodesoft/Controla](https://github.com/wmcodesoft/Controla)
+**Repositorio:** [github.com/wilder1994/Zentra](https://github.com/wilder1994/Zentra) (`origin`)
 
 ---
 
@@ -32,13 +32,13 @@ Plataforma SaaS B2B de **control de accesos y vigilancia** para empresas de segu
 | **Ciclo comercial** | Paquetes + acceso: gracia 5d → suspensión → archivo `non_payment` → purga | ✅ Implementada |
 | **Documentos** | Normoteca (globales + contrato por SKU), versionado, expediente congelado, clickwrap, pago manual, factura demo | ✅ Implementada (v1.1) |
 | **Usuarios** | CRUD scoped; Vigilante / Supervisor de vigilancia (código revista); foto y cargo | ✅ Implementada |
-| **Perfiles** | Empresa/cliente: dirección, ciudad/depto y geo; `service_started_at` (sin cobro al cliente en Controla) | ✅ Implementada |
+| **Perfiles** | Empresa/cliente: dirección, ciudad/depto y geo; `service_started_at` (sin cobro al cliente en Zentra) | ✅ Implementada |
 | **Empleados** | Ficha SJ-SIG (4 bloques + foto) + Excel WM ampliado (preview → alta o **actualización** por documento). Sidebar propio; Ajustes = cargos/tipos + catálogos de Supervisión | ✅ Implementada |
 | **Documentos (personal)** | Indexador de carpetas (HV, contratación, certificados, cursos, afiliaciones, otros). Cliente: flag Accesos + puestos del cliente. **Ver** = preview; **Gestionar** = descargar/indexar. Distinto de Normoteca | ✅ Implementada |
-| **Supervisión campo** | PWA captura (8 módulos, rito de turno, catálogos). Mapa En vivo/Historial, cierre automático, cola offline por usuario. Fuente de verdad: Controla | ✅ Implementada |
+| **Supervisión campo** | PWA captura (8 módulos, rito de turno, catálogos). Mapa En vivo/Historial, cierre automático, cola offline por usuario. Fuente de verdad: Zentra | ✅ Implementada |
 | **Árbol del cliente** | Una tarjeta **Instalaciones y puestos**; otra **Puertas** (solo Accesos). Modalidad + vigilantes en el puesto | ✅ Implementada |
 
-Documentación detallada: [`docs/INFORME-VISION-PRODUCTO-W-CODEX.md`](docs/INFORME-VISION-PRODUCTO-W-CODEX.md) · [`docs/PLAN-INICIO-PROYECTO-CONTROLA.md`](docs/PLAN-INICIO-PROYECTO-CONTROLA.md) · [`docs/REFERENCIA-PLATAFORMA-CONTROL-ACCESOS.md`](docs/REFERENCIA-PLATAFORMA-CONTROL-ACCESOS.md) · [`docs/MODELO-COMERCIAL-PAQUETES.md`](docs/MODELO-COMERCIAL-PAQUETES.md) · [**Paquetes Accesos y Supervisión**](docs/PAQUETES-ACCESOS-Y-SUPERVISION.md) · [**Supervisión de campo**](docs/SUPERVISION-CAMPO.md) · [**Portería**](docs/PORTERIA.md) · [**Observatorio**](docs/OBSERVATORIO.md) · [**Landing y contratación**](docs/LANDING-Y-CONTRATACION.md) · [**Usuarios y perfiles**](docs/USUARIOS-Y-PERFILES.md) · [**Empleados y cargos**](docs/EMPLEADOS-Y-CARGOS.md) · [**Clientes y estructura**](docs/CLIENTES-Y-ESTRUCTURA.md) · [**Billing local**](docs/BILLING-LOCAL-Y-MIGRACION.md) · [**Diseño UI**](docs/DISENO-UI-CONTROLA.md) · [**Panel Plataforma**](docs/PLATAFORMA-ADMIN.md) · [**Módulo Documentos**](docs/MODULO-DOCUMENTOS.md) (v1.1 normoteca por SKU + inmutabilidad; fases futuras §12) · [**Hosting VPS**](docs/HOSTING-VPS.md)
+Documentación detallada: [`docs/INFORME-VISION-PRODUCTO-W-CODEX.md`](docs/INFORME-VISION-PRODUCTO-W-CODEX.md) · [`docs/PLAN-INICIO-PROYECTO-ZENTRA.md`](docs/PLAN-INICIO-PROYECTO-ZENTRA.md) · [`docs/REFERENCIA-PLATAFORMA-CONTROL-ACCESOS.md`](docs/REFERENCIA-PLATAFORMA-CONTROL-ACCESOS.md) · [`docs/MODELO-COMERCIAL-PAQUETES.md`](docs/MODELO-COMERCIAL-PAQUETES.md) · [**Paquetes Accesos y Supervisión**](docs/PAQUETES-ACCESOS-Y-SUPERVISION.md) · [**Supervisión de campo**](docs/SUPERVISION-CAMPO.md) · [**Portería**](docs/PORTERIA.md) · [**Observatorio**](docs/OBSERVATORIO.md) · [**Landing y contratación**](docs/LANDING-Y-CONTRATACION.md) · [**Usuarios y perfiles**](docs/USUARIOS-Y-PERFILES.md) · [**Empleados y cargos**](docs/EMPLEADOS-Y-CARGOS.md) · [**Clientes y estructura**](docs/CLIENTES-Y-ESTRUCTURA.md) · [**Billing local**](docs/BILLING-LOCAL-Y-MIGRACION.md) · [**Diseño UI**](docs/DISENO-UI-ZENTRA.md) · [**Panel Plataforma**](docs/PLATAFORMA-ADMIN.md) · [**Módulo Documentos**](docs/MODULO-DOCUMENTOS.md) (v1.1 normoteca por SKU + inmutabilidad; fases futuras §12) · [**Hosting VPS**](docs/HOSTING-VPS.md)
 
 ---
 
@@ -52,7 +52,7 @@ Documentación detallada: [`docs/INFORME-VISION-PRODUCTO-W-CODEX.md`](docs/INFOR
 | **Portería** | `/access` | `guardia` (Vigilante), `supervisor` (Supervisor de vigilancia), `client-admin` | Ops diarias + **accesos** (puertas de una instalación del cliente) |
 | **Residente** | `/resident` | `resident`, `anfitrion` | Portal web: pre-autorizaciones y correspondencia |
 | **API** | `/api` | Token-based | Sanctum: auth, pre-autorizaciones, correspondencia, **Supervisión de campo**, **Observatorio** (`/docs/observatory`) |
-| **PWA campo** | `field-app/` · `controla_supervision.test` | `supervisor` | Captura; login usuario o correo legado; API inferida. Offline: cola por supervisor (flush en segundo plano, no bloquea al de turno). Caché SW `controla-sup-v35` |
+| **PWA campo** | `field-app/` · `zentra_supervision.test` | `supervisor` | Captura; login usuario o correo legado; API inferida. Offline: cola por supervisor (flush en segundo plano, no bloquea al de turno). Caché SW `zentra-sup-v35` |
 
 Tras el login, cada rol es redirigido a su **home** vía `ResolveUserHomeRoute` → ruta `/home`.
 
@@ -73,8 +73,8 @@ Tras el login, cada rol es redirigido a su **home** vía `ResolveUserHomeRoute` 
 ## Instalación
 
 ```bash
-git clone https://github.com/wilder1994/Controla.git
-cd Controla
+git clone https://github.com/wilder1994/Zentra.git
+cd Zentra
 composer install
 cp .env.example .env   # o copiar .env manualmente
 php artisan key:generate
@@ -83,8 +83,8 @@ php artisan key:generate
 Configurar en `.env`:
 
 ```env
-APP_URL=http://controla.test
-DB_DATABASE=controla
+APP_URL=http://zentra.test
+DB_DATABASE=zentra
 DB_USERNAME=root
 DB_PASSWORD=
 SESSION_DRIVER=file
@@ -125,8 +125,8 @@ npm install && npm run build
 Las imágenes del producto viven en `resources/images/`. Para servirlas con `asset('images/...')`, crear un enlace en Laragon (Windows):
 
 ```powershell
-cd C:\laragon\www\Controla
-New-Item -ItemType Junction -Path "public\images" -Target "C:\laragon\www\Controla\resources\images" -Force
+cd C:\laragon\www\Zentra
+New-Item -ItemType Junction -Path "public\images" -Target "C:\laragon\www\Zentra\resources\images" -Force
 ```
 
 ### Node.js en Laragon
@@ -156,7 +156,7 @@ GOOGLE_MAPS_DEFAULT_ZOOM=6
 1. [APIs y servicios → Biblioteca](https://console.cloud.google.com/apis/library) → habilitar **Maps JavaScript API**, **Places API**, **Geocoding API** y **Roads API** (ruta de historial).
 2. [Credenciales](https://console.cloud.google.com/apis/credentials) → **Crear credenciales → Clave de API**.
 3. Restringir la clave **del mapa** (navegador):
-   - **Aplicación:** referentes HTTP → `http://controla.test/*` y `http://localhost/*`
+   - **Aplicación:** referentes HTTP → `http://zentra.test/*` y `http://localhost/*`
    - **API:** Maps JavaScript API, Places API, Geocoding API, Roads API
 4. Pegar esa clave en `GOOGLE_MAPS_API_KEY` y ejecutar `php artisan config:clear`.
 5. **Ruta de historial (Roads):** la llamada sale del servidor Laravel, no del navegador. Una clave solo con sitios web suele fallar. Crea **otra clave** (restricción de IP: `127.0.0.1` en local, o ninguna en pruebas) limitada a **Roads API** y pégala en `GOOGLE_MAPS_SERVER_API_KEY`. Presupuesto y cuota diaria en Cloud. En vivo **no** usa Roads.
@@ -238,7 +238,7 @@ Vista `resources/views/welcome.blade.php` · `WelcomeController` redirige autent
 
 | Asset | Ruta |
 |-------|------|
-| Logo | `resources/images/branding/logo-controla.png` |
+| Logo | `resources/images/branding/logo-zentra.png` |
 | Favicon | `public/favicon.ico` (único; `partials.favicon`) |
 | Fondo | `resources/images/welcome/hero-background.png` |
 | Hero dashboard | `resources/images/welcome/hero-dashboard.png` |
@@ -282,7 +282,7 @@ Vista de autenticación con layout dedicado `AuthLayout` (`resources/views/layou
 | Fondo | `hero-background.png` con opacidad reducida + overlay oscuro |
 | Formulario | Card glass centrado, tema cyan/slate |
 | Textos | Español (B2B, sin registro público) |
-| Logo | `logo-controla.png` sobre el formulario |
+| Logo | `logo-zentra.png` sobre el formulario |
 | Volver | Enlace a `/` |
 
 Componente: `app/View/Components/AuthLayout.php` · Vista: `resources/views/auth/login.blade.php`
@@ -400,7 +400,7 @@ Sidebar: **Mi empresa** (dashboard) · Facturación · Clientes · **Instalacion
 | `GET /company/supervision/turnos/{shift}/ruta` | Historial: Snap to Roads en turno cerrado (cache `snapped_route`) |
 | `GET /company/supervision/fichas/{kind}/{id}` | Ficha HTML carta. `kind=shift`: ficha de turno (borrador si está abierto; `sheet_snapshot` al cerrar) |
 | `GET /company/supervision/informe.pptx` | Informe ejecutivo PPTX (mismo filtro; solo cifras). Compositor + párrafos + GRACIAS + DeepSeek + chatbot/PQRS: pendiente, [`docs/SUPERVISION-CAMPO.md`](docs/SUPERVISION-CAMPO.md) §§ Informe PPTX y Chatbot y PQRS |
-| `GET /company/descargas` | **Descargas**: APK (`/company/descargas/controla-supervision.apk`) + web PWA de respaldo |
+| `GET /company/descargas` | **Descargas**: APK (`/company/descargas/zentra-supervision.apk`) + web PWA de respaldo |
 | `GET /company/billing` | **Facturación** unificada: membresía Accesos + Supervisión, historial, pago online |
 | `POST /company/billing/supervision` | Contratar / cambiar Supervisión (self-serve, aplica al corte) |
 | `POST /company/billing/checkout` | Checkout online (intent renew/anticipate/reactivate) |
@@ -533,7 +533,7 @@ Test: `tests/Feature/Company/CompanyDashboardTest.php`.
 
 ### Diseño UI — Panel Empresa (`/company`)
 
-Sistema visual unificado para el shell y formularios del panel empresa. **Guía completa:** [`docs/DISENO-UI-CONTROLA.md`](docs/DISENO-UI-CONTROLA.md)
+Sistema visual unificado para el shell y formularios del panel empresa. **Guía completa:** [`docs/DISENO-UI-ZENTRA.md`](docs/DISENO-UI-ZENTRA.md)
 
 | Elemento | Detalle |
 |----------|---------|
@@ -690,12 +690,12 @@ Tras permisos nuevos: `php artisan db:seed --class=RoleAndPermissionSeeder`.
 
 ## Tests
 
-Los tests usan una **base de datos aislada** (`controla_test`), configurada en `phpunit.xml`. No tocan la BD de desarrollo (`controla` en `.env`).
+Los tests usan una **base de datos aislada** (`zentra_test`), configurada en `phpunit.xml`. No tocan la BD de desarrollo (`zentra` en `.env`).
 
 Crear la BD de test una sola vez (Laragon / MySQL):
 
 ```sql
-CREATE DATABASE IF NOT EXISTS controla_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS zentra_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
 ```bash
@@ -728,7 +728,7 @@ Suites relevantes:
 - `tests/Feature/Auth/LoginCsrfTest.php`
 - `tests/Unit/Pricing/PriceCalculatorTest.php`
 
-> Los tests usan `RefreshDatabase` y **recrean** `controla_test` en cada ejecución. Nunca ejecutar la suite completa contra la BD de desarrollo.
+> Los tests usan `RefreshDatabase` y **recrean** `zentra_test` en cada ejecución. Nunca ejecutar la suite completa contra la BD de desarrollo.
 
 ---
 
@@ -860,7 +860,7 @@ php artisan route:list --path=contratar
 php artisan route:list --path=admin         # rutas plataforma (pricing, empresas)
 php artisan route:list --path=company       # rutas admin empresa
 php artisan route:list --path=api           # ver rutas API
-php artisan test                            # usa controla_test, no controla
+php artisan test                            # usa zentra_test, no zentra
 npm run build                               # compilar assets Vite para producción
 npm run dev                                 # Vite en desarrollo
 ```
@@ -870,26 +870,21 @@ npm run dev                                 # Vite en desarrollo
 **Prohibido** en BD de desarrollo sin autorización explícita:
 
 - `migrate:fresh`, `migrate:refresh`, `db:wipe`
-- Ejecutar `php artisan test` sin `controla_test` configurada en `phpunit.xml`
+- Ejecutar `php artisan test` sin `zentra_test` configurada en `phpunit.xml`
 
 Regla del proyecto para el agente IA: `.cursor/rules/database-safety.mdc`
 
-### Git — remoto oficial
+### Git — remoto único
 
-Publicar en la rama de integración del fork (flujo acordado):
+Único repositorio: `https://github.com/wilder1994/Zentra.git` (`origin`).
 
 ```bash
+git push origin main
 git push origin main:creawilder
-```
-
-Para publicar directamente en `main` de **wmcodesoft** solo cuando se solicite explícitamente:
-
-```bash
-git push wmcodesoft main
 ```
 
 ---
 
 ## Licencia
 
-Proyecto privado — uso interno Creawilder / Controla.
+Proyecto privado — uso interno Creawilder / Zentra.

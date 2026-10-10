@@ -1,6 +1,6 @@
-# Plan de Inicio — Proyecto Controla
+# Plan de Inicio — Proyecto Zentra
 
-> **Propósito:** Hoja de ruta ejecutable para pasar de documentación (Creawilder) a implementación incremental en Controla.  
+> **Propósito:** Hoja de ruta ejecutable para pasar de documentación (Creawilder) a implementación incremental en Zentra.  
 > **Versión:** 1.0  
 > **Fecha:** 2026-07-07  
 > **Estado:** Aprobación pendiente por fase — **no iniciar código de una fase sin firmar su Definition of Done**
@@ -9,7 +9,7 @@
 
 ## 1. Resumen ejecutivo
 
-**Controla** es una plataforma SaaS B2B de control de accesos y vigilancia para empresas de seguridad privada y conjuntos residenciales en Colombia. Se construye sobre **Laravel 11** en Laragon, con estos pilares:
+**Zentra** es una plataforma SaaS B2B de control de accesos y vigilancia para empresas de seguridad privada y conjuntos residenciales en Colombia. Se construye sobre **Laravel 11** en Laragon, con estos pilares:
 
 1. **Panel Admin Empresa** — gestión centralizada de clientes (sin Excel).
 2. **Multi-tenant estricto** — 3 niveles: Súper Admin → Empresa → Cliente.
@@ -26,10 +26,10 @@ El plan divide el trabajo en **6 fases (0–5)**. La **Fase 0 es bloqueante**: s
 
 | Documento | Uso en este plan |
 |-----------|------------------|
-| [REFERENCIA-PLATAFORMA-CONTROL-ACCESOS.md](./REFERENCIA-PLATAFORMA-CONTROL-ACCESOS.md) | Índice a la documentación funcional de Controla |
+| [REFERENCIA-PLATAFORMA-CONTROL-ACCESOS.md](./REFERENCIA-PLATAFORMA-CONTROL-ACCESOS.md) | Índice a la documentación funcional de Zentra |
 | [assets/referencia/01-estructura-por-roles.png](./assets/referencia/01-estructura-por-roles.png) | Matriz roles × módulo Estructura |
 
-**Regla:** cada ítem implementado debe citar el doc de Controla que lo cubre (p. ej. [`CLIENTES-Y-ESTRUCTURA.md`](CLIENTES-Y-ESTRUCTURA.md)).
+**Regla:** cada ítem implementado debe citar el doc de Zentra que lo cubre (p. ej. [`CLIENTES-Y-ESTRUCTURA.md`](CLIENTES-Y-ESTRUCTURA.md)).
 
 ---
 
@@ -37,7 +37,7 @@ El plan divide el trabajo en **6 fases (0–5)**. La **Fase 0 es bloqueante**: s
 
 ### 3.1 Propuesta de valor
 
-| Actor | Problema hoy | Solución Controla |
+| Actor | Problema hoy | Solución Zentra |
 |-------|----------------------|-------------------|
 | Empresa de seguridad | Excel + solicitud manual por cada cliente nuevo | Panel único: alta cliente, asignación guardas, métricas |
 | Admin conjunto | Censo fragmentado, sin API clara | Módulo Estructura unificado + directorios globales |
@@ -80,14 +80,14 @@ flowchart TB
 
 ---
 
-## 4. Línea base — Controla hoy (2026-07-07)
+## 4. Línea base — Zentra hoy (2026-07-07)
 
 ### 4.1 Lo que ya existe
 
 | Capa | Estado |
 |------|--------|
 | Framework | Laravel 11, Breeze auth, Spatie Permission instalado |
-| Entorno | Laragon, MySQL, `controla.test`, seeders con usuarios demo |
+| Entorno | Laragon, MySQL, `zentra.test`, seeders con usuarios demo |
 | Módulo `/access/*` | Dashboard, visitantes, residentes, torres, apartamentos, vehículos, logs, pre-auth, correspondencia, minutas, reportes básicos |
 | Modelos | `Location`, `Building`, `HousingUnit`, `Resident`, `Visitor`, `Vehicle`, `AccessLog`, `PreAuthorization`, `Correspondence`, `GuardLog` |
 | Roles | `super-admin`, `admin-accesos`, `guardia`, `anfitrion` en `config/access.php` |
@@ -552,7 +552,7 @@ Usar antes de piloto con empresa de seguridad real:
 
 | Versión | Fecha | Cambios |
 |---------|-------|---------|
-| 1.0 | 2026-07-07 | Plan inicial derivado de REFERENCIA v1.9 + línea base Controla |
+| 1.0 | 2026-07-07 | Plan inicial derivado de REFERENCIA v1.9 + línea base Zentra |
 
 ---
 

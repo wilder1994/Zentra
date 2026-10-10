@@ -1,6 +1,6 @@
 {
-    "appId": "cloud.wcodex.controla.supervision",
-    "appName": "Controla Supervisión",
+    "appId": "cloud.wcodex.zentra.supervision",
+    "appName": "Zentra Supervisión",
     "webDir": "www",
     "android": {
         "allowMixedContent": false
@@ -8,7 +8,7 @@
     "server": {
         "androidScheme": "https",
         "allowNavigation": [
-            "controla.wcodex.cloud",
+            "zentra.wcodex.cloud",
             "*.googleapis.com",
             "*.gstatic.com"
         ]

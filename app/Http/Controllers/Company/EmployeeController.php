@@ -79,7 +79,7 @@ final class EmployeeController extends Controller
     {
         $this->authorize('create', Employee::class);
 
-        return Excel::download(new EmployeeImportTemplateExport, 'formato-empleados-controla.xlsx');
+        return Excel::download(new EmployeeImportTemplateExport, 'formato-empleados-zentra.xlsx');
     }
 
     public function storeImportPreview(PreviewEmployeeImportRequest $request): RedirectResponse

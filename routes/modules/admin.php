@@ -24,7 +24,7 @@ Route::middleware(['auth', 'password.changed', 'active', 'platform.admin', 'tena
         Route::get('/descargas', [DownloadsController::class, 'index'])
             ->middleware('permission:platform.dashboard')
             ->name('downloads.index');
-        Route::get('/descargas/controla-supervision.apk', [DownloadsController::class, 'apk'])
+        Route::get('/descargas/zentra-supervision.apk', [DownloadsController::class, 'apk'])
             ->middleware('permission:platform.dashboard')
             ->name('downloads.apk');
 

@@ -67,7 +67,7 @@
                 <div class="w-64 h-full min-h-0 flex flex-col">
             <div class="px-6 py-5 border-b border-slate-800 shrink-0 flex items-start justify-between gap-2">
                 <div class="min-w-0">
-                <p class="text-xs uppercase tracking-wider text-slate-500">Controla</p>
+                <p class="text-xs uppercase tracking-wider text-slate-500">Zentra</p>
                 <h1 class="text-lg font-semibold text-white">Panel Empresa</h1>
                 </div>
                 @include('partials.sidebar-mobile-close')

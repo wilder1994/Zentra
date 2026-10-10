@@ -4,7 +4,7 @@
 
 Fuente de verdad del **cliente comercial** y de los dos árboles operativos. El censo (nodos `structures`) cuelga de la **instalación**, no del cliente suelto.
 
-Controla **no** cobra al cliente final por vigilancia; solo registra `service_started_at`.
+Zentra **no** cobra al cliente final por vigilancia; solo registra `service_started_at`.
 
 ---
 
@@ -50,7 +50,7 @@ Instalaciones las crea **solo la empresa**, en `/company/installations` (con cli
 
 ## Directorio de instalaciones
 
-`/company/installations`: tabla, buscador y **Crear** (siempre con cliente). La ficha: mapa a la izquierda, datos a la derecha. Debajo del nombre va la **dirección**. Luego tipo, código interno, DANE si es colegio, área, **Administrador** y **Apoyo** (cada uno `cargo · nombre`). El **nombre puede repetirse** en el mismo cliente. `code` interno (INE-01) sigue único por cliente y se genera si no se escribe; **no** es DANE. `kind` opcional: colegio · conjunto · bodega · oficina · otro. `dane_code` es obligatorio y único **solo** si `kind=colegio`; no sale del mapa. Se escribe a mano (8 a 12 dígitos). **No** hay catálogo MEN ni typeahead: Controla no trae el directorio oficial de colegios. Un combo filtrable queda para cuando exista ese maestro (p. ej. listado de la Secretaría). El área: si el pin cae en el perímetro urbano de Cali, la **comuna es IDESC** (polígono oficial, p. ej. Comuna 09) y el campo **no se edita**. Fuera de capa (pueblo, vereda, corregimiento) el usuario sí la escribe. En un pueblo sin subdivisión no se guarda (`installations.commune` + `area_kind`). También puestos (modalidad + empleados). El alta también se puede hacer en la ficha del cliente.
+`/company/installations`: tabla, buscador y **Crear** (siempre con cliente). La ficha: mapa a la izquierda, datos a la derecha. Debajo del nombre va la **dirección**. Luego tipo, código interno, DANE si es colegio, área, **Administrador** y **Apoyo** (cada uno `cargo · nombre`). El **nombre puede repetirse** en el mismo cliente. `code` interno (INE-01) sigue único por cliente y se genera si no se escribe; **no** es DANE. `kind` opcional: colegio · conjunto · bodega · oficina · otro. `dane_code` es obligatorio y único **solo** si `kind=colegio`; no sale del mapa. Se escribe a mano (8 a 12 dígitos). **No** hay catálogo MEN ni typeahead: Zentra no trae el directorio oficial de colegios. Un combo filtrable queda para cuando exista ese maestro (p. ej. listado de la Secretaría). El área: si el pin cae en el perímetro urbano de Cali, la **comuna es IDESC** (polígono oficial, p. ej. Comuna 09) y el campo **no se edita**. Fuera de capa (pueblo, vereda, corregimiento) el usuario sí la escribe. En un pueblo sin subdivisión no se guarda (`installations.commune` + `area_kind`). También puestos (modalidad + empleados). El alta también se puede hacer en la ficha del cliente.
 
 Los asignados (`client_user_installation_assignments`) se parten en dos bloques: **Administrador** (`site_permission=admin`) y **Apoyo** (`support`). Formato `cargo · nombre`. Si un bloque está vacío, se muestra — . `rector_user_id` es solo el **contacto del directorio**, no el único admin. El permiso es el mismo en todas las sedes de esa persona. Apoyo opera el censo y no borra nodos. El panel cliente tiene el mismo directorio (sin crear) y el árbol de nodos en la ficha.
 

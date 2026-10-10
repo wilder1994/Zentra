@@ -128,7 +128,7 @@
             <div>
                 <x-ui.label for="service_started_at">Inicio de servicio</x-ui.label>
                 <x-ui.input id="service_started_at" type="date" name="service_started_at" :value="old('service_started_at', now()->toDateString())" />
-                <p class="mt-1 text-[11px] text-slate-500">Fecha de apertura del servicio. Controla no gestiona cobros al cliente.</p>
+                <p class="mt-1 text-[11px] text-slate-500">Fecha de apertura del servicio. Zentra no gestiona cobros al cliente.</p>
                 <x-ui.field-error :messages="$errors->get('service_started_at')" />
             </div>
 

@@ -1,10 +1,10 @@
-# Informe de visión de producto — Controla (W Codex Solution)
+# Informe de visión de producto — Zentra (W Codex Solution)
 
-**Producto:** Controla  
+**Producto:** Zentra  
 **Dueña:** W Codex Solution  
 **Estado:** decisión de producto (sin cambio de código en este corte)  
 **Fecha:** 2026-09-13  
-**Objeto:** bitácora de cómo se vende Controla, qué se toma de SJ-SIG, cómo avanza la geometría y cómo se cubre el factor *Herramienta de Seguridad Educativa* (Anexo 7.5).
+**Objeto:** bitácora de cómo se vende Zentra, qué se toma de SJ-SIG, cómo avanza la geometría y cómo se cubre el factor *Herramienta de Seguridad Educativa* (Anexo 7.5).
 
 Este documento es bitácora. No se implementa nada aquí: primero se registra la decisión, después se abre fase de código.
 
@@ -17,13 +17,13 @@ Documentos que este informe no sustituye: [`CLIENTES-Y-ESTRUCTURA.md`](CLIENTES-
 | Campo | Valor |
 |--------|--------|
 | Empresa de software | **W Codex Solution** |
-| Producto comercial | **Controla** (SaaS B2B de accesos, vigilancia y supervisión de campo) |
+| Producto comercial | **Zentra** (SaaS B2B de accesos, vigilancia y supervisión de campo) |
 | Cantera / prototipo contractual | **SJ-SIG** (Laravel 13, factor 4.2.4, repo aparte) |
-| App de campo hoy | PWA `Controla_Supervision` / `field-app/` + **APK corte 2** (GPS con pantalla apagada) |
+| App de campo hoy | PWA `Zentra_Supervision` / `field-app/` + **APK corte 2** (GPS con pantalla apagada) |
 
-Controla se construye para **venderse** a empresas de seguridad y, con el mismo esqueleto, a entidades (Secretaría, Alcaldía, colegios). Una licitación concreta (SJ, Educación de Cali, etc.) es un **cliente** o un **módulo**, no una marca nueva ni un segundo sistema.
+Zentra se construye para **venderse** a empresas de seguridad y, con el mismo esqueleto, a entidades (Secretaría, Alcaldía, colegios). Una licitación concreta (SJ, Educación de Cali, etc.) es un **cliente** o un **módulo**, no una marca nueva ni un segundo sistema.
 
-SJ-SIG nació para un pliego. El avance útil (mapa, unidades, expediente, tablero de entidad) se **porta a Controla**. No se fusionan los repos (Laravel 11 vs 13; tenancy distinto). No se despliega SJ-SIG como producto paralelo.
+SJ-SIG nació para un pliego. El avance útil (mapa, unidades, expediente, tablero de entidad) se **porta a Zentra**. No se fusionan los repos (Laravel 11 vs 13; tenancy distinto). No se despliega SJ-SIG como producto paralelo.
 
 ---
 
@@ -34,19 +34,19 @@ SJ-SIG nació para un pliego. El avance útil (mapa, unidades, expediente, table
 3. **El puesto cuelga de una instalación** y tiene **modalidad** (8 / 12 / 24 h) y cupo (unidades por cargo).
 4. **La instalación es el sitio físico.** Ahí viven mapa, código, administradores opcionales y la estructura (apto o salón).
 5. **Accesos ≠ Supervisión ≠ Observatorio.** Puertas, puestos de revista y denuncias ciudadanas no comparten tablas operativas.
-6. **Trabajar en Controla.** SJ-SIG es referencia; no se mantiene dos árboles de instalaciones.
+6. **Trabajar en Zentra.** SJ-SIG es referencia; no se mantiene dos árboles de instalaciones.
 7. **La PWA no basta para tracking de fondo.** Eso ya lo cubre el **APK corte 2** (foreground service). La PWA sigue siendo respaldo.
 
 ---
 
 ## 3. Geometría unificada (la que se va a completar)
 
-Hoy Controla ya tiene empresa → clientes → instalaciones, con tres hijos: puertas (`locations`, Accesos), puestos (`supervisor_posts`, compartidos) y **censo** (`structures.installation_id`). Falta el cupo (unidades por cargo) y admins de sede.
+Hoy Zentra ya tiene empresa → clientes → instalaciones, con tres hijos: puertas (`locations`, Accesos), puestos (`supervisor_posts`, compartidos) y **censo** (`structures.installation_id`). Falta el cupo (unidades por cargo) y admins de sede.
 
 **Modelo objetivo:**
 
 ```
-W Codex / empresa de seguridad (tenant Controla)
+W Codex / empresa de seguridad (tenant Zentra)
   └── Empleados (maestro de la empresa)
         └── asignación → Puesto
 
@@ -67,7 +67,7 @@ Tres reglas fijas:
 | Regla | Detalle |
 |--------|---------|
 | Vigilante | Ficha en **Empleados** de la empresa. El Excel de empleados no elige cliente ni puesto (sigue [`EMPLEADOS-Y-CARGOS.md`](EMPLEADOS-Y-CARGOS.md)). La asignación es un **segundo paso**. |
-| Puesto | Siempre de una instalación. Siempre con modalidad 8/12/24 h y unidades por cargo (de SJ-SIG: `GuardRole` + `post_staffings`; en Controla enriquecer `supervisor_posts`). |
+| Puesto | Siempre de una instalación. Siempre con modalidad 8/12/24 h y unidades por cargo (de SJ-SIG: `GuardRole` + `post_staffings`; en Zentra enriquecer `supervisor_posts`). |
 | Estructura | Cuelga de la **instalación**, no del cliente suelto (`structures.installation_id`). Un PH de una sola sede no cambia de cara (instalación = el mismo cliente). Un colegio o un cliente con dos sedes sí lo necesita. **Hecho 2026-09-11.** |
 
 Accesos y Supervisión siguen siendo dos mundos: un acceso no es un puesto. Las **instalaciones son compartidas**.
@@ -76,9 +76,9 @@ Accesos y Supervisión siguen siendo dos mundos: un acceso no es un puesto. Las 
 
 ## 4. Qué se toma de SJ-SIG (cantera, no fusión)
 
-SJ-SIG no se pega al código de Controla. Se portan flujos y reglas, servicio por servicio.
+SJ-SIG no se pega al código de Zentra. Se portan flujos y reglas, servicio por servicio.
 
-| Pieza SJ-SIG | Qué aporta | Dónde cae en Controla |
+| Pieza SJ-SIG | Qué aporta | Dónde cae en Zentra |
 |--------------|------------|------------------------|
 | Places + pin de cliente/instalación | Dirección real, mapa, pines PNG | Ficha de cliente e **instalación** (hoy la instalación es poco más que un nombre) |
 | Código automático de sede | `{sigla}-01` | Alta de instalación |
@@ -89,20 +89,20 @@ SJ-SIG no se pega al código de Controla. Se portan flujos y reglas, servicio po
 | Tablero de entidad (mapa + KPIs) | Lo que ve el supervisor del cliente | Rol de entidad sobre el cliente/contrato |
 | `Tenant::displayName()`, burbujas de mapa | UX | Mapa empresa / tablero |
 
-**No portar como sistema aparte:** tenancy 1:1 de SJ-SIG, seed de licitación, vhost 8086. SJ como cliente de Controla cubre el Anexo 7.4 cuando el módulo Expediente + tablero de entidad estén activos.
+**No portar como sistema aparte:** tenancy 1:1 de SJ-SIG, seed de licitación, vhost 8086. SJ como cliente de Zentra cubre el Anexo 7.4 cuando el módulo Expediente + tablero de entidad estén activos.
 
-Laravel 11 (Controla) vs 13 (SJ-SIG): no mezclar bases ni `composer.json`.
+Laravel 11 (Zentra) vs 13 (SJ-SIG): no mezclar bases ni `composer.json`.
 
 ---
 
 ## 5. Empleados: ficha de empresa, ritual WM
 
-| | Controla (hoy) | SJ-SIG (cantera) |
+| | Zentra (hoy) | SJ-SIG (cantera) |
 |---|----------------|------------------|
 | Quién es | Colaborador de **la empresa** | Vigilante del **contrato** |
-| Pantalla | Listado + ficha en 4 bloques + foto (Personal SJ-SIG, estilos Controla) | `/personal` |
+| Pantalla | Listado + ficha en 4 bloques + foto (Personal SJ-SIG, estilos Zentra) | `/personal` |
 | Excel | `Maestro Colaboradores WM` (A–Z) + columnas SJ-SIG opcionales | `ficha_empleados SJ-SIG` |
-| Campos | Identidad Controla (nombres partidos, DIVIPOLA, catálogos) + contacto, vinculación, seguridad social | Lo mismo en un `full_name` y cargo libre |
+| Campos | Identidad Zentra (nombres partidos, DIVIPOLA, catálogos) + contacto, vinculación, seguridad social | Lo mismo en un `full_name` y cargo libre |
 | Puesto | Fuera del Excel. Asignar/reasignar: ficha del cliente (Accesos/Supervisión) | Fuera del Excel |
 | Expediente PDF | Sidebar **Documentos** (indexador empresa). Cliente: flag + solo puestos del cliente | Documentos / indexador |
 | Usuario | Se crea en **Usuarios** (`nombre.apellido.####`) | Login de entidad, no del vigilante |
@@ -115,7 +115,7 @@ La **asignación empleado → puesto** ya está en la ficha del cliente (mismo p
 
 ## 6. Instalación enriquecida y administradores de sede
 
-Hoy el alta de instalación en Controla es nombre + “sede = cliente” + mapa + puestos (modalidad y vigilantes) + puertas. Falta código de sede, cupo por cargo y admin de sede.
+Hoy el alta de instalación en Zentra es nombre + “sede = cliente” + mapa + puestos (modalidad y vigilantes) + puertas. Falta código de sede, cupo por cargo y admin de sede.
 
 **Objetivo de la ficha de instalación:**
 
@@ -161,7 +161,7 @@ Cliente: Secretaría de Educación
 
 Pliego de vigilancia / contratación pública. El puntaje se otorga a quien **suscriba el Anexo 7.5** (diligenciado y firmado por el representante legal) comprometiendo que, para prestar el servicio, pondrá a disposición del Departamento Administrativo de Contratación Pública un **módulo integrado de seguridad educativa**. La visita técnica verifica **funcionamiento y operación**, no solo el papel.
 
-Eso es **Controla + Observatorio** sobre el cliente Secretaría. No es otra marca ni un segundo hosting.
+Eso es **Zentra + Observatorio** sobre el cliente Secretaría. No es otra marca ni un segundo hosting.
 
 | # | Factor del Anexo 7.5 | Peso | Qué pide (desglose) |
 |---|----------------------|------|---------------------|
@@ -178,9 +178,9 @@ El Anexo en prosa pide lo mismo sin puntajes: maestro + búsqueda; mapa + evento
 
 **Lectura literal (12 sep 2026, texto del pliego / Anexo 7.5):** Multifuente = fuentes autorizadas diversas + unirlas + ver el origen. Visita prevista: Secretaría de Educación de Cali. Capas territoriales = comunas urbanas de Cali (IDESC / [datos.cali.gov.co](https://datos.cali.gov.co/dataset/servicio-wms-comunas-de-cali)); no cubren todo el Valle.
 
-### 7.2 Qué hay hoy en Controla (brecha)
+### 7.2 Qué hay hoy en Zentra (brecha)
 
-Controla es maduro en **accesos, censo y supervisión de campo**. El Observatorio ya tiene intake, fuentes, agrupar 1 h, unir/sacar, mapa/calor, Tablero + Eventos, ficha con bitácora y API documentada. El lenguaje de producto sigue siendo cliente / instalación / portería, no «institución educativa».
+Zentra es maduro en **accesos, censo y supervisión de campo**. El Observatorio ya tiene intake, fuentes, agrupar 1 h, unir/sacar, mapa/calor, Tablero + Eventos, ficha con bitácora y API documentada. El lenguaje de producto sigue siendo cliente / instalación / portería, no «institución educativa».
 
 | Factor | Cobertura hoy | Reutilizable | Brecha para la visita |
 |--------|---------------|--------------|------------------------|
@@ -207,7 +207,7 @@ Capa **Observatorio**. Lee instalaciones/colegios. **No** vive en minuta ni en `
 | Tablero | Tendencias, recurrencia, ranking, prioridad configurable, filtros y export |
 | API | JSON de eventos/riesgos + documentación (OpenAPI) y control de la interfaz |
 
-**Fuentes que pide el pliego:** varias y autorizadas, con origen visible. En Controla: comunidad educativa, panel (rector/apoyo), supervisión de campo, portería, API (canal Integración).
+**Fuentes que pide el pliego:** varias y autorizadas, con origen visible. En Zentra: comunidad educativa, panel (rector/apoyo), supervisión de campo, portería, API (canal Integración).
 
 **Privacidad:** el aviso de menores de Normoteca (`minors_data_policy`) aplica al censo y, cuando haya intake comunitario, al tratamiento de datos de NNA. El reporte anónimo oculta nombre y teléfono; no reutiliza el pánico de Accesos.
 
@@ -284,25 +284,25 @@ El plazo largo sirve. El **plan** tiene que aguantar lo que se va a meter:
 
 | Carga | ¿Plan compartido Ilimitado (~50 GB, MySQL)? |
 |-------|-----------------------------------------------|
-| Landing W Codex + Controla + PWA | Arranque sí |
+| Landing W Codex + Zentra + PWA | Arranque sí |
 | Fotos de revista + PDF + GPS | Se llena; hay que rotar o disco aparte |
 | Observatorio con PostGIS | **No** |
 
-**Decisión de capacidad:** los 4 años en **Cloud** o **VPS** Hostinger, no en el Ilimitado compartido si van Controla + fotos + (luego) geo escolar. El Ilimitado se renueva ~4× más caro y no instala PostGIS.
+**Decisión de capacidad:** los 4 años en **Cloud** o **VPS** Hostinger, no en el Ilimitado compartido si van Zentra + fotos + (luego) geo escolar. El Ilimitado se renueva ~4× más caro y no instala PostGIS.
 
-Mismo servidor: Controla sí. Observatorio: misma máquina solo si es VPS y **base aparte**.
+Mismo servidor: Zentra sí. Observatorio: misma máquina solo si es VPS y **base aparte**.
 
 **Dominio comercial (padre = W Codex, no un producto):**
 
 | Host | Uso |
 |------|-----|
 | `www.wcodex.co` (o `.com.co` / `.solutions`) | Estudio / empresa |
-| `controla.wcodex.co` | SaaS |
+| `zentra.wcodex.co` | SaaS |
 | `campo.wcodex.co` | PWA y, después, la APK contra la misma API |
 
-Si Controla se vende a terceros con marca propia, más adelante `controla.co` y W Codex queda como “hecho por”. Evitar `controla_supervision.…`, `sj-sig.controla.…` y guiones innecesarios.
+Si Zentra se vende a terceros con marca propia, más adelante `zentra.co` y W Codex queda como “hecho por”. Evitar `zentra_supervision.…`, `sj-sig.zentra.…` y guiones innecesarios.
 
-El pliego de SJ puede seguir diciendo **SJ-SIG** en el Anexo; por detrás es Controla con el módulo Expediente. No uses `sjsig.` como casa del producto.
+El pliego de SJ puede seguir diciendo **SJ-SIG** en el Anexo; por detrás es Zentra con el módulo Expediente. No uses `sjsig.` como casa del producto.
 
 ---
 
@@ -310,9 +310,9 @@ El pliego de SJ puede seguir diciendo **SJ-SIG** en el Anexo; por detrás es Con
 
 No se entrega un segundo hosting “SJ-SIG producción”.
 
-SJ (o la empresa que gane) es una **empresa en Controla**. Se activan Accesos/Supervisión según el contrato y el paquete **Expediente / SIG** (HV, cursos, parafiscales, tablero que ve el usuario de la entidad). El supervisor de la Alcaldía es usuario de **entidad** de ese cliente, no entra al Command Center ni a la PWA de campo.
+SJ (o la empresa que gane) es una **empresa en Zentra**. Se activan Accesos/Supervisión según el contrato y el paquete **Expediente / SIG** (HV, cursos, parafiscales, tablero que ve el usuario de la entidad). El supervisor de la Alcaldía es usuario de **entidad** de ese cliente, no entra al Command Center ni a la PWA de campo.
 
-Aislamiento: un supervisor de la entidad A no existe en el universo B (igual que hoy `tenant`/`client` en Controla).
+Aislamiento: un supervisor de la entidad A no existe en el universo B (igual que hoy `tenant`/`client` en Zentra).
 
 ---
 
@@ -333,7 +333,7 @@ No se abre código en este corte. El orden acordado:
 
 ## 12. Fuera de alcance de este informe (no hacer)
 
-- Fusionar repos Controla + SJ-SIG.
+- Fusionar repos Zentra + SJ-SIG.
 - Sustituir el Excel WM por el de SJ-SIG.
 - Meter denuncias o calor en minuta / `locations`.
 - Tratar el pánico de portería como pánico anónimo escolar.
@@ -347,7 +347,7 @@ No se abre código en este corte. El orden acordado:
 
 | Fecha | Cambio |
 |--------|--------|
-| 2026-09-10 | Alta del informe. W Codex dueña; Controla producto; SJ-SIG cantera. Geometría instalación + puesto con modalidad + admins de sede + censo bajo instalación. APK para GPS de fondo. Hostinger 48 meses en Cloud/VPS. Observatorio escolar como capa, no como Accesos. |
+| 2026-09-10 | Alta del informe. W Codex dueña; Zentra producto; SJ-SIG cantera. Geometría instalación + puesto con modalidad + admins de sede + censo bajo instalación. APK para GPS de fondo. Hostinger 48 meses en Cloud/VPS. Observatorio escolar como capa, no como Accesos. |
 | 2026-09-10 | Empleados de empresa: ficha SJ-SIG Personal (4 bloques + foto). Excel WM ampliado, no sustituido. Sin indexador ni asignación a puesto. |
 | 2026-09-10 | Instalaciones con georreferencia. Casilla «La instalación es el mismo cliente» copia nombre + pin. Un catálogo para Accesos y Supervisión. Cartera vacía habla de clientes, no de conjuntos. |
 | 2026-09-10 | Puesto compartido Accesos/Supervisión: modalidad 8/12/24 h + vigilantes. Puertas solo en Accesos (`locations`). |
@@ -361,7 +361,7 @@ No se abre código en este corte. El orden acordado:
 | 2026-09-11 | Ficha cliente: tarjeta **Gestión de módulos**. Sidebar fijo (Resumen, Instalaciones, Personas, Usuarios, Accesos, Ajustes) y opcional (Vehículos, Mascotas, Autorizaciones, Puertas). |
 | 2026-09-11 | Alta de usuarios solo súper admin y admin empresa. Personas: tipo de documento (TI/RC) + fecha de nacimiento. Menores: Ley 1581 art. 7; portería solo nombre; sin export. |
 | 2026-09-11 | Protección de menores en Normoteca (`minors_data_policy`): clickwrap de contrato; aviso al crear cliente y admin cliente/instalaciones; Personas lee el texto vigente. |
-| 2026-09-11 | Anexo 7.5 *Herramienta de Seguridad Educativa* (4 puntos, 7 factores): brecha vs Controla, definición del Observatorio (institución / reporte / evento / mapa / tablero / API). Sin código. |
+| 2026-09-11 | Anexo 7.5 *Herramienta de Seguridad Educativa* (4 puntos, 7 factores): brecha vs Zentra, definición del Observatorio (institución / reporte / evento / mapa / tablero / API). Sin código. |
 | 2026-09-11 | Factor 1 (directorio): módulo `/company/installations` (tabla, búsqueda, ficha con código, comuna, rector = admin de instalaciones, mapa). |
 | 2026-09-11 | Instalaciones unificadas: alta en módulo y en ficha cliente; admin de sede = rol + cargo; ficha empresa con puestos; sidebar cliente **Instalaciones** (estructura dentro de la ficha). |
 | 2026-09-11 | Ficha de sede: mapa a la izquierda, datos a la derecha. Árbol: sin vehículos/mascotas si el módulo está apagado. Miniaturas del indexador: worker pdf.js como blob (MIME `.mjs` en CloudPanel). |
@@ -388,7 +388,7 @@ No se abre código en este corte. El orden acordado:
 | 2026-09-12 | Observatorio: pines de cualquier tipo de sede; sin sedes = mapa Colombia + 22 comunas; con sedes = zoom a pines y solo comunas ocupadas; comuna vacía se pinta. Área IDESC de la ficha bloqueada. |
 | 2026-09-12 | Observatorio: Google Maps 3.65 quitó HeatmapLayer; el calor es círculo propio. La capa IDESC se carga siempre (ruta relativa); Todas = Cali + 22; una comuna hace zoom a ese polígono. |
 | 2026-09-12 | Observatorio: export PPTX del tablero (mismos filtros; cifras, ranking, tendencia, picos y canal). |
-| 2026-09-12 | App de campo: APK debug (Capacitor) en Descargas; API fija a controla.wcodex.cloud. GPS con pantalla off = corte 2. |
+| 2026-09-12 | App de campo: APK debug (Capacitor) en Descargas; API fija a zentra.wcodex.cloud. GPS con pantalla off = corte 2. |
 | 2026-09-14 | Observatorio: `/o/{slug}` y panel rector con cámara y hasta 3 miniaturas (opcional). Tablero empresa agrupa tipos por slug. |
 | 2026-09-14 | Parafiscales: layout PILA por filas CC+cédula (hoja de cotizantes), no por la Identificación del aportante. |
 | 2026-09-14 | Parafiscales: recorte = copia del xlsx original (fondo/logo) + filas del cotizante; una carga sustituye la anterior. |
@@ -400,7 +400,7 @@ No se abre código en este corte. El orden acordado:
 | 2026-09-14 | Fix: `panelSidebar` + `opsLiveAlerts` juntos en `app.js`; sin el sidebar Alpine el tablero Observatorio queda en blanco. |
 | 2026-09-15 | Mapa En vivo: filtro de traza GPS (precisión, velocidad de moto, picos aislados) para que la polilínea no se vea como sismógrafo. |
 | 2026-09-16 | Supervisión: En vivo sin filtros ni trazas hasta clic; Historial solo turnos cerrados (una ruta en calle); ficha de turno (Ver) se guarda al cierre (`sheet_snapshot`). |
-| 2026-09-16 | APK/PWA v1.6: selfie de inicio en el círculo de perfil. PWA `controla-sup-v47`. |
+| 2026-09-16 | APK/PWA v1.6: selfie de inicio en el círculo de perfil. PWA `zentra-sup-v47`. |
 | 2026-09-17 | Portería: consola vigilante (ingreso unificado, censo, pánico `operational_alerts`). Puerta solo al login del vigilante; Operar portería no. Empleado = empresa; persona = instalación. |
 | 2026-09-15 | Matriz de permisos (admin y colaborador): tablero, instalaciones, pánicos, SIG. Overlay pánico/observatorio independientes, palpitante y sonido en bucle. |
 | 2026-09-15 | Admin cliente e instalaciones: misma matriz (SIG, Observatorio, Censo) por cliente o sede. |

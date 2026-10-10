@@ -8,5 +8,5 @@ alwaysApply: true
 - Antes de afirmar un host, puerto, vhost, DNS, `.env` o flujo: **leer el archivo** o la captura. Si no está, decir **no consta**.
 - No rellenar con “si aparece”, “típicamente” o IP/DNS de memoria de otro producto.
 - Laragon: varios sitios. No tocar vhosts de otros proyectos (`00-aaa-sj_armory`, LegalSuite `:8082`, Indicadores `:8083`, alias `172.16.16.70`) salvo que el usuario lo pida.
-- No cambiar `APP_URL` / `SUPERVISION_PWA_URL` a una IP Tailscale: el panel local usa `http://controla.test`.
+- No cambiar `APP_URL` / `SUPERVISION_PWA_URL` a una IP Tailscale: el panel local usa `http://zentra.test`.
 - Capturas del usuario mandan sobre la documentación genérica de un SaaS (p. ej. Tailscale DNS sin registros A en plan Gratis).

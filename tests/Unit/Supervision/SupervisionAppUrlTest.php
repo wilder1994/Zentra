@@ -11,22 +11,22 @@ final class SupervisionAppUrlTest extends TestCase
 {
     public function test_uses_configured_pwa_url(): void
     {
-        config(['supervision.pwa_url' => 'http://controla_supervision.test/']);
+        config(['supervision.pwa_url' => 'http://zentra_supervision.test/']);
 
-        $this->assertSame('http://controla_supervision.test', SupervisionAppUrl::pwa());
+        $this->assertSame('http://zentra_supervision.test', SupervisionAppUrl::pwa());
     }
 
-    public function test_derives_pwa_host_from_controla_app_url(): void
+    public function test_derives_pwa_host_from_zentra_app_url(): void
     {
-        config(['supervision.pwa_url' => '', 'app.url' => 'http://controla.test']);
+        config(['supervision.pwa_url' => '', 'app.url' => 'http://zentra.test']);
 
-        $this->assertSame('http://controla_supervision.test', SupervisionAppUrl::pwa());
+        $this->assertSame('http://zentra_supervision.test', SupervisionAppUrl::pwa());
     }
 
     public function test_production_app_url_uses_campo_path(): void
     {
-        config(['supervision.pwa_url' => '', 'app.url' => 'https://controla.wcodex.cloud']);
+        config(['supervision.pwa_url' => '', 'app.url' => 'https://zentra.wcodex.cloud']);
 
-        $this->assertSame('https://controla.wcodex.cloud/campo/', SupervisionAppUrl::pwa());
+        $this->assertSame('https://zentra.wcodex.cloud/campo/', SupervisionAppUrl::pwa());
     }
 }

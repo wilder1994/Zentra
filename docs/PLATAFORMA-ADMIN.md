@@ -15,7 +15,7 @@ Documentación del panel `/admin`: dashboard operativo, ciclo comercial, archivo
 Layout: `resources/views/layouts/admin.blade.php` (acento **violet**).  
 Shell: altura de viewport fija (`h-screen`); nav del sidebar con scroll interno; pie (nombre + Cerrar sesión) anclado abajo; flecha a media altura para ocultar/mostrar el menú.  
 Módulo Documentos (definición + v1 implementado; fases futuras §12): [`MODULO-DOCUMENTOS.md`](MODULO-DOCUMENTOS.md).  
-Guía visual: [`DISENO-UI-CONTROLA.md`](DISENO-UI-CONTROLA.md) §13.
+Guía visual: [`DISENO-UI-ZENTRA.md`](DISENO-UI-ZENTRA.md) §13.
 
 ### Sesión de soporte (entrar como empresa)
 
@@ -127,7 +127,7 @@ Sin API key se muestra aviso en el contenedor del mapa. Historial de Supervisió
 2. **APIs y servicios → Biblioteca** → habilitar **Maps JavaScript API** (dashboard) y **Roads API** (historial de Supervisión).
 3. **APIs y servicios → Credenciales → Crear credenciales → Clave de API**.
 4. Editar la clave del **navegador**:
-   - **Restricciones de aplicación:** Sitios web → agregar `http://controla.test/*` y `http://localhost/*` (ajustar dominio en producción).
+   - **Restricciones de aplicación:** Sitios web → agregar `http://zentra.test/*` y `http://localhost/*` (ajustar dominio en producción).
    - **Restricciones de API:** Maps JavaScript API (y Places/Geocoding si usas el picker de dirección).
 5. Copiar esa clave a `.env` → `GOOGLE_MAPS_API_KEY=...`. Para Roads, otra clave (IP o sin sitios web) en `GOOGLE_MAPS_SERVER_API_KEY`.
 6. En el proyecto: `php artisan config:clear` y recargar `/admin`.

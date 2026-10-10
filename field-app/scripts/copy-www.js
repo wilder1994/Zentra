@@ -8,7 +8,7 @@ const dests = [
     path.join(root, '..', 'public', 'campo'),
 ];
 
-const laragonPwa = 'C:\\laragon\\www\\Controla_Supervision';
+const laragonPwa = 'C:\\laragon\\www\\Zentra_Supervision';
 if (fs.existsSync(laragonPwa)) {
     dests.push(laragonPwa);
 }
