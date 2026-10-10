@@ -76,7 +76,7 @@ function isNativeApp() {
 
 function inferApi() {
     if (isNativeApp()) {
-        return 'https://controla.wcodex.cloud/api';
+        return 'https://zentra.wcodex.cloud/api';
     }
     const host = location.hostname;
     const port = location.port;
@@ -86,8 +86,8 @@ function inferApi() {
     if (/\.ts\.net$/i.test(host)) {
         return `${location.origin.replace(/\/$/, '')}/api`;
     }
-    if (/controla_supervision/i.test(host)) {
-        return `${location.protocol}//${host.replace(/controla_supervision/i, 'controla')}/api`;
+    if (/zentra_supervision/i.test(host)) {
+        return `${location.protocol}//${host.replace(/zentra_supervision/i, 'zentra')}/api`;
     }
     return `${location.origin.replace(/\/$/, '')}/api`;
 }
@@ -101,7 +101,7 @@ function token() {
 }
 
 function offlineReady() {
-    return Boolean(window.ControlaOffline && typeof ControlaOffline.setUser === 'function');
+    return Boolean(window.ZentraOffline && typeof ZentraOffline.setUser === 'function');
 }
 
 function setStatus(text, ok = true) {
@@ -188,22 +188,22 @@ function applyPack(pack) {
 
 async function refreshOfflinePack() {
     const pack = await api('/supervision/offline-pack');
-    await ControlaOffline.metaSet('pack', pack);
+    await ZentraOffline.metaSet('pack', pack);
     applyPack(pack);
     return pack;
 }
 
 async function restorePack() {
-    const pack = await ControlaOffline.metaGet('pack');
+    const pack = await ZentraOffline.metaGet('pack');
     applyPack(pack);
-    closeQueued = Boolean(await ControlaOffline.metaGet('closeQueued'));
+    closeQueued = Boolean(await ZentraOffline.metaGet('closeQueued'));
     return pack;
 }
 
 async function clearOwnCloseLock() {
     closeQueued = false;
     try {
-        await ControlaOffline.metaSet('closeQueued', false);
+        await ZentraOffline.metaSet('closeQueued', false);
     } catch (e) {
         // sin usuario
     }
@@ -212,7 +212,7 @@ async function clearOwnCloseLock() {
 async function updateSyncBar() {
     const bar = document.getElementById('sync-bar');
     if (!bar) return;
-    const stats = await ControlaOffline.outboxStats();
+    const stats = await ZentraOffline.outboxStats();
     const n = stats.total;
     if (n < 1 && !closeQueued) {
         bar.classList.add('hidden');
@@ -235,7 +235,7 @@ async function updateSyncBar() {
 }
 
 async function enqueueOrThrow(item, okMessage) {
-    await ControlaOffline.enqueue(Object.assign({}, item, { authToken: token() || '' }));
+    await ZentraOffline.enqueue(Object.assign({}, item, { authToken: token() || '' }));
     await updateSyncBar();
     setStatus(okMessage);
 }
@@ -243,18 +243,18 @@ async function enqueueOrThrow(item, okMessage) {
 async function flushOutbox() {
     if (syncing || !navigator.onLine) return;
     syncing = true;
-    const sessionUser = ControlaOffline.currentUserId();
+    const sessionUser = ZentraOffline.currentUserId();
     let closedMine = false;
     try {
-        const jobs = await ControlaOffline.allPendingJobs();
+        const jobs = await ZentraOffline.allPendingJobs();
         for (const job of jobs) {
             if (job.row?.type === 'close-meta') continue;
             const uid = Number(job.userId || job.row?.userId || 0) || 0;
             const sessionTok = token();
-            let auth = job.row?.authToken || job.authToken || (uid ? ControlaOffline.tokenForUser(uid) : '');
+            let auth = job.row?.authToken || job.authToken || (uid ? ZentraOffline.tokenForUser(uid) : '');
             if (job.row?.type === 'close') {
                 if (!uid || (sessionUser && uid !== Number(sessionUser) && auth && sessionTok && auth === sessionTok)) {
-                    auth = uid ? ControlaOffline.tokenForUser(uid) : '';
+                    auth = uid ? ZentraOffline.tokenForUser(uid) : '';
                 }
                 if (!auth || (sessionUser && uid !== Number(sessionUser) && auth === sessionTok)) {
                     continue;
@@ -266,27 +266,27 @@ async function flushOutbox() {
                 if (sessionUser && uid === Number(sessionUser) && sessionTok) auth = sessionTok;
                 else continue;
             } else if (sessionUser && uid && uid !== Number(sessionUser) && auth === sessionTok) {
-                auth = ControlaOffline.tokenForUser(uid) || '';
+                auth = ZentraOffline.tokenForUser(uid) || '';
                 if (!auth) continue;
             }
             try {
                 await sendOutboxItem(job.row, auth);
                 if (job.row.id != null) {
-                    await ControlaOffline.removeOutboxIn(job.dbName, job.row.id);
+                    await ZentraOffline.removeOutboxIn(job.dbName, job.row.id);
                 }
                 if (job.row.type === 'close') {
-                    await ControlaOffline.metaSetIn(job.dbName, 'closeQueued', false);
-                    await ControlaOffline.metaSetIn(job.dbName, 'shift', null);
+                    await ZentraOffline.metaSetIn(job.dbName, 'closeQueued', false);
+                    await ZentraOffline.metaSetIn(job.dbName, 'shift', null);
                     if (sessionUser && uid === Number(sessionUser)) {
                         closedMine = true;
                     }
                 }
             } catch (e) {
-                if (ControlaOffline.isOfflineError(e)) break;
+                if (ZentraOffline.isOfflineError(e)) break;
                 const foreign = sessionUser && uid && uid !== Number(sessionUser);
                 if (foreign || !e.status || (e.status >= 400 && e.status < 500)) {
                     if (job.row.id != null && e.status !== 401) {
-                        await ControlaOffline.removeOutboxIn(job.dbName, job.row.id);
+                        await ZentraOffline.removeOutboxIn(job.dbName, job.row.id);
                     }
                     continue;
                 }
@@ -302,7 +302,7 @@ async function flushOutbox() {
             return;
         }
     } catch (e) {
-        if (!ControlaOffline.isOfflineError(e)) setStatus(e.message, false);
+        if (!ZentraOffline.isOfflineError(e)) setStatus(e.message, false);
     } finally {
         syncing = false;
         await updateSyncBar();
@@ -1064,7 +1064,7 @@ async function loadSites() {
     } catch (e) {
         await restorePack();
         if (!sites.length) throw e;
-        if (ControlaOffline.isOfflineError(e)) {
+        if (ZentraOffline.isOfflineError(e)) {
             setStatus('Sin cobertura. Usando clientes guardados en el teléfono.');
             return;
         }
@@ -1174,7 +1174,7 @@ async function searchPosts(query) {
         fillCombo('rev-post-list', rows, 'Este cliente no tiene puestos', selectReviewPost);
     } catch (e) {
         fillCombo('rev-post-list', local, 'Este cliente no tiene puestos', selectReviewPost);
-        if (!ControlaOffline.isOfflineError(e)) setStatus(e.message, false);
+        if (!ZentraOffline.isOfflineError(e)) setStatus(e.message, false);
     }
 }
 
@@ -1210,7 +1210,7 @@ async function searchGuards(document) {
         fillCombo('rev-guard-list', rows, 'Sin vigilantes con esa cédula', selectReviewGuard);
     } catch (e) {
         fillCombo('rev-guard-list', local, 'Sin vigilantes con esa cédula', selectReviewGuard);
-        if (!ControlaOffline.isOfflineError(e)) setStatus(e.message, false);
+        if (!ZentraOffline.isOfflineError(e)) setStatus(e.message, false);
     }
 }
 
@@ -1221,7 +1221,7 @@ async function persistReview() {
     if (!reviewGuard) throw new Error('Seleccione el vigilante por cédula.');
     if (!blobs.guard) throw new Error('Tome la foto del vigilante.');
     const pos = await geoRequired('Active la ubicación del dispositivo para guardar la revista.');
-    if (!reviewEventId) reviewEventId = ControlaOffline.uuid();
+    if (!reviewEventId) reviewEventId = ZentraOffline.uuid();
     const clientEventId = reviewEventId;
     const outgoing = reviewDraftLogs.map((row) => ({ module: row.module, payload: row.payload }));
     const logPhotos = {};
@@ -1253,7 +1253,7 @@ async function persistReview() {
         activity = data.activity || activity;
         reviewEventId = null;
     } catch (e) {
-        if (!ControlaOffline.isOfflineError(e)) throw e;
+        if (!ZentraOffline.isOfflineError(e)) throw e;
         await enqueueOrThrow(queued, 'Revista guardada en el teléfono. Se enviará al reconectar.');
         currentReview = { id: null, pending: true, client_id: reviewClient.id };
         reviewEventId = null;
@@ -1307,14 +1307,14 @@ async function loadCatalog() {
     try {
         const data = await api('/supervision/catalog');
         catalog = data.modules || [];
-        const pack = await ControlaOffline.metaGet('pack') || {};
+        const pack = await ZentraOffline.metaGet('pack') || {};
         pack.modules = catalog;
-        await ControlaOffline.metaSet('pack', pack);
+        await ZentraOffline.metaSet('pack', pack);
         renderHub();
     } catch (e) {
         await restorePack();
         if (!catalog.length) throw e;
-        if (ControlaOffline.isOfflineError(e)) {
+        if (ZentraOffline.isOfflineError(e)) {
             setStatus('Sin cobertura. Catálogo del teléfono.');
             return;
         }
@@ -1325,13 +1325,13 @@ async function loadCatalog() {
 async function loadIntake() {
     try {
         intake = await api('/supervision/intake');
-        await ControlaOffline.metaSet('intake', intake);
+        await ZentraOffline.metaSet('intake', intake);
         renderIntake();
     } catch (e) {
-        intake = await ControlaOffline.metaGet('intake');
+        intake = await ZentraOffline.metaGet('intake');
         if (intake) {
             renderIntake();
-            if (ControlaOffline.isOfflineError(e)) {
+            if (ZentraOffline.isOfflineError(e)) {
                 setStatus('Sin cobertura. Abrir turno necesita red.');
             }
             return;
@@ -1344,11 +1344,11 @@ async function loadCurrent() {
     try {
         const data = await api('/supervision/shifts/current');
         activity = data.activity;
-        if (data.supervisor?.id && typeof ControlaOffline.setUser === 'function') {
-            await ControlaOffline.setUser(data.supervisor.id, token());
+        if (data.supervisor?.id && typeof ZentraOffline.setUser === 'function') {
+            await ZentraOffline.setUser(data.supervisor.id, token());
         }
         const shift = data.shift;
-        await ControlaOffline.metaSet('shift', shift || null);
+        await ZentraOffline.metaSet('shift', shift || null);
         const nameEl = document.getElementById('sup-name');
         if (nameEl) nameEl.textContent = data.supervisor?.name || '';
         if (data.supervisor?.has_selfie) {
@@ -1356,8 +1356,8 @@ async function loadCurrent() {
         }
         return applyShift(shift);
     } catch (e) {
-        const shift = await ControlaOffline.metaGet('shift');
-        if (shift && ControlaOffline.isOfflineError(e)) {
+        const shift = await ZentraOffline.metaGet('shift');
+        if (shift && ZentraOffline.isOfflineError(e)) {
             setStatus('Sin cobertura. Turno en el teléfono.');
             return applyShift(shift);
         }
@@ -1458,14 +1458,14 @@ function startPing() {
             const pos = await geo();
             if (!pos) return;
             lastPingSentAt = Date.now();
-            const stats = offlineReady() && ControlaOffline.outboxStats
-                ? await ControlaOffline.outboxStats()
+            const stats = offlineReady() && ZentraOffline.outboxStats
+                ? await ZentraOffline.outboxStats()
                 : { mine: 0 };
             const body = {
                 latitude: pos.latitude,
                 longitude: pos.longitude,
                 accuracy: pos.accuracy,
-                client_event_id: ControlaOffline.uuid(),
+                client_event_id: ZentraOffline.uuid(),
                 pending_outbox: Number(stats.mine || 0),
                 screen_on: screenIsOn(),
                 source: 'app',
@@ -1473,8 +1473,8 @@ function startPing() {
             try {
                 await api('/supervision/shifts/ping', { method: 'POST', body: JSON.stringify(body) });
             } catch (e) {
-                if (ControlaOffline.isOfflineError(e)) {
-                    await ControlaOffline.enqueue({ type: 'ping', clientEventId: body.client_event_id, body });
+                if (ZentraOffline.isOfflineError(e)) {
+                    await ZentraOffline.enqueue({ type: 'ping', clientEventId: body.client_event_id, body });
                     await updateSyncBar();
                 }
             }
@@ -1525,12 +1525,12 @@ function stopPing() {
 function logout(opts = {}) {
     stopPing();
     stopAllCams();
-    const uid = ControlaOffline.currentUserId?.() || null;
+    const uid = ZentraOffline.currentUserId?.() || null;
     const tok = token();
-    if (uid && tok) ControlaOffline.rememberUser?.(uid, tok);
+    if (uid && tok) ZentraOffline.rememberUser?.(uid, tok);
     localStorage.removeItem('token');
-    if (typeof ControlaOffline.setUser === 'function') {
-        ControlaOffline.setUser(null);
+    if (typeof ZentraOffline.setUser === 'function') {
+        ZentraOffline.setUser(null);
     }
     show('login');
     setStatus('Sesión cerrada.');
@@ -1551,7 +1551,7 @@ async function afterLogin(data = {}) {
         await Promise.all([loadSites(), loadIntake()]);
         if (!catalog.length) await loadCatalog();
     } catch (e) {
-        if (!ControlaOffline.isOfflineError(e)) {
+        if (!ZentraOffline.isOfflineError(e)) {
             setStatus(e.message, false);
             return;
         }
@@ -1560,11 +1560,11 @@ async function afterLogin(data = {}) {
     try {
         shift = await loadCurrent();
     } catch (e) {
-        if (!ControlaOffline.isOfflineError(e)) {
+        if (!ZentraOffline.isOfflineError(e)) {
             setStatus(e.message, false);
             return;
         }
-        shift = await ControlaOffline.metaGet('shift');
+        shift = await ZentraOffline.metaGet('shift');
         if (shift) applyShift(shift);
     }
     await updateSyncBar();
@@ -1620,9 +1620,9 @@ document.getElementById('btn-login').onclick = () => withBusy(
         }
         const prevTok = token();
         const prevId = localStorage.getItem('sup_user_id');
-        if (prevId && prevTok) ControlaOffline.rememberUser(prevId, prevTok);
+        if (prevId && prevTok) ZentraOffline.rememberUser(prevId, prevTok);
         localStorage.setItem('token', data.token);
-        await ControlaOffline.setUser(data.user?.id, data.token);
+        await ZentraOffline.setUser(data.user?.id, data.token);
         await afterLogin(data);
     },
 );
@@ -1702,7 +1702,7 @@ document.getElementById('btn-close').onclick = () => withBusy(
     'Cerrando turno…',
     async () => {
         if (!blobs.odoEnd || !blobs.selfEnd) throw new Error('Tome foto del odómetro y selfie de cierre.');
-        if (!closeEventId) closeEventId = ControlaOffline.uuid();
+        if (!closeEventId) closeEventId = ZentraOffline.uuid();
         const clientEventId = closeEventId;
         const fd = new FormData();
         fd.append('km_end', document.getElementById('km-end').value);
@@ -1718,13 +1718,13 @@ document.getElementById('btn-close').onclick = () => withBusy(
             activity = null;
             currentReview = null;
             reviewDraftLogs = [];
-            await ControlaOffline.metaSet('shift', null);
+            await ZentraOffline.metaSet('shift', null);
             setStatus('Turno cerrado.');
             logout();
             return;
         } catch (e) {
-            if (!ControlaOffline.isOfflineError(e)) throw e;
-            await ControlaOffline.enqueue({
+            if (!ZentraOffline.isOfflineError(e)) throw e;
+            await ZentraOffline.enqueue({
                 type: 'close',
                 clientEventId,
                 body: { km_end: document.getElementById('km-end').value },
@@ -1732,7 +1732,7 @@ document.getElementById('btn-close').onclick = () => withBusy(
             });
             closeEventId = null;
             closeQueued = true;
-            await ControlaOffline.metaSet('closeQueued', true);
+            await ZentraOffline.metaSet('closeQueued', true);
             blobs.odoEnd = blobs.selfEnd = null;
             stopPing();
             stopAllCams();
@@ -1775,7 +1775,7 @@ document.getElementById('btn-submit').onclick = () => withBusy(
         const pos = currentModule.requires_gps
             ? await geoRequired('Active la ubicación del dispositivo para registrar este módulo.')
             : await geo();
-        if (!logEventId) logEventId = ControlaOffline.uuid();
+        if (!logEventId) logEventId = ZentraOffline.uuid();
         const body = {
             module: currentModule.key,
             payload,
@@ -1794,7 +1794,7 @@ document.getElementById('btn-submit').onclick = () => withBusy(
             setStatus(`${currentModule.label} registrado.`);
             try { await loadCurrent(); } catch (e) { /* cola / offline */ }
         } catch (e) {
-            if (!ControlaOffline.isOfflineError(e)) throw e;
+            if (!ZentraOffline.isOfflineError(e)) throw e;
             await enqueueOrThrow(
                 { type: 'log', clientEventId: body.client_event_id, body },
                 `${currentModule.label} guardado en el teléfono. Se enviará al reconectar.`,
@@ -2122,7 +2122,7 @@ document.getElementById('btn-obs-send').onclick = () => withBusy(
             const data = await api('/supervision/observatory/reports', { method: 'POST', body: fd });
             setStatus(data.report?.folio ? `Reporte ${data.report.folio} enviado.` : 'Reporte enviado.');
         } catch (e) {
-            if (!ControlaOffline.isOfflineError(e)) throw e;
+            if (!ZentraOffline.isOfflineError(e)) throw e;
             await enqueueOrThrow(
                 { type: 'observatory', body: payload, files: { photos } },
                 'Observatorio guardado en el teléfono. Se enviará al reconectar.',
@@ -2208,7 +2208,7 @@ if (token()) {
     if (!offlineReady()) {
         setStatus('Actualice la app (borre datos del sitio o recargue).', false);
     } else {
-        ControlaOffline.restoreUserFromStorage();
+        ZentraOffline.restoreUserFromStorage();
         afterLogin().catch((e) => {
             setStatus(e.message || 'No se pudo restaurar la sesión.', false);
             if (e.status === 401) {
@@ -2259,7 +2259,7 @@ document.addEventListener('visibilitychange', () => {
 document.getElementById('btn-theme')?.addEventListener('click', () => {
     const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', next);
-    try { localStorage.setItem('controla-theme', next); } catch (e) {}
+    try { localStorage.setItem('zentra-theme', next); } catch (e) {}
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', next === 'light' ? '#eaf4f1' : '#0b1220');
 });
