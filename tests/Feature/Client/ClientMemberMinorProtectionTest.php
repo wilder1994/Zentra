@@ -97,7 +97,7 @@ final class ClientMemberMinorProtectionTest extends TestCase
         ]);
 
         $json = $this->actingAs($vigilante)
-            ->withSession(['tenancy.active_client_id' => $client->id])
+            ->withSession($this->porteriaSession($client))
             ->getJson(route('access.residents.search.json', ['q' => 'Menor']))
             ->assertOk()
             ->json();

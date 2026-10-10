@@ -366,7 +366,7 @@ final class ScopedUserManagementTest extends TestCase
         $this->actingAs($created)
             ->withSession(['tenancy.active_client_id' => $palmas->id])
             ->get(route('client.settings.member-types.index'))
-            ->assertOk();
+            ->assertRedirect(route('client.members.index'));
 
         $this->actingAs($created)
             ->withSession(['tenancy.active_client_id' => $palmas->id])

@@ -16,7 +16,7 @@ final class MemberTypePolicy
 
     public function create(User $user): bool
     {
-        return $user->can('client.members.manage') || $user->can('client.settings.manage');
+        return $user->can('client.settings.manage');
     }
 
     public function update(User $user, MemberType $memberType): bool
@@ -31,7 +31,7 @@ final class MemberTypePolicy
 
     private function owns(User $user, MemberType $memberType): bool
     {
-        return ($user->can('client.members.manage') || $user->can('client.settings.manage'))
+        return $user->can('client.settings.manage')
             && $user->canAccessClient((int) $memberType->client_id);
     }
 }

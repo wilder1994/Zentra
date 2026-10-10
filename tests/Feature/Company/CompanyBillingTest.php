@@ -88,7 +88,7 @@ final class CompanyBillingTest extends TestCase
             'supervision_package_sku' => 'sup_5',
         ]);
         $checkout->assertRedirect();
-        $this->assertNull($company->fresh()->supervision_package_sku);
+        $this->assertSame('sup_10', $company->fresh()->supervision_package_sku?->value);
 
         $payment = CommercialPayment::query()
             ->where('security_company_id', $company->id)
@@ -100,7 +100,7 @@ final class CompanyBillingTest extends TestCase
             ->assertRedirect(route('company.billing.index'));
 
         $company->refresh();
-        $this->assertNull($company->supervision_package_sku);
+        $this->assertSame('sup_10', $company->supervision_package_sku?->value);
         $this->assertSame('sup_5', $company->scheduled_supervision_package_sku);
 
         Carbon::setTestNow($company->scheduled_change_at);

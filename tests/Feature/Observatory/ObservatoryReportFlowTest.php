@@ -707,8 +707,8 @@ final class ObservatoryReportFlowTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertSame(1, substr_count($html, 'setTypeFilter("amenaza")'));
-        $this->assertSame(1, substr_count($html, '>Amenaza</span>'));
+        $this->assertSame(1, substr_count($html, "setTypeFilter('amenaza')"));
+        $this->assertSame(1, preg_match_all('#</span>\s*Amenaza\s*</button>#', $html));
     }
 
     public function test_public_report_requires_role_and_keeps_it_when_anonymous(): void
@@ -855,7 +855,7 @@ final class ObservatoryReportFlowTest extends TestCase
         $this->withToken($token)->post('/api/supervision/shifts/open', $this->supervisorShiftOpenPayload())->assertCreated();
 
         $this->withToken($token)
-            ->post('/api/supervision/observatory/reports', [
+            ->postJson('/api/supervision/observatory/reports', [
                 'installation_id' => $colegio->id,
                 'kind' => 'hurto',
                 'body' => 'El supervisor vio el hurto desde la patrulla.',
@@ -886,7 +886,7 @@ final class ObservatoryReportFlowTest extends TestCase
 
         $vigilante = User::query()->where('email', 'guardia@control-acceso.test')->firstOrFail();
         $supervisor = $this->companySupervisor();
-        $session = ['tenancy.active_client_id' => $client->id];
+        $session = $this->porteriaSession($client, (int) $door->id);
 
         $this->actingAs($vigilante)
             ->withSession($session)

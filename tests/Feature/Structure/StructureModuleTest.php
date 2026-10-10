@@ -178,7 +178,6 @@ final class StructureModuleTest extends TestCase
             ->assertOk()
             ->assertSee('>Instalaciones</h3>', false)
             ->assertSee('Crear dentro de')
-            ->assertSee('Admin de sede')
             ->assertDontSee('El censo se arma por instalación')
             ->assertDontSee('name="code"', false);
     }

@@ -16,6 +16,14 @@ final class GrantableModules
      */
     public static function forScope(AccessGrantScope $scope): array
     {
+        if ($scope === AccessGrantScope::Installation) {
+            $modules = self::forScope(AccessGrantScope::Client);
+            unset($modules['users']);
+            $modules['members']['manage'] = ['client.members.manage'];
+
+            return $modules;
+        }
+
         return match ($scope) {
             AccessGrantScope::Company => [
                 'dashboard' => [
@@ -97,7 +105,7 @@ final class GrantableModules
                     'route' => 'company.job-titles.index',
                 ],
             ],
-            AccessGrantScope::Client, AccessGrantScope::Installation => [
+            AccessGrantScope::Client => [
                 'sig' => [
                     'label' => 'Resumen (tablero SIG)',
                     'view' => ['ops.sig.view'],
@@ -207,7 +215,7 @@ final class GrantableModules
     {
         $grants = [];
         foreach (self::keys($scope) as $module) {
-            if (in_array($module, self::optInModules(), true)) {
+            if ($scope !== AccessGrantScope::Company && in_array($module, self::optInModules(), true)) {
                 continue;
             }
             $grants[] = new AccessGrantData($scope, $scopeId, $module, AccessGrantLevel::Manage);

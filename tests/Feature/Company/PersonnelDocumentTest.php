@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Company;
 
+use App\Enums\AccessGrantLevel;
+use App\Enums\AccessGrantScope;
 use App\Enums\DocumentFolder;
 use App\Enums\LaborHistoryDocumentType;
 use App\Enums\ParafiscalDocumentType;
@@ -13,6 +15,7 @@ use App\Models\EmployeeDocument;
 use App\Models\EmployeeDocumentBatch;
 use App\Models\SupervisorPost;
 use App\Models\User;
+use App\Models\UserModuleGrant;
 use App\Support\Files\SimplePdf;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -121,6 +124,14 @@ final class PersonnelDocumentTest extends TestCase
 
         $clientAdmin = User::query()->where('email', 'admin@palmasdelingenio.test')->firstOrFail();
         $this->grantPersonnelDocuments($clientAdmin, 'view');
+        UserModuleGrant::query()->create([
+            'user_id' => $clientAdmin->id,
+            'scope' => AccessGrantScope::Client,
+            'scope_id' => $palmas->id,
+            'module' => 'documents',
+            'level' => AccessGrantLevel::View,
+        ]);
+        $clientAdmin->unsetRelation('moduleGrants');
 
         $this->actingAs($clientAdmin)
             ->withSession(['tenancy.active_client_id' => $palmas->id])
