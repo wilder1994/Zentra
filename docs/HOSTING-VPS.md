@@ -6,6 +6,8 @@ Migración a Zentra (10 oct 2026): el sitio CloudPanel `controla.wcodex.cloud` s
 
 Cambio de dispositivo (11 oct 2026): migrate `2026_10_11_150000` (`users.single_session_device`, `users.mobile_device_*`, tabla `device_change_requests`) + `RoleAndPermissionSeeder` (`company.devices.approve`). Panel web: una pregunta por equipo (cookie `zentra_device`). APK/PWA: celular atado al supervisor; otro celular pide aprobación (10 min). PWA `zentra-sup-v51`. APK v1.9. Pull + `migrate --force` + seeder de roles + `npm run build` + `config:cache` + `route:cache` + `view:cache`. Artisan como `wcodex-zentra`.
 
+Revista 80 m + historial limpio (11 oct 2026): radio de revista `SupervisorReviewGeofence::RADIUS_METERS` = 80. Historial con turno elegido solo pinta ruta, revistas y eventos del turno. Pull + `npm run build` + `view:cache`. Sin migrate ni APK.
+
 Catálogo comercial (29 sep 2026): migrate `2026_09_29_010000` (`pricing_settings.catalog`, `has_indexing`, `has_observatory`). Pull + `migrate --force` + `npm run build` + `view:cache` + `route:cache`. Artisan como `wcodex-zentra`.
 
 Sitio público: [https://zentra.wcodex.cloud](https://zentra.wcodex.cloud)

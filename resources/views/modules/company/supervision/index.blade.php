@@ -1087,8 +1087,7 @@
                         if (!trailRow.start && path.length) trailRow.start = path[0];
                         if (!trailRow.end && path.length) trailRow.end = path[path.length - 1];
                         hasPoint = drawPath(googleMap, bounds, trailRow, { street });
-                        const pins = collectClientPins()
-                            .concat(collectTrailPins(trailRow, { current: false, flag: true }))
+                        const pins = collectTrailPins(trailRow, { current: false, flag: true })
                             .concat(collectReviewPins(row.shift_id))
                             .concat(collectEventPins(row.shift_id));
                         hasPoint = drawPins(googleMap, bounds, pins) || hasPoint;

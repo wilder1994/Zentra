@@ -12,7 +12,7 @@ use Illuminate\Validation\ValidationException;
 
 final class SupervisorReviewGeofence
 {
-    public const RADIUS_METERS = 40;
+    public const RADIUS_METERS = 80;
 
     public const FAR_FROM_INSTALLATION_METERS = 200;
 

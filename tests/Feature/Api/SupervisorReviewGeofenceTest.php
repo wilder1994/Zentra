@@ -16,7 +16,7 @@ final class SupervisorReviewGeofenceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_review_is_blocked_outside_40_meters(): void
+    public function test_review_is_blocked_outside_80_meters(): void
     {
         $this->seedWithPilot();
         $this->grantSupervision();
