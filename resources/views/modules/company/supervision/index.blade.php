@@ -902,11 +902,6 @@
                         const marker = addOverlay(new google.maps.Marker({
                             map, position: pos, title: pin.title, zIndex: 1, icon: circleIcon(color, 8),
                         }));
-                        addOverlay(new google.maps.Marker({
-                            map, position: pos, clickable: false, zIndex: 1,
-                            icon: { path: 'M0 0', scale: 0, labelOrigin: new google.maps.Point(0, -16) },
-                            label: { text: pin.label, color: '#e2e8f0', fontSize: '11px', fontWeight: '600' },
-                        }));
                         bindPinOpen(marker, pin);
                         return;
                     }
@@ -934,7 +929,6 @@
                         lat: row.lat,
                         lng: row.lng,
                         title: row.name,
-                        label: row.name.length > 18 ? row.name.slice(0, 16) + '…' : row.name,
                         row: { client: row.name },
                     }));
                     const sitePins = installations.filter((row) => row.lat != null && row.lng != null).map((row) => ({
@@ -942,7 +936,6 @@
                         lat: row.lat,
                         lng: row.lng,
                         title: row.name,
-                        label: row.name.length > 18 ? row.name.slice(0, 16) + '…' : row.name,
                         row: { client: row.client || row.name, sheet_url: row.url || '' },
                     }));
 

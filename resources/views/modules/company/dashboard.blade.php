@@ -782,7 +782,6 @@
             const toneColor = { ok: '#34d399', warn: '#fbbf24', danger: '#f87171', site: '#22d3ee' };
             let googleMap = null;
             let googleMarkers = [];
-            let googleLabels = [];
             let bubbleOverlay = null;
             let activePinId = null;
             let activePinLatLng = null;
@@ -979,9 +978,7 @@
 
             function clearGoogleOverlays() {
                 googleMarkers.forEach(m => m.setMap(null));
-                googleLabels.forEach(m => m.setMap(null));
                 googleMarkers = [];
-                googleLabels = [];
                 closeBubble();
             }
 
@@ -1010,27 +1007,6 @@
                             strokeWeight: 2,
                         },
                     });
-                    const label = new google.maps.Marker({
-                        position,
-                        map: googleMap,
-                        clickable: false,
-                        zIndex: 1,
-                        optimized: false,
-                        icon: {
-                            path: 'M0 0',
-                            scale: 0,
-                            fillOpacity: 0,
-                            strokeOpacity: 0,
-                            labelOrigin: new google.maps.Point(0, -18),
-                        },
-                        label: {
-                            text: shortLabel(pin.title),
-                            color: '#e2e8f0',
-                            fontSize: '11px',
-                            fontWeight: '600',
-                            className: 'company-map-pin-label',
-                        },
-                    });
                     marker.addListener('click', (event) => {
                         if (event?.domEvent) {
                             event.domEvent.stopPropagation();
@@ -1039,7 +1015,6 @@
                         openGoogleBubble(pin);
                     });
                     googleMarkers.push(marker);
-                    googleLabels.push(label);
                     bounds.extend(position);
                 });
                 if (filtered.length === 1) {
