@@ -399,6 +399,8 @@ final class CompanySupervisionMapTest extends TestCase
         $first->assertOk();
         $first->assertJsonPath('snapped', true);
         $first->assertJsonPath('path.0.lat', 3.4517);
+        $first->assertJsonStructure(['start', 'end', 'stops', 'km']);
+        $this->assertGreaterThan(0, $first->json('km'));
 
         $second = $this->actingAs($admin)->getJson(route('company.supervision.snapped-route', $shift));
         $second->assertOk();

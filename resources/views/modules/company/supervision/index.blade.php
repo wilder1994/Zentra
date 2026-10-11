@@ -1078,7 +1078,12 @@
                             if (res.ok) {
                                 const data = await res.json();
                                 if (Array.isArray(data.path) && data.path.length) {
-                                    trailRow = Object.assign({}, row, { path: data.path });
+                                    trailRow = Object.assign({}, row, {
+                                        path: data.path,
+                                        start: data.start || null,
+                                        end: data.end || null,
+                                        stops: Array.isArray(data.stops) ? data.stops : [],
+                                    });
                                     street = Boolean(data.snapped);
                                 }
                             }

@@ -13,7 +13,15 @@ final class AutoCloseExpiredSupervisorShiftsService
     public function __construct(
         private readonly ResolveSupervisorShiftDeadlineService $deadlines,
         private readonly BuildSupervisorShiftSheetService $shiftSheets,
+        private readonly BuildSupervisorTrailService $trail,
     ) {}
+
+    public function gpsKm(SupervisorShift $shift): int
+    {
+        $shift->loadMissing(['locations' => fn ($q) => $q->orderBy('recorded_at')]);
+
+        return (int) round((float) $this->trail->execute($shift->locations)['km']);
+    }
 
     public function execute(?\DateTimeInterface $now = null): int
     {
@@ -55,7 +63,7 @@ final class AutoCloseExpiredSupervisorShiftsService
                 'status' => SupervisorShiftStatus::Closed,
                 'ended_at' => $nowAt->gt($deadline) ? $deadline : $nowAt,
                 'km_end' => $shift->km_end ?? $kmEnd,
-                'km_traveled' => $shift->km_traveled ?? 0,
+                'km_traveled' => $shift->km_traveled ?: $this->gpsKm($shift),
                 'notes' => trim((string) $shift->notes."\n".$note),
                 'closed_by_system' => true,
             ]);

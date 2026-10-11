@@ -53,6 +53,44 @@ final class AutoCloseExpiredSupervisorShiftsTest extends TestCase
         $this->assertStringContainsString('-T', (string) ($closed->sheet_snapshot['folio'] ?? ''));
     }
 
+    public function test_auto_close_uses_gps_km_when_odometer_missing(): void
+    {
+        $this->seedWithPilot();
+        $supervisor = $this->companySupervisor();
+        $template = SupervisorShiftTemplate::query()->create([
+            'security_company_id' => $supervisor->security_company_id,
+            'name' => 'Día GPS',
+            'starts_at' => '06:00',
+            'ends_at' => '14:00',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+        $shift = SupervisorShift::query()->create([
+            'security_company_id' => $supervisor->security_company_id,
+            'user_id' => $supervisor->id,
+            'status' => SupervisorShiftStatus::Open,
+            'supervisor_shift_template_id' => $template->id,
+            'started_at' => CarbonImmutable::parse('2026-09-05 06:05:00'),
+            'km_start' => 100,
+        ]);
+        $shift->locations()->create([
+            'recorded_at' => CarbonImmutable::parse('2026-09-05 07:00:00'),
+            'latitude' => 3.4516,
+            'longitude' => -76.5320,
+            'source' => 'gps',
+        ]);
+        $shift->locations()->create([
+            'recorded_at' => CarbonImmutable::parse('2026-09-05 07:20:00'),
+            'latitude' => 3.4900,
+            'longitude' => -76.5320,
+            'source' => 'gps',
+        ]);
+
+        app(AutoCloseExpiredSupervisorShiftsService::class)->execute(CarbonImmutable::parse('2026-09-05 14:30:00'));
+
+        $this->assertGreaterThanOrEqual(4, (int) $shift->fresh()->km_traveled);
+    }
+
     public function test_auto_close_records_pending_outbox_in_notes_and_history_label(): void
     {
         $this->seedWithPilot();
