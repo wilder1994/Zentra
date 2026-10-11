@@ -21,7 +21,7 @@
                 const map = new google.maps.Map(el, {
                     center: pos,
                     zoom: 16,
-                    mapTypeId: google.maps.MapTypeId.SATELLITE,
+                    mapTypeId: google.maps.MapTypeId.HYBRID,
                     streetViewControl: false,
                 });
                 new google.maps.Marker({

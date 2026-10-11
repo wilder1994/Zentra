@@ -1121,7 +1121,7 @@
                     googleMap = new google.maps.Map(mapEl, {
                         center,
                         zoom: googleMaps.zoom || 12,
-                        mapTypeId: google.maps.MapTypeId.SATELLITE,
+                        mapTypeId: google.maps.MapTypeId.HYBRID,
                         mapTypeControl: false,
                         streetViewControl: false,
                     });
@@ -1138,7 +1138,7 @@
                             const type = btn.dataset.mapType || 'satellite';
                             googleMap.setMapTypeId(type === 'terrain'
                                 ? google.maps.MapTypeId.TERRAIN
-                                : google.maps.MapTypeId.SATELLITE);
+                                : google.maps.MapTypeId.HYBRID);
                             syncMapTypeButtons(type);
                         });
                     });

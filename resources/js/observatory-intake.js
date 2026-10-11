@@ -207,7 +207,7 @@ export function observatoryIntake(cfg) {
                 this.map = new google.maps.Map(el, {
                     center: pos,
                     zoom: 18,
-                    mapTypeId: google.maps.MapTypeId.SATELLITE,
+                    mapTypeId: google.maps.MapTypeId.HYBRID,
                     streetViewControl: false,
                     mapTypeControl: false,
                 });

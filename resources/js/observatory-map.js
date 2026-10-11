@@ -40,7 +40,7 @@ export function observatoryMap(cfg) {
             this.map = new google.maps.Map(el, {
                 center: { lat: 3.4372, lng: -76.5225 },
                 zoom: 12,
-                mapTypeId: google.maps.MapTypeId.SATELLITE,
+                mapTypeId: google.maps.MapTypeId.HYBRID,
                 streetViewControl: false,
                 fullscreenControl: false,
                 mapTypeControl: false,
@@ -274,7 +274,7 @@ export function observatoryMap(cfg) {
         setMapType(type) {
             this.mapType = type;
             if (this.map) {
-                this.map.setMapTypeId(type === 'roadmap' ? google.maps.MapTypeId.ROADMAP : google.maps.MapTypeId.SATELLITE);
+                this.map.setMapTypeId(type === 'roadmap' ? google.maps.MapTypeId.ROADMAP : google.maps.MapTypeId.HYBRID);
             }
         },
 

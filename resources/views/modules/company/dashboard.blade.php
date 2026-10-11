@@ -1032,7 +1032,7 @@
                 googleMap = new google.maps.Map(mapEl, {
                     center: googleMaps.center,
                     zoom: googleMaps.zoom,
-                    mapTypeId: google.maps.MapTypeId.SATELLITE,
+                    mapTypeId: google.maps.MapTypeId.HYBRID,
                     disableDefaultUI: true,
                     zoomControl: true,
                     mapTypeControl: false,
@@ -1063,7 +1063,7 @@
                 if (!googleMap) return;
                 const id = type === 'terrain'
                     ? google.maps.MapTypeId.TERRAIN
-                    : google.maps.MapTypeId.SATELLITE;
+                    : google.maps.MapTypeId.HYBRID;
                 googleMap.setMapTypeId(id);
                 syncMapTypeButtons(type === 'terrain' ? 'terrain' : 'satellite');
             }
