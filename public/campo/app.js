@@ -74,6 +74,41 @@ function isNativeApp() {
     return Boolean(window.Capacitor?.isNativePlatform?.());
 }
 
+function deviceId() {
+    let id = localStorage.getItem('zentra_device_id');
+    if (!id || id.length < 8) {
+        id = window.crypto?.randomUUID?.()
+            || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+        localStorage.setItem('zentra_device_id', id);
+    }
+    return id;
+}
+
+function showDeviceWait(message) {
+    const box = document.getElementById('device-wait');
+    const msg = document.getElementById('device-wait-msg');
+    if (msg) msg.textContent = message || 'La central debe aprobar el cambio de celular.';
+    box?.classList.remove('hidden');
+    setStatus(message || 'Cambio de celular pendiente de aprobación.', false);
+}
+
+function hideDeviceWait() {
+    document.getElementById('device-wait')?.classList.add('hidden');
+}
+
+async function deviceLabel() {
+    let model = '';
+    try {
+        const info = await navigator.userAgentData?.getHighEntropyValues?.(['model']);
+        model = info?.model || '';
+    } catch (_) {}
+    if (!model) {
+        const m = (navigator.userAgent || '').match(/Android [\d.]+; ([^;)]+)/);
+        if (m && m[1] !== 'K') model = m[1].replace(/ Build.*/, '');
+    }
+    return `${model || 'Celular'} · ${isNativeApp() ? 'APK' : 'PWA'}`.slice(0, 150);
+}
+
 function inferApi() {
     if (isNativeApp()) {
         return 'https://zentra.wcodex.cloud/api';
@@ -1594,10 +1629,15 @@ document.getElementById('btn-login').onclick = () => withBusy(
     'Entrando…',
     async () => {
         localStorage.removeItem('API_URL');
+        const pos = await geo();
         const payload = {
             login: document.getElementById('login-user').value.trim(),
             password: document.getElementById('password').value,
             device_name: 'supervision-pwa',
+            device_id: deviceId(),
+            device_label: await deviceLabel(),
+            latitude: pos?.latitude ?? null,
+            longitude: pos?.longitude ?? null,
         };
         let data;
         try {
@@ -1606,15 +1646,11 @@ document.getElementById('btn-login').onclick = () => withBusy(
                 body: JSON.stringify(payload),
             });
         } catch (err) {
-            if (err.status !== 409) throw err;
-            if (!confirm('Tienes una sesión abierta. ¿Cerrar la otra y seguir aquí?')) {
-                throw new Error('Entrada cancelada. La otra sesión sigue activa.');
-            }
-            data = await api('/supervision/login', {
-                method: 'POST',
-                body: JSON.stringify(Object.assign({}, payload, { replace_session: true })),
-            });
+            if (err.status !== 423) throw err;
+            showDeviceWait(err.message);
+            return;
         }
+        hideDeviceWait();
         if (!offlineReady()) {
             throw new Error('App desactualizada. Recargue o borre datos del sitio.');
         }

@@ -39,7 +39,9 @@ Flota: `supervisor_fleet_vehicles` (placa/marca la primera vez). **No** es `vehi
 
 ## App de campo
 
-PWA en `field-app/` (copia `public/campo/` y Laragon `Zentra_Supervision`). Caché SW `zentra-sup-v49`. Hosting: `https://zentra.wcodex.cloud/campo`. APK Android v1.8 (Capacitor) en `field-app/android/`; el binario se publica en `public/downloads/zentra-supervision.apk`. Selfie de inicio en el círculo de perfil. Login: si hay otra sesión, pregunta si la cierra.
+PWA en `field-app/` (copia `public/campo/` y Laragon `Zentra_Supervision`). Caché SW `zentra-sup-v51`. Hosting: `https://zentra.wcodex.cloud/campo`. APK Android v1.9 (Capacitor) en `field-app/android/`; el binario se publica en `public/downloads/zentra-supervision.apk`. Selfie de inicio en el círculo de perfil.
+
+**Cambio de dispositivo:** el supervisor queda atado a un celular (identificador `zentra_device_id` en el almacenamiento de la app; APK y PWA igual). El primer login lo registra solo. Desde otro celular el login responde `423` y crea **una** solicitud (modelo + GPS si hay) que vence en **10 min**; la app muestra «Cambio de celular» en espera. La aprueba o rechaza quien tenga el módulo **Cambio de dispositivo** (`company.devices.approve`) o el admin de empresa: alerta flotante con sonido en el panel y menú `/company/dispositivos`. Al aprobar, el celular viejo pierde el token y el turno abierto sigue en el nuevo. Borrar datos de la app cuenta como celular nuevo.
 
 Login: **usuario** (`nombre.apellido.####`, igual que el resto de usuarios de empresa) o el correo de cuentas antiguas, más contraseña. En login y primer cambio de clave, icono de ojo para verla. Alta: **Usuarios** → nombre y cédula del empleado → generar usuario y clave; primera entrada pide cambiar clave. El correo corporativo **no** es el login: está en la zona y se resuelve al abrir turno. API **siempre** Zentra: host `zentra_supervision` → mismo esquema + host `zentra` + `/api`; puerto `8085` → mismo host `:8084/api`. No hay campo de API. Instalación: **Descargas** en empresa (`/company/descargas`) y plataforma (`/admin/descargas`); QR + enlace (`SUPERVISION_PWA_URL`). Hard-refresh tras cambios de PWA.
 
@@ -203,7 +205,7 @@ Fuera de alcance de este corte: chatbot en la PWA de campo, app de residentes, W
 
 | Método | Ruta | Uso |
 |--------|------|-----|
-| POST | `/api/supervision/login` | Token: `login` o `email` + clave. Respuesta incluye `must_change_password` |
+| POST | `/api/supervision/login` | Token: `login` o `email` + clave + `device_id` (obligatorio), `device_label`, `latitude`/`longitude` opcionales. `423` si el celular no es el registrado (`device_change_requested` / `_pending` / `_busy`). Respuesta incluye `must_change_password` |
 | POST | `/api/supervision/password` | Primer ingreso (sanctum): `username` nuevo + clave. `must_change_password` queda en false |
 | GET | `/api/supervision/intake` | Zonas, turnos, EPP, vehículo, flota |
 | GET | `/api/supervision/shifts/current` | Turno abierto + `current_review` + actividad |

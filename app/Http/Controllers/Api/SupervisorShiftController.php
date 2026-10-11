@@ -17,7 +17,7 @@ use App\Models\SupervisorShift;
 use App\Models\SupervisorShiftReview;
 use App\Models\SupervisorShiftTemplate;
 use App\Models\SupervisorZone;
-use App\Services\Auth\ClaimSingleUserSession;
+use App\Services\Auth\BindSupervisorDevice;
 use App\Services\Auth\FindUserByLogin;
 use App\Support\Company\CompanyServiceAccess;
 use App\Support\Auth\LoginUsernameRules;
@@ -52,6 +52,7 @@ final class SupervisorShiftController extends Controller
         private readonly FindUserByLogin $findUserByLogin,
         private readonly BuildSupervisorOfflinePackService $offlinePack,
         private readonly TriggerPanicService $panic,
+        private readonly BindSupervisorDevice $deviceBinding,
     ) {}
 
     public function login(Request $request): JsonResponse
@@ -61,7 +62,10 @@ final class SupervisorShiftController extends Controller
             'email' => 'nullable|string|max:255',
             'password' => 'required',
             'device_name' => 'nullable|string|max:100',
-            'replace_session' => 'sometimes|boolean',
+            'device_id' => 'nullable|string|min:8|max:100',
+            'device_label' => 'nullable|string|max:150',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
         ]);
 
         $login = trim((string) ($request->input('login') ?: $request->input('email')));
@@ -101,15 +105,25 @@ final class SupervisorShiftController extends Controller
             abort(403, 'La empresa no tiene Supervisión.');
         }
 
-        $claim = app(ClaimSingleUserSession::class);
-        if ($claim->isOccupied($user) && ! $request->boolean('replace_session')) {
-            return response()->json([
-                'message' => ClaimSingleUserSession::MESSAGE,
-                'code' => ClaimSingleUserSession::CODE,
-            ], 409);
+        $deviceId = trim((string) $request->input('device_id'));
+        if ($deviceId === '') {
+            throw ValidationException::withMessages([
+                'login' => ['Actualiza la app de campo para continuar.'],
+            ]);
         }
-        $claim->claim($user);
 
+        $blocked = $this->deviceBinding->check(
+            $user,
+            $deviceId,
+            $request->filled('device_label') ? (string) $request->input('device_label') : null,
+            $request->filled('latitude') ? (float) $request->input('latitude') : null,
+            $request->filled('longitude') ? (float) $request->input('longitude') : null,
+        );
+        if ($blocked !== null) {
+            return response()->json($blocked, 423);
+        }
+
+        $user->tokens()->delete();
         $token = $user->createToken($request->string('device_name')->toString() ?: 'supervision-pro')->plainTextToken;
 
         return response()->json([

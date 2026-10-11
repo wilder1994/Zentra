@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\User;
 use App\Services\Auth\ClaimSingleUserSession;
 use App\Services\Auth\ResolveUserHomeRoute;
 use App\Support\Platform\SupportCompanyContext;
@@ -29,6 +30,27 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
+        return $this->redirectAfterLogin($request);
+    }
+
+    public function takeover(Request $request, ClaimSingleUserSession $claim): RedirectResponse
+    {
+        $pending = $claim->pendingTakeover($request);
+        $user = $pending !== null ? User::query()->find((int) $pending['user_id']) : null;
+
+        if ($user === null || ! $user->is_active) {
+            return redirect()->route('login')->withErrors([
+                'email' => 'La confirmación venció. Ingresa de nuevo.',
+            ]);
+        }
+
+        $claim->signIn($request, $user, $claim->deviceFor($request), (bool) $pending['remember']);
+
+        return $this->redirectAfterLogin($request);
+    }
+
+    private function redirectAfterLogin(Request $request): RedirectResponse
+    {
         $request->session()->regenerate();
 
         $user = $request->user();

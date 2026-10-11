@@ -28,6 +28,8 @@ abstract class TestCase extends BaseTestCase
 {
     protected const COMPANY_SUPERVISOR_PASSWORD = 'Super123!';
 
+    protected const TEST_DEVICE_ID = 'test-device-0001';
+
     /** Seed mínimo + datos piloto (empresa, conjuntos, censo, usuarios demo). */
     protected function seedWithPilot(): void
     {
@@ -107,6 +109,7 @@ abstract class TestCase extends BaseTestCase
         $login = $this->postJson('/api/supervision/login', [
             'login' => $user->username,
             'password' => self::COMPANY_SUPERVISOR_PASSWORD,
+            'device_id' => self::TEST_DEVICE_ID,
         ]);
         $login->assertOk();
 

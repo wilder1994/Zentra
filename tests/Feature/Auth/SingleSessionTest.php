@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
+use App\Services\Auth\ClaimSingleUserSession;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -12,51 +13,66 @@ final class SingleSessionTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_second_web_login_asks_before_replacing(): void
+    public function test_login_from_other_device_asks_and_confirm_needs_no_password(): void
     {
         $user = User::factory()->create();
-
-        $user->forceFill(['single_session_token' => 'ocupada'])->save();
+        $user->forceFill(['single_session_token' => 'ocupada', 'single_session_device' => 'otro-equipo'])->save();
 
         $this->post('/login', [
             'email' => $user->email,
             'password' => 'password',
         ])->assertSessionHasErrors('session_takeover');
+        $this->assertGuest();
 
-        $firstToken = $user->fresh()->single_session_token;
+        $this->post('/login/takeover')->assertRedirect();
 
-        $this->post('/login', [
-            'email' => $user->email,
-            'password' => 'password',
-            'replace_session' => '1',
-        ])->assertRedirect();
-
-        $this->assertNotSame($firstToken, $user->fresh()->single_session_token);
+        $this->assertAuthenticatedAs($user);
+        $this->assertNotSame('ocupada', $user->fresh()->single_session_token);
     }
 
-    public function test_second_supervisor_login_returns_409_until_replaced(): void
+    public function test_same_device_does_not_ask_again(): void
+    {
+        $user = User::factory()->create();
+
+        $first = $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'password',
+        ]);
+        $first->assertRedirect()->assertSessionHasNoErrors();
+        $device = $first->getCookie(ClaimSingleUserSession::DEVICE_COOKIE)?->getValue();
+        $this->assertNotEmpty($device);
+        $this->assertNotNull($user->fresh()->single_session_token);
+
+        $this->app['auth']->forgetGuards();
+        $this->flushSession();
+
+        $this->withCookie(ClaimSingleUserSession::DEVICE_COOKIE, $device)
+            ->post('/login', [
+                'email' => $user->email,
+                'password' => 'password',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_takeover_without_pending_confirmation_goes_back_to_login(): void
+    {
+        $this->post('/login/takeover')
+            ->assertRedirect(route('login'))
+            ->assertSessionHasErrors('email');
+        $this->assertGuest();
+    }
+
+    public function test_web_login_does_not_revoke_field_app_token(): void
     {
         $this->seedWithPilot();
+        $token = $this->loginCompanySupervisor();
         $user = $this->companySupervisor();
 
-        $first = $this->postJson('/api/supervision/login', [
-            'login' => $user->username,
-            'password' => self::COMPANY_SUPERVISOR_PASSWORD,
-        ]);
-        $first->assertOk();
-        $this->assertNotEmpty($first->json('token'));
+        app(ClaimSingleUserSession::class)->claim($user, 'equipo');
 
-        $this->postJson('/api/supervision/login', [
-            'login' => $user->username,
-            'password' => self::COMPANY_SUPERVISOR_PASSWORD,
-        ])->assertStatus(409)->assertJsonPath('code', 'session_active');
-
-        $second = $this->postJson('/api/supervision/login', [
-            'login' => $user->username,
-            'password' => self::COMPANY_SUPERVISOR_PASSWORD,
-            'replace_session' => true,
-        ]);
-        $second->assertOk();
-        $this->assertNotSame($first->json('token'), $second->json('token'));
+        $this->assertSame(1, $user->tokens()->count());
+        $this->withToken($token)->getJson('/api/supervision/shifts/current')->assertOk();
     }
 }

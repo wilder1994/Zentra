@@ -66,6 +66,7 @@ final class CompanyLayoutComposer
 
         $moduleKeys = array_keys(\App\Support\Catalog\CatalogSettings::defaults()['module_options'] ?? []);
         $canMod = array_fill_keys($moduleKeys, true);
+        $canMod['devices'] = true;
         if ($user !== null && (! $user->hasRole('super-admin') || SupportCompanyContext::isActive())) {
             $entitled = $user->securityCompany;
             if (SupportCompanyContext::isActive()) {
@@ -75,6 +76,7 @@ final class CompanyLayoutComposer
                 $entitled = $user->securityCompany ?? SecurityCompany::query()->find($user->security_company_id);
             }
             $canMod = array_fill_keys(CompanyEntitlements::for($entitled)->modules(), true);
+            $canMod['devices'] = (bool) $entitled?->hasSupervisionPackage();
         }
 
         $view->with('companyContext', $companyContext);

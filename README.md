@@ -384,6 +384,7 @@ Sidebar: **Mi empresa** (dashboard) · Facturación · Clientes · **Instalacion
 | `GET /company/ops/alerts.json` | Poll de pánico/Observatorio (overlay; no incluye a quien disparó) |
 | `POST /company/ops/panic` | Pánico por usuario de empresa (mismo canal que portería, cliente y APK) |
 | `GET /company/panics` | Atención de pánicos: fichas abiertas/cerradas (`ops.panic.attend`) |
+| `GET /company/dispositivos` | Cambio de dispositivo de supervisores: Aceptar/Rechazar (`company.devices.approve` o admin de empresa) |
 | `POST /company/panics/claim` | Tomar un pánico y abrir la ficha |
 | `GET /company/panics/{id}/ficha` | Carta imprimible / PDF |
 | `GET /company/observatory/events` | Observatorio: **Tablero** (filtro cliente; pines / calor sede / calor riesgo; puntaje; líneas por tipo; leyenda/chips agrupados por slug) y **Eventos**. Tipos: solo lectura. API: `/docs/observatory` |

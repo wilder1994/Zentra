@@ -4,7 +4,7 @@ Gestión de usuarios web (`users`) por panel, perfil de empresa con geolocalizac
 
 **Última actualización:** 28 septiembre 2026
 
-La **ficha de empleado** (listado, 4 bloques SJ-SIG, foto, Excel WM + extras) vive en el sidebar **Empleados**. Es gente de la **empresa**, no del censo del predio. El Excel **no** crea usuario: solo la ficha de empleado. Reimportar el mismo documento **actualiza** la ficha (no duplica). Cargos, tipos y catálogos de Supervisión de campo: **Ajustes**. Ver [`EMPLEADOS-Y-CARGOS.md`](EMPLEADOS-Y-CARGOS.md), [`PORTERIA.md`](PORTERIA.md) y [`SUPERVISION-CAMPO.md`](SUPERVISION-CAMPO.md). Este documento cubre **usuarios** (`users`): login y roles. Login y formularios: mensajes en español al centro de la pantalla ([`DISENO-UI-ZENTRA.md`](DISENO-UI-ZENTRA.md)). **Una sesión** por usuario (web, API y PWA): si ya hay sesión, pregunta «Tienes una sesión abierta. ¿Cerrar la otra y seguir aquí?». Sí invalida la anterior; No deja fuera.
+La **ficha de empleado** (listado, 4 bloques SJ-SIG, foto, Excel WM + extras) vive en el sidebar **Empleados**. Es gente de la **empresa**, no del censo del predio. El Excel **no** crea usuario: solo la ficha de empleado. Reimportar el mismo documento **actualiza** la ficha (no duplica). Cargos, tipos y catálogos de Supervisión de campo: **Ajustes**. Ver [`EMPLEADOS-Y-CARGOS.md`](EMPLEADOS-Y-CARGOS.md), [`PORTERIA.md`](PORTERIA.md) y [`SUPERVISION-CAMPO.md`](SUPERVISION-CAMPO.md). Este documento cubre **usuarios** (`users`): login y roles. Login y formularios: mensajes en español al centro de la pantalla ([`DISENO-UI-ZENTRA.md`](DISENO-UI-ZENTRA.md)). **Una sesión** por usuario en el panel web: si hay sesión abierta en **otro equipo**, pregunta una vez «Tienes una sesión abierta. ¿Cerrar la otra y seguir aquí?» (Sí no vuelve a pedir la contraseña; vale 2 min). En el mismo equipo (cookie `zentra_device`) no vuelve a preguntar. La app de campo (APK/PWA) va aparte: ver **Cambio de dispositivo** en [`SUPERVISION-CAMPO.md`](SUPERVISION-CAMPO.md).
 
 Sidebar empresa: **Mi empresa** (dashboard) · Facturación · Clientes · **Instalaciones** · **Observatorio** · Supervisión · **Descargas** · **Empleados** · **Documentos** · Usuarios · **Mis datos** (este perfil) · **Ajustes** (Cargos | Tipos | Estructuras | Zonas | Turnos | Modalidades | Preoperacional | Documentos | Libros | Tipos de arma | Marcas | Riesgos | Alarmas | Apoyos). Chatbot de ayuda y PQRS: pendiente, [`SUPERVISION-CAMPO.md`](SUPERVISION-CAMPO.md). Observatorio: [`OBSERVATORIO.md`](OBSERVATORIO.md).
 
@@ -224,6 +224,7 @@ Reglas:
 | `company.downloads.view` | Descargas PWA/APK |
 | `company.installations.view` / `manage` | Listado/ficha / alta-edición de instalaciones |
 | `ops.panic.attend` | Atender pánicos: módulo, ficha y botón Atender. Independiente de Supervisión y de Observatorio |
+| `company.devices.approve` | Cambio de dispositivo: alerta y Aceptar/Rechazar cuando un supervisor entra desde otro celular (vence en 10 min). El admin de empresa siempre puede |
 | `ops.sig.view` | Resumen / tablero SIG (panel cliente) |
 | `company.settings.view` / `company.settings.manage` | Ajustes (cargos, tipos, catálogos) |
 | `client.users.manage` | Ver/editar administradores del cliente. **No** crear. |

@@ -130,6 +130,13 @@
                 </a>
                 @endcan
                 @endif
+                @php $canApproveDevices = app(\App\Services\Auth\BindSupervisorDevice::class)->canApprove(auth()->user()); @endphp
+                @if (! empty($canMod['devices']) && $canApproveDevices)
+                <a href="{{ route('company.devices.index') }}"
+                   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium {{ request()->routeIs('company.devices.*') ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-800' }}">
+                    <span>Cambio de dispositivo</span>
+                </a>
+                @endif
                 @if (! empty($canMod['downloads']))
                 @can('company.downloads.view')
                 <a href="{{ route('company.downloads.index') }}"
@@ -204,6 +211,9 @@
                         'showPanic' => auth()->user()?->canany(['company.supervision.view', 'observatory.view'])
                             && auth()->user()?->hasAnyRole(['company-admin', 'colaborador']),
                     ])
+                    @if (! empty($canMod['devices']) && $canApproveDevices)
+                        @include('partials.device-change-alerts')
+                    @endif
                     @include('partials.sidebar-user')
                 </div>
             </aside>

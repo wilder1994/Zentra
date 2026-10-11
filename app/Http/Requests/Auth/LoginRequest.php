@@ -8,7 +8,6 @@ use App\Support\Company\CompanyServiceAccess;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -34,7 +33,6 @@ class LoginRequest extends FormRequest
         return [
             'email' => ['required', 'string'],
             'password' => ['required', 'string'],
-            'replace_session' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -84,13 +82,15 @@ class LoginRequest extends FormRequest
             ]);
         }
 
-        app(ClaimSingleUserSession::class)->assertCanClaim($user, $this->boolean('replace_session'));
-        $sessionToken = app(ClaimSingleUserSession::class)->claim($user);
-
-        Auth::login($user, $this->boolean('remember'));
-        $this->session()->put('single_session_token', $sessionToken);
-
         RateLimiter::clear($this->throttleKey());
+
+        $claim = app(ClaimSingleUserSession::class);
+        $device = $claim->deviceFor($this);
+        if ($claim->isOccupied($user, $device)) {
+            $claim->holdTakeover($this, $user, $this->boolean('remember'));
+        }
+
+        $claim->signIn($this, $user, $device, $this->boolean('remember'));
     }
 
     /**

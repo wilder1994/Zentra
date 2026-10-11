@@ -8,7 +8,7 @@
 <div class="max-w-xl rounded-xl border border-slate-800 bg-slate-900 overflow-hidden">
     <div class="px-5 py-4 border-b border-slate-800">
         <h3 class="text-sm font-semibold text-white">App de Supervisión</h3>
-        <p class="text-xs text-slate-500 mt-1">Android: instale el APK v1.8. El login es el mismo usuario de empresa; la API es Zentra. Tema claro u oscuro en el botón Tema.</p>
+        <p class="text-xs text-slate-500 mt-1">Android: instale el APK v1.9. El login es el mismo usuario de empresa; la API es Zentra. Tema claro u oscuro en el botón Tema.</p>
     </div>
     <div class="p-5 space-y-4">
         @if ($apkUrl)

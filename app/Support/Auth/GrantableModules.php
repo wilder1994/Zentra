@@ -68,6 +68,12 @@ final class GrantableModules
                     'manage' => ['ops.panic.attend'],
                     'route' => 'company.panics.index',
                 ],
+                'devices' => [
+                    'label' => 'Cambio de dispositivo',
+                    'view' => ['company.devices.approve'],
+                    'manage' => ['company.devices.approve'],
+                    'route' => 'company.devices.index',
+                ],
                 'downloads' => [
                     'label' => 'Descargas',
                     'view' => ['company.downloads.view'],

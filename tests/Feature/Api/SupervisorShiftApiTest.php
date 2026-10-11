@@ -33,6 +33,7 @@ final class SupervisorShiftApiTest extends TestCase
         $this->postJson('/api/supervision/login', [
             'login' => $user->username,
             'password' => self::COMPANY_SUPERVISOR_PASSWORD,
+            'device_id' => self::TEST_DEVICE_ID,
         ])->assertOk()
             ->assertJsonPath('must_change_password', true)
             ->assertJsonPath('user.username', $user->username);
@@ -42,7 +43,7 @@ final class SupervisorShiftApiTest extends TestCase
         $this->postJson('/api/supervision/login', [
             'login' => 'legado.supervisor@sj-seguridad.test',
             'password' => self::COMPANY_SUPERVISOR_PASSWORD,
-            'replace_session' => true,
+            'device_id' => self::TEST_DEVICE_ID,
         ])->assertOk()->assertJsonPath('user.username', $user->username);
     }
 

@@ -11,6 +11,7 @@ use App\Http\Controllers\Company\ClientSupervisorPostController;
 use App\Http\Controllers\Company\CollaboratorTypeController;
 use App\Http\Controllers\Company\CompanyInstallationController;
 use App\Http\Controllers\Company\DashboardController;
+use App\Http\Controllers\Company\DeviceChangeController;
 use App\Http\Controllers\Company\DownloadsController;
 use App\Http\Controllers\Company\EmployeeController;
 use App\Http\Controllers\Company\JobTitleController;
@@ -85,6 +86,15 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
             Route::put('/panics/{panic}', [PanicAttentionController::class, 'update'])
                 ->name('panics.update');
         });
+
+        Route::get('/dispositivos', [DeviceChangeController::class, 'index'])
+            ->name('devices.index');
+        Route::get('/dispositivos/pendientes.json', [DeviceChangeController::class, 'pending'])
+            ->name('devices.pending');
+        Route::post('/dispositivos/{deviceRequest}/aprobar', [DeviceChangeController::class, 'approve'])
+            ->name('devices.approve');
+        Route::post('/dispositivos/{deviceRequest}/rechazar', [DeviceChangeController::class, 'reject'])
+            ->name('devices.reject');
 
         Route::get('/billing', [BillingController::class, 'index'])
             ->middleware('permission:company.billing.manage')
