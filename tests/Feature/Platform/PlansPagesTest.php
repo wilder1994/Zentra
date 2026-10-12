@@ -69,7 +69,8 @@ final class PlansPagesTest extends TestCase
 
         $this->get(route('planes.index'))
             ->assertOk()
-            ->assertSee('Arma tu plan')
+            ->assertSee('Selecciona tu plan o ármalo a tu gusto')
+            ->assertSee('Cómo armar tu plan')
             ->assertDontSee('Calcula tu plan')
             ->assertSee('Platino');
 

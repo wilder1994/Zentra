@@ -347,6 +347,39 @@ export function planCard(config) {
 }
 
 /** Barra fija de /planes: nombre del plan, total combinado y acceso al carrito. */
+const HELP_SEEN_KEY = 'zentra.plan-help.seen';
+
+/** Guía de /planes: se abre sola la primera visita y luego con el botón. */
+export function planHelp() {
+    return {
+        open: false,
+        init() {
+            let seen = false;
+            try {
+                seen = localStorage.getItem(HELP_SEEN_KEY) === '1';
+            } catch {
+                seen = true;
+            }
+            if (!seen) {
+                this.show();
+            }
+        },
+        show() {
+            this.open = true;
+            document.documentElement.classList.add('overflow-hidden');
+        },
+        close() {
+            this.open = false;
+            document.documentElement.classList.remove('overflow-hidden');
+            try {
+                localStorage.setItem(HELP_SEEN_KEY, '1');
+            } catch {
+                // Sin almacenamiento la guía vuelve a abrirse en la próxima visita.
+            }
+        },
+    };
+}
+
 export function planSummary(config) {
     const catalog = config.catalog || {};
 
