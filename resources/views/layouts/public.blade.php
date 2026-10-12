@@ -21,8 +21,16 @@
                 @include('partials.theme-toggle')
                 <a href="{{ route('planes.index') }}" class="text-slate-300 hover:text-white">Planes</a>
                 @guest
-                    <a href="{{ route('planes.cart') }}" class="text-slate-300 hover:text-white" x-data="planCartBadge">
-                        Carrito <span class="ui-chip ui-chip-accent" x-show="count > 0" x-text="count" x-cloak></span>
+                    <a href="{{ route('planes.cart') }}" class="plan-cart-icon group relative inline-flex h-10 w-11 items-center justify-center rounded-lg text-slate-300 hover:text-white"
+                        x-data="planCartBadge" :class="{ 'is-filled': count > 0, 'is-bump': bump }"
+                        :aria-label="count > 0 ? 'Carrito: ' + count + (count === 1 ? ' producto' : ' productos') : 'Carrito vacío'" title="Carrito">
+                        <svg class="h-8 w-9" viewBox="0 0 36 32" fill="none" aria-hidden="true">
+                            <path class="plan-cart-basket" d="M8.6 9h24l-2.1 11.1a2.4 2.4 0 0 1-2.4 2H13.1a2.4 2.4 0 0 1-2.4-1.9Z" />
+                            <path d="M2 4h4.2l4.5 16.2a2.4 2.4 0 0 0 2.4 1.9h15a2.4 2.4 0 0 0 2.4-2L32.6 9H8.6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <circle cx="14" cy="27" r="2.2" fill="currentColor" />
+                            <circle cx="27" cy="27" r="2.2" fill="currentColor" />
+                        </svg>
+                        <span class="plan-cart-count" x-show="count > 0" x-text="count" x-cloak></span>
                     </a>
                 @endguest
                 @auth

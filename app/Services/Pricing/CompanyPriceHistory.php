@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Pricing;
 
+use App\Domain\Pricing\Data\PlanSelection;
 use App\Models\CompanyPriceChange;
 use App\Models\SecurityCompany;
 use App\Models\User;
@@ -52,20 +53,8 @@ final class CompanyPriceHistory
 
     public function planLabel(SecurityCompany $company): string
     {
-        $parts = [];
-        if ($company->hasAccessPackage()) {
-            $parts[] = 'Accesos '.$company->packageLabel();
-        }
-        if ($company->supervision_package_sku !== null) {
-            $parts[] = $company->supervision_package_sku->label();
-        }
-        if ((int) $company->indexing_seats > 0) {
-            $parts[] = 'Indexación '.$company->indexing_seats.' empleados';
-        }
-        if ((int) $company->observatory_seats > 0) {
-            $parts[] = 'Observatorio '.$company->observatory_seats;
-        }
+        $selection = PlanSelection::fromCompany($company);
 
-        return implode(' + ', $parts);
+        return $selection->isEmpty() ? '' : $selection->label();
     }
 }

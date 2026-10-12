@@ -104,17 +104,47 @@ final readonly class PlanSelection
         ];
     }
 
+    /** Metal común a todos los productos contratados; null si no hay productos o si mezclan metales. */
+    public function uniformMetal(): ?CommercialMetal
+    {
+        $metals = [];
+        foreach (CommercialProduct::cases() as $product) {
+            $metal = $this->metal($product);
+            if ($metal !== null) {
+                $metals[$metal->value] = $metal;
+            }
+        }
+
+        return count($metals) === 1 ? array_values($metals)[0] : null;
+    }
+
+    public function isCustom(): bool
+    {
+        return ! $this->isEmpty() && $this->uniformMetal() === null;
+    }
+
+    /** «Plan Plata» si todos los productos caen en el mismo metal; «Plan personalizado» si mezclan. */
+    public function planName(): string
+    {
+        if ($this->isEmpty()) {
+            return 'Sin plan';
+        }
+
+        return $this->isCustom() ? 'Plan personalizado' : 'Plan '.$this->uniformMetal()?->label();
+    }
+
     public function label(): string
     {
+        $custom = $this->isCustom();
         $parts = [];
         foreach (CommercialProduct::cases() as $product) {
             $seats = $this->seats($product);
             if ($seats > 0) {
-                $parts[] = $product->label().' '.$this->metal($product)?->label().' '.number_format($seats, 0, ',', '.')
+                $parts[] = $product->label().($custom ? ' '.$this->metal($product)?->label() : '').' '.number_format($seats, 0, ',', '.')
                     .($product->countsEmployees() ? ' '.$product->unitLabel($seats) : '');
             }
         }
 
-        return $parts === [] ? 'Sin productos' : implode(' · ', $parts);
+        return $parts === [] ? 'Sin productos' : $this->planName().' · '.implode(' · ', $parts);
     }
 }

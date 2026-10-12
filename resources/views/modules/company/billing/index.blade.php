@@ -76,6 +76,10 @@
                     <p class="text-xs text-slate-500 uppercase tracking-wide">Membresía</p>
                     <h2 class="text-base font-semibold text-white mt-0.5">{{ $company->displayName() }}</h2>
                     <div class="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+                        @php($companyPlan = \App\Domain\Pricing\Data\PlanSelection::fromCompany($company))
+                        @unless ($companyPlan->isEmpty())
+                            <span class="plan-name-chip" data-metal="{{ $companyPlan->uniformMetal()?->value ?? 'personalizado' }}">{{ $companyPlan->planName() }}</span>
+                        @endunless
                         @if ($company->hasAccessPackage())
                             <span class="ui-chip ui-chip-accent">Accesos {{ $company->accessMetal()?->label() }}</span>
                             <span class="text-slate-400">{{ $company->accessSeats()->size() }} instalaciones</span>

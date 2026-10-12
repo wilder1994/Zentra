@@ -438,10 +438,39 @@ html[data-theme="light"] .company-iw-operar {
     color: var(--ui-success);
 }
 
+/* Carrito del encabezado público: el número va dentro de la canasta. */
+.plan-cart-basket {
+    fill: currentColor;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+.plan-cart-icon.is-filled { color: #67e8f9; }
+.plan-cart-icon.is-filled .plan-cart-basket { opacity: 0.18; }
+.plan-cart-icon svg { transition: transform 0.2s ease; }
+.plan-cart-icon.is-bump svg { transform: scale(1.18) rotate(-6deg); }
+.plan-cart-count {
+    position: absolute;
+    left: 24.6px;
+    top: 19.5px;
+    transform: translate(-50%, -50%);
+    min-width: 1rem;
+    font-size: 0.7rem;
+    font-weight: 800;
+    line-height: 1;
+    text-align: center;
+    color: #ecfeff;
+    font-variant-numeric: tabular-nums;
+}
+html[data-theme="light"] .plan-cart-icon.is-filled { color: var(--ui-accent); }
+html[data-theme="light"] .plan-cart-count { color: var(--ui-accent); }
+
 /* Tarjetas de /planes con el color de su metal. */
-.plan-metal {
+.plan-metal,
+.plan-name-chip {
     --metal: #cd7f32;
     --metal-ink: #f0c08f;
+}
+.plan-metal {
     border-color: color-mix(in srgb, var(--metal) 55%, transparent);
     background:
         radial-gradient(120% 60% at 0% 0%, color-mix(in srgb, var(--metal) 24%, transparent) 0%, transparent 60%),
@@ -457,9 +486,33 @@ html[data-theme="light"] .company-iw-operar {
         0 0 0 1px color-mix(in srgb, var(--metal) 40%, transparent),
         0 18px 50px -14px color-mix(in srgb, var(--metal) 90%, transparent);
 }
-.plan-metal[data-metal="plata"] { --metal: #c3cad4; --metal-ink: #f1f4f8; }
-.plan-metal[data-metal="oro"] { --metal: #e2b33a; --metal-ink: #fde68a; }
-.plan-metal[data-metal="platino"] { --metal: #9fd6ef; --metal-ink: #e9f8ff; }
+.plan-metal-glow {
+    box-shadow:
+        0 0 0 2px var(--metal),
+        0 0 60px -6px color-mix(in srgb, var(--metal) 95%, transparent) !important;
+}
+:is(.plan-metal, .plan-name-chip)[data-metal="plata"] { --metal: #c3cad4; --metal-ink: #f1f4f8; }
+:is(.plan-metal, .plan-name-chip)[data-metal="oro"] { --metal: #e2b33a; --metal-ink: #fde68a; }
+:is(.plan-metal, .plan-name-chip)[data-metal="platino"] { --metal: #9fd6ef; --metal-ink: #e9f8ff; }
+:is(.plan-metal, .plan-name-chip)[data-metal="personalizado"] { --metal: #a78bfa; --metal-ink: #67e8f9; }
+.plan-metal[data-metal="personalizado"] {
+    background:
+        radial-gradient(90% 60% at 0% 0%, rgb(167 139 250 / 0.28) 0%, transparent 60%),
+        radial-gradient(80% 60% at 100% 100%, rgb(103 232 249 / 0.18) 0%, transparent 60%),
+        var(--ui-surface-glass);
+}
+.plan-name-chip {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 9999px;
+    padding: 0.15rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #0f172a;
+    background: linear-gradient(120deg, var(--metal-ink), var(--metal));
+    box-shadow: 0 0 18px -6px var(--metal);
+    white-space: nowrap;
+}
 .plan-metal-bar {
     height: 3px;
     background: linear-gradient(90deg, transparent, var(--metal), var(--metal-ink), var(--metal), transparent);
@@ -483,10 +536,13 @@ html[data-theme="light"] .plan-metal input[type="checkbox"]:checked {
     background-color: var(--metal) !important;
 }
 
-html[data-theme="light"] .plan-metal { --metal: #b5652a; --metal-ink: #e0a26a; }
-html[data-theme="light"] .plan-metal[data-metal="plata"] { --metal: #7d8796; --metal-ink: #b9c1cc; }
-html[data-theme="light"] .plan-metal[data-metal="oro"] { --metal: #b88a12; --metal-ink: #e5c04c; }
-html[data-theme="light"] .plan-metal[data-metal="platino"] { --metal: #4f9cc0; --metal-ink: #9ccde3; }
+html[data-theme="light"] :is(.plan-metal, .plan-name-chip) { --metal: #b5652a; --metal-ink: #e0a26a; }
+html[data-theme="light"] :is(.plan-metal, .plan-name-chip)[data-metal="plata"] { --metal: #7d8796; --metal-ink: #b9c1cc; }
+html[data-theme="light"] :is(.plan-metal, .plan-name-chip)[data-metal="oro"] { --metal: #b88a12; --metal-ink: #e5c04c; }
+html[data-theme="light"] :is(.plan-metal, .plan-name-chip)[data-metal="platino"] { --metal: #4f9cc0; --metal-ink: #9ccde3; }
+html[data-theme="light"] :is(.plan-metal, .plan-name-chip)[data-metal="personalizado"] { --metal: #7c3aed; --metal-ink: #0891b2; }
+html[data-theme="light"] .plan-name-chip { color: #fff; }
+html[data-theme="light"] .plan-name-chip[data-metal="plata"] { color: #1e293b; }
 html[data-theme="light"] .plan-metal-title {
     background-image: linear-gradient(100deg, color-mix(in srgb, var(--metal) 70%, #111) 0%, var(--metal) 100%);
 }

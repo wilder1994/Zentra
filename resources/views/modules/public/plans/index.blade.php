@@ -19,16 +19,16 @@
 @extends('layouts.public')
 
 @section('content')
-    <div class="space-y-6">
+    <div class="space-y-6 pb-24">
         <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
             <div>
                 <p class="text-xs text-cyan-400 uppercase tracking-widest">Planes</p>
                 <h2 class="text-2xl font-bold text-white mt-1">Arma tu plan</h2>
                 <p class="text-sm text-slate-400 mt-2 max-w-2xl">
-                    Elige los productos y cuántas instalaciones quieres de cada uno; Indexación se cobra por empleado.
+                    Marca los productos y cuántas instalaciones quieres de cada uno; Indexación se cobra por empleado.
                     La cantidad define el plan (Bronce 1–5, Plata 6–15, Oro 16–40, Platino 41 o más instalaciones;
-                    en Indexación 1–1.000, 1.001–2.000, 2.001–3.000 y 3.001 o más empleados) y su descuento aplica a todas.
-                    Si combinas productos, cada uno después del de mayor valor tiene −{{ round($comboDiscount * 100) }}%.
+                    en Indexación 1–1.000, 1.001–2.000, 2.001–3.000 y 3.001 o más empleados): si te pasas del rango, el producto
+                    sube solo al plan siguiente. Si combinas productos, cada uno después del de mayor valor tiene −{{ round($comboDiscount * 100) }}%.
                     Pagando anual ahorras {{ round($annualDiscount * 100) }}% más.
                 </p>
             </div>
@@ -45,7 +45,7 @@
 
         <div class="grid gap-4 lg:grid-cols-2">
             @foreach ($metals as $metal)
-                <article class="plan-metal rounded-xl border p-4 space-y-3" data-metal="{{ $metal->value }}"
+                <article class="plan-metal rounded-xl border p-4 space-y-3" data-metal="{{ $metal->value }}" :class="{ 'plan-metal-glow': glow }"
                     x-data="planCard(@js(['catalog' => $planCatalog, 'metal' => $metal->value, 'rows' => $rows, 'modules' => $modules]))">
                     <div class="plan-metal-bar -mx-4 -mt-4 mb-1 rounded-t-xl"></div>
                     <div class="flex items-start justify-between gap-2">
@@ -61,12 +61,15 @@
                         </div>
                     </div>
 
+                    <p class="rounded-lg border border-emerald-700/40 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-300" x-show="notice" x-text="notice" x-cloak></p>
+
                     <ul class="divide-y divide-slate-800 rounded-lg border border-slate-800">
                         @foreach ($rows as $row)
                             <li class="p-3">
                                 <div class="flex items-start justify-between gap-2">
                                     <label class="flex items-start gap-2 text-sm text-slate-200">
-                                        <input type="checkbox" class="mt-0.5 rounded border-slate-600 bg-slate-900" x-model="rows['{{ $row }}'].on">
+                                        <input type="checkbox" class="mt-0.5 rounded border-slate-600 bg-slate-900"
+                                            :checked="isOn('{{ $row }}')" @change="toggle('{{ $row }}', $event.target)">
                                         <span>
                                             {{ $rowLabels[$row] }}
                                             <span class="block text-xs text-slate-500"
@@ -81,21 +84,27 @@
                                             <span class="line-through" x-text="money(listUnit('{{ $row }}'))"></span>
                                             <span class="text-emerald-400" x-text="'−' + discountPct('{{ $row }}') + '%'"></span>
                                         </p>
-                                        <p class="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-xs font-semibold text-emerald-300 tabular-nums"
-                                            x-show="comboState('{{ $row }}') === 'discount'" x-cloak
-                                            x-text="(rows['{{ $row }}'].on ? 'Combinado −' : 'Si lo combinas −') + comboPctLabel + '%: ' + money(comboUnit('{{ $row }}')) + '/mes'"></p>
-                                        <p class="text-xs text-sky-300" x-show="comboState('{{ $row }}') === 'top'" x-cloak
-                                            x-text="rows['{{ $row }}'].on ? 'Precio completo · los demás −' + comboPctLabel + '%' : 'Si lo combinas, los demás −' + comboPctLabel + '%'"></p>
-                                        <div class="flex items-center justify-end gap-2" x-show="rows['{{ $row }}'].on" x-cloak>
+                                        <p class="text-xs text-amber-300" x-show="elsewhere('{{ $row }}')" x-cloak
+                                            x-text="'Ya está en tu plan como ' + elsewhere('{{ $row }}')"></p>
+                                        <template x-if="!elsewhere('{{ $row }}')">
+                                            <div class="space-y-1.5">
+                                                <p class="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-xs font-semibold text-emerald-300 tabular-nums"
+                                                    x-show="comboState('{{ $row }}') === 'discount'"
+                                                    x-text="(isOn('{{ $row }}') ? 'Combinado −' : 'Si lo combinas −') + comboPctLabel + '%: ' + money(comboUnit('{{ $row }}')) + '/mes'"></p>
+                                                <p class="text-xs text-sky-300" x-show="comboState('{{ $row }}') === 'top'"
+                                                    x-text="isOn('{{ $row }}') ? 'Precio completo · los demás −' + comboPctLabel + '%' : 'Si lo combinas, los demás −' + comboPctLabel + '%'"></p>
+                                            </div>
+                                        </template>
+                                        <div class="flex items-center justify-end gap-2" x-show="isOn('{{ $row }}')" x-cloak>
                                             <span class="text-xs tabular-nums text-slate-300">
-                                                <span class="mr-1 text-slate-500 line-through" x-show="comboState('{{ $row }}') === 'discount'" x-text="money(unit('{{ $row }}') * rows['{{ $row }}'].qty)"></span>
+                                                <span class="mr-1 text-slate-500 line-through" x-show="comboState('{{ $row }}') === 'discount'" x-text="money(unit('{{ $row }}') * qty('{{ $row }}'))"></span>
                                                 <span x-text="money(rowTotal('{{ $row }}')) + '/mes'"></span>
                                             </span>
                                             <div class="inline-flex h-8 overflow-hidden rounded-lg border border-slate-700 bg-slate-950 focus-within:border-cyan-600">
                                                 <input type="number" inputmode="numeric"
                                                     class="{{ $row === 'indexing' ? 'w-20' : 'w-14' }} border-0 bg-transparent px-2 text-right text-sm text-white tabular-nums focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                                    :min="min('{{ $row }}')" :max="max('{{ $row }}')" x-model.number="rows['{{ $row }}'].qty"
-                                                    @change="clamp('{{ $row }}')" @keydown.arrow-up.prevent="step('{{ $row }}', 1)" @keydown.arrow-down.prevent="step('{{ $row }}', -1)"
+                                                    min="0" :value="qty('{{ $row }}')"
+                                                    @change="commit('{{ $row }}', $event.target.value, $event.target)" @keydown.arrow-up.prevent="step('{{ $row }}', 1)" @keydown.arrow-down.prevent="step('{{ $row }}', -1)"
                                                     aria-label="{{ $row === 'indexing' ? 'Empleados' : 'Instalaciones' }} de {{ $rowLabels[$row] }}">
                                                 <div class="flex w-6 flex-col border-l border-slate-700">
                                                     <button type="button" class="flex flex-1 items-center justify-center text-slate-300 hover:bg-slate-800 hover:text-white" @click="step('{{ $row }}', 1)" aria-label="Aumentar">
@@ -114,27 +123,42 @@
                     </ul>
 
                     <p class="text-xs text-slate-300" x-text="gets"></p>
-                    <div class="flex items-center justify-between gap-2">
-                        <div>
-                            <p class="text-sm text-slate-400">
-                                Subtotal
-                                <span class="text-slate-500 line-through tabular-nums" x-show="combined < monthly - 0.5" x-cloak x-text="money(monthly)"></span>
-                                <span class="text-white font-semibold tabular-nums" x-text="money(combined) + '/mes'"></span>
-                            </p>
-                            <p class="text-xs font-medium text-emerald-300" x-show="comboSavings > 0" x-cloak
-                                x-text="'Ahorras ' + money(comboSavings) + '/mes al combinar' + (cartAdds ? ' con tu carrito' : '')"></p>
-                        </div>
-                        <button type="button" class="plan-metal-btn inline-flex items-center justify-center h-9 px-4 rounded-lg text-sm font-semibold"
-                            @click="addToCart()">Agregar al carrito</button>
+                    <div class="flex items-center justify-between gap-2" x-show="selected.length > 0" x-cloak>
+                        <p class="text-sm text-slate-400">
+                            En {{ $metal->label() }}
+                            <span class="text-slate-500 line-through tabular-nums" x-show="combined < monthly - 0.5" x-text="money(monthly)"></span>
+                            <span class="text-white font-semibold tabular-nums" x-text="money(combined) + '/mes'"></span>
+                        </p>
+                        <p class="text-xs font-medium text-emerald-300" x-show="monthly - combined > 0.5" x-text="'Ahorras ' + money(monthly - combined) + '/mes al combinar'"></p>
                     </div>
-                    <p class="text-xs text-emerald-300" x-show="notice" x-text="notice" x-cloak></p>
                 </article>
             @endforeach
         </div>
 
         <p class="text-xs text-slate-500">
             El cupo de instalaciones de tu empresa es la mayor cantidad entre tus productos y se reparte entre tus clientes.
-            Si combinas planes distintos, manda el más alto para empleados y puestos. Más empleados o puestos: «Solicitar ampliación» desde Facturación.
+            Si combinas planes distintos, tu plan es personalizado y manda el más alto para empleados y puestos. Más empleados o puestos: «Solicitar ampliación» desde Facturación.
         </p>
+    </div>
+
+    <div class="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-950/90 backdrop-blur"
+        x-data="planSummary(@js(['catalog' => $planCatalog]))" x-show="count > 0" x-cloak
+        x-transition:enter="transition ease-out duration-200" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0">
+        <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <div class="flex flex-wrap items-center gap-2 text-sm">
+                <span class="plan-name-chip" :data-metal="identity.key" x-text="identity.name"></span>
+                <span class="text-slate-400" x-text="count + (count === 1 ? ' producto' : ' productos')"></span>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="text-right">
+                    <p class="text-sm text-slate-400">
+                        <span class="text-slate-500 line-through tabular-nums" x-show="quote.savings > 0" x-text="money(quote.listAmount)"></span>
+                        <span class="text-lg font-bold text-white tabular-nums" x-text="money(quote.amount) + '/mes'"></span>
+                    </p>
+                    <p class="text-xs font-medium text-emerald-300" x-show="quote.savings > 0" x-text="'Ahorras ' + money(quote.savings) + '/mes'"></p>
+                </div>
+                <a href="{{ route('planes.cart') }}" class="inline-flex items-center justify-center h-10 px-5 rounded-lg text-sm font-semibold bg-cyan-500 text-slate-950 hover:bg-cyan-400">Ver carrito</a>
+            </div>
+        </div>
     </div>
 @endsection

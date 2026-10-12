@@ -114,6 +114,10 @@
             </div>
 
             <div class="flex flex-wrap gap-2">
+                @php($companyPlan = \App\Domain\Pricing\Data\PlanSelection::fromCompany($company))
+                @unless ($companyPlan->isEmpty())
+                    <span class="plan-name-chip" data-metal="{{ $companyPlan->uniformMetal()?->value ?? 'personalizado' }}">{{ $companyPlan->planName() }}</span>
+                @endunless
                 @if ($company->hasAccessPackage())
                     <span class="ui-chip ui-chip-accent">Accesos · {{ $company->accessMetal()?->label() }}</span>
                 @endif
