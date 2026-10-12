@@ -28,7 +28,6 @@ use App\Models\CommercialPayment;
 use App\Models\PlatformDocument;
 use App\Models\QuotaRequest;
 use App\Models\SecurityCompany;
-use App\Models\User;
 use App\Repositories\SecurityCompanyRepository;
 use App\Services\Company\CreateEmployeeCatalogItemsService;
 use App\Services\Company\StoreEmployeePhotoService;
@@ -209,13 +208,6 @@ final class CompanyController extends Controller
             ->where('status', PaymentStatus::Pending)
             ->count();
 
-        $latestPayment = CommercialPayment::query()
-            ->where('security_company_id', $company->id)
-            ->latest('created_at')
-            ->first();
-
-        $companyAdminEmail = $this->resolveCompanyAdminEmail($company);
-
         $maxClients = max(1, (int) $company->max_clients);
         $operational = (int) ($company->operational_clients_count ?? 0);
         $quotaPct = (int) min(100, round(($operational / $maxClients) * 100));
@@ -246,8 +238,6 @@ final class CompanyController extends Controller
             'pendingRepriceAmount' => $company->hasPendingReprice() ? $catalogAmount : null,
             'catalogAmount' => $catalogAmount,
             'pendingPaymentsCount' => $pendingPaymentsCount,
-            'latestPayment' => $latestPayment,
-            'companyAdminEmail' => $companyAdminEmail,
             'quotaPct' => $quotaPct,
             'daysToRenewal' => $daysToRenewal,
             'hasAcceptance' => $company->hasCompletedAcceptance(),
@@ -637,16 +627,5 @@ final class CompanyController extends Controller
         return redirect()
             ->route('admin.companies.profile.edit', $company)
             ->with('success', 'Perfil de empresa actualizado.');
-    }
-
-    private function resolveCompanyAdminEmail(SecurityCompany $company): string
-    {
-        $admin = User::query()
-            ->where('security_company_id', $company->id)
-            ->whereHas('roles', fn ($q) => $q->where('name', 'company-admin'))
-            ->orderBy('id')
-            ->first();
-
-        return $admin?->email ?: ($company->email ?: '—');
     }
 }

@@ -44,13 +44,10 @@
                         @csrf
                         @method('PUT')
                         <p class="text-xs font-medium text-slate-300">Excepción por instalación</p>
-                        <label class="block text-[11px] text-slate-500">Instalación
-                            <select name="installation_id" class="{{ $input }}" required>
-                                @foreach ($q['installations'] as $row)
-                                    <option value="{{ $row['id'] }}">{{ $row['label'] }} · {{ $row['posts'] }}/{{ $row['limit'] }}{{ $row['override'] !== null ? ' (excepción)' : '' }}</option>
-                                @endforeach
-                            </select>
-                        </label>
+                        <div class="text-[11px] text-slate-500">Instalación
+                            <x-ui.search-select name="installation_id" required placeholder="Escribe para buscar instalación…"
+                                :options="collect($q['installations'])->map(fn ($row) => ['value' => $row['id'], 'label' => $row['label'], 'hint' => $row['posts'].'/'.$row['limit'].($row['override'] !== null ? ' · excepción' : '')])" />
+                        </div>
                         <label class="block text-[11px] text-slate-500">Puestos permitidos (vacío = quitar excepción)
                             <input type="number" min="0" name="max_posts" class="{{ $input }}">
                         </label>
@@ -64,13 +61,10 @@
                         @csrf
                         @method('PUT')
                         <p class="text-xs font-medium text-slate-300">Excepción por puesto</p>
-                        <label class="block text-[11px] text-slate-500">Puesto
-                            <select name="supervisor_post_id" class="{{ $input }}" required>
-                                @foreach ($q['posts'] as $row)
-                                    <option value="{{ $row['id'] }}">{{ $row['label'] }} · {{ $row['assigned'] }}/{{ $row['limit'] }}{{ $row['override'] !== null ? ' (excepción)' : '' }}</option>
-                                @endforeach
-                            </select>
-                        </label>
+                        <div class="text-[11px] text-slate-500">Puesto
+                            <x-ui.search-select name="supervisor_post_id" required placeholder="Escribe para buscar puesto…"
+                                :options="collect($q['posts'])->map(fn ($row) => ['value' => $row['id'], 'label' => $row['label'], 'hint' => $row['assigned'].'/'.$row['limit'].($row['override'] !== null ? ' · excepción' : '')])" />
+                        </div>
                         <label class="block text-[11px] text-slate-500">Empleados asignables (vacío = quitar excepción)
                             <input type="number" min="0" name="max_employees" class="{{ $input }}">
                         </label>

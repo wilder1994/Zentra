@@ -12,15 +12,30 @@ final class SupportCompanyContext
 
     public const EXPIRED_FLASH = 'La sesión de soporte terminó. Entra otra vez desde el expediente de la empresa.';
 
+    /** Empresa recién dejada: el panel ofrece «Entrar de nuevo» una sola vez. */
+    public const RESUME_NOTICE_KEY = 'support.resume_notice_company_id';
+
     public static function enter(int $companyId): void
     {
         session([self::SESSION_KEY => $companyId]);
+        session()->forget(self::RESUME_NOTICE_KEY);
         cookie()->queue(cookie(self::LAST_COMPANY_COOKIE, (string) $companyId, 60 * 24 * 30));
     }
 
     public static function exit(): void
     {
+        $companyId = self::companyId();
         session()->forget(self::SESSION_KEY);
+        if ($companyId !== null) {
+            session([self::RESUME_NOTICE_KEY => $companyId]);
+        }
+    }
+
+    public static function pullResumeNotice(): ?int
+    {
+        $id = (int) session()->pull(self::RESUME_NOTICE_KEY, 0);
+
+        return $id > 0 ? $id : null;
     }
 
     public static function isActive(): bool

@@ -150,6 +150,7 @@ Migraciones del 13 oct 2026:
 
 | Fecha | Cambio |
 |-------|--------|
+| 2026-10-13 | Ficha de empresa: 5 KPIs en una fila, cupos a la altura del plan, buscador de instalación/puesto en «Ampliar cupo» y aviso «Entrar de nuevo» solo una vez al salir del modo soporte (3 s) |
 | 2026-10-13 | Ficha de empresa (superadmin) rediseñada: KPIs, tarjeta del plan, cambio de plan con tarjetas de metal, cupos compactos, movimientos unificados y menú «Más acciones» |
 | 2026-10-13 | `/planes`: título «Selecciona tu plan o ármalo a tu gusto» y guía «¿Cómo funciona?» en modal (automática la primera visita) |
 | 2026-10-13 | Un producto por tarjeta con salto automático de plan, barra fija con el total, «Plan personalizado», carrito como tarjeta del plan e icono de carrito con contador |

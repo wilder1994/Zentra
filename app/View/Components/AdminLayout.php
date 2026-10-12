@@ -29,7 +29,7 @@ final class AdminLayout extends Component
             return null;
         }
 
-        $companyId = SupportCompanyContext::lastCompanyId();
+        $companyId = SupportCompanyContext::pullResumeNotice();
         if ($companyId === null) {
             return null;
         }

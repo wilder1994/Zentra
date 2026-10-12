@@ -8,7 +8,7 @@
     ];
 @endphp
 
-<section id="cupos" class="rounded-lg border border-slate-800 bg-slate-900/80 p-4 space-y-4 min-w-0">
+<section id="cupos" class="flex w-full flex-col gap-4 rounded-lg border border-slate-800 bg-slate-900/80 p-4 min-w-0">
     <div class="flex flex-wrap items-center justify-between gap-2">
         <div>
             <h3 class="text-sm font-semibold text-white">Cupos y ampliaciones</h3>
@@ -19,7 +19,7 @@
         @endcan
     </div>
 
-    <div class="space-y-3">
+    <div class="flex flex-1 flex-col justify-center gap-4">
         @foreach ($bars as $bar)
             @php($pct = $bar['cap'] > 0 ? (int) min(100, round($bar['used'] / $bar['cap'] * 100)) : 0)
             <div>

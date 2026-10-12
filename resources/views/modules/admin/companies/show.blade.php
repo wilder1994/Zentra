@@ -90,7 +90,7 @@
             </div>
         @endif
 
-        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
             <div class="col-span-2 md:col-span-1 rounded-lg border border-slate-800 bg-slate-900/80 px-4 py-3">
                 <p class="text-xs text-slate-500">Plan</p>
                 <div class="mt-1 flex flex-wrap items-center gap-2">
@@ -230,7 +230,7 @@
                 @endcan
             </section>
 
-            <div class="lg:col-span-2 min-w-0">
+            <div class="lg:col-span-2 min-w-0 flex">
                 @include('modules.admin.companies.partials.quotas')
             </div>
         </div>
@@ -268,20 +268,6 @@
                 </ul>
             @endif
         </section>
-
-        <p class="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-xs text-slate-500">
-            <span>Admin empresa: <span class="text-slate-300 break-all">{{ $companyAdminEmail }}</span></span>
-            <span>Último pago:
-                <span class="text-slate-300">
-                    @if ($latestPayment)
-                        {{ ($latestPayment->paid_at ?? $latestPayment->created_at)?->format('d/m/Y') }} · {{ $latestPayment->method?->label() ?? '—' }}
-                    @else
-                        —
-                    @endif
-                </span>
-            </span>
-            <a href="{{ route('admin.documents.expedientes.show', $company) }}" class="text-violet-400 hover:text-violet-300">Expediente docs →</a>
-        </p>
 
         @include('modules.admin.companies.partials.plan-change-modal')
         @include('modules.admin.companies.partials.price-lock-modal')

@@ -76,22 +76,30 @@ final class EnterCompanyAsSupportTest extends TestCase
         $this->assertAuthenticated();
     }
 
-    public function test_admin_dashboard_offers_resume_support_from_last_company_cookie(): void
+    public function test_resume_support_notice_shows_once_after_exit(): void
     {
         $this->seedWithPilot();
 
         $admin = User::query()->where('email', 'admin@control-acceso.test')->firstOrFail();
         $company = SecurityCompany::query()->where('tax_id', '900123456-1')->firstOrFail();
 
-        $response = $this->actingAs($admin)->call(
+        $this->actingAs($admin)->post(route('admin.companies.enter', $company));
+        $this->actingAs($admin)->post(route('admin.support.exit'));
+
+        $this->actingAs($admin)->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Entrar de nuevo', false)
+            ->assertSee('Saliste de', false);
+
+        $this->actingAs($admin)->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertDontSee('Saliste de', false);
+
+        $this->actingAs($admin)->call(
             'GET',
             route('admin.dashboard'),
             cookies: [SupportCompanyContext::LAST_COMPANY_COOKIE => (string) $company->id],
-        );
-
-        $response->assertOk()
-            ->assertSee('Entrar de nuevo', false)
-            ->assertSee('Última empresa en soporte', false);
+        )->assertOk()->assertDontSee('Saliste de', false);
     }
 
     public function test_company_show_renders_expediente_without_ver_en_resumen(): void

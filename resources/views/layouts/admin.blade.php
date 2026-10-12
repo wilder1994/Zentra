@@ -82,12 +82,16 @@
             <x-ui.flash-toasts />
 
             @if ($resumeSupportCompany ?? null)
-                <div class="max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 pt-3 shrink-0">
-                    <div class="rounded-lg border border-violet-500/40 bg-violet-950/40 px-4 py-3 text-sm text-violet-100 flex flex-wrap items-center justify-between gap-3">
-                        <p>Última empresa en soporte: <span class="font-medium text-white">{{ $resumeSupportCompany->displayName() }}</span></p>
-                        <form method="POST" action="{{ route('admin.companies.enter', $resumeSupportCompany) }}">
+                <div class="fixed bottom-4 right-4 z-50 max-w-sm"
+                    x-data="{ show: true, timer: null, start() { this.timer = setTimeout(() => this.show = false, 3000) } }"
+                    x-init="start()" x-show="show" x-cloak
+                    x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 translate-y-2"
+                    @mouseenter="clearTimeout(timer)" @mouseleave="start()" role="status">
+                    <div class="rounded-lg border border-violet-500/40 bg-violet-950/95 px-4 py-3 text-sm text-violet-100 shadow-xl backdrop-blur flex items-center gap-3">
+                        <p class="min-w-0">Saliste de <span class="font-medium text-white">{{ $resumeSupportCompany->displayName() }}</span></p>
+                        <form method="POST" action="{{ route('admin.companies.enter', $resumeSupportCompany) }}" class="shrink-0">
                             @csrf
-                            <button type="submit" class="h-9 px-3 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-500">
+                            <button type="submit" class="h-8 px-3 rounded-lg bg-violet-600 text-white text-xs font-medium hover:bg-violet-500">
                                 Entrar de nuevo
                             </button>
                         </form>
