@@ -18,6 +18,9 @@
 @case('stop')
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"{!! $class !!}><polygon points="10.4,2 21.6,2 30,10.4 30,21.6 21.6,30 10.4,30 2,21.6 2,10.4" fill="#0b1220"/><polygon points="11,3.5 21,3.5 28.5,11 28.5,21 21,28.5 11,28.5 3.5,21 3.5,11" fill="#991b1b" stroke="#ffffff" stroke-width="1.4"/><text x="16" y="19.1" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="8.2" font-weight="800" fill="#ffffff">STOP</text></svg>
 @break
+@case('coverage')
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"{!! $class !!}><circle cx="16" cy="16" r="14" fill="{{ $color ?? '__COLOR__' }}" stroke="#0b1220" stroke-width="2"/>{!! $ring ?? '__RING__' !!}<text x="16" y="20.4" text-anchor="middle" font-family="system-ui,sans-serif" font-size="{{ $fontSize ?? '__FONT__' }}" font-weight="700" fill="#ffffff">{{ $text ?? '__TEXT__' }}</text></svg>
+@break
 @case('support')
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"{!! $class !!}><circle cx="16" cy="16" r="14" fill="#2563eb" stroke="#0b1220" stroke-width="2"/><path d="M16 7.5l7 2.6v5.2c0 4.4-3 7.4-7 8.6-4-1.2-7-4.2-7-8.6v-5.2z" fill="#ffffff"/></svg>
 @break

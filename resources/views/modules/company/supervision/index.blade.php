@@ -395,7 +395,7 @@
                 const PIN_SIZE = 24;
                 @php
                     $pinSvgs = [];
-                    foreach (['start', 'flag', 'review', 'novelty', 'alarm', 'stop', 'support'] as $pinKind) {
+                    foreach (['start', 'flag', 'review', 'novelty', 'alarm', 'stop', 'support', 'coverage'] as $pinKind) {
                         $pinSvgs[$pinKind] = trim(view('modules.company.supervision.partials.pin-icon', ['kind' => $pinKind])->render());
                     }
                 @endphp
@@ -425,7 +425,7 @@
                 function circleIcon(color, scale) {
                     return {
                         path: google.maps.SymbolPath.CIRCLE,
-                        scale: scale || 9,
+                        scale: scale || 10.5,
                         fillColor: color,
                         fillOpacity: 1,
                         strokeColor: '#0b1220',
@@ -601,15 +601,13 @@
 
                 function coverageIcon(row, count) {
                     const text = String(count);
-                    const size = text.length > 2 ? 28 : 26;
-                    const color = coverageColor(row);
-                    const ring = pointsMode === 'installation' ? '<circle cx="16" cy="16" r="13" fill="none" stroke="#ffffff" stroke-width="1" stroke-dasharray="3 2"/>' : '';
-                    return svgIcon(
-                        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="15" fill="' + color + '" stroke="#0b1220" stroke-width="2"/>' + ring
-                        + '<text x="16" y="20.5" text-anchor="middle" font-family="system-ui,sans-serif" font-size="' + (text.length > 2 ? 10 : 13) + '" font-weight="700" fill="#ffffff">' + text + '</text></svg>',
-                        size,
-                        size / 2,
-                    );
+                    const ring = pointsMode === 'installation' ? '<circle cx="16" cy="16" r="11.5" fill="none" stroke="#ffffff" stroke-width="1" stroke-dasharray="3 2"/>' : '';
+                    const svg = pinSvgs.coverage
+                        .replace('__COLOR__', coverageColor(row))
+                        .replace('__RING__', ring)
+                        .replace('__FONT__', text.length > 2 ? '9.5' : (text.length > 1 ? '11.5' : '13'))
+                        .replace('__TEXT__', esc(text));
+                    return svgIcon(svg, PIN_SIZE, PIN_SIZE / 2);
                 }
 
                 function collectCoveragePins() {
@@ -1273,6 +1271,11 @@
                         mapTypeId: google.maps.MapTypeId.HYBRID,
                         mapTypeControl: false,
                         streetViewControl: false,
+                        clickableIcons: false,
+                        styles: [
+                            { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+                            { featureType: 'transit', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+                        ],
                     });
                     googleMap.addListener('click', () => {
                         if (ignoreMapClick) {
