@@ -162,7 +162,7 @@
                         'w-full rounded-lg border border-slate-800 bg-slate-950/60 overflow-hidden relative',
                         'h-[min(78vh,740px)] min-h-[420px]' => in_array($activeTab, ['live', 'history'], true),
                         'h-[420px]' => ! in_array($activeTab, ['live', 'history'], true),
-                    ])>
+                    ])></div>
                         <div class="absolute top-3 left-3 right-16 z-10 flex flex-wrap items-center gap-2 pointer-events-none">
                             <div class="pointer-events-auto inline-flex rounded-md border border-slate-700 bg-slate-950/90 p-0.5 text-xs">
                                 <button type="button" class="supervision-map-type-btn rounded px-2 py-1 font-medium text-white bg-indigo-600/80" data-map-type="satellite">Satélite</button>
@@ -191,7 +191,6 @@
                                 <p>Configura <code class="text-indigo-300">GOOGLE_MAPS_API_KEY</code>.</p>
                             </div>
                         </div>
-                    </div>
                 </div>
 
                 @if ($activeTab === 'live')
