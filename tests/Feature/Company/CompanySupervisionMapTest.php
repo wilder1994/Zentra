@@ -61,8 +61,9 @@ final class CompanySupervisionMapTest extends TestCase
         $history->assertSee('Turnos del periodo');
         $history->assertSee('Inicio de turno');
         $history->assertSee('una ruta a la vez');
-        $history->assertSee('Desde');
-        $history->assertSee('Hasta');
+        $history->assertSee('Periodo');
+        $history->assertSee('supervisionPeriodPicker', false);
+        $history->assertDontSee('period-year', false);
         $history->assertSee('Supervisor');
         $history->assertSee($supervisor->name);
         $history->assertDontSee('Replay');

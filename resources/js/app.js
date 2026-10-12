@@ -14,6 +14,7 @@ import { observatoryIntake, observatoryPhotos } from './observatory-intake';
 import { observatoryMap } from './observatory-map';
 import { postEmployeePicker } from './post-employee-picker';
 import { employeeReassignForm } from './employee-reassign-form';
+import { supervisionPeriodPicker } from './supervision-period';
 import { panelSidebar } from './panel-sidebar';
 import { opsLiveAlerts } from './ops-live-alerts';
 import { deviceChangeAlerts } from './device-change-alerts';
@@ -44,6 +45,7 @@ Alpine.data('observatoryPhotos', observatoryPhotos);
 Alpine.data('observatoryMap', observatoryMap);
 Alpine.data('postEmployeePicker', postEmployeePicker);
 Alpine.data('employeeReassignForm', employeeReassignForm);
+Alpine.data('supervisionPeriodPicker', supervisionPeriodPicker);
 
 Alpine.start();
 initFormFeedback();

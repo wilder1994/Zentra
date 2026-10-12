@@ -30,43 +30,8 @@
         @if ($activeTab !== 'live')
         <form method="GET" action="{{ route('company.supervision.index') }}" class="flex flex-wrap items-end gap-2" id="supervision-filter">
             <input type="hidden" name="tab" value="{{ $activeTab }}">
+            @include('modules.company.supervision.partials.period-picker', ['from' => $summary->from, 'to' => $summary->to])
             @if (in_array($activeTab, ['summary', 'sheets'], true))
-            <div>
-                <label for="period-year" class="text-xs text-slate-500">Año</label>
-                <select id="period-year"
-                        class="mt-1 block h-9 min-w-[5.5rem] px-2 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                    @for ($year = now()->year; $year >= now()->year - 4; $year--)
-                        <option value="{{ $year }}" @selected((int) substr($summary->from, 0, 4) === $year)>{{ $year }}</option>
-                    @endfor
-                </select>
-            </div>
-            <div>
-                <label for="period-month" class="text-xs text-slate-500">Mes</label>
-                <select id="period-month"
-                        class="mt-1 block h-9 min-w-[7.5rem] px-2 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                    <option value="">Todo el año</option>
-                    @foreach (['01'=>'Ene','02'=>'Feb','03'=>'Mar','04'=>'Abr','05'=>'May','06'=>'Jun','07'=>'Jul','08'=>'Ago','09'=>'Sep','10'=>'Oct','11'=>'Nov','12'=>'Dic'] as $num => $label)
-                        <option value="{{ $num }}">{{ $label }}</option>
-                    @endforeach
-                </select>
-            </div>
-            @endif
-            <div>
-                <label for="from" class="text-xs text-slate-500">Desde</label>
-                <input type="date" id="from" name="from" value="{{ $summary->from }}"
-                       class="mt-1 block h-9 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-            </div>
-            <div>
-                <label for="to" class="text-xs text-slate-500">Hasta</label>
-                <input type="date" id="to" name="to" value="{{ $summary->to }}"
-                       class="mt-1 block h-9 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-            </div>
-            @if (in_array($activeTab, ['summary', 'sheets'], true))
-            <div class="flex gap-1 pb-0.5">
-                <button type="button" data-preset="today" class="h-9 px-2 text-xs rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800">Hoy</button>
-                <button type="button" data-preset="month" class="h-9 px-2 text-xs rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800">Mes</button>
-                <button type="button" data-preset="year" class="h-9 px-2 text-xs rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800">Año</button>
-            </div>
             <div>
                 <label for="zone_id" class="text-xs text-slate-500">Zona</label>
                 <select id="zone_id" name="zone_id"
@@ -321,72 +286,6 @@
     </div>
 
     @push('scripts')
-        <script>
-            (function () {
-                const yearEl = document.getElementById('period-year');
-                const monthEl = document.getElementById('period-month');
-                const fromEl = document.getElementById('from');
-                const toEl = document.getElementById('to');
-                if (!yearEl || !monthEl || !fromEl || !toEl) return;
-
-                const pad = (n) => String(n).padStart(2, '0');
-                const lastDay = (y, m) => new Date(y, m, 0).getDate();
-                const iso = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
-
-                function applyYearMonth() {
-                    const y = Number(yearEl.value);
-                    const m = monthEl.value;
-                    if (m) {
-                        fromEl.value = iso(y, Number(m), 1);
-                        toEl.value = iso(y, Number(m), lastDay(y, Number(m)));
-                        return;
-                    }
-                    fromEl.value = iso(y, 1, 1);
-                    toEl.value = iso(y, 12, 31);
-                }
-
-                function syncSelectsFromDates() {
-                    const from = fromEl.value;
-                    const to = toEl.value;
-                    if (!from || !to) return;
-                    yearEl.value = from.slice(0, 4);
-                    const sameMonth = from.slice(0, 7) === to.slice(0, 7)
-                        && from.endsWith('-01')
-                        && Number(to.slice(8, 10)) === lastDay(Number(from.slice(0, 4)), Number(from.slice(5, 7)));
-                    const wholeYear = from.endsWith('-01-01') && to.endsWith('-12-31') && from.slice(0, 4) === to.slice(0, 4);
-                    monthEl.value = sameMonth ? from.slice(5, 7) : (wholeYear ? '' : '');
-                    if (!sameMonth && !wholeYear) {
-                        monthEl.value = '';
-                    }
-                }
-
-                yearEl.addEventListener('change', applyYearMonth);
-                monthEl.addEventListener('change', applyYearMonth);
-                document.querySelectorAll('[data-preset]').forEach((btn) => {
-                    btn.addEventListener('click', () => {
-                        const now = new Date();
-                        const y = now.getFullYear();
-                        const m = now.getMonth() + 1;
-                        const d = now.getDate();
-                        yearEl.value = String(y);
-                        if (btn.dataset.preset === 'today') {
-                            monthEl.value = pad(m);
-                            fromEl.value = iso(y, m, d);
-                            toEl.value = iso(y, m, d);
-                            return;
-                        }
-                        if (btn.dataset.preset === 'month') {
-                            monthEl.value = pad(m);
-                            applyYearMonth();
-                            return;
-                        }
-                        monthEl.value = '';
-                        applyYearMonth();
-                    });
-                });
-                syncSelectsFromDates();
-            })();
-        </script>
         <script>
             (function () {
                 let live = {!! $liveJson !!};
