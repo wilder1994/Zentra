@@ -200,7 +200,8 @@ html[data-theme="light"] .text-violet-300,
 html[data-theme="light"] .text-violet-400,
 html[data-theme="light"] .hover\:text-violet-300:hover,
 html[data-theme="light"] .text-cyan-300,
-html[data-theme="light"] .text-cyan-400 {
+html[data-theme="light"] .text-cyan-400,
+html[data-theme="light"] .text-sky-300 {
     color: var(--ui-accent) !important;
 }
 html[data-theme="light"] .bg-indigo-950\/30,
@@ -436,3 +437,57 @@ html[data-theme="light"] .company-iw-operar {
     background: var(--ui-success-bg);
     color: var(--ui-success);
 }
+
+/* Tarjetas de /planes con el color de su metal. */
+.plan-metal {
+    --metal: #cd7f32;
+    --metal-ink: #f0c08f;
+    border-color: color-mix(in srgb, var(--metal) 55%, transparent);
+    background:
+        radial-gradient(120% 60% at 0% 0%, color-mix(in srgb, var(--metal) 24%, transparent) 0%, transparent 60%),
+        var(--ui-surface-glass);
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--metal) 15%, transparent),
+        0 12px 40px -18px color-mix(in srgb, var(--metal) 75%, transparent);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.plan-metal:hover {
+    transform: translateY(-2px);
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--metal) 40%, transparent),
+        0 18px 50px -14px color-mix(in srgb, var(--metal) 90%, transparent);
+}
+.plan-metal[data-metal="plata"] { --metal: #c3cad4; --metal-ink: #f1f4f8; }
+.plan-metal[data-metal="oro"] { --metal: #e2b33a; --metal-ink: #fde68a; }
+.plan-metal[data-metal="platino"] { --metal: #9fd6ef; --metal-ink: #e9f8ff; }
+.plan-metal-bar {
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--metal), var(--metal-ink), var(--metal), transparent);
+}
+.plan-metal-title {
+    background: linear-gradient(100deg, var(--metal-ink) 0%, var(--metal) 55%, var(--metal-ink) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+.plan-metal-btn {
+    background: linear-gradient(135deg, var(--metal-ink), var(--metal));
+    color: #0f172a;
+}
+.plan-metal-btn:hover { filter: brightness(1.08); }
+.plan-metal input[type="checkbox"]:checked {
+    background-color: color-mix(in srgb, var(--metal) 72%, #000) !important;
+    border-color: var(--metal) !important;
+}
+html[data-theme="light"] .plan-metal input[type="checkbox"]:checked {
+    background-color: var(--metal) !important;
+}
+
+html[data-theme="light"] .plan-metal { --metal: #b5652a; --metal-ink: #e0a26a; }
+html[data-theme="light"] .plan-metal[data-metal="plata"] { --metal: #7d8796; --metal-ink: #b9c1cc; }
+html[data-theme="light"] .plan-metal[data-metal="oro"] { --metal: #b88a12; --metal-ink: #e5c04c; }
+html[data-theme="light"] .plan-metal[data-metal="platino"] { --metal: #4f9cc0; --metal-ink: #9ccde3; }
+html[data-theme="light"] .plan-metal-title {
+    background-image: linear-gradient(100deg, color-mix(in srgb, var(--metal) 70%, #111) 0%, var(--metal) 100%);
+}
+html[data-theme="light"] .plan-metal-btn { color: #fff; background: linear-gradient(135deg, var(--metal), color-mix(in srgb, var(--metal) 70%, #111)); }

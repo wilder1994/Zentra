@@ -45,11 +45,12 @@
 
         <div class="grid gap-4 lg:grid-cols-2">
             @foreach ($metals as $metal)
-                <article class="rounded-xl border border-slate-800 bg-slate-900/80 p-4 space-y-3"
-                    x-data="planCard(@js(['catalog' => $planCatalog, 'metal' => $metal->value, 'rows' => $rows]))">
+                <article class="plan-metal rounded-xl border p-4 space-y-3" data-metal="{{ $metal->value }}"
+                    x-data="planCard(@js(['catalog' => $planCatalog, 'metal' => $metal->value, 'rows' => $rows, 'modules' => $modules]))">
+                    <div class="plan-metal-bar -mx-4 -mt-4 mb-1 rounded-t-xl"></div>
                     <div class="flex items-start justify-between gap-2">
                         <div>
-                            <h3 class="text-lg font-semibold text-white">{{ $metal->label() }}</h3>
+                            <h3 class="plan-metal-title text-xl font-bold tracking-wide">{{ $metal->label() }}</h3>
                             <p class="text-xs text-slate-500">{{ $metal->rangeLabelFor(\App\Enums\CommercialProduct::Access) }} por producto</p>
                             <p class="text-xs text-slate-500">Indexación: {{ $metal->rangeLabelFor(\App\Enums\CommercialProduct::Indexing) }}</p>
                         </div>
@@ -68,7 +69,9 @@
                                         <input type="checkbox" class="mt-0.5 rounded border-slate-600 bg-slate-900" x-model="rows['{{ $row }}'].on">
                                         <span>
                                             {{ $rowLabels[$row] }}
-                                            <span class="block text-xs text-slate-500">{{ implode(', ', $rowModules($row)) }}</span>
+                                            <span class="block text-xs text-slate-500"
+                                                :class="{ 'text-cyan-300': moduleInfo('{{ $row }}').mode === 'new', 'italic': moduleInfo('{{ $row }}').mode === 'none' }"
+                                                x-text="moduleInfo('{{ $row }}').text">{{ implode(', ', $rowModules($row)) }}</span>
                                         </span>
                                     </label>
                                     <div class="text-right shrink-0 space-y-1.5">
@@ -78,8 +81,16 @@
                                             <span class="line-through" x-text="money(listUnit('{{ $row }}'))"></span>
                                             <span class="text-emerald-400" x-text="'−' + discountPct('{{ $row }}') + '%'"></span>
                                         </p>
+                                        <p class="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-xs font-semibold text-emerald-300 tabular-nums"
+                                            x-show="comboState('{{ $row }}') === 'discount'" x-cloak
+                                            x-text="(rows['{{ $row }}'].on ? 'Combinado −' : 'Si lo combinas −') + comboPctLabel + '%: ' + money(comboUnit('{{ $row }}')) + '/mes'"></p>
+                                        <p class="text-xs text-sky-300" x-show="comboState('{{ $row }}') === 'top'" x-cloak
+                                            x-text="rows['{{ $row }}'].on ? 'Precio completo · los demás −' + comboPctLabel + '%' : 'Si lo combinas, los demás −' + comboPctLabel + '%'"></p>
                                         <div class="flex items-center justify-end gap-2" x-show="rows['{{ $row }}'].on" x-cloak>
-                                            <span class="text-xs tabular-nums text-slate-300" x-text="money(unit('{{ $row }}') * rows['{{ $row }}'].qty) + '/mes'"></span>
+                                            <span class="text-xs tabular-nums text-slate-300">
+                                                <span class="mr-1 text-slate-500 line-through" x-show="comboState('{{ $row }}') === 'discount'" x-text="money(unit('{{ $row }}') * rows['{{ $row }}'].qty)"></span>
+                                                <span x-text="money(rowTotal('{{ $row }}')) + '/mes'"></span>
+                                            </span>
                                             <div class="inline-flex h-8 overflow-hidden rounded-lg border border-slate-700 bg-slate-950 focus-within:border-cyan-600">
                                                 <input type="number" inputmode="numeric"
                                                     class="{{ $row === 'indexing' ? 'w-20' : 'w-14' }} border-0 bg-transparent px-2 text-right text-sm text-white tabular-nums focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
@@ -104,8 +115,16 @@
 
                     <p class="text-xs text-slate-300" x-text="gets"></p>
                     <div class="flex items-center justify-between gap-2">
-                        <span class="text-sm text-slate-400">Subtotal <span class="text-white font-semibold tabular-nums" x-text="money(monthly) + '/mes'"></span></span>
-                        <button type="button" class="inline-flex items-center justify-center h-9 px-4 rounded-lg text-sm font-medium bg-cyan-600 text-white hover:bg-cyan-500"
+                        <div>
+                            <p class="text-sm text-slate-400">
+                                Subtotal
+                                <span class="text-slate-500 line-through tabular-nums" x-show="combined < monthly - 0.5" x-cloak x-text="money(monthly)"></span>
+                                <span class="text-white font-semibold tabular-nums" x-text="money(combined) + '/mes'"></span>
+                            </p>
+                            <p class="text-xs font-medium text-emerald-300" x-show="comboSavings > 0" x-cloak
+                                x-text="'Ahorras ' + money(comboSavings) + '/mes al combinar' + (cartAdds ? ' con tu carrito' : '')"></p>
+                        </div>
+                        <button type="button" class="plan-metal-btn inline-flex items-center justify-center h-9 px-4 rounded-lg text-sm font-semibold"
                             @click="addToCart()">Agregar al carrito</button>
                     </div>
                     <p class="text-xs text-emerald-300" x-show="notice" x-text="notice" x-cloak></p>
