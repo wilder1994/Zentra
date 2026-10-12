@@ -33,16 +33,22 @@ final class PlanQuotaArchiveTest extends TestCase
 
         $company = new SecurityCompany([
             'max_clients' => 4,
-            'indexing_seats' => 12,
-            'observatory_seats' => 0,
+            'indexing_seats' => 1500,
+            'observatory_seats' => 12,
             'extra_employees' => 150,
         ]);
         $entitlements = CompanyEntitlements::for($company);
 
+        $this->assertSame(CommercialMetal::Plata, $entitlements->indexingMetal());
         $this->assertSame(CommercialMetal::Plata, $entitlements->metal());
         $this->assertSame(12, $entitlements->installationCapacity());
         $this->assertSame(2150, $entitlements->employeeCap());
         $this->assertSame(5, $entitlements->postsPerInstallation());
+
+        $company->indexing_seats = 8000;
+        $this->assertSame(CommercialMetal::Platino, CompanyEntitlements::for($company)->metal());
+        $this->assertSame(8150, CompanyEntitlements::for($company)->employeeCap());
+        $company->indexing_seats = 1500;
 
         $company->posts_per_installation = 8;
         $company->employees_per_post = 9;

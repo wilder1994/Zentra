@@ -177,6 +177,8 @@ final class CatalogSettings
                 'label' => $metal->label(),
                 'min' => $metal->rangeMin(),
                 'max' => $metal->packSize(),
+                'emp_min' => $metal->employeeRangeMin(),
+                'emp_max' => $metal->employeeCap(),
                 'employees' => $metal->employeeCap(),
                 'posts' => $metal->postsPerInstallation(),
                 'per_post' => $metal->employeesPerPost(),
@@ -201,6 +203,7 @@ final class CatalogSettings
             'annual_discount' => (float) config('tenancy.pricing.annual_discount', 0.17),
             'combo_discount' => $this->comboDiscount(),
             'max_seats' => $includeUnavailable ? CompanyPackageSku::MAX_SEATS : $this->maxPublicSeats(),
+            'max_employees' => CommercialProduct::MAX_EMPLOYEES,
         ];
     }
 }

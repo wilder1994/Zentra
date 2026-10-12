@@ -29,17 +29,29 @@
                                     <span class="ui-chip ui-chip-accent" x-text="metalOf(key)?.label"></span>
                                 </p>
                                 <p class="text-xs text-slate-500">
-                                    <span x-text="money(line(key)?.unit * (1 - (line(key)?.discount || 0)))"></span>/mes por instalación
+                                    <span x-text="money(line(key)?.unit * (1 - (line(key)?.discount || 0)))"></span>/mes por <span x-text="unitName(key)"></span>
                                     <span class="text-emerald-400" x-text="'(−' + Math.round((line(key)?.discount || 0) * 100) + '% plan)'"></span>
                                     <span class="text-sky-300" x-show="line(key)?.combo" x-text="'· combinado −' + Math.round(quote.comboPct * 100) + '%'"></span>
                                 </p>
                                 <p class="text-xs text-amber-300" x-show="metalOf(key) && !metalOf(key).available" x-cloak>Este plan no está a la venta.</p>
                             </div>
                             <div class="flex items-center gap-2">
-                                <button type="button" class="h-8 w-8 rounded-lg border border-slate-700 text-slate-200 hover:bg-slate-800" @click="step(key, -1)" aria-label="Menos">−</button>
-                                <input type="number" min="0" inputmode="numeric" class="h-8 w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 text-center text-sm text-white"
-                                    :value="items[key]" @change="setQty(key, $event.target.value)" :aria-label="'Instalaciones de ' + labels[key]">
-                                <button type="button" class="h-8 w-8 rounded-lg border border-slate-700 text-slate-200 hover:bg-slate-800" @click="step(key, 1)" aria-label="Más">+</button>
+                                <div class="inline-flex h-8 overflow-hidden rounded-lg border border-slate-700 bg-slate-950 focus-within:border-cyan-600">
+                                    <input type="number" min="0" inputmode="numeric"
+                                        class="w-20 border-0 bg-transparent px-2 text-right text-sm text-white tabular-nums focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                        :value="items[key]" @change="setQty(key, $event.target.value)"
+                                        @keydown.arrow-up.prevent="step(key, 1)" @keydown.arrow-down.prevent="step(key, -1)"
+                                        :aria-label="(key === 'indexing' ? 'Empleados de ' : 'Instalaciones de ') + labels[key]">
+                                    <div class="flex w-6 flex-col border-l border-slate-700">
+                                        <button type="button" class="flex flex-1 items-center justify-center text-slate-300 hover:bg-slate-800 hover:text-white" @click="step(key, 1)" aria-label="Aumentar">
+                                            <svg class="h-3 w-3" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M6 3l4 5H2z"/></svg>
+                                        </button>
+                                        <button type="button" class="flex flex-1 items-center justify-center border-t border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white" @click="step(key, -1)" aria-label="Disminuir">
+                                            <svg class="h-3 w-3" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M6 9L2 4h8z"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <span class="text-xs text-slate-400" x-text="unitName(key, items[key])"></span>
                             </div>
                             <div class="sm:w-32 text-right">
                                 <p class="text-sm font-semibold text-white tabular-nums" x-text="money(lineAmount(key))"></p>

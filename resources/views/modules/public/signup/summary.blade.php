@@ -16,7 +16,7 @@
                 @if ($selection->seats($product) > 0)
                     <div class="flex justify-between gap-3">
                         <span class="text-slate-500">{{ $product->label() }}</span>
-                        <span class="text-white text-right">{{ $selection->metal($product)?->label() }} · {{ $selection->seats($product) }} instalaciones</span>
+                        <span class="text-white text-right">{{ $selection->metal($product)?->label() }} · {{ number_format($selection->seats($product), 0, ',', '.') }} {{ $product->unitLabel($selection->seats($product)) }}</span>
                     </div>
                 @endif
             @endforeach

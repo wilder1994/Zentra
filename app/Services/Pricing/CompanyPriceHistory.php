@@ -60,7 +60,7 @@ final class CompanyPriceHistory
             $parts[] = $company->supervision_package_sku->label();
         }
         if ((int) $company->indexing_seats > 0) {
-            $parts[] = 'Indexación '.$company->indexing_seats;
+            $parts[] = 'Indexación '.$company->indexing_seats.' empleados';
         }
         if ((int) $company->observatory_seats > 0) {
             $parts[] = 'Observatorio '.$company->observatory_seats;

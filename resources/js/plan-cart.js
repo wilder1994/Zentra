@@ -2,11 +2,16 @@
  * Tarjetas de plan (/planes) y carrito (/planes/carrito). El carrito vive en localStorage:
  * una línea por producto; agregar el mismo producto reemplaza la cantidad.
  */
-import { money, metalFor, quotePlan } from './plan-picker';
+import { countsEmployees, metalFor, metalRange, money, quotePlan, unitLabel } from './plan-picker';
 
 const STORAGE_KEY = 'zentra.plan-cart.v1';
 const MAX_SEATS = 10000;
+const MAX_EMPLOYEES = 100000;
 const KEYS = ['access', 'hardware', 'supervision', 'indexing', 'observatory'];
+
+/** Las flechas de Indexación suben de 50 en 50 empleados; las demás de 1 en 1. */
+const STEP = (key) => (countsEmployees(key) ? 50 : 1);
+const maxFor = (key) => (countsEmployees(key) ? MAX_EMPLOYEES : MAX_SEATS);
 
 export const CART_LABELS = {
     access: 'Accesos',
@@ -23,7 +28,7 @@ export function readCart() {
         for (const key of KEYS) {
             const n = Math.floor(Number(raw.items?.[key]) || 0);
             if (n > 0) {
-                items[key] = Math.min(MAX_SEATS, n);
+                items[key] = Math.min(maxFor(key), n);
             }
         }
 
@@ -55,35 +60,46 @@ export function planCartBadge() {
 }
 
 /**
- * Tarjeta de un plan (metal). Cada fila: casilla, precio por instalación, cantidad dentro del rango del plan.
+ * Tarjeta de un plan (metal). Cada fila: casilla, precio por unidad y cantidad dentro del rango del plan
+ * (instalaciones; empleados en Indexación).
  */
 export function planCard(config) {
     const catalog = config.catalog || {};
     const metal = (catalog.metals || []).find((m) => m.key === config.metal) || {};
-    const min = Number(metal.min || 1);
-    const max = metal.key === 'platino' ? MAX_SEATS : Number(metal.max || min);
     const rows = config.rows || [];
+    const ranges = {};
     const state = {};
     for (const row of rows) {
-        state[row] = { on: row === 'access', qty: min };
+        ranges[row] = metalRange(catalog, metal, pricingKey(row));
+        state[row] = { on: row === 'access', qty: ranges[row][0] };
     }
 
     return {
         money,
         metal,
-        min,
-        max,
         rows: state,
         notice: '',
         noticeTimer: null,
 
-        clamp(row) {
-            const n = Math.floor(Number(this.rows[row].qty) || 0);
-            this.rows[row].qty = Math.min(this.max, Math.max(this.min, n));
+        min(row) {
+            return ranges[row][0];
         },
 
-        step(row, delta) {
-            this.rows[row].qty = (Math.floor(Number(this.rows[row].qty) || this.min)) + delta;
+        max(row) {
+            return ranges[row][1];
+        },
+
+        unitName(row, n = 1) {
+            return unitLabel(pricingKey(row), n);
+        },
+
+        clamp(row) {
+            const n = Math.floor(Number(this.rows[row].qty) || 0);
+            this.rows[row].qty = Math.min(this.max(row), Math.max(this.min(row), n));
+        },
+
+        step(row, direction) {
+            this.rows[row].qty = (Math.floor(Number(this.rows[row].qty) || this.min(row))) + direction * STEP(row);
             this.clamp(row);
             this.rows[row].on = true;
         },
@@ -109,8 +125,10 @@ export function planCard(config) {
 
         get installations() {
             return this.selected.reduce((acc, [key, r]) => {
-                const k = key === 'hardware' ? 'access' : key;
-                acc[k] = (acc[k] || 0) + Number(r.qty);
+                const k = pricingKey(key);
+                if (!countsEmployees(k)) {
+                    acc[k] = (acc[k] || 0) + Number(r.qty);
+                }
 
                 return acc;
             }, {});
@@ -121,13 +139,25 @@ export function planCard(config) {
         },
 
         get gets() {
-            const n = this.capacity;
-            if (n < 1) {
+            if (this.selected.length === 0) {
                 return 'Marca al menos un producto.';
             }
-            const names = this.selected.map(([key, r]) => `${CART_LABELS[key]} ${r.qty}`).join(', ');
+            const n = this.capacity;
+            const fmt = (v) => Number(v).toLocaleString('es-CO');
+            const names = this.selected
+                .filter(([key]) => !countsEmployees(key))
+                .map(([key, r]) => `${CART_LABELS[key]} ${r.qty}`)
+                .join(', ');
+            const parts = [];
+            if (n > 0) {
+                parts.push(`${n} instalaci${n === 1 ? 'ón' : 'ones'} (${names}), ${metal.posts} puestos por instalación, asigna hasta ${metal.per_post} empleados a cada puesto`);
+            }
+            const indexing = this.rows.indexing;
+            if (indexing?.on && Number(indexing.qty) > 0) {
+                parts.push(`Indexación para ${fmt(indexing.qty)} empleados`);
+            }
 
-            return `Obtienes ${n} instalaci${n === 1 ? 'ón' : 'ones'} (${names}), ${metal.posts} puestos por instalación, asigna hasta ${metal.per_post} empleados a cada puesto y hasta ${Number(metal.employees).toLocaleString('es-CO')} empleados.`;
+            return `Obtienes ${parts.join(', ')} y hasta ${fmt(metal.employees)} empleados.`;
         },
 
         get monthly() {
@@ -202,7 +232,11 @@ export function planCart(config) {
                 ? (this.items.access || 0) + (this.items.hardware || 0)
                 : this.items[key] || 0;
 
-            return metalFor(catalog, seats);
+            return metalFor(catalog, seats, pricingKey(key));
+        },
+
+        unitName(key, n = 1) {
+            return unitLabel(pricingKey(key), n);
         },
 
         line(key) {
@@ -225,7 +259,7 @@ export function planCart(config) {
         },
 
         setQty(key, value) {
-            const n = Math.min(MAX_SEATS, Math.max(0, Math.floor(Number(value) || 0)));
+            const n = Math.min(maxFor(key), Math.max(0, Math.floor(Number(value) || 0)));
             if (n === 0) {
                 delete this.items[key];
             } else {
@@ -235,8 +269,8 @@ export function planCart(config) {
             this.save();
         },
 
-        step(key, delta) {
-            this.setQty(key, (this.items[key] || 0) + delta);
+        step(key, direction) {
+            this.setQty(key, (this.items[key] || 0) + direction * STEP(key));
         },
 
         remove(key) {
@@ -253,7 +287,7 @@ export function planCart(config) {
         },
 
         get capacity() {
-            return Math.max(0, (this.items.access || 0) + (this.items.hardware || 0), this.items.supervision || 0, this.items.indexing || 0, this.items.observatory || 0);
+            return Math.max(0, (this.items.access || 0) + (this.items.hardware || 0), this.items.supervision || 0, this.items.observatory || 0);
         },
 
         get topMetal() {

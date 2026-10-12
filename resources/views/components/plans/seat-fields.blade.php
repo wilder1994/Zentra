@@ -8,12 +8,12 @@
     $fields = [
         ['manual', 'manual_seats', 'Accesos'],
         ['supervision', 'supervision_seats', 'Supervisión'],
-        ['indexing', 'indexing_seats', 'Indexación'],
+        ['indexing', 'indexing_seats', 'Indexación (empleados)'],
         ['observatory', 'observatory_seats', 'Observatorio'],
     ];
 @endphp
 
-{{-- Requiere un ancestro con x-data="planPicker(...)". Todas las cantidades son instalaciones. --}}
+{{-- Requiere un ancestro con x-data="planPicker(...)". Cantidades en instalaciones; Indexación en empleados. --}}
 <div class="space-y-3">
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         @foreach ($fields as [$model, $name, $label])
@@ -42,7 +42,7 @@
             </div>
         @endif
     </div>
-    <p class="text-xs text-slate-500">Cantidades en instalaciones. El cupo de la empresa es la mayor de ellas.</p>
+    <p class="text-xs text-slate-500">Cantidades en instalaciones (Indexación en empleados). El cupo de instalaciones es la mayor de ellas.</p>
 
     <div class="rounded-lg border border-slate-800 bg-slate-950/50 p-3 text-xs space-y-1.5">
         <template x-for="line in quote.lines" :key="line.key">
@@ -50,7 +50,7 @@
                 <span class="text-slate-400">
                     <span x-text="line.label"></span>
                     <span class="ui-chip ui-chip-accent" x-text="line.metal?.label"></span>
-                    <span x-text="line.seats"></span> × <span class="tabular-nums" x-text="money(line.unit)"></span>
+                    <span x-text="Number(line.seats).toLocaleString('es-CO') + ' ' + line.unitLabel"></span> × <span class="tabular-nums" x-text="money(line.unit)"></span>
                     <span class="text-emerald-400" x-text="'(−' + Math.round(line.discount * 100) + '%)'"></span>
                     <span class="text-sky-300" x-show="line.combo" x-text="'combinado −' + Math.round(quote.comboPct * 100) + '%'"></span>
                 </span>

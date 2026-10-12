@@ -4,14 +4,14 @@ Catálogo vigente (13 oct 2026). Precios, fórmula, cupos y carrito: [`MODELO-CO
 
 ## Planes (mismos 4 en los 4 productos)
 
-| Plan | Instalaciones | Puestos por instalación | Empleados por puesto | Empleados totales |
-|------|---------------|-------------------------|----------------------|-------------------|
-| Bronce | 1–5 | 2 | 3 | 1.000 |
-| Plata | 6–15 | 5 | 5 | 2.000 |
-| Oro | 16–40 | 7 | 7 | 3.000 |
-| Platino | 41+ | 10 | 10 | 5.000 |
+| Plan | Instalaciones | Indexación (empleados) | Puestos por instalación | Empleados por puesto | Empleados totales |
+|------|---------------|------------------------|-------------------------|----------------------|-------------------|
+| Bronce | 1–5 | 1–1.000 | 2 | 3 | 1.000 |
+| Plata | 6–15 | 1.001–2.000 | 5 | 5 | 2.000 |
+| Oro | 16–40 | 2.001–3.000 | 7 | 7 | 3.000 |
+| Platino | 41+ | 3.001+ | 10 | 10 | 5.000 |
 
-Cada producto se cobra **por instalación** y toma el plan de su propia cantidad. Los límites de la empresa salen del plan más alto entre sus productos. Combinar productos da 30% de descuento a cada uno después del de mayor valor.
+Accesos, Supervisión y Observatorio se cobran **por instalación**; Indexación **por empleado**. Cada producto toma el plan de su propia cantidad. Los límites de la empresa salen del plan más alto entre sus productos. Combinar productos da 30% de descuento a cada uno después del de mayor valor.
 
 ## Productos
 
@@ -19,7 +19,7 @@ Cada producto se cobra **por instalación** y toma el plan de su propia cantidad
 
 **Supervisión** — cantidad `max_supervision_clients`. Menú: Facturación, Clientes, Instalaciones, Supervisión, Pánicos, Descargas, Empleados, Usuarios, Mis datos, Ajustes. **No** Mi empresa. GPS y app de campo: [`SUPERVISION-CAMPO.md`](SUPERVISION-CAMPO.md).
 
-**Indexación** — cantidad `indexing_seats`, precio propio (ya no es complemento).
+**Indexación** — cantidad `indexing_seats` = **empleados**, precio por empleado ($1.000 menos el descuento del plan). No cuenta para el cupo de instalaciones; el tope de empleados de la empresa nunca queda por debajo de los empleados contratados.
 
 **Observatorio** — cantidad `observatory_seats`, precio propio. Se vende solo. Menú: Mi empresa, Facturación, Clientes, Instalaciones, Observatorio, Usuarios, Mis datos, Ajustes. Por cliente: `has_observatory`.
 

@@ -12,7 +12,7 @@ use App\Support\Catalog\CatalogSettings;
 
 /**
  * Cotiza el plan completo:
- * 1. cada producto = unidad × instalaciones × (1 − descuento de su plan);
+ * 1. cada producto = unidad × cantidad × (1 − descuento de su plan); Indexación cuenta empleados;
  * 2. el de mayor valor va completo y cada producto adicional lleva el descuento por combinar;
  * 3. en pago anual: × 12 × (1 − descuento anual), sobre el valor ya descontado.
  * Misma regla en resources/js/plan-picker.js.
@@ -43,7 +43,7 @@ final class PlanQuoter
                 continue;
             }
 
-            $metal = CommercialMetal::fromSeats($seats);
+            $metal = CommercialMetal::forProduct($product, $seats);
             $discount = $catalog->discount($product, $metal);
             $list = $product === CommercialProduct::Access
                 ? ($selection->access->manual * $catalog->unit('access')) + ($selection->access->hardware * $catalog->unit('access_hardware'))
@@ -53,6 +53,7 @@ final class PlanQuoter
                 'product' => $product->value,
                 'label' => $product->label(),
                 'seats' => $seats,
+                'unit_label' => $product->unitLabel($seats),
                 'metal' => $metal->value,
                 'metal_label' => $metal->label(),
                 'unit' => round($list / $seats, 2),

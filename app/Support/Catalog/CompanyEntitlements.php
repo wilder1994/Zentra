@@ -31,6 +31,7 @@ final class CompanyEntitlements
         return (int) ($this->company->max_supervision_clients ?: $this->company->supervision_package_size ?: 0);
     }
 
+    /** Empleados contratados en Indexación. */
     public function indexingSeats(): int
     {
         return (int) ($this->company->indexing_seats ?? 0);
@@ -41,10 +42,10 @@ final class CompanyEntitlements
         return (int) ($this->company->observatory_seats ?? 0);
     }
 
-    /** Bolsa compartida de instalaciones: la mayor cantidad entre los productos contratados. */
+    /** Bolsa compartida de instalaciones: la mayor cantidad entre los productos por instalación. */
     public function installationCapacity(): int
     {
-        return max($this->accessSeats(), $this->supervisionSeats(), $this->indexingSeats(), $this->observatorySeats());
+        return max($this->accessSeats(), $this->supervisionSeats(), $this->observatorySeats());
     }
 
     public function hasAccess(): bool
@@ -87,7 +88,7 @@ final class CompanyEntitlements
 
     public function indexingMetal(): ?CommercialMetal
     {
-        return $this->metalOf($this->indexingSeats());
+        return CommercialMetal::forProduct(CommercialProduct::Indexing, $this->indexingSeats());
     }
 
     public function observatoryMetal(): ?CommercialMetal
@@ -106,9 +107,12 @@ final class CompanyEntitlements
         );
     }
 
+    /** Tope del plan más alto; nunca menor que los empleados contratados en Indexación. */
     public function planEmployeeCap(): int
     {
-        return $this->metal()?->employeeCap() ?? 0;
+        $cap = $this->metal()?->employeeCap() ?? 0;
+
+        return $cap > 0 ? max($cap, (int) ($this->company->indexing_seats ?? 0)) : 0;
     }
 
     public function employeeCap(): int

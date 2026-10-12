@@ -1,6 +1,6 @@
 /**
  * Cotizador del plan. Misma regla que App\Services\Pricing\PlanQuoter:
- * 1. cada producto = unidad × instalaciones × (1 − descuento del plan de su cantidad);
+ * 1. cada producto = unidad × cantidad × (1 − descuento del plan de su cantidad); Indexación cuenta empleados;
  * 2. el de mayor valor va completo; cada producto adicional lleva el descuento por combinar;
  * 3. anual = mensual ya descontado × 12 × (1 − descuento anual).
  */
@@ -13,15 +13,41 @@ export const PRODUCTS = [
     { key: 'observatory', label: 'Observatorio' },
 ];
 
+/** Indexación se cobra por empleado; los demás por instalación. */
+export const countsEmployees = (product) => product === 'indexing';
+
+export function unitLabel(product, n) {
+    if (countsEmployees(product)) {
+        return Number(n) === 1 ? 'empleado' : 'empleados';
+    }
+
+    return Number(n) === 1 ? 'instalación' : 'instalaciones';
+}
+
+/** Rango [min, max] de un plan para el producto; Platino no tiene tope. */
+export function metalRange(catalog, metal, product) {
+    const employees = countsEmployees(product);
+    const min = Number(employees ? metal.emp_min : metal.min) || 1;
+    if (metal.key === 'platino') {
+        return [min, Number(employees ? catalog.max_employees : 10000) || min];
+    }
+
+    return [min, Number(employees ? metal.emp_max : metal.max) || min];
+}
+
 const round2 = (n) => Math.round(n * 100) / 100;
 
-export function metalFor(catalog, seats) {
+export function metalFor(catalog, seats, product = 'access') {
     if (!seats || seats < 1) {
         return null;
     }
     const metals = catalog.metals || [];
 
-    return metals.find((m) => seats >= m.min && (seats <= m.max || m.key === 'platino')) || metals[metals.length - 1] || null;
+    return metals.find((m) => {
+        const [min, max] = metalRange(catalog, m, product);
+
+        return seats >= min && (seats <= max || m.key === 'platino');
+    }) || metals[metals.length - 1] || null;
 }
 
 /**
@@ -49,7 +75,7 @@ export function quotePlan(catalog, seats, cycle) {
         if (n < 1) {
             continue;
         }
-        const metal = metalFor(catalog, n);
+        const metal = metalFor(catalog, n, product.key);
         const discount = Number(metal?.discounts?.[product.key] || 0);
         const list = product.key === 'access'
             ? manual * Number(units.access || 0) + hardware * Number(units.access_hardware || 0)
@@ -58,6 +84,7 @@ export function quotePlan(catalog, seats, cycle) {
             key: product.key,
             label: product.label,
             seats: n,
+            unitLabel: unitLabel(product.key, n),
             metal,
             unit: round2(list / n),
             discount,
@@ -127,8 +154,8 @@ export function planPicker(config) {
             return Math.max(0, Number(this.manual) || 0) + Math.max(0, Number(this.hardware) || 0);
         },
 
-        metalFor(seats) {
-            return metalFor(catalog, seats);
+        metalFor(seats, product = 'access') {
+            return metalFor(catalog, seats, product);
         },
 
         get quote() {
@@ -177,7 +204,7 @@ export function planPicker(config) {
         },
 
         nextPlanHint(seats, product) {
-            const m = this.metalFor(seats);
+            const m = this.metalFor(seats, product);
             if (!m || m.key === 'platino') {
                 return '';
             }

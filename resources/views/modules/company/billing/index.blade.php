@@ -59,7 +59,7 @@
                     </strong>
                 @endif
                 @if ($company->scheduled_indexing_seats !== null)
-                    · Indexación <strong>{{ $company->scheduled_indexing_seats }}</strong>
+                    · Indexación <strong>{{ $company->scheduled_indexing_seats }}</strong> empleados
                 @endif
                 @if ($company->scheduled_observatory_seats !== null)
                     · Observatorio <strong>{{ $company->scheduled_observatory_seats }}</strong>
@@ -85,8 +85,8 @@
                             <span class="text-slate-400">{{ $company->supervision_package_sku->size() }} instalaciones</span>
                         @endif
                         @if ((int) $company->indexing_seats > 0)
-                            <span class="ui-chip ui-chip-success">Indexación {{ \App\Enums\CommercialMetal::forSeats((int) $company->indexing_seats)?->label() }}</span>
-                            <span class="text-slate-400">{{ $company->indexing_seats }} instalaciones</span>
+                            <span class="ui-chip ui-chip-success">Indexación {{ \App\Enums\CommercialMetal::forProduct(\App\Enums\CommercialProduct::Indexing, (int) $company->indexing_seats)?->label() }}</span>
+                            <span class="text-slate-400">{{ number_format((int) $company->indexing_seats, 0, ',', '.') }} empleados</span>
                         @endif
                         @if ((int) $company->observatory_seats > 0)
                             <span class="ui-chip">Observatorio {{ \App\Enums\CommercialMetal::forSeats((int) $company->observatory_seats)?->label() }}</span>
@@ -120,7 +120,7 @@
                     <ul class="mt-1 space-y-0.5 text-xs">
                         @foreach ($planQuote['lines'] as $key => $line)
                             <li class="flex justify-between gap-3">
-                                <span class="text-slate-400">{{ $line['label'] }} {{ $line['metal_label'] }} · {{ $line['seats'] }}</span>
+                                <span class="text-slate-400">{{ $line['label'] }} {{ $line['metal_label'] }} · {{ number_format($line['seats'], 0, ',', '.') }} {{ $line['unit_label'] }}</span>
                                 <span class="tabular-nums text-slate-200">{{ $fmt($amounts[$key] ?? 0) }}</span>
                             </li>
                         @endforeach
@@ -413,7 +413,7 @@
                 <div class="relative w-full max-w-lg rounded-xl border border-slate-700 bg-slate-900 p-5" @click.stop>
                     <h3 class="text-sm font-semibold text-white">Cambiar plan</h3>
                     <p class="text-xs text-slate-500 mt-1">
-                        Agrega o quita instalaciones por producto. Cada producto toma el plan (Bronce, Plata, Oro o Platino) de su cantidad.
+                        Agrega o quita instalaciones por producto (Indexación: empleados). Cada producto toma el plan (Bronce, Plata, Oro o Platino) de su cantidad.
                         Se paga online ahora y aplica el {{ $company->package_ends_at?->format('d/m/Y') ?? 'fin del periodo' }}.
                     </p>
                     <form method="POST" action="{{ route('company.billing.package.schedule') }}" class="mt-4 space-y-3"

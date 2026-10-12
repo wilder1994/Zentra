@@ -26,12 +26,12 @@ return [
         'observatory' => ['dashboard', 'billing', 'clients', 'installations', 'observatory', 'users', 'profile', 'settings'],
     ],
 
-    // Precio mensual por instalación antes del descuento del plan.
+    // Precio mensual por instalación antes del descuento del plan. Indexación: por empleado.
     'default_units' => [
         'access' => 80_000,
         'access_hardware' => 150_000,
         'supervision' => 80_000,
-        'indexing' => 40_000,
+        'indexing' => 1_000,
         'observatory' => 40_000,
     ],
 

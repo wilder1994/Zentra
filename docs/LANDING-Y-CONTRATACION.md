@@ -51,7 +51,7 @@ Requiere junction `public/images` → `resources/images` (ver README § Assets e
 | Ruta | Función |
 |------|---------|
 | `GET /` | Welcome con tarjeta comercial |
-| `GET /planes` | «Arma tu plan»: tarjeta por plan con los 4 productos y Agregar al carrito |
+| `GET /planes` | «Arma tu plan»: tarjeta por plan con los 4 productos (cantidad con casilla ▲▼; Indexación en empleados) y Agregar al carrito |
 | `GET /planes/carrito` | Carrito (`localStorage`), Mensual/Anual, descuentos y Contratar |
 | `GET /contratar?access=&hardware=&supervision=&indexing=&observatory=&cycle=` | Crea `commercial_signup_intents` (cotiza con `PlanQuoter`) |
 | `GET/POST /contratar/datos/{token}` | Paso 1: datos empresa, contacto, dirección/ciudad/depto/geo, contraseña |

@@ -11,7 +11,8 @@ use App\Models\SecurityCompany;
 use InvalidArgumentException;
 
 /**
- * Instalaciones contratadas por producto. Cada producto se cotiza con el plan (metal) de su cantidad.
+ * Cantidad contratada por producto: instalaciones (Accesos, Supervisión, Observatorio) o empleados (Indexación).
+ * Cada producto se cotiza con el plan (metal) de su cantidad.
  */
 final readonly class PlanSelection
 {
@@ -21,11 +22,16 @@ final readonly class PlanSelection
         public int $indexing = 0,
         public int $observatory = 0,
     ) {
-        foreach ([$this->supervision, $this->indexing, $this->observatory] as $seats) {
-            if ($seats < 0) {
-                throw new InvalidArgumentException('Las instalaciones no pueden ser negativas.');
+        $limits = [
+            [$this->supervision, SupervisionPackageSku::MAX_SEATS],
+            [$this->indexing, CommercialProduct::MAX_EMPLOYEES],
+            [$this->observatory, SupervisionPackageSku::MAX_SEATS],
+        ];
+        foreach ($limits as [$quantity, $max]) {
+            if ($quantity < 0) {
+                throw new InvalidArgumentException('La cantidad no puede ser negativa.');
             }
-            if ($seats > SupervisionPackageSku::MAX_SEATS) {
+            if ($quantity > $max) {
                 throw new InvalidArgumentException('La cantidad supera el máximo permitido.');
             }
         }
@@ -58,7 +64,7 @@ final readonly class PlanSelection
 
     public function metal(CommercialProduct $product): ?CommercialMetal
     {
-        return CommercialMetal::forSeats($this->seats($product));
+        return CommercialMetal::forProduct($product, $this->seats($product));
     }
 
     public function isEmpty(): bool
@@ -71,10 +77,10 @@ final readonly class PlanSelection
         return $this->supervision > 0 ? SupervisionPackageSku::fromSize($this->supervision) : null;
     }
 
-    /** Mayor cantidad entre productos: tamaño del cupo compartido de instalaciones. */
+    /** Mayor cantidad entre productos por instalación: tamaño del cupo compartido. Indexación cuenta empleados. */
     public function capacity(): int
     {
-        return max($this->access->size(), $this->supervision, $this->indexing, $this->observatory);
+        return max($this->access->size(), $this->supervision, $this->observatory);
     }
 
     public function sameAs(self $other): bool
@@ -104,7 +110,8 @@ final readonly class PlanSelection
         foreach (CommercialProduct::cases() as $product) {
             $seats = $this->seats($product);
             if ($seats > 0) {
-                $parts[] = $product->label().' '.$this->metal($product)?->label().' '.$seats;
+                $parts[] = $product->label().' '.$this->metal($product)?->label().' '.number_format($seats, 0, ',', '.')
+                    .($product->countsEmployees() ? ' '.$product->unitLabel($seats) : '');
             }
         }
 

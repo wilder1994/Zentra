@@ -28,17 +28,19 @@ Los límites de la empresa salen del **plan más alto** entre sus productos (`Co
 ## Fórmula
 
 ```
-precio_producto  = unidad × instalaciones × (1 − descuento de su plan)
+precio_producto  = unidad × cantidad × (1 − descuento de su plan)
+                   (cantidad = instalaciones; en Indexación, empleados)
 combinar         = los productos se ordenan de mayor a menor valor;
                    el primero va completo, cada uno de los siguientes × (1 − combo_discount)
 mensual          = suma de productos tras combinar
 anual            = mensual × 12 × (1 − tenancy.pricing.annual_discount)   (encadenado, 17%)
 ```
 
-- Unidades por defecto (`config/catalog.php`): Accesos 80.000, Hardware 150.000, Supervisión 80.000, Indexación 40.000, Observatorio 40.000. `combo_discount` = 30%. Todo editable en `/admin/pricing`.
+- Unidades por defecto (`config/catalog.php`): Accesos 80.000, Hardware 150.000, Supervisión 80.000, Indexación 1.000 por empleado, Observatorio 40.000. `combo_discount` = 30%. Todo editable en `/admin/pricing`.
 - Ejemplo: Accesos 10 (Plata, 736.000) + Supervisión 10 (Plata, 736.000 − 30% = 515.200).
 - Hardware: unidad propia con el mismo descuento del plan de Accesos.
 - Observatorio se puede contratar solo. Indexación ya no es complemento: tiene cantidad y precio propios.
+- **Indexación por empleado:** rangos Bronce 1–1.000, Plata 1.001–2.000, Oro 2.001–3.000, Platino 3.001+ (`CommercialMetal::forProduct`, `fromEmployees`). Sus empleados no cuentan para el cupo de instalaciones; su plan sí cuenta para los límites de la empresa y el tope de empleados nunca es menor que los contratados.
 
 Motor PHP: `App\Domain\Pricing\Data\PlanSelection` (cantidades), `App\Services\Pricing\PlanQuoter` (cotización con combinar y anual), `CompanyPlanPricer` (columnas de precio de la empresa) y `CatalogPricer` (matrices). JS: `resources/js/plan-picker.js` (`quotePlan`, misma fórmula) y `resources/js/plan-cart.js`.
 
@@ -95,7 +97,7 @@ Defaults en `config/catalog.php`. Editables en `/admin/pricing`.
 - Dashboard — «Empresas por plan» (Accesos y Supervisión).
 - Empresa `/company/billing` — plan, instalaciones, valor por instalación, total, próxima facturación, nuevo valor programado; «Cambiar plan» aplica al corte.
 - Público `/` — tarjetas por plan con límites.
-- Público `/planes` — **Arma tu plan**: una tarjeta por plan con Accesos (y Hardware si está disponible), Supervisión, Indexación y Observatorio. Cada fila: casilla, precio unitario, +/− con cantidad limitada al rango del plan (Platino admite escribir más de 100), texto «Obtienes» y **Agregar al carrito**.
+- Público `/planes` — **Arma tu plan**: una tarjeta por plan con Accesos (y Hardware si está disponible), Supervisión, Indexación y Observatorio. Cada fila: casilla, precio unitario (por instalación o por empleado) y, debajo, una casilla compacta con flechas ▲▼ (se puede escribir; flechas de 1 en 1, de 50 en 50 en Indexación) limitada al rango del plan; Platino admite escribir más. Texto «Obtienes» y **Agregar al carrito**.
 - Público `/planes/carrito` — una línea por producto (`localStorage` `zentra.plan-cart.v1`). Agregar el mismo producto reemplaza la línea con aviso; si la cantidad cruza rango, la línea cambia de plan. Selector Mensual/Anual; total sin descuento, descuentos por plan, descuento por combinar, anual, total y ahorro. **Contratar** abre el registro (`/contratar?access=&hardware=&supervision=&indexing=&observatory=&cycle=`).
 
 Contratos: uno por plan y modalidad (`legal_corpus_versions.package_sku` = `{metal}_{modalidad}`).
@@ -139,11 +141,13 @@ Migraciones del 13 oct 2026:
 - `2026_10_13_100000_add_plan_quotas_and_unified_archive` — cupos, cantidades de Indexación/Observatorio (desde lo que ya tenían), archivo unificado, `quota_requests`.
 - `2026_10_13_110000_add_indexing_observatory_pricing` — precios de Indexación y Observatorio. Las empresas actuales **no** pagan esos productos hasta su próximo recálculo de precio.
 - `2026_10_13_120000_rename_site_permission_to_installation_permission` — renombra la columna.
+- `2026_10_13_130000_indexing_per_employee` — Indexación por empleado: `indexing_seats` (y el programado) de cada empresa con Indexación pasa a sus empleados activos; `units.indexing` del catálogo guardado pasa a 1.000. No toca `indexing_price_*`: no se cobra nada nuevo hasta el próximo recálculo.
 
 ## Changelog
 
 | Fecha | Cambio |
 |-------|--------|
+| 2026-10-13 | Indexación por empleado ($1.000, rangos 1–1.000 / 1.001–2.000 / 2.001–3.000 / 3.001+); casilla compacta ▲▼ en tarjetas y carrito |
 | 2026-10-13 | 4 productos por instalación, descuento por combinar (30%), anual encadenado, tarjetas «Arma tu plan» y carrito, límites por plan, ampliaciones y archivo unificado; «sede» pasa a «instalación» |
 | 2026-10-12 | Planes por cantidad libre, Accesos/Supervisión independientes, disponibilidad, precio pactado, incremento anual, historial |
 | 2026-09-29 | Metales, 4 productos, módulos por plan, indexación add-on, observatorio por metal de Accesos |

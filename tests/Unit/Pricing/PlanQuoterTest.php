@@ -6,6 +6,7 @@ namespace Tests\Unit\Pricing;
 
 use App\Domain\Pricing\Data\PlanSelection;
 use App\Enums\BillingCycle;
+use App\Enums\CommercialProduct;
 use App\Services\Pricing\PlanQuoter;
 use App\Support\Catalog\CatalogSettings;
 use Tests\TestCase;
@@ -21,7 +22,7 @@ final class PlanQuoterTest extends TestCase
                 'access' => 80_000,
                 'access_hardware' => 150_000,
                 'supervision' => 80_000,
-                'indexing' => 40_000,
+                'indexing' => 1_000,
                 'observatory' => 40_000,
             ],
             'discounts' => [
@@ -73,10 +74,36 @@ final class PlanQuoterTest extends TestCase
         $this->assertEquals(0.0, $quote['combo_savings']);
     }
 
+    public function test_indexing_is_priced_per_employee_with_employee_ranges(): void
+    {
+        $quoter = app(PlanQuoter::class);
+
+        $bronce = $quoter->quote(PlanSelection::of(indexing: 1000), BillingCycle::Monthly, $this->catalog());
+        $this->assertSame('bronce', $bronce['lines']['indexing']['metal']);
+        $this->assertSame('empleados', $bronce['lines']['indexing']['unit_label']);
+        $this->assertEquals(950_000.0, $bronce['amount']);
+
+        $plata = $quoter->quote(PlanSelection::of(indexing: 1500), BillingCycle::Monthly, $this->catalog());
+        $this->assertSame('plata', $plata['lines']['indexing']['metal']);
+        $this->assertEquals(1_380_000.0, $plata['amount']);
+
+        $platino = $quoter->quote(PlanSelection::of(indexing: 3001), BillingCycle::Monthly, $this->catalog());
+        $this->assertSame('platino', $platino['lines']['indexing']['metal']);
+    }
+
+    public function test_indexing_employees_do_not_count_as_installations(): void
+    {
+        $selection = PlanSelection::of(5, 0, 0, 2500);
+
+        $this->assertSame(5, $selection->capacity());
+        $this->assertSame('bronce', $selection->metal(CommercialProduct::Access)?->value);
+        $this->assertSame('oro', $selection->metal(CommercialProduct::Indexing)?->value);
+    }
+
     public function test_combo_discount_is_configurable(): void
     {
-        $quote = app(PlanQuoter::class)->quote(PlanSelection::of(5, 0, 0, 5), BillingCycle::Monthly, $this->catalog(0.0));
+        $quote = app(PlanQuoter::class)->quote(PlanSelection::of(5, 0, 0, 500), BillingCycle::Monthly, $this->catalog(0.0));
 
-        $this->assertEquals(380_000.0 + 190_000.0, $quote['amount']);
+        $this->assertEquals(380_000.0 + 475_000.0, $quote['amount']);
     }
 }

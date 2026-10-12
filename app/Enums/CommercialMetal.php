@@ -98,9 +98,65 @@ enum CommercialMetal: string
         return $this->rangeMin().'–'.$this->packSize().' instalaciones';
     }
 
+    /** Indexación: el plan sale de los empleados (Bronce 1–1.000, Plata 1.001–2.000…). */
+    public function employeeRangeMin(): int
+    {
+        return match ($this) {
+            self::Bronce => 1,
+            self::Plata => self::Bronce->employeeCap() + 1,
+            self::Oro => self::Plata->employeeCap() + 1,
+            self::Platino => self::Oro->employeeCap() + 1,
+        };
+    }
+
+    public function rangeMinFor(CommercialProduct $product): int
+    {
+        return $product->countsEmployees() ? $this->employeeRangeMin() : $this->rangeMin();
+    }
+
+    /** Tope del rango; Platino no tiene tope y llega al máximo del producto. */
+    public function rangeMaxFor(CommercialProduct $product): int
+    {
+        if ($this === self::Platino) {
+            return $product->maxQuantity();
+        }
+
+        return $product->countsEmployees() ? $this->employeeCap() : $this->packSize();
+    }
+
+    public function rangeLabelFor(CommercialProduct $product): string
+    {
+        $min = number_format($this->rangeMinFor($product), 0, ',', '.');
+        $range = $this === self::Platino
+            ? $min.' o más'
+            : $min.'–'.number_format($this->rangeMaxFor($product), 0, ',', '.');
+
+        return $range.' '.$product->unitLabel();
+    }
+
     public static function forSeats(int $seats): ?self
     {
         return $seats > 0 ? self::fromSeats($seats) : null;
+    }
+
+    public static function fromEmployees(int $employees): self
+    {
+        foreach ([self::Bronce, self::Plata, self::Oro] as $metal) {
+            if ($employees <= $metal->employeeCap()) {
+                return $metal;
+            }
+        }
+
+        return self::Platino;
+    }
+
+    public static function forProduct(CommercialProduct $product, int $quantity): ?self
+    {
+        if ($quantity < 1) {
+            return null;
+        }
+
+        return $product->countsEmployees() ? self::fromEmployees($quantity) : self::fromSeats($quantity);
     }
 
     public static function fromSeats(int $seats): self

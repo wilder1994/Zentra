@@ -25,8 +25,9 @@
                 <p class="text-xs text-cyan-400 uppercase tracking-widest">Planes</p>
                 <h2 class="text-2xl font-bold text-white mt-1">Arma tu plan</h2>
                 <p class="text-sm text-slate-400 mt-2 max-w-2xl">
-                    Elige los productos y cuántas instalaciones quieres de cada uno. La cantidad define el plan
-                    (Bronce 1–5, Plata 6–15, Oro 16–40, Platino 41 o más) y su descuento aplica a todas.
+                    Elige los productos y cuántas instalaciones quieres de cada uno; Indexación se cobra por empleado.
+                    La cantidad define el plan (Bronce 1–5, Plata 6–15, Oro 16–40, Platino 41 o más instalaciones;
+                    en Indexación 1–1.000, 1.001–2.000, 2.001–3.000 y 3.001 o más empleados) y su descuento aplica a todas.
                     Si combinas productos, cada uno después del de mayor valor tiene −{{ round($comboDiscount * 100) }}%.
                     Pagando anual ahorras {{ round($annualDiscount * 100) }}% más.
                 </p>
@@ -49,7 +50,8 @@
                     <div class="flex items-start justify-between gap-2">
                         <div>
                             <h3 class="text-lg font-semibold text-white">{{ $metal->label() }}</h3>
-                            <p class="text-xs text-slate-500">{{ $metal->rangeMin() }}{{ $metal === \App\Enums\CommercialMetal::Platino ? ' o más' : '–'.$metal->packSize() }} instalaciones por producto</p>
+                            <p class="text-xs text-slate-500">{{ $metal->rangeLabelFor(\App\Enums\CommercialProduct::Access) }} por producto</p>
+                            <p class="text-xs text-slate-500">Indexación: {{ $metal->rangeLabelFor(\App\Enums\CommercialProduct::Indexing) }}</p>
                         </div>
                         <div class="text-right text-xs text-slate-400">
                             <p>Hasta <span class="text-slate-200">{{ number_format($metal->employeeCap(), 0, ',', '.') }}</span> empleados</p>
@@ -60,7 +62,7 @@
 
                     <ul class="divide-y divide-slate-800 rounded-lg border border-slate-800">
                         @foreach ($rows as $row)
-                            <li class="p-3 space-y-2">
+                            <li class="p-3">
                                 <div class="flex items-start justify-between gap-2">
                                     <label class="flex items-start gap-2 text-sm text-slate-200">
                                         <input type="checkbox" class="mt-0.5 rounded border-slate-600 bg-slate-900" x-model="rows['{{ $row }}'].on">
@@ -69,22 +71,32 @@
                                             <span class="block text-xs text-slate-500">{{ implode(', ', $rowModules($row)) }}</span>
                                         </span>
                                     </label>
-                                    <div class="text-right shrink-0">
+                                    <div class="text-right shrink-0 space-y-1.5">
                                         <p class="text-sm font-semibold text-white tabular-nums" x-text="money(unit('{{ $row }}')) + '/mes'"></p>
                                         <p class="text-xs text-slate-500">
-                                            por instalación
+                                            por <span x-text="unitName('{{ $row }}')"></span>
                                             <span class="line-through" x-text="money(listUnit('{{ $row }}'))"></span>
                                             <span class="text-emerald-400" x-text="'−' + discountPct('{{ $row }}') + '%'"></span>
                                         </p>
+                                        <div class="flex items-center justify-end gap-2" x-show="rows['{{ $row }}'].on" x-cloak>
+                                            <span class="text-xs tabular-nums text-slate-300" x-text="money(unit('{{ $row }}') * rows['{{ $row }}'].qty) + '/mes'"></span>
+                                            <div class="inline-flex h-8 overflow-hidden rounded-lg border border-slate-700 bg-slate-950 focus-within:border-cyan-600">
+                                                <input type="number" inputmode="numeric"
+                                                    class="{{ $row === 'indexing' ? 'w-20' : 'w-14' }} border-0 bg-transparent px-2 text-right text-sm text-white tabular-nums focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                                    :min="min('{{ $row }}')" :max="max('{{ $row }}')" x-model.number="rows['{{ $row }}'].qty"
+                                                    @change="clamp('{{ $row }}')" @keydown.arrow-up.prevent="step('{{ $row }}', 1)" @keydown.arrow-down.prevent="step('{{ $row }}', -1)"
+                                                    aria-label="{{ $row === 'indexing' ? 'Empleados' : 'Instalaciones' }} de {{ $rowLabels[$row] }}">
+                                                <div class="flex w-6 flex-col border-l border-slate-700">
+                                                    <button type="button" class="flex flex-1 items-center justify-center text-slate-300 hover:bg-slate-800 hover:text-white" @click="step('{{ $row }}', 1)" aria-label="Aumentar">
+                                                        <svg class="h-3 w-3" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M6 3l4 5H2z"/></svg>
+                                                    </button>
+                                                    <button type="button" class="flex flex-1 items-center justify-center border-t border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white" @click="step('{{ $row }}', -1)" aria-label="Disminuir">
+                                                        <svg class="h-3 w-3" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M6 9L2 4h8z"/></svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="flex items-center gap-2" x-show="rows['{{ $row }}'].on" x-cloak>
-                                    <button type="button" class="h-8 w-8 rounded-lg border border-slate-700 text-slate-200 hover:bg-slate-800" @click="step('{{ $row }}', -1)" aria-label="Menos">−</button>
-                                    <input type="number" inputmode="numeric" class="h-8 w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 text-center text-sm text-white"
-                                        :min="min" :max="max" x-model.number="rows['{{ $row }}'].qty" @change="clamp('{{ $row }}')" aria-label="Instalaciones de {{ $rowLabels[$row] }}">
-                                    <button type="button" class="h-8 w-8 rounded-lg border border-slate-700 text-slate-200 hover:bg-slate-800" @click="step('{{ $row }}', 1)" aria-label="Más">+</button>
-                                    <span class="text-xs text-slate-400">instalaciones</span>
-                                    <span class="ml-auto text-xs tabular-nums text-slate-300" x-text="money(unit('{{ $row }}') * rows['{{ $row }}'].qty) + '/mes'"></span>
                                 </div>
                             </li>
                         @endforeach

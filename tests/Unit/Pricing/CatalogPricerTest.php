@@ -20,11 +20,12 @@ final class CatalogPricerTest extends TestCase
                 'access' => 100_000,
                 'access_hardware' => 150_000,
                 'supervision' => 80_000,
-                'indexing' => 40_000,
+                'indexing' => 1_000,
                 'observatory' => 40_000,
             ],
             'discounts' => [
                 'access' => ['bronce' => 0.05, 'plata' => 0.08, 'oro' => 0.10, 'platino' => 0.12],
+                'indexing' => ['bronce' => 0.05, 'plata' => 0.08, 'oro' => 0.10, 'platino' => 0.12],
             ],
             'availability' => $availability,
         ]));
@@ -40,6 +41,19 @@ final class CatalogPricerTest extends TestCase
         $this->assertEquals(552_000.0, $pricer->seatsMonthly(CommercialProduct::Access, 6));
         // >100 sigue a precio Platino
         $this->assertEquals(120 * 88_000.0, $pricer->seatsMonthly(CommercialProduct::Access, 120));
+    }
+
+    public function test_indexing_matrix_uses_employee_ranges(): void
+    {
+        $pricer = $this->pricer();
+        $rows = $pricer->matrix(CommercialProduct::Indexing, BillingCycle::Monthly);
+
+        $this->assertSame([1, 1001, 2001, 3001], array_column($rows, 'min'));
+        $this->assertSame('1.001–2.000 empleados', $rows[1]['range']);
+        $this->assertSame('empleado', $rows[1]['unit_label']);
+        $this->assertEquals(920.0, $rows[1]['unit_net']);
+        $this->assertEquals(1001 * 920.0, $rows[1]['from_monthly']);
+        $this->assertEquals(1500 * 920.0, $pricer->seatsMonthly(CommercialProduct::Indexing, 1500));
     }
 
     public function test_matrix_hides_unavailable_plans_when_requested(): void

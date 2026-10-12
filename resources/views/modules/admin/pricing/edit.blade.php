@@ -38,7 +38,7 @@
     <div class="space-y-4">
         <div class="flex flex-wrap items-center gap-2 text-sm text-slate-400">
             <span>Bronce 1–5 · Plata 6–15 · Oro 16–40 · Platino 41–100 (más de 100 a precio Platino).</span>
-            <span>Cada instalación = unidad × (1 − descuento del plan).</span>
+            <span>Cada instalación (o empleado en Indexación) = unidad × (1 − descuento del plan).</span>
             <span>Combinar productos: −{{ $pct((float) ($catalog['combo_discount'] ?? 0)) }} a cada uno después del de mayor valor.</span>
         </div>
         <div class="flex flex-wrap gap-2">
@@ -61,7 +61,7 @@
         @foreach ([
             ['Accesos', $accessMatrix, 'Por instalación. Hardware: unidad '.$fmt((float) ($catalog['units']['access_hardware'] ?? 0)).' con el mismo descuento.'],
             ['Supervisión', $supervisionMatrix, 'Por instalación supervisada. Se puede contratar sola.'],
-            ['Indexación', $indexingMatrix, 'Por instalación. Carpetas y documentos de empleados.'],
+            ['Indexación', $indexingMatrix, 'Por empleado. Carpetas y documentos de empleados. El plan sale de los empleados.'],
             ['Observatorio', $observatoryMatrix, 'Por instalación. Se puede contratar solo.'],
         ] as [$title, $rows, $hint])
             <section class="rounded-lg border border-slate-800 bg-slate-900/80 overflow-hidden">
@@ -74,12 +74,12 @@
                         <thead class="bg-slate-950/60 text-xs uppercase tracking-wide text-slate-500">
                             <tr>
                                 <th class="px-4 py-2 text-left font-medium">Plan</th>
-                                <th class="px-4 py-2 text-left font-medium">Instalaciones</th>
+                                <th class="px-4 py-2 text-left font-medium">Rango</th>
                                 <th class="px-4 py-2 text-left font-medium">Empleados</th>
                                 <th class="px-4 py-2 text-left font-medium">Puestos / instalación</th>
                                 <th class="px-4 py-2 text-left font-medium">Empleados / puesto</th>
                                 <th class="px-4 py-2 text-left font-medium">Dto.</th>
-                                <th class="px-4 py-2 text-right font-medium">Por instalación</th>
+                                <th class="px-4 py-2 text-right font-medium">Por unidad</th>
                                 <th class="px-4 py-2 text-right font-medium">Desde</th>
                                 <th class="px-4 py-2 text-right font-medium">Estado</th>
                             </tr>
@@ -93,8 +93,8 @@
                                     <td class="px-4 py-2.5 text-slate-400 tabular-nums">{{ $row['posts'] }}</td>
                                     <td class="px-4 py-2.5 text-slate-400 tabular-nums">{{ $row['per_post'] }}</td>
                                     <td class="px-4 py-2.5 text-emerald-400">−{{ $pct($row['discount']) }}</td>
-                                    <td class="px-4 py-2.5 text-right font-medium text-white tabular-nums">{{ $fmt((float) $row['unit_amount']) }}{{ $period }}</td>
-                                    <td class="px-4 py-2.5 text-right text-slate-400 tabular-nums">{{ $fmt((float) $row['from_amount']) }}{{ $period }} ({{ $row['min'] }})</td>
+                                    <td class="px-4 py-2.5 text-right font-medium text-white tabular-nums">{{ $fmt((float) $row['unit_amount']) }}{{ $period }} <span class="text-xs font-normal text-slate-500">/ {{ $row['unit_label'] }}</span></td>
+                                    <td class="px-4 py-2.5 text-right text-slate-400 tabular-nums">{{ $fmt((float) $row['from_amount']) }}{{ $period }} ({{ number_format($row['min'], 0, ',', '.') }})</td>
                                     <td class="px-4 py-2.5 text-right">
                                         <span class="ui-chip {{ $row['available'] ? 'ui-chip-success' : 'ui-chip-danger' }}">{{ $row['available'] ? 'Disponible' : 'No disponible' }}</span>
                                     </td>
@@ -114,13 +114,13 @@
                 <button type="button" class="ui-chip-link" onclick="document.getElementById('plans-help').close()">Cerrar</button>
             </div>
             <ol class="list-decimal pl-5 space-y-1.5 text-slate-300">
-                <li>La empresa elige cuántas instalaciones quiere de cada producto: Accesos, Supervisión, Indexación y Observatorio.</li>
-                <li>La cantidad de cada producto define su plan: Bronce 1–5, Plata 6–15, Oro 16–40, Platino 41–100. Más de 100 sigue a precio Platino.</li>
-                <li>Cada instalación cuesta la unidad (Accesos {{ $fmt($accessUnit) }}) menos el descuento del plan.</li>
-                <li>Al cruzar un rango, <strong>todas</strong> las instalaciones de ese producto pasan al nuevo precio.</li>
+                <li>La empresa elige cuántas instalaciones quiere de Accesos, Supervisión y Observatorio, y cuántos empleados de Indexación.</li>
+                <li>La cantidad de cada producto define su plan: Bronce 1–5, Plata 6–15, Oro 16–40, Platino 41 o más instalaciones. Indexación: Bronce 1–1.000, Plata 1.001–2.000, Oro 2.001–3.000, Platino 3.001 o más empleados.</li>
+                <li>Cada instalación cuesta la unidad (Accesos {{ $fmt($accessUnit) }}) menos el descuento del plan; en Indexación, cada empleado ({{ $fmt((float) ($catalog['units']['indexing'] ?? 0)) }}).</li>
+                <li>Al cruzar un rango, <strong>todas</strong> las unidades de ese producto pasan al nuevo precio.</li>
                 <li>Si combina productos, el de mayor valor va completo y cada uno de los demás lleva −{{ $pct((float) ($catalog['combo_discount'] ?? 0)) }}.</li>
                 <li>Anual = mensual (ya con descuentos) × 12 − {{ number_format($annualDiscount * 100, 0) }}%.</li>
-                <li>El cupo de instalaciones de la empresa es la mayor cantidad entre sus productos; manda el plan más alto para empleados y puestos.</li>
+                <li>El cupo de instalaciones de la empresa es la mayor cantidad entre sus productos por instalación; manda el plan más alto (incluida Indexación) para empleados y puestos.</li>
             </ol>
             <div class="rounded-lg border border-slate-800 overflow-hidden">
                 <table class="min-w-full text-sm">
@@ -190,12 +190,12 @@
                     ['access', 'Unidad Accesos'],
                     ['access_hardware', 'Unidad Accesos con hardware'],
                     ['supervision', 'Unidad Supervisión'],
-                    ['indexing', 'Unidad Indexación'],
+                    ['indexing', 'Unidad Indexación (por empleado)'],
                     ['observatory', 'Unidad Observatorio'],
                 ] as [$key, $label])
                     <div>
                         <x-ui.label :for="'unit_'.$key">{{ $label }}</x-ui.label>
-                        <x-ui.input accent="platform" type="number" step="1000" min="0" :name="'units['.$key.']'" :id="'unit_'.$key"
+                        <x-ui.input accent="platform" type="number" :step="$key === 'indexing' ? 50 : 1000" min="0" :name="'units['.$key.']'" :id="'unit_'.$key"
                             :value="old('units.'.$key, (int) ($catalog['units'][$key] ?? 0))" />
                         <x-ui.field-error name="units.{{ $key }}" />
                     </div>

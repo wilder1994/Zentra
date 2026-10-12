@@ -16,7 +16,7 @@ use Illuminate\Validation\Validator;
 
 /**
  * Formularios de plan por cantidad: `manual_seats`, `hardware_seats` (Accesos), `supervision_seats`,
- * `indexing_seats` y `observatory_seats`. Todos cuentan instalaciones.
+ * `indexing_seats` (empleados) y `observatory_seats`. Los demás cuentan instalaciones.
  */
 trait ValidatesPlanSeats
 {
@@ -29,7 +29,7 @@ trait ValidatesPlanSeats
             'manual_seats' => ['nullable', 'integer', 'min:0', 'max:'.$max],
             'hardware_seats' => ['nullable', 'integer', 'min:0', 'max:'.$max],
             'supervision_seats' => ['nullable', 'integer', 'min:0', 'max:'.$max],
-            'indexing_seats' => ['nullable', 'integer', 'min:0', 'max:'.$max],
+            'indexing_seats' => ['nullable', 'integer', 'min:0', 'max:'.CommercialProduct::MAX_EMPLOYEES],
             'observatory_seats' => ['nullable', 'integer', 'min:0', 'max:'.$max],
         ];
     }
@@ -121,7 +121,7 @@ trait ValidatesPlanSeats
             'manual_seats' => 'instalaciones de Accesos',
             'hardware_seats' => 'instalaciones con hardware',
             'supervision_seats' => 'instalaciones de Supervisión',
-            'indexing_seats' => 'instalaciones de Indexación',
+            'indexing_seats' => 'empleados de Indexación',
             'observatory_seats' => 'instalaciones de Observatorio',
         ];
     }

@@ -9,8 +9,9 @@ use App\Enums\CommercialMetal;
 use App\Enums\CommercialProduct;
 
 /**
- * Precio por instalación: unidad × (1 − descuento del plan). El plan sale de la cantidad del producto;
- * al cruzar un rango todas las instalaciones pasan al nuevo plan. Desde 101 se sigue cobrando a precio Platino.
+ * Precio por unidad: unidad × (1 − descuento del plan). La unidad es la instalación, salvo Indexación (empleado).
+ * El plan sale de la cantidad del producto; al cruzar un rango todas las unidades pasan al nuevo plan.
+ * Platino no tiene tope.
  */
 final class CatalogPricer
 {
@@ -26,19 +27,25 @@ final class CatalogPricer
         return round($this->catalog->unit($product->value) * (1 - $this->catalog->discount($product, $metal)), 2);
     }
 
-    /** Precio del plan lleno (tope del rango). */
+    /** Precio del plan lleno (tope del rango; Platino al tope del pack o de empleados). */
     public function packMonthly(CommercialProduct $product, CommercialMetal $metal): float
     {
-        return round($this->netUnit($product, $metal) * $metal->packSize(), 2);
+        return round($this->netUnit($product, $metal) * $this->packSize($product, $metal), 2);
     }
 
     public function seatsMonthly(CommercialProduct $product, int $seats): float
     {
-        if ($seats <= 0) {
+        $metal = CommercialMetal::forProduct($product, $seats);
+        if ($metal === null) {
             return 0.0;
         }
 
-        return round($this->netUnit($product, CommercialMetal::fromSeats($seats)) * $seats, 2);
+        return round($this->netUnit($product, $metal) * $seats, 2);
+    }
+
+    private function packSize(CommercialProduct $product, CommercialMetal $metal): int
+    {
+        return $product->countsEmployees() ? $metal->employeeCap() : $metal->packSize();
     }
 
     public function applyCycle(float $monthly, BillingCycle $cycle): float
@@ -68,14 +75,15 @@ final class CatalogPricer
 
             $net = $this->netUnit($product, $metal);
             $monthly = $this->packMonthly($product, $metal);
-            $from = round($net * $metal->rangeMin(), 2);
-            $list = $unit * $metal->packSize();
+            $from = round($net * $metal->rangeMinFor($product), 2);
+            $list = $unit * $this->packSize($product, $metal);
             $rows[] = [
                 'metal' => $metal->value,
                 'label' => $metal->label(),
-                'range' => $metal->rangeLabel(),
-                'min' => $metal->rangeMin(),
-                'pack' => $metal->packSize(),
+                'range' => $metal->rangeLabelFor($product),
+                'unit_label' => $product->unitLabel(1),
+                'min' => $metal->rangeMinFor($product),
+                'pack' => $this->packSize($product, $metal),
                 'employees' => $metal->employeeCap(),
                 'posts' => $metal->postsPerInstallation(),
                 'per_post' => $metal->employeesPerPost(),

@@ -11,6 +11,9 @@ enum CommercialProduct: string
     case Indexing = 'indexing';
     case Observatory = 'observatory';
 
+    /** Tope de empleados que se pueden contratar en Indexación. */
+    public const MAX_EMPLOYEES = 100_000;
+
     public function label(): string
     {
         return match ($this) {
@@ -19,5 +22,25 @@ enum CommercialProduct: string
             self::Indexing => 'Indexación',
             self::Observatory => 'Observatorio',
         };
+    }
+
+    /** Indexación se cobra por empleado; los demás por instalación. */
+    public function countsEmployees(): bool
+    {
+        return $this === self::Indexing;
+    }
+
+    public function unitLabel(int $quantity = 2): string
+    {
+        if ($this->countsEmployees()) {
+            return $quantity === 1 ? 'empleado' : 'empleados';
+        }
+
+        return $quantity === 1 ? 'instalación' : 'instalaciones';
+    }
+
+    public function maxQuantity(): int
+    {
+        return $this->countsEmployees() ? self::MAX_EMPLOYEES : CompanyPackageSku::MAX_SEATS;
     }
 }

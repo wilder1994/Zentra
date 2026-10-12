@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Public;
 use App\Domain\Pricing\Data\AccessSeatSplit;
 use App\Domain\Pricing\Data\PlanSelection;
 use App\Enums\BillingCycle;
+use App\Enums\CommercialProduct;
 use App\Enums\CompanyPackageSku;
 use App\Enums\SignupIntentStatus;
 use App\Enums\SupervisionPackageSku;
@@ -50,7 +51,7 @@ final class SignupController extends Controller
             $selection = new PlanSelection(
                 $seats,
                 (int) ($sup?->size() ?? 0),
-                min(SupervisionPackageSku::MAX_SEATS, max(0, (int) $request->query('indexing', 0))),
+                min(CommercialProduct::MAX_EMPLOYEES, max(0, (int) $request->query('indexing', 0))),
                 min(SupervisionPackageSku::MAX_SEATS, max(0, (int) $request->query('observatory', 0))),
             );
 
