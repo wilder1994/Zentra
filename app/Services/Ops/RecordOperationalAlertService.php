@@ -45,7 +45,7 @@ final class RecordOperationalAlertService
     {
         $client = $report->client ?? Client::query()->find($report->client_id);
         $companyId = (int) ($client?->security_company_id ?? 0);
-        $place = $report->installation?->name ?? 'sede';
+        $place = $report->installation?->name ?? 'instalación';
 
         return $this->store(
             OperationalAlertType::Observatory,

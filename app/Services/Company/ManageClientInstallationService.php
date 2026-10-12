@@ -9,7 +9,6 @@ use App\Enums\InstallationKind;
 use App\Models\Client;
 use App\Models\ClientUserInstallationAssignment;
 use App\Models\Installation;
-use App\Models\SecurityCompany;
 use App\Models\User;
 use App\Services\Tenant\AssertInstallationSeats;
 use App\Support\Auth\AssignableRoles;
@@ -23,8 +22,14 @@ final class ManageClientInstallationService
      */
     public function create(Client $client, array $data): Installation
     {
+        if (! $client->is_active) {
+            throw ValidationException::withMessages([
+                'installation' => 'El cliente «'.$client->name.'» está archivado. Restáuralo para crear instalaciones.',
+            ]);
+        }
+
         if ((bool) ($data['is_active'] ?? true)) {
-            $this->assertSeats($client, AssertInstallationSeats::ACTION_CREATE_INSTALLATION);
+            app(AssertInstallationSeats::class)->forClient($client, AssertInstallationSeats::ACTION_CREATE_INSTALLATION);
         }
 
         $isClientSite = (bool) ($data['is_client_site'] ?? false);
@@ -53,6 +58,7 @@ final class ManageClientInstallationService
             'dane_code' => $dane,
             'is_client_site' => $isClientSite,
             'is_active' => (bool) ($data['is_active'] ?? true),
+            'archived_at' => (bool) ($data['is_active'] ?? true) ? null : now(),
         ], $geo, $area));
 
         $this->syncRector($installation, isset($data['rector_user_id']) ? (int) $data['rector_user_id'] ?: null : null);
@@ -83,12 +89,10 @@ final class ManageClientInstallationService
         }
         $installation->is_client_site = $isClientSite;
 
-        if (array_key_exists('is_active', $data)) {
-            $nextActive = (bool) $data['is_active'];
-            if ($nextActive && ! $installation->is_active) {
-                $this->assertSeats($client, AssertInstallationSeats::ACTION_REACTIVATE, (int) $installation->id);
-            }
-            $installation->is_active = $nextActive;
+        $nextActive = array_key_exists('is_active', $data) ? (bool) $data['is_active'] : null;
+        if ($nextActive === true && ! $installation->is_active) {
+            app(ManageArchiveService::class)->restoreInstallation($installation);
+            $installation->refresh();
         }
 
         if (array_key_exists('code', $data)) {
@@ -118,36 +122,11 @@ final class ManageClientInstallationService
             $this->syncRector($installation, $data['rector_user_id'] !== null ? (int) $data['rector_user_id'] ?: null : null);
         }
 
+        if ($nextActive === false && $installation->is_active) {
+            app(ManageArchiveService::class)->archiveInstallation($installation);
+        }
+
         return $installation->refresh();
-    }
-
-    public function delete(Installation $installation): void
-    {
-        if ($installation->locations()->exists()) {
-            throw ValidationException::withMessages([
-                'installation' => 'No se puede eliminar: tiene puntos de acceso. Elimínelos o muévalos antes.',
-            ]);
-        }
-
-        if ($installation->supervisorPosts()->exists()) {
-            throw ValidationException::withMessages([
-                'installation' => 'No se puede eliminar: tiene puestos de Supervisión. Elimínelos antes.',
-            ]);
-        }
-
-        $installation->delete();
-    }
-
-    private function assertSeats(Client $client, string $action, ?int $exceptInstallationId = null): void
-    {
-        $company = $client->securityCompany ?? SecurityCompany::query()->find($client->security_company_id);
-        if (! $company instanceof SecurityCompany) {
-            throw ValidationException::withMessages([
-                'package' => 'La empresa del cliente no está disponible.',
-            ]);
-        }
-
-        app(AssertInstallationSeats::class)->execute($company, $action, $exceptInstallationId);
     }
 
     private function geoAttributes(Client $client, bool $isClientSite, ?GeoAddressData $geo): array
@@ -192,7 +171,7 @@ final class ManageClientInstallationService
 
         if ($kind?->requiresOfficialCode() && $code === null) {
             throw ValidationException::withMessages([
-                'dane_code' => 'El colegio debe tener código DANE de sede.',
+                'dane_code' => 'El colegio debe tener el código DANE de la instalación.',
             ]);
         }
 
@@ -202,7 +181,7 @@ final class ManageClientInstallationService
 
         if (! preg_match('/^\d{8,12}$/', $code)) {
             throw ValidationException::withMessages([
-                'dane_code' => 'El código DANE de sede debe tener entre 8 y 12 dígitos.',
+                'dane_code' => 'El código DANE de la instalación debe tener entre 8 y 12 dígitos.',
             ]);
         }
 
@@ -214,7 +193,7 @@ final class ManageClientInstallationService
 
         if ($exists) {
             throw ValidationException::withMessages([
-                'dane_code' => 'Ya existe una sede con ese código DANE.',
+                'dane_code' => 'Ya existe una instalación con ese código DANE.',
             ]);
         }
 
@@ -272,13 +251,13 @@ final class ManageClientInstallationService
             ]);
         }
 
-        $permission = $user->installationAssignments()->value('site_permission') ?? 'admin';
+        $permission = $user->installationAssignments()->value('installation_permission') ?? 'admin';
         ClientUserInstallationAssignment::query()->firstOrCreate(
             [
                 'user_id' => $user->id,
                 'installation_id' => $installation->id,
             ],
-            ['site_permission' => $permission],
+            ['installation_permission' => $permission],
         );
 
         $installation->save();

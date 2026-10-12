@@ -47,7 +47,7 @@ final class UpdateUserRequest extends FormRequest
                     'array',
                 ],
                 'installation_ids.*' => ['integer', 'exists:installations,id'],
-                'site_permission' => ['nullable', 'in:admin,support'],
+                'installation_permission' => ['nullable', 'in:admin,support'],
             ],
         );
     }

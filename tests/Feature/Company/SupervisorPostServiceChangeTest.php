@@ -7,6 +7,7 @@ namespace Tests\Feature\Company;
 use App\Enums\OperationalAlertType;
 use App\Models\Client;
 use App\Models\Employee;
+use App\Models\OperationalAlert;
 use App\Models\SupervisorPost;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -64,7 +65,7 @@ final class SupervisorPostServiceChangeTest extends TestCase
         ])->assertRedirect();
 
         $this->assertSame(24, $post->fresh()->modality);
-        $body = \App\Models\OperationalAlert::query()
+        $body = OperationalAlert::query()
             ->where('supervisor_post_id', $post->id)
             ->latest('id')
             ->value('body');
@@ -102,7 +103,7 @@ final class SupervisorPostServiceChangeTest extends TestCase
             ->assertSessionHas('error');
     }
 
-    public function test_delete_requires_observations(): void
+    public function test_archive_then_remove_requires_observations(): void
     {
         $this->seedWithPilot();
         $user = User::query()->where('email', 'empresa@sj-seguridad.test')->firstOrFail();
@@ -120,11 +121,26 @@ final class SupervisorPostServiceChangeTest extends TestCase
 
         $this->actingAs($user)
             ->from(route('company.clients.show', [$client, 'vista' => 'sitio']))
-            ->delete(route('company.clients.posts.destroy', [$client, $post]))
+            ->post(route('company.clients.posts.archive', [$client, $post]))
             ->assertRedirect()
             ->assertSessionHas('error');
 
-        $this->assertNotNull($post->fresh());
+        $this->assertTrue($post->fresh()->is_active);
+
+        $this->actingAs($user)
+            ->delete(route('company.clients.posts.destroy', [$client, $post]), [
+                'observations' => 'Fin de contrato de apoyo.',
+            ])
+            ->assertSessionHas('error', 'Archiva el puesto antes de darlo de baja.');
+
+        $this->actingAs($user)
+            ->post(route('company.clients.posts.archive', [$client, $post]), [
+                'observations' => 'Fin de contrato de apoyo.',
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertFalse($post->fresh()->is_active);
+        $this->assertNotNull($post->fresh()->archived_at);
 
         $this->actingAs($user)
             ->delete(route('company.clients.posts.destroy', [$client, $post]), [

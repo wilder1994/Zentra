@@ -23,8 +23,8 @@
     $linkClass = $accent === 'indigo' ? 'text-indigo-400 hover:text-indigo-300' : 'text-teal-400 hover:text-teal-300';
     $folioClass = $accent === 'indigo' ? 'text-indigo-300' : 'text-teal-300';
     $searchPlaceholder = $showClientColumn
-        ? 'Buscar por sede, DANE, cliente o texto…'
-        : 'Buscar por sede, DANE o texto…';
+        ? 'Buscar por instalación, DANE, cliente o texto…'
+        : 'Buscar por instalación, DANE o texto…';
     $docsUrl = route('observatory.docs');
     $exportRoute = $exportRoute ?? null;
     $exportUrl = $exportRoute ? ($exportRoute.'?'.http_build_query(array_filter([
@@ -224,7 +224,7 @@
 
         <div class="grid gap-2 xl:grid-cols-[minmax(14rem,1fr)_minmax(0,2fr)] xl:items-stretch">
             <section class="obs-card p-2.5 flex flex-col min-h-0">
-                <p class="text-[10px] uppercase tracking-wide text-slate-500 shrink-0">Sedes por riesgo</p>
+                <p class="text-[10px] uppercase tracking-wide text-slate-500 shrink-0">Instalaciones por riesgo</p>
                 <div class="mt-1.5 space-y-1.5 overflow-y-auto max-h-48 xl:max-h-none xl:flex-1 sidebar-scroll">
                     @if ($observatoryLiveUrl)
                         <template x-for="row in (payload.top || [])" :key="row.name + '-' + (row.count ?? 0)">
@@ -311,7 +311,7 @@
                 <thead class="bg-slate-950/60 text-xs uppercase tracking-wide text-slate-500">
                     <tr>
                         <th class="px-4 py-2.5 text-left font-medium">Folio</th>
-                        <th class="px-4 py-2.5 text-left font-medium">Sede</th>
+                        <th class="px-4 py-2.5 text-left font-medium">Instalación</th>
                         @if ($showClientColumn)
                             <th class="px-4 py-2.5 text-left font-medium hidden md:table-cell">Cliente</th>
                         @endif

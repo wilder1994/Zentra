@@ -9,15 +9,16 @@ use App\Enums\BillingCycle;
 use App\Enums\CompanyPackageSku;
 use App\Enums\SubscriptionStatus;
 use App\Models\SecurityCompany;
-use App\Services\Pricing\PriceCalculator;
+use App\Services\Pricing\CompanyPlanPricer;
 use Carbon\CarbonImmutable;
 
 final class AssignCompanyPackageService
 {
     public function __construct(
-        private readonly PriceCalculator $priceCalculator,
+        private readonly CompanyPlanPricer $planPricer,
     ) {}
 
+    /** Asigna Accesos, abre un periodo nuevo y recalcula el valor de todos los productos. */
     public function execute(
         SecurityCompany $company,
         CompanyPackageSku $sku,
@@ -26,7 +27,6 @@ final class AssignCompanyPackageService
         ?AccessSeatSplit $seats = null,
     ): SecurityCompany {
         $seats ??= AccessSeatSplit::fromSku($sku);
-        $quote = $this->priceCalculator->quoteAccess($seats, $cycle);
         $startsAt ??= CarbonImmutable::now();
         $endsAt = $cycle === BillingCycle::Annual
             ? $startsAt->addYear()
@@ -44,11 +44,6 @@ final class AssignCompanyPackageService
             'max_clients' => $seats->size(),
             'billing_cycle' => $cycle,
             'billing_day' => $billingDay,
-            'unit_price_snapshot' => $quote->unitPrice,
-            'volume_discount_pct' => $quote->volumeDiscountPct,
-            'annual_discount_pct' => $quote->annualDiscountPct,
-            'package_price_monthly' => $quote->priceMonthly,
-            'package_price_annual' => $quote->priceAnnual,
             'package_starts_at' => $startsAt,
             'package_ends_at' => $endsAt,
             'grace_ends_at' => null,
@@ -62,15 +57,17 @@ final class AssignCompanyPackageService
             'pending_reprice_note' => null,
         ]);
 
-        if ($company->supervision_package_sku !== null) {
-            $sup = $this->priceCalculator->quoteSupervisionSku($company->supervision_package_sku, $cycle);
-            $company->update([
-                'supervision_unit_price_snapshot' => $sup->unitPrice,
-                'supervision_package_price_monthly' => $sup->priceMonthly,
-                'supervision_package_price_annual' => $sup->priceAnnual,
-            ]);
-        }
+        return $this->planPricer->sync($company);
+    }
 
-        return $company->fresh();
+    /** Instalaciones de Indexación y Observatorio; no cambia el periodo. */
+    public function assignProducts(SecurityCompany $company, int $indexing, int $observatory): SecurityCompany
+    {
+        $company->update([
+            'indexing_seats' => max(0, $indexing),
+            'observatory_seats' => max(0, $observatory),
+        ]);
+
+        return $this->planPricer->sync($company);
     }
 }

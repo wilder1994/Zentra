@@ -6,8 +6,6 @@ namespace App\Http\Controllers\Company;
 
 use App\Domain\Tenant\Data\CreateClientData;
 use App\Enums\PartyType;
-use App\Models\SupervisorPostModality;
-use App\Services\Company\SeedSupervisorIntakeDefaultsService;
 use App\Exports\ClientImportTemplateExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\PreviewClientImportRequest;
@@ -19,9 +17,12 @@ use App\Models\IdentityDocumentType;
 use App\Models\Installation;
 use App\Models\Location;
 use App\Models\StructureType;
+use App\Models\SupervisorPostModality;
 use App\Repositories\ClientRepository;
 use App\Services\Company\CommitClientImportService;
+use App\Services\Company\ManageArchiveService;
 use App\Services\Company\PreviewClientImportService;
+use App\Services\Company\SeedSupervisorIntakeDefaultsService;
 use App\Services\Tenant\BuildClientExpedienteService;
 use App\Services\Tenant\CreateClientService;
 use App\Services\Tenant\UpdateClientService;
@@ -45,6 +46,7 @@ final class ClientController extends Controller
         private readonly BuildClientExpedienteService $buildClientExpedienteService,
         private readonly PreviewClientImportService $previewClientImportService,
         private readonly CommitClientImportService $commitClientImportService,
+        private readonly ManageArchiveService $archives,
     ) {}
 
     public function index(Request $request): View
@@ -259,6 +261,7 @@ final class ClientController extends Controller
             hasSupervision: $request->boolean('has_supervision'),
             showPersonnelFolders: $request->boolean('has_access') && $request->boolean('show_personnel_folders'),
             serviceStartedAt: $request->validated('service_started_at'),
+            hasObservatory: $request->boolean('has_observatory'),
         ));
 
         return redirect()
@@ -335,6 +338,52 @@ final class ClientController extends Controller
         return redirect()
             ->route('company.clients.show', $client)
             ->with('success', 'Cliente actualizado.');
+    }
+
+    public function archive(Request $request, Client $client): RedirectResponse
+    {
+        return $this->lifecycle($request, $client, fn () => $this->archives->archiveClient($client), 'Cliente archivado: sus instalaciones y puestos liberaron cupo. Puedes restaurarlo cuando haya cupo.');
+    }
+
+    public function restore(Request $request, Client $client): RedirectResponse
+    {
+        return $this->lifecycle($request, $client, fn () => $this->archives->restoreClient($client), 'Cliente restaurado con sus instalaciones y puestos.');
+    }
+
+    public function release(Request $request, Client $client): RedirectResponse
+    {
+        $this->authorize('update', $client);
+        $this->assertCompanyOwnership($request, $client);
+
+        try {
+            $this->archives->releaseClient($client);
+        } catch (ValidationException $e) {
+            return redirect()
+                ->route('company.clients.show', $client)
+                ->with('error', $e->validator->errors()->first());
+        }
+
+        return redirect()
+            ->route('company.clients.index')
+            ->with('success', "Cliente «{$client->name}» dado de baja. Sus datos se conservan según la política de retención.");
+    }
+
+    private function lifecycle(Request $request, Client $client, \Closure $action, string $message): RedirectResponse
+    {
+        $this->authorize('update', $client);
+        $this->assertCompanyOwnership($request, $client);
+
+        try {
+            $action();
+        } catch (ValidationException $e) {
+            return redirect()
+                ->route('company.clients.show', $client)
+                ->with('error', $e->validator->errors()->first());
+        }
+
+        return redirect()
+            ->route('company.clients.show', $client)
+            ->with('success', $message);
     }
 
     public function activate(Request $request, Client $client): RedirectResponse
@@ -453,7 +502,7 @@ final class ClientController extends Controller
         }
 
         $allowed = ['cliente'];
-        if ($client->has_access || $client->has_supervision) {
+        if (! $client->isCatalogOnly()) {
             $allowed[] = 'sitio';
         }
         if ($client->has_access) {

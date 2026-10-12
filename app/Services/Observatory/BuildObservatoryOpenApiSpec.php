@@ -20,7 +20,7 @@ final class BuildObservatoryOpenApiSpec
                 'version' => '1.0.0',
                 'description' => implode("\n\n", [
                     'Eventos y riesgos escolares del **Observatorio**. No incluye censo, portería ni facturación.',
-                    'Alcance: el token ve solo los colegios del cliente (Secretaría) o de la empresa. El admin de instalaciones ve solo sus sedes.',
+                    'Alcance: el token ve solo los colegios del cliente (Secretaría) o de la empresa. El admin de instalaciones ve solo sus instalaciones.',
                     'Autenticación: `POST /api/auth/login` → `Authorization: Bearer {token}`.',
                     'Un reporte nuevo se une al folio abierto del mismo colegio y tipo si el último de ese tipo tiene menos de 1 hora.',
                 ]),
@@ -63,7 +63,7 @@ final class BuildObservatoryOpenApiSpec
                             $this->query('from', 'Fecha inicial (Y-m-d)'),
                             $this->query('to', 'Fecha final (Y-m-d)'),
                             $this->query('installation_id', 'Filtrar por colegio', 'integer'),
-                            $this->query('q', 'Buscar sede, DANE o título'),
+                            $this->query('q', 'Buscar instalación, DANE o título'),
                             $this->query('client_id', 'Solo empresa: acotar a un cliente', 'integer'),
                             $this->query('page', 'Página', 'integer'),
                         ],

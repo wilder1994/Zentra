@@ -52,16 +52,18 @@ final class CompanyPriceHistory
 
     public function planLabel(SecurityCompany $company): string
     {
-        if ($company->package_sku === null && $company->supervision_package_sku === null) {
-            return '';
-        }
-
         $parts = [];
         if ($company->hasAccessPackage()) {
             $parts[] = 'Accesos '.$company->packageLabel();
         }
         if ($company->supervision_package_sku !== null) {
             $parts[] = $company->supervision_package_sku->label();
+        }
+        if ((int) $company->indexing_seats > 0) {
+            $parts[] = 'Indexación '.$company->indexing_seats;
+        }
+        if ((int) $company->observatory_seats > 0) {
+            $parts[] = 'Observatorio '.$company->observatory_seats;
         }
 
         return implode(' + ', $parts);

@@ -42,7 +42,7 @@ export function observatoryIntake(cfg) {
     return {
         step: cfg.installationId ? 2 : 1,
         query: '',
-        sites: [],
+        installations: [],
         searched: false,
         installationId: cfg.installationId || '',
         installationName: cfg.installationName || '',
@@ -136,13 +136,13 @@ export function observatoryIntake(cfg) {
         async search() {
             const q = this.query.trim();
             if (q.length < 2) {
-                this.sites = [];
+                this.installations = [];
                 this.searched = false;
                 return;
             }
-            const res = await fetch(cfg.sitesUrl + '?q=' + encodeURIComponent(q), { headers: { Accept: 'application/json' } });
+            const res = await fetch(cfg.installationsUrl + '?q=' + encodeURIComponent(q), { headers: { Accept: 'application/json' } });
             const data = await res.json();
-            this.sites = data.sites || [];
+            this.installations = data.installations || [];
             this.searched = true;
         },
 
@@ -153,7 +153,7 @@ export function observatoryIntake(cfg) {
             this.siteLng = row.lng ?? null;
             this.latitude = row.lat != null ? String(row.lat) : '';
             this.longitude = row.lng != null ? String(row.lng) : '';
-            this.sites = [];
+            this.installations = [];
             this.query = row.name;
         },
 

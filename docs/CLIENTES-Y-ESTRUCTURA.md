@@ -31,7 +31,7 @@ Al **Ver** el cliente, el header es **Cliente | Resumen**. Resumen (si `has_acce
 
 ## Alta del cliente (formulario y Excel)
 
-El paquete cuenta **instalaciones activas**. Sin cupo libre no se crea cliente ni sede, ni se reactiva una archivada.
+El paquete cuenta **instalaciones activas**. Sin cupo libre no se crea cliente ni instalación, ni se reactiva una archivada.
 
 Crear cliente = **solo la ficha**, igual que el formulario de `/company/clients/create`:
 
@@ -39,7 +39,7 @@ tipo de cliente, nombre comercial, razón social, tipo y número de documento, c
 
 **La carga masiva de clientes no crea instalaciones, ni puestos, ni accesos.** Tampoco nodos de censo.
 
-Instalaciones las crea **solo la empresa**, en `/company/installations` (con cliente) o en la ficha del cliente. Puestos (modalidad + empleados) en la ficha de la sede o en la tarjeta del cliente. Accesos (puertas) siguen en la ficha del cliente.
+Instalaciones las crea **solo la empresa**, en `/company/installations` (con cliente) o en la ficha del cliente. Puestos (modalidad + empleados) en la ficha de la instalación o en la tarjeta del cliente. Accesos (puertas) siguen en la ficha del cliente.
 
 | Excel | Qué crea | Qué no crea |
 |-------|----------|-------------|
@@ -52,7 +52,7 @@ Instalaciones las crea **solo la empresa**, en `/company/installations` (con cli
 
 `/company/installations`: tabla, buscador y **Crear** (siempre con cliente). La ficha: mapa a la izquierda, datos a la derecha. Debajo del nombre va la **dirección**. Luego tipo, código interno, DANE si es colegio, área, **Administrador** y **Apoyo** (cada uno `cargo · nombre`). El **nombre puede repetirse** en el mismo cliente. `code` interno (INE-01) sigue único por cliente y se genera si no se escribe; **no** es DANE. `kind` opcional: colegio · conjunto · bodega · oficina · otro. `dane_code` es obligatorio y único **solo** si `kind=colegio`; no sale del mapa. Se escribe a mano (8 a 12 dígitos). **No** hay catálogo MEN ni typeahead: Zentra no trae el directorio oficial de colegios. Un combo filtrable queda para cuando exista ese maestro (p. ej. listado de la Secretaría). El área: si el pin cae en el perímetro urbano de Cali, la **comuna es IDESC** (polígono oficial, p. ej. Comuna 09) y el campo **no se edita**. Fuera de capa (pueblo, vereda, corregimiento) el usuario sí la escribe. En un pueblo sin subdivisión no se guarda (`installations.commune` + `area_kind`). También puestos (modalidad + empleados). El alta también se puede hacer en la ficha del cliente.
 
-Los asignados (`client_user_installation_assignments`) se parten en dos bloques: **Administrador** (`site_permission=admin`) y **Apoyo** (`support`). Formato `cargo · nombre`. Si un bloque está vacío, se muestra — . `rector_user_id` es solo el **contacto del directorio**, no el único admin. El permiso es el mismo en todas las sedes de esa persona. Apoyo opera el censo y no borra nodos. El panel cliente tiene el mismo directorio (sin crear) y el árbol de nodos en la ficha.
+Los asignados (`client_user_installation_assignments`) se parten en dos bloques: **Administrador** (`installation_permission=admin`) y **Apoyo** (`support`). Formato `cargo · nombre`. Si un bloque está vacío, se muestra — . `rector_user_id` es solo el **contacto del directorio**, no el único admin. El permiso es el mismo en todas las instalaciones de esa persona. Apoyo opera el censo y no borra nodos. El panel cliente tiene el mismo directorio (sin crear) y el árbol de nodos en la ficha.
 
 ## Árbol del sitio (tarjeta Instalaciones y puestos)
 
@@ -121,7 +121,7 @@ No se clonan tablas de Patrulla (`review_posts`, etc.). Flota de Supervisión si
 
 1. Empresa: tipos de estructura en Ajustes → Estructuras.
 2. Empresa: alta de cliente (ficha) e **instalaciones**.
-3. Panel cliente (`/client/installations`): directorio → ficha de la sede → árbol + **Nuevo nodo**. El tipo se **hereda** del cliente (nota bajo el nombre; no hay campo Tipo ni Código).
+3. Panel cliente (`/client/installations`): directorio → ficha de la instalación → árbol + **Nuevo nodo**. El tipo se **hereda** del cliente (nota bajo el nombre; no hay campo Tipo ni Código).
 4. **Crear dentro de:** primera opción = esta instalación (raíz); el resto indentado en orden de árbol. El **+** de cada nodo lo deja como padre y enfoca el nombre.
 5. **Tipos de persona** en Personas (botón + modal). Catálogo **por cliente**.
 6. Personas en **un** nodo de esa instalación (elige instalación → nodo).
@@ -129,7 +129,7 @@ No se clonan tablas de Patrulla (`review_posts`, etc.). Flota de Supervisión si
 
 ```
 Cliente (tipo fijo, ej. Propiedad horizontal)
-  └── Instalación (sede, colegio…)
+  └── Instalación (propia del cliente, colegio…)
         ├── Puestos / puertas
         └── Nodos (bloque Instalaciones en la ficha)
               Torre A
@@ -183,7 +183,7 @@ Listado `/company/clients` vacío: **«Aún no tienes clientes creados en la car
 
 Pestañas de ficha empresa (`/company/clients/{id}`): **Cliente** | **Resumen** (si `has_access`).
 
-- Cliente: ficha (incluye **inicio de servicio**) + **Operar portería** / **Operar cliente** / **Operar instalación** (una sede o selector), **Editar**, **Instalaciones y puestos**, **Puertas** (solo Accesos), **Gestión de módulos**.
+- Cliente: ficha (incluye **inicio de servicio**) + **Operar portería** / **Operar cliente** / **Operar instalación** (una instalación o selector), **Editar**, **Instalaciones y puestos**, **Puertas** (solo Accesos), **Gestión de módulos**.
 - Sitio: instalaciones + puestos (modalidad y vigilantes). Sin revistas aquí.
 - Puertas: `locations` de esas instalaciones.
 - Operar cliente + flag: sidebar **Documentos** (`/client/documents`), solo empleados con puesto en ese cliente. Ver = preview; Gestionar = descargar.
@@ -193,7 +193,7 @@ Sidebar del panel cliente:
 - **Fijos:** Resumen, Instalaciones, Personas, Usuarios, Accesos, Ajustes.
 - **Opcionales** (check en Gestión de módulos): Vehículos, Mascotas, Autorizaciones, **Puertas** (antes Consola portería). Puertas solo se puede activar si ya hay `locations` activas. Nav oculto y ruta 403 si está apagado. Portería de empresa (`Operar portería` / vigilante) no usa este corte.
 
-El panel `/client/installations` es el directorio de sedes (tabla + ficha). En la ficha el mapa va a la izquierda y los datos a la derecha. Los nodos van en el bloque **Instalaciones**; las pastillas de vehículos/mascotas solo si el módulo está activo. `/client/structures` redirige ahí. Censo por instalación. Personas / vehículos / mascotas: mismo filtro instalación → nodo. Personas: tipo de documento (catálogo + TI/RC) y fecha de nacimiento; si es menor de 18, aviso Ley 1581 art. 7 / Decreto 1377 / Ley 1098, autorización del representante, sin export ni acceso de persona; en portería solo el nombre. `/client/users` lista administradores **externos** de ese cliente; **no crea** (alta en empresa o plataforma). `/client/app-users` es **Accesos** (personas del censo). `/client/settings/member-types` es **Ajustes** (tipos de persona; admin instalaciones solo ve). Banner al operar: **panel del cliente**.
+El panel `/client/installations` es el directorio de instalaciones (tabla + ficha). En la ficha el mapa va a la izquierda y los datos a la derecha. Los nodos van en el bloque **Instalaciones**; las pastillas de vehículos/mascotas solo si el módulo está activo. `/client/structures` redirige ahí. Censo por instalación. Personas / vehículos / mascotas: mismo filtro instalación → nodo. Personas: tipo de documento (catálogo + TI/RC) y fecha de nacimiento; si es menor de 18, aviso Ley 1581 art. 7 / Decreto 1377 / Ley 1098, autorización del representante, sin export ni acceso de persona; en portería solo el nombre. `/client/users` lista administradores **externos** de ese cliente; **no crea** (alta en empresa o plataforma). `/client/app-users` es **Accesos** (personas del censo). `/client/settings/member-types` es **Ajustes** (tipos de persona; admin instalaciones solo ve). Banner al operar: **panel del cliente**.
 
 ---
 
@@ -214,8 +214,8 @@ El panel `/client/installations` es el directorio de sedes (tabla + ficha). En l
 |--------|------|-----|
 | GET | `/company/installations` | Directorio: tabla, búsqueda, crear, ficha |
 | GET/PUT | `/company/installations/{id}` | Ficha / editar (dirección, tipo, código, DANE, área, administrador, apoyo, mapa, puestos) |
-| GET | `/client/installations` | Directorio del cliente (admin cliente: todas; admin sede: las suyas) |
-| GET | `/client/installations/{id}` | Ficha + estructura (nodos). Sin alta de sede ni puestos |
+| GET | `/client/installations` | Directorio del cliente (admin cliente: todas; admin de instalación: las suyas) |
+| GET | `/client/installations/{id}` | Ficha + estructura (nodos). Sin alta de instalación ni puestos |
 | POST/PUT/DELETE | `/company/clients/{id}/installations` | Alta rápida en el árbol del cliente |
 | POST/PUT/DELETE | `/company/clients/{id}/locations` | Puertas de una instalación (solo Accesos) |
 | POST/PUT/DELETE | `/company/clients/{id}/posts` | Puestos compartidos (Accesos y Supervisión) |
@@ -230,7 +230,7 @@ Permiso: `company.clients.manage`. Portería (`/access/locations`) también crea
 | Seed | Incluye |
 |------|---------|
 | `DatabaseSeeder` (mínimo) | Tipos de documento; **no** clientes ni instalaciones |
-| `PilotDemoSeeder` | Empresa, clientes (ficha + líneas), censo demo. Palmas: instalación sede + 4 puertas + 2 puestos. Torres: instalación sede + 1 puerta + 1 puesto (solo Accesos) |
+| `PilotDemoSeeder` | Empresa, clientes (ficha + líneas), censo demo. Palmas: instalación propia del cliente + 4 puertas + 2 puestos. Torres: instalación propia del cliente + 1 puerta + 1 puesto (solo Accesos) |
 
 ---
 

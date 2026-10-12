@@ -20,6 +20,11 @@
             <nav class="flex items-center gap-3 text-sm">
                 @include('partials.theme-toggle')
                 <a href="{{ route('planes.index') }}" class="text-slate-300 hover:text-white">Planes</a>
+                @guest
+                    <a href="{{ route('planes.cart') }}" class="text-slate-300 hover:text-white" x-data="planCartBadge">
+                        Carrito <span class="ui-chip ui-chip-accent" x-show="count > 0" x-text="count" x-cloak></span>
+                    </a>
+                @endguest
                 @auth
                     <a href="{{ route('home') }}" class="rounded-lg bg-cyan-500 px-4 py-2 font-semibold text-slate-950">Ir al panel</a>
                 @else

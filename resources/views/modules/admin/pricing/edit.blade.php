@@ -39,6 +39,7 @@
         <div class="flex flex-wrap items-center gap-2 text-sm text-slate-400">
             <span>Bronce 1–5 · Plata 6–15 · Oro 16–40 · Platino 41–100 (más de 100 a precio Platino).</span>
             <span>Cada instalación = unidad × (1 − descuento del plan).</span>
+            <span>Combinar productos: −{{ $pct((float) ($catalog['combo_discount'] ?? 0)) }} a cada uno después del de mayor valor.</span>
         </div>
         <div class="flex flex-wrap gap-2">
             @foreach (\App\Enums\CommercialMetal::cases() as $metal)
@@ -59,9 +60,9 @@
 
         @foreach ([
             ['Accesos', $accessMatrix, 'Por instalación. Hardware: unidad '.$fmt((float) ($catalog['units']['access_hardware'] ?? 0)).' con el mismo descuento.'],
-            ['Supervisión', $supervisionMatrix, 'Por cliente supervisado. Se puede contratar sola.'],
-            ['Indexación (sola)', $indexingMatrix, 'Por instalación, sin Accesos ni Supervisión.'],
-            ['Indexación (add-on)', $indexingAddonMatrix, 'Con Accesos o Supervisión. Solo carpetas.'],
+            ['Supervisión', $supervisionMatrix, 'Por instalación supervisada. Se puede contratar sola.'],
+            ['Indexación', $indexingMatrix, 'Por instalación. Carpetas y documentos de empleados.'],
+            ['Observatorio', $observatoryMatrix, 'Por instalación. Se puede contratar solo.'],
         ] as [$title, $rows, $hint])
             <section class="rounded-lg border border-slate-800 bg-slate-900/80 overflow-hidden">
                 <div class="px-4 py-3 border-b border-slate-800">
@@ -75,6 +76,8 @@
                                 <th class="px-4 py-2 text-left font-medium">Plan</th>
                                 <th class="px-4 py-2 text-left font-medium">Instalaciones</th>
                                 <th class="px-4 py-2 text-left font-medium">Empleados</th>
+                                <th class="px-4 py-2 text-left font-medium">Puestos / instalación</th>
+                                <th class="px-4 py-2 text-left font-medium">Empleados / puesto</th>
                                 <th class="px-4 py-2 text-left font-medium">Dto.</th>
                                 <th class="px-4 py-2 text-right font-medium">Por instalación</th>
                                 <th class="px-4 py-2 text-right font-medium">Desde</th>
@@ -87,6 +90,8 @@
                                     <td class="px-4 py-2.5 font-medium text-slate-200">{{ $row['label'] }}</td>
                                     <td class="px-4 py-2.5 text-slate-400">{{ $row['range'] }}</td>
                                     <td class="px-4 py-2.5 text-slate-400 tabular-nums">{{ number_format($row['employees']) }}</td>
+                                    <td class="px-4 py-2.5 text-slate-400 tabular-nums">{{ $row['posts'] }}</td>
+                                    <td class="px-4 py-2.5 text-slate-400 tabular-nums">{{ $row['per_post'] }}</td>
                                     <td class="px-4 py-2.5 text-emerald-400">−{{ $pct($row['discount']) }}</td>
                                     <td class="px-4 py-2.5 text-right font-medium text-white tabular-nums">{{ $fmt((float) $row['unit_amount']) }}{{ $period }}</td>
                                     <td class="px-4 py-2.5 text-right text-slate-400 tabular-nums">{{ $fmt((float) $row['from_amount']) }}{{ $period }} ({{ $row['min'] }})</td>
@@ -100,31 +105,6 @@
                 </div>
             </section>
         @endforeach
-
-        <section class="rounded-lg border border-slate-800 bg-slate-900/80 overflow-hidden">
-            <div class="px-4 py-3 border-b border-slate-800">
-                <h3 class="text-sm font-semibold text-white">Observatorio · un módulo</h3>
-                <p class="text-xs text-slate-500">Solo con Accesos. El precio depende del plan de Accesos.</p>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-slate-950/60 text-xs uppercase tracking-wide text-slate-500">
-                        <tr>
-                            <th class="px-4 py-2 text-left font-medium">Si Accesos es…</th>
-                            <th class="px-4 py-2 text-right font-medium">Observatorio</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-800">
-                        @foreach ($observatoryMatrix as $row)
-                            <tr>
-                                <td class="px-4 py-2.5 text-slate-200">{{ $row['label'] }}</td>
-                                <td class="px-4 py-2.5 text-right font-medium text-white tabular-nums">{{ $fmt((float) $row['amount']) }}{{ $period }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </section>
     </div>
 
     <dialog id="plans-help" class="w-full max-w-2xl rounded-xl border border-slate-700 bg-slate-950 p-0 text-slate-200 backdrop:bg-slate-950/70">
@@ -134,11 +114,13 @@
                 <button type="button" class="ui-chip-link" onclick="document.getElementById('plans-help').close()">Cerrar</button>
             </div>
             <ol class="list-decimal pl-5 space-y-1.5 text-slate-300">
-                <li>La empresa dice cuántas instalaciones quiere (Accesos) y cuántos clientes supervisa (Supervisión). Son independientes.</li>
-                <li>La cantidad define el plan: Bronce 1–5, Plata 6–15, Oro 16–40, Platino 41–100. Más de 100 sigue a precio Platino.</li>
-                <li>Cada instalación cuesta la unidad ({{ $fmt($accessUnit) }}) menos el descuento del plan.</li>
-                <li>Al cruzar un rango, <strong>todas</strong> las instalaciones pasan al nuevo precio, no solo las nuevas.</li>
-                <li>Anual = mensual × 12 − {{ number_format($annualDiscount * 100, 0) }}%.</li>
+                <li>La empresa elige cuántas instalaciones quiere de cada producto: Accesos, Supervisión, Indexación y Observatorio.</li>
+                <li>La cantidad de cada producto define su plan: Bronce 1–5, Plata 6–15, Oro 16–40, Platino 41–100. Más de 100 sigue a precio Platino.</li>
+                <li>Cada instalación cuesta la unidad (Accesos {{ $fmt($accessUnit) }}) menos el descuento del plan.</li>
+                <li>Al cruzar un rango, <strong>todas</strong> las instalaciones de ese producto pasan al nuevo precio.</li>
+                <li>Si combina productos, el de mayor valor va completo y cada uno de los demás lleva −{{ $pct((float) ($catalog['combo_discount'] ?? 0)) }}.</li>
+                <li>Anual = mensual (ya con descuentos) × 12 − {{ number_format($annualDiscount * 100, 0) }}%.</li>
+                <li>El cupo de instalaciones de la empresa es la mayor cantidad entre sus productos; manda el plan más alto para empleados y puestos.</li>
             </ol>
             <div class="rounded-lg border border-slate-800 overflow-hidden">
                 <table class="min-w-full text-sm">
@@ -208,8 +190,8 @@
                     ['access', 'Unidad Accesos'],
                     ['access_hardware', 'Unidad Accesos con hardware'],
                     ['supervision', 'Unidad Supervisión'],
-                    ['indexing', 'Unidad Indexación (sola)'],
-                    ['indexing_addon', 'Unidad Indexación (add-on)'],
+                    ['indexing', 'Unidad Indexación'],
+                    ['observatory', 'Unidad Observatorio'],
                 ] as [$key, $label])
                     <div>
                         <x-ui.label :for="'unit_'.$key">{{ $label }}</x-ui.label>
@@ -218,12 +200,19 @@
                         <x-ui.field-error name="units.{{ $key }}" />
                     </div>
                 @endforeach
+                <div>
+                    <x-ui.label for="combo_discount">Descuento por combinar %</x-ui.label>
+                    <x-ui.input accent="platform" type="number" step="0.5" min="0" max="90" name="combo_discount" id="combo_discount"
+                        :value="old('combo_discount', round(((float) ($catalog['combo_discount'] ?? 0)) * 100, 2))" />
+                    <x-ui.field-error name="combo_discount" />
+                </div>
             </div>
 
             @foreach ([
                 ['access', 'Accesos'],
                 ['supervision', 'Supervisión'],
                 ['indexing', 'Indexación'],
+                ['observatory', 'Observatorio'],
             ] as [$key, $label])
                 <div class="rounded-lg border border-slate-800 p-3 space-y-2">
                     <p class="text-sm font-medium text-white">{{ $label }} · % descuento por plan</p>
@@ -250,29 +239,6 @@
                     </div>
                 </div>
             @endforeach
-
-            <div class="rounded-lg border border-slate-800 p-3 space-y-2">
-                <p class="text-sm font-medium text-white">Observatorio · precio según plan de Accesos</p>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    @foreach (['bronce','plata','oro','platino'] as $metal)
-                        <div>
-                            <x-ui.label :for="'obs_'.$metal">{{ ucfirst($metal) }}</x-ui.label>
-                            <x-ui.input accent="platform" type="number" step="1000" min="0" :name="'observatory['.$metal.']'" :id="'obs_'.$metal"
-                                :value="old('observatory.'.$metal, (int) ($catalog['observatory'][$metal] ?? 0))" />
-                        </div>
-                    @endforeach
-                </div>
-                <div class="flex flex-wrap gap-2">
-                    @foreach ($moduleOptions as $mod => $modLabel)
-                        <label class="inline-flex items-center gap-1.5 text-xs text-slate-300">
-                            <input type="checkbox" name="modules[observatory][]" value="{{ $mod }}"
-                                class="rounded border-slate-600 bg-slate-900"
-                                @checked(in_array($mod, old('modules.observatory', $catalog['modules']['observatory'] ?? []), true))>
-                            {{ $modLabel }}
-                        </label>
-                    @endforeach
-                </div>
-            </div>
 
             <fieldset class="rounded-lg border border-amber-800/40 bg-amber-950/10 p-3 space-y-2">
                 <legend class="px-1 text-sm font-medium text-white">¿A quién aplica?</legend>
@@ -320,7 +286,7 @@
             <div class="flex items-start justify-between gap-3">
                 <div>
                     <h2 class="text-base font-semibold text-white">Incremento anual</h2>
-                    <p class="text-xs text-slate-500">Sube todas las unidades y el Observatorio. Las empresas actuales lo ven desde su primera facturación a partir de la fecha. Precio pactado queda igual.</p>
+                    <p class="text-xs text-slate-500">Sube todas las unidades. Las empresas actuales lo ven desde su primera facturación a partir de la fecha. Precio pactado queda igual.</p>
                 </div>
                 <button type="button" class="ui-chip-link" onclick="document.getElementById('increase-modal').close()">Cerrar</button>
             </div>

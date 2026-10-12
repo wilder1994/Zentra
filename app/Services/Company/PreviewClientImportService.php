@@ -277,7 +277,7 @@ final class PreviewClientImportService
     private function flagSeatOverflow(array &$rows, int $companyId): void
     {
         $company = SecurityCompany::query()->findOrFail($companyId);
-        $accessLeft = $company->clientsRemaining();
+        $accessLeft = $company->accessSeatsRemaining();
         $proLeft = $company->supervisionSeatsRemaining();
         $installationsLeft = $company->installationSeatsRemaining();
 
@@ -289,7 +289,7 @@ final class PreviewClientImportService
 
             if ($installationsLeft < 1) {
                 $rows[$index]['status'] = 'error';
-                $rows[$index]['messages'][] = 'No hay cupo de instalaciones. Amplía el paquete o archiva una sede para liberar cupo.';
+                $rows[$index]['messages'][] = 'No hay cupo de instalaciones ('.$company->installationSeatsCount().'/'.$company->installationQuota()->capacity().'). Archiva una instalación o un cliente, o amplía el plan en Facturación.';
                 $rows[$index]['payload'] = null;
 
                 continue;

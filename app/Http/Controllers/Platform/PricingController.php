@@ -38,8 +38,7 @@ final class PricingController extends Controller
         $accessMatrix = $pricer->matrix(CommercialProduct::Access, $cycle);
         $supervisionMatrix = $pricer->matrix(CommercialProduct::Supervision, $cycle);
         $indexingMatrix = $pricer->matrix(CommercialProduct::Indexing, $cycle);
-        $indexingAddonMatrix = $pricer->matrix(CommercialProduct::Indexing, $cycle, true);
-        $observatoryMatrix = $pricer->observatoryMatrix($cycle);
+        $observatoryMatrix = $pricer->matrix(CommercialProduct::Observatory, $cycle);
         $annualDiscount = (float) config('tenancy.pricing.annual_discount', 0.17);
         $moduleOptions = CatalogSettings::defaults()['module_options'] ?? [];
         $lockedCount = SecurityCompany::query()->where('price_locked', true)->count();
@@ -51,7 +50,6 @@ final class PricingController extends Controller
             'accessMatrix',
             'supervisionMatrix',
             'indexingMatrix',
-            'indexingAddonMatrix',
             'observatoryMatrix',
             'annualDiscount',
             'moduleOptions',

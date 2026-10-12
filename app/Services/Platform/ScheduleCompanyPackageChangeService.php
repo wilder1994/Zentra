@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Platform;
 
 use App\Domain\Pricing\Data\AccessSeatSplit;
+use App\Domain\Pricing\Data\PlanSelection;
 use App\Enums\BillingCycle;
 use App\Enums\CompanyPackageSku;
 use App\Enums\EvidenceEventType;
@@ -14,7 +15,7 @@ use App\Models\CommercialPayment;
 use App\Models\SecurityCompany;
 use App\Models\User;
 use App\Services\Pricing\CompanyPriceHistory;
-use App\Services\Pricing\PriceCalculator;
+use App\Services\Pricing\PlanQuoter;
 use App\Services\Tenant\AssignCompanyPackageService;
 use App\Services\Tenant\AssignCompanySupervisionPackageService;
 use Carbon\CarbonImmutable;
@@ -25,7 +26,7 @@ final class ScheduleCompanyPackageChangeService
 {
     public function __construct(
         private readonly RecordLifecycleEvidenceService $evidenceService,
-        private readonly PriceCalculator $priceCalculator,
+        private readonly PlanQuoter $planQuoter,
         private readonly RegisterCommercialPaymentService $paymentService,
         private readonly AssignCompanyPackageService $assignCompanyPackageService,
         private readonly AssignCompanySupervisionPackageService $assignCompanySupervisionPackageService,
@@ -35,21 +36,15 @@ final class ScheduleCompanyPackageChangeService
     public function scheduleWithManualPayment(
         SecurityCompany $company,
         User $actor,
-        CompanyPackageSku $sku,
         BillingCycle $cycle,
         string $reference,
         UploadedFile $proof,
-        ?AccessSeatSplit $seats = null,
-        ?SupervisionPackageSku $supervisionSku = null,
-        bool $includeSupervision = false,
+        PlanSelection $selection,
     ): CommercialPayment {
-        $seats ??= AccessSeatSplit::fromSku($sku);
-        $sku = $seats->sku();
-        $this->assertCanSchedule($company, $cycle, $seats, $includeSupervision, $supervisionSku);
+        $this->assertCanSchedule($company, $cycle, $selection);
 
-        return DB::transaction(function () use ($company, $actor, $sku, $cycle, $reference, $proof, $seats, $supervisionSku, $includeSupervision) {
-            $amount = $this->amountDue($seats, $cycle, $includeSupervision ? $supervisionSku : $company->supervision_package_sku, $company);
-            $fromSku = $company->package_sku?->value;
+        return DB::transaction(function () use ($company, $actor, $cycle, $reference, $proof, $selection) {
+            $amount = $this->amountDue($selection, $cycle);
             $effectiveAt = CarbonImmutable::parse($company->package_ends_at);
 
             $payment = $this->paymentService->executeManual(
@@ -63,29 +58,10 @@ final class ScheduleCompanyPackageChangeService
             );
 
             $payment->update([
-                'metadata' => array_merge($payment->metadata ?? [], $this->meta(
-                    $fromSku,
-                    $sku,
-                    $cycle,
-                    $effectiveAt,
-                    $seats,
-                    $includeSupervision,
-                    $supervisionSku,
-                )),
+                'metadata' => array_merge($payment->metadata ?? [], $this->meta($company, $cycle, $effectiveAt, $selection)),
             ]);
 
-            $this->persistScheduledChange(
-                $company,
-                $sku,
-                $cycle,
-                $effectiveAt,
-                $payment,
-                $amount,
-                $fromSku,
-                $seats,
-                $includeSupervision,
-                $supervisionSku,
-            );
+            $this->persistScheduledChange($company, $cycle, $effectiveAt, $payment, $amount, $selection);
 
             return $payment->fresh();
         });
@@ -94,27 +70,20 @@ final class ScheduleCompanyPackageChangeService
     public function scheduleWithLocalCheckout(
         SecurityCompany $company,
         User $actor,
-        CompanyPackageSku $sku,
         BillingCycle $cycle,
-        ?AccessSeatSplit $seats = null,
-        bool $includeSupervision = false,
-        ?SupervisionPackageSku $supervisionSku = null,
+        PlanSelection $selection,
     ): CommercialPayment {
-        $seats ??= AccessSeatSplit::fromSku($sku);
-        $sku = $seats->sku();
-        $this->assertCanSchedule($company, $cycle, $seats, $includeSupervision, $supervisionSku);
+        $this->assertCanSchedule($company, $cycle, $selection);
 
-        $amount = $this->amountDue($seats, $cycle, $includeSupervision ? $supervisionSku : $company->supervision_package_sku, $company);
-        $fromSku = $company->package_sku?->value;
         $effectiveAt = CarbonImmutable::parse($company->package_ends_at);
 
         return $this->paymentService->initiateLocalCheckout(
             $company,
             $actor,
             ManualPaymentIntent::PlanChange,
-            $amount,
+            $this->amountDue($selection, $cycle),
             $cycle,
-            $this->meta($fromSku, $sku, $cycle, $effectiveAt, $seats, $includeSupervision, $supervisionSku),
+            $this->meta($company, $cycle, $effectiveAt, $selection),
         );
     }
 
@@ -126,7 +95,9 @@ final class ScheduleCompanyPackageChangeService
             );
         }
 
-        if (! $company->hasAccessPackage()) {
+        if (! $company->hasAccessPackage()
+            && (int) $company->indexing_seats < 1
+            && (int) $company->observatory_seats < 1) {
             throw new \InvalidArgumentException('La empresa solo tiene Supervisión. Para retirarla cancele la membresía.');
         }
 
@@ -154,34 +125,18 @@ final class ScheduleCompanyPackageChangeService
         }
 
         $company = $payment->company ?? SecurityCompany::query()->findOrFail($payment->security_company_id);
-        $sku = CompanyPackageSku::from((string) $meta['to_sku']);
         $cycle = BillingCycle::from((string) $meta['to_cycle']);
         $effectiveAt = isset($meta['effective_at'])
             ? CarbonImmutable::parse((string) $meta['effective_at'])
             : CarbonImmutable::parse($company->package_ends_at);
-        $fromSku = isset($meta['from_sku']) ? (string) $meta['from_sku'] : $company->package_sku?->value;
-        $seats = new AccessSeatSplit(
-            (int) ($meta['manual_seats'] ?? $sku->size()),
-            (int) ($meta['hardware_seats'] ?? 0),
-        );
-        $includeSupervision = (bool) ($meta['include_supervision'] ?? false);
-        $supervisionSku = SupervisionPackageSku::tryFrom((string) ($meta['to_supervision_sku'] ?? ''));
-        if (($meta['to_supervision_sku'] ?? null) === 'none') {
-            $includeSupervision = true;
-            $supervisionSku = null;
-        }
 
         $this->persistScheduledChange(
             $company,
-            $sku,
             $cycle,
             $effectiveAt,
             $payment,
             (float) $payment->amount,
-            $fromSku,
-            $seats,
-            $includeSupervision,
-            $supervisionSku,
+            $this->selectionFromMeta($meta, $company),
         );
     }
 
@@ -195,7 +150,9 @@ final class ScheduleCompanyPackageChangeService
             ->where('scheduled_change_at', '<=', $now)
             ->where(function ($q): void {
                 $q->whereNotNull('scheduled_package_sku')
-                    ->orWhereNotNull('scheduled_supervision_package_sku');
+                    ->orWhereNotNull('scheduled_supervision_package_sku')
+                    ->orWhereNotNull('scheduled_indexing_seats')
+                    ->orWhereNotNull('scheduled_observatory_seats');
             })
             ->chunkById(50, function ($companies) use (&$applied): void {
                 foreach ($companies as $company) {
@@ -221,16 +178,26 @@ final class ScheduleCompanyPackageChangeService
         $hardware = (int) ($company->scheduled_hardware_seats ?? $company->package_hardware_seats ?? 0);
         $seats = $hasAccessChange ? new AccessSeatSplit($manual, $hardware) : $company->accessSeats();
         $scheduledSup = $company->scheduled_supervision_package_sku;
+        $indexing = $company->scheduled_indexing_seats;
+        $observatory = $company->scheduled_observatory_seats;
         $before = $this->priceHistory->snapshot($company);
 
-        return DB::transaction(function () use ($company, $sku, $cycle, $startsAt, $seats, $scheduledSup, $hasAccessChange, $before) {
+        return DB::transaction(function () use ($company, $sku, $cycle, $startsAt, $seats, $scheduledSup, $hasAccessChange, $indexing, $observatory, $before) {
             if ($scheduledSup !== null) {
                 $supSku = $scheduledSup === 'none' ? null : SupervisionPackageSku::tryFrom($scheduledSup);
-                $this->assignCompanySupervisionPackageService->execute($company, $supSku);
+                $company = $this->assignCompanySupervisionPackageService->execute($company, $supSku);
+            }
+
+            if ($indexing !== null || $observatory !== null) {
+                $company = $this->assignCompanyPackageService->assignProducts(
+                    $company,
+                    (int) ($indexing ?? $company->indexing_seats),
+                    (int) ($observatory ?? $company->observatory_seats),
+                );
             }
 
             if ($hasAccessChange) {
-                $this->assignCompanyPackageService->execute($company->fresh(), $sku, $cycle, $startsAt, $seats);
+                $company = $this->assignCompanyPackageService->execute($company, $sku, $cycle, $startsAt, $seats);
             }
 
             $company->update([
@@ -238,6 +205,8 @@ final class ScheduleCompanyPackageChangeService
                 'scheduled_manual_seats' => null,
                 'scheduled_hardware_seats' => null,
                 'scheduled_supervision_package_sku' => null,
+                'scheduled_indexing_seats' => null,
+                'scheduled_observatory_seats' => null,
                 'scheduled_billing_cycle' => null,
                 'scheduled_change_at' => null,
                 'scheduled_change_payment_id' => null,
@@ -260,18 +229,9 @@ final class ScheduleCompanyPackageChangeService
         });
     }
 
-    private function amountDue(
-        AccessSeatSplit $seats,
-        BillingCycle $cycle,
-        ?SupervisionPackageSku $supervisionSku,
-        SecurityCompany $company,
-    ): float {
-        $access = $this->priceCalculator->quoteAccess($seats, $cycle);
-        $amount = $access->amountDue();
-
-        if ($supervisionSku !== null) {
-            $amount += $this->priceCalculator->quoteSupervisionSku($supervisionSku, $cycle)->amountDue();
-        }
+    private function amountDue(PlanSelection $selection, BillingCycle $cycle): float
+    {
+        $amount = $this->planQuoter->amount($selection, $cycle);
 
         if ($amount <= 0) {
             throw new \InvalidArgumentException('No hay un cobro asociado a este cambio.');
@@ -281,54 +241,72 @@ final class ScheduleCompanyPackageChangeService
     }
 
     /** @return array<string, mixed> */
-    private function meta(
-        ?string $fromSku,
-        CompanyPackageSku $sku,
-        BillingCycle $cycle,
-        CarbonImmutable $effectiveAt,
-        AccessSeatSplit $seats,
-        bool $includeSupervision,
-        ?SupervisionPackageSku $supervisionSku,
-    ): array {
+    private function meta(SecurityCompany $company, BillingCycle $cycle, CarbonImmutable $effectiveAt, PlanSelection $selection): array
+    {
         return [
             'kind' => 'scheduled_package_change',
-            'from_sku' => $fromSku,
-            'to_sku' => $sku->value,
+            'from_sku' => $company->package_sku?->value,
+            'to_sku' => $selection->access->sku()->value,
             'to_cycle' => $cycle->value,
             'effective_at' => $effectiveAt->toIso8601String(),
-            'manual_seats' => $seats->manual,
-            'hardware_seats' => $seats->hardware,
-            'include_supervision' => $includeSupervision,
-            'to_supervision_sku' => $includeSupervision ? ($supervisionSku?->value ?? 'none') : null,
+            ...$selection->toArray(),
         ];
+    }
+
+    /** @param array<string, mixed> $meta */
+    private function selectionFromMeta(array $meta, SecurityCompany $company): PlanSelection
+    {
+        $sku = CompanyPackageSku::from((string) $meta['to_sku']);
+        $current = PlanSelection::fromCompany($company);
+
+        $supervision = $current->supervision;
+        if (array_key_exists('supervision_seats', $meta)) {
+            $supervision = (int) $meta['supervision_seats'];
+        } elseif (! empty($meta['include_supervision']) || array_key_exists('to_supervision_sku', $meta)) {
+            $supervision = (int) (SupervisionPackageSku::tryFrom((string) ($meta['to_supervision_sku'] ?? ''))?->size() ?? 0);
+        }
+
+        return new PlanSelection(
+            new AccessSeatSplit(
+                (int) ($meta['manual_seats'] ?? $sku->size()),
+                (int) ($meta['hardware_seats'] ?? 0),
+            ),
+            $supervision,
+            (int) ($meta['indexing_seats'] ?? $current->indexing),
+            (int) ($meta['observatory_seats'] ?? $current->observatory),
+        );
     }
 
     private function persistScheduledChange(
         SecurityCompany $company,
-        CompanyPackageSku $sku,
         BillingCycle $cycle,
         CarbonImmutable $effectiveAt,
         CommercialPayment $payment,
         float $amount,
-        ?string $fromSku,
-        AccessSeatSplit $seats,
-        bool $includeSupervision,
-        ?SupervisionPackageSku $supervisionSku,
+        PlanSelection $selection,
     ): void {
         $payload = [
             'scheduled_change_at' => $effectiveAt,
             'scheduled_change_payment_id' => $payment->id,
         ];
 
-        if (! $company->sameAccessAs($seats, $cycle)) {
-            $payload['scheduled_package_sku'] = $sku->value;
-            $payload['scheduled_manual_seats'] = $seats->manual;
-            $payload['scheduled_hardware_seats'] = $seats->hardware;
+        if (! $company->sameAccessAs($selection->access, $cycle)) {
+            $payload['scheduled_package_sku'] = $selection->access->sku()->value;
+            $payload['scheduled_manual_seats'] = $selection->access->manual;
+            $payload['scheduled_hardware_seats'] = $selection->access->hardware;
             $payload['scheduled_billing_cycle'] = $cycle->value;
         }
 
-        if ($includeSupervision && $company->supervision_package_sku !== $supervisionSku) {
-            $payload['scheduled_supervision_package_sku'] = $supervisionSku?->value ?? 'none';
+        if ($company->supervision_package_sku !== $selection->supervisionSku()) {
+            $payload['scheduled_supervision_package_sku'] = $selection->supervisionSku()?->value ?? 'none';
+        }
+
+        if ((int) ($company->indexing_seats ?? 0) !== $selection->indexing) {
+            $payload['scheduled_indexing_seats'] = $selection->indexing;
+        }
+
+        if ((int) ($company->observatory_seats ?? 0) !== $selection->observatory) {
+            $payload['scheduled_observatory_seats'] = $selection->observatory;
         }
 
         $company->update($payload);
@@ -337,8 +315,9 @@ final class ScheduleCompanyPackageChangeService
             EvidenceEventType::PackageChangeScheduled,
             'Cambio de plan programado',
             [
-                'from_sku' => $fromSku,
-                'to_sku' => $sku->value,
+                'from_sku' => $company->package_sku?->value,
+                'to_sku' => $selection->access->sku()->value,
+                'to_plan' => $selection->label(),
                 'to_cycle' => $cycle->value,
                 'effective_at' => $effectiveAt->toIso8601String(),
                 'payment_id' => $payment->id,
@@ -348,29 +327,21 @@ final class ScheduleCompanyPackageChangeService
         );
     }
 
-    private function assertCanSchedule(
-        SecurityCompany $company,
-        BillingCycle $cycle,
-        AccessSeatSplit $seats,
-        bool $includeSupervision,
-        ?SupervisionPackageSku $supervisionSku,
-    ): void {
+    private function assertCanSchedule(SecurityCompany $company, BillingCycle $cycle, PlanSelection $selection): void
+    {
         if (! $company->isUpToDate()) {
             throw new \InvalidArgumentException(
                 'Sin periodo vigente no se puede programar cambio diferido. Reactive o renueve primero.'
             );
         }
 
-        $finalSup = $includeSupervision ? $supervisionSku : $company->supervision_package_sku;
-        if ($seats->isEmpty() && $finalSup === null) {
-            throw new \InvalidArgumentException('El plan debe incluir Accesos o Supervisión.');
+        if ($selection->isEmpty()) {
+            throw new \InvalidArgumentException('El plan debe incluir al menos un producto.');
         }
 
-        $sameAccess = $company->sameAccessAs($seats, $cycle);
-        $sameSup = ! $includeSupervision
-            || $company->supervision_package_sku === $supervisionSku;
-
-        if ($sameAccess && $sameSup) {
+        if ($company->sameAccessAs($selection->access, $cycle)
+            && $company->supervision_package_sku === $selection->supervisionSku()
+            && $company->sameProductsAs($selection)) {
             throw new \InvalidArgumentException('El plan seleccionado es el mismo que el actual.');
         }
     }

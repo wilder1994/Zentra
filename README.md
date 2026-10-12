@@ -48,7 +48,7 @@ Documentación detallada: [`docs/INFORME-VISION-PRODUCTO-W-CODEX.md`](docs/INFOR
 |-------|---------|---------|-------------|
 | **Plataforma** | `/admin` | `super-admin` | Dashboard, **Descargas**, precios, empresas, documentos, **Ajustes** (tipos de documento) |
 | **Empresa** | `/company` | `company-admin` | Command Center (**Mi empresa**), cartera, **Empleados**, **Documentos**, **Mis datos**, **Ajustes** (cargos/tipos + zonas/turnos/preoperacional), usuarios, billing, **Observatorio**, Supervisión, **Descargas** |
-| **Cliente** | `/client` | `client-admin`, `client-installation-admin` | Censo: nodos (`structures`, tipo heredado del cliente), personas, vehículos, mascotas, autorizaciones. **Observatorio**. Admin instalaciones: solo sus sedes (cierran estados, unen folios, sacan reportes); Ajustes solo ver |
+| **Cliente** | `/client` | `client-admin`, `client-installation-admin` | Censo: nodos (`structures`, tipo heredado del cliente), personas, vehículos, mascotas, autorizaciones. **Observatorio**. Admin instalaciones: solo sus instalaciones (cierran estados, unen folios, sacan reportes); Ajustes solo ver |
 | **Portería** | `/access` | `guardia` (Vigilante), `supervisor` (Supervisor de vigilancia), `client-admin` | Ops diarias + **accesos** (puertas de una instalación del cliente) |
 | **Residente** | `/resident` | `resident`, `anfitrion` | Portal web: pre-autorizaciones y correspondencia |
 | **API** | `/api` | Token-based | Sanctum: auth, pre-autorizaciones, correspondencia, **Supervisión de campo**, **Observatorio** (`/docs/observatory`) |
@@ -200,7 +200,7 @@ Orden en `DatabaseSeeder`:
 php artisan db:seed --class=PilotDemoSeeder
 ```
 
-Incluye: catálogo `structure_types`, empresa SJ Seguridad (`900123456-1`), clientes Palmas/Torres, árbol de sitio (instalación sede; Palmas: 4 puertas + 2 puestos; Torres: 1 puerta + 1 puesto), censo Torre A, y usuarios:
+Incluye: catálogo `structure_types`, empresa SJ Seguridad (`900123456-1`), clientes Palmas/Torres, árbol de sitio (instalación propia del cliente; Palmas: 4 puertas + 2 puestos; Torres: 1 puerta + 1 puesto), censo Torre A, y usuarios:
 
 | Rol | Email | Contraseña |
 |-----|-------|------------|
@@ -231,7 +231,7 @@ Vista `resources/views/welcome.blade.php` · `WelcomeController` redirige autent
 | Layout | `min-h-screen` con scroll; pie al fondo |
 | Hero | `flex-1`, grid 40/60 (texto / imagen dashboard) |
 | Título | Accesos, supervisión y observatorio |
-| Tarjeta `@guest` | Precio mínimo mensual (`PriceCalculator`), pills SaaS + anual, CTA → `/planes` |
+| Tarjeta `@guest` | Precio mínimo mensual (`CatalogPricer`), pills SaaS + anual, CTA → `/planes` |
 | Cards | Accesos, Supervisión, Observatorio |
 | Marca | WCodex · Innovative Software Solutions |
 | Header | Logo + «Iniciar sesión» |
@@ -247,8 +247,9 @@ Vista `resources/views/welcome.blade.php` · `WelcomeController` redirige autent
 
 | Ruta | Función |
 |------|---------|
-| `GET /planes` | Planes y calculadora por cantidad |
-| `GET /contratar?sku=&cycle=` | Inicia intent de contratación |
+| `GET /planes` | «Arma tu plan»: tarjeta por plan con los 4 productos |
+| `GET /planes/carrito` | Carrito, Mensual/Anual, descuentos, Contratar |
+| `GET /contratar?access=&hardware=&supervision=&indexing=&observatory=&cycle=` | Inicia intent de contratación |
 | `GET/POST /contratar/datos/{token}` | Datos empresa + contraseña + dirección/ciudad/depto/geo |
 | `GET/POST /contratar/legal/{token}` | Clickwrap: contrato del SKU + T&C + privacidad (texto completo) |
 | `GET /contratar/resumen/{token}` | Resumen antes de pagar |
@@ -297,16 +298,16 @@ Otras rutas auth (recuperar contraseña, etc.) siguen usando `GuestLayout` de Br
 
 - `security_companies` — empresas de seguridad + **paquete comercial** (`package_sku`, `package_size`, `package_modality`, `max_clients`, `package_price_monthly`)
 - `clients` — clientes comerciales (`party_type`, documento, `structure_type_id`, `login_suffix` auto; legacy `plan_tier`/`max_structures` no limitan portafolio)
-- `installations` — sitio físico del cliente (puede ser la sede = el cliente)
+- `installations` — sitio físico del cliente (puede ser el mismo cliente)
 - `supervisor_posts` — puestos de Supervisión de campo (nunca un `location`)
 - `client_user_assignments` — asignación usuario ↔ cliente
 - `client_id` en tablas operativas (`locations` cuelga de `installation_id`, buildings, residents, vehicles, etc.)
 
 ### Paquetes comerciales (empresa)
 
-Planes **Bronce 1–5 / Plata 6–15 / Oro 16–40 / Platino 41+** por cantidad libre. Cada instalación = unidad × (1 − % del plan del total); al cruzar un rango todas cambian de precio. Accesos y Supervisión independientes; Indexación y Observatorio (precio según Accesos). Disponibilidad por plan y Hardware, precio pactado, incremento anual e historial. Menú **Planes** en `/admin/pricing`. [`docs/MODELO-COMERCIAL-PAQUETES.md`](docs/MODELO-COMERCIAL-PAQUETES.md) · [`docs/PAQUETES-ACCESOS-Y-SUPERVISION.md`](docs/PAQUETES-ACCESOS-Y-SUPERVISION.md).
+Planes **Bronce 1–5 / Plata 6–15 / Oro 16–40 / Platino 41+** por cantidad libre. Accesos, Supervisión, Indexación y Observatorio se cobran **por instalación**, cada uno con su plan: unidad × cantidad × (1 − % del plan); al cruzar un rango todas cambian de precio. Combinar da 30% a cada producto después del de mayor valor; el anual (−17%) va encadenado. Cada plan limita puestos por instalación, empleados por puesto y empleados totales; el súper admin amplía y la empresa solicita ampliación. Disponibilidad por plan y Hardware, precio pactado, incremento anual e historial. Menú **Planes** en `/admin/pricing`. [`docs/MODELO-COMERCIAL-PAQUETES.md`](docs/MODELO-COMERCIAL-PAQUETES.md) · [`docs/PAQUETES-ACCESOS-Y-SUPERVISION.md`](docs/PAQUETES-ACCESOS-Y-SUPERVISION.md).
 
-Motor: `App\Support\Catalog\CatalogPricer` + `PriceCalculator` (`config/catalog.php`, `pricing_settings.catalog`); selector `resources/js/plan-picker.js`. Recálculo diferido: `CompanyRepricingService`. Anual: ×12 × (1 − 17%).
+Motor: `App\Services\Pricing\PlanQuoter` + `CatalogPricer` (`config/catalog.php`, `pricing_settings.catalog`); JS `resources/js/plan-picker.js` y carrito `resources/js/plan-cart.js`. Recálculo diferido: `CompanyRepricingService`. Anual: ×12 × (1 − 17%).
 
 ### Arquitectura
 
@@ -380,14 +381,14 @@ Sidebar: **Mi empresa** (dashboard) · Facturación · Clientes · **Instalacion
 |------|---------|
 | `GET /company/dashboard` | **Mi empresa** — Command Center (3 filas): mapa satélite, cartera/alertas, fuerza laboral, accesos, turnos, revistas mes/semana |
 | `GET /company/clients` | Cartera de **clientes** (acción única: **Ver**; vacío: «Aún no tienes clientes creados en la cartera») |
-| `GET /company/installations` | Directorio de sedes + tablero SIG (servicios, novedades de puesto, revistas) si no hay búsqueda |
+| `GET /company/installations` | Directorio de instalaciones + tablero SIG (servicios, novedades de puesto, revistas) si no hay búsqueda |
 | `GET /company/ops/alerts.json` | Poll de pánico/Observatorio (overlay; no incluye a quien disparó) |
 | `POST /company/ops/panic` | Pánico por usuario de empresa (mismo canal que portería, cliente y APK) |
 | `GET /company/panics` | Atención de pánicos: fichas abiertas/cerradas (`ops.panic.attend`) |
 | `GET /company/dispositivos` | Cambio de dispositivo de supervisores: Aceptar/Rechazar (`company.devices.approve` o admin de empresa) |
 | `POST /company/panics/claim` | Tomar un pánico y abrir la ficha |
 | `GET /company/panics/{id}/ficha` | Carta imprimible / PDF |
-| `GET /company/observatory/events` | Observatorio: **Tablero** (filtro cliente; pines / calor sede / calor riesgo; puntaje; líneas por tipo; leyenda/chips agrupados por slug) y **Eventos**. Tipos: solo lectura. API: `/docs/observatory` |
+| `GET /company/observatory/events` | Observatorio: **Tablero** (filtro cliente; pines / calor instalación / calor riesgo; puntaje; líneas por tipo; leyenda/chips agrupados por slug) y **Eventos**. Tipos: solo lectura. API: `/docs/observatory` |
 | `GET /company/observatory/tablero.pptx` | Observatorio: export PPTX del tablero (mismos filtros; solo cifras) |
 | `GET /company/clients/{id}` | Ficha: **Cliente** (ficha + tarjetas) \| **Resumen** (KPIs/charts de portería, si `has_access`) |
 | `POST /company/clients` | Alta de ficha (sin bloqueo por cupo; asientos al marcar líneas). **No** crea instalaciones, accesos ni puestos |
@@ -588,7 +589,7 @@ Tablas relacionadas:
 | Ruta | Módulo |
 |------|--------|
 | `/client/dashboard` | Resumen SIG: servicios hoy, novedades de puesto, revistas, tabla de servicios, afiliación, gráfica de servicios por mes |
-| `/client/installations` | Directorio de sedes + tablero SIG compacto (sin búsqueda). `/client/structures` redirige |
+| `/client/installations` | Directorio de instalaciones + tablero SIG compacto (sin búsqueda). `/client/structures` redirige |
 | `/client/ops/alerts.json` | Poll de pánico/Observatorio (overlay) |
 | `/client/ops/panic` | Pánico por usuario (mismo canal; overlay en empresa, no el emisor) |
 | `/client/observatory/events` | Observatorio (módulo opt-in). Tablero + Eventos + **Tipos**. **Nuevo reporte**: hasta 3 fotos (cámara/miniatura, opcional). Rector cierra; apoyo reporta |

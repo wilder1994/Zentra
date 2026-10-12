@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToClient;
+use App\Support\Supervision\ColombiaHolidays;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -23,6 +25,10 @@ final class SupervisorPost extends Model
         'service_days',
         'serves_holidays',
         'is_active',
+        'max_employees',
+        'max_employees_note',
+        'archived_at',
+        'archived_with_parent',
         'latitude',
         'longitude',
     ];
@@ -41,6 +47,9 @@ final class SupervisorPost extends Model
             'service_days' => 'integer',
             'serves_holidays' => 'boolean',
             'is_active' => 'boolean',
+            'max_employees' => 'integer',
+            'archived_at' => 'datetime',
+            'archived_with_parent' => 'boolean',
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
         ];
@@ -95,13 +104,13 @@ final class SupervisorPost extends Model
     }
 
     /** Si el puesto espera revista en ese día operativo. */
-    public function expectsReviewOn(\Carbon\CarbonInterface $date): bool
+    public function expectsReviewOn(CarbonInterface $date): bool
     {
         if (! $this->servesOnDay((int) $date->isoWeekday())) {
             return false;
         }
 
-        return $this->serves_holidays !== false || ! \App\Support\Supervision\ColombiaHolidays::isHoliday($date);
+        return $this->serves_holidays !== false || ! ColombiaHolidays::isHoliday($date);
     }
 
     public function serviceDaysLabel(): string

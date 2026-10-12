@@ -1,37 +1,37 @@
 # Paquetes Accesos, Supervisión, Indexación y Observatorio
 
-Catálogo vigente (29 sep 2026). Detalle de precios y clases: [`MODELO-COMERCIAL-PAQUETES.md`](MODELO-COMERCIAL-PAQUETES.md).
+Catálogo vigente (13 oct 2026). Precios, fórmula, cupos y carrito: [`MODELO-COMERCIAL-PAQUETES.md`](MODELO-COMERCIAL-PAQUETES.md).
 
-## Metales (mismos 4 en Accesos, Supervisión e Indexación)
+## Planes (mismos 4 en los 4 productos)
 
-| Plan | Instalaciones | Empleados |
-|------|---------------|-----------|
-| Bronce | 1–5 (pack 5) | 3.000 |
-| Plata | 6–15 (pack 15) | 6.000 |
-| Oro | 16–40 (pack 40) | 9.000 |
-| Platino | 41–100 (pack 100) | 12.000 |
+| Plan | Instalaciones | Puestos por instalación | Empleados por puesto | Empleados totales |
+|------|---------------|-------------------------|----------------------|-------------------|
+| Bronce | 1–5 | 2 | 3 | 1.000 |
+| Plata | 6–15 | 5 | 5 | 2.000 |
+| Oro | 16–40 | 7 | 7 | 3.000 |
+| Platino | 41+ | 10 | 10 | 5.000 |
 
-Unidades sueltas al **100%**. Si N supera el pack, se cobra el **mayor pack que quepa + extras**. Con Accesos + Supervisión el tope de empleados es el **mayor** de los dos.
+Cada producto se cobra **por instalación** y toma el plan de su propia cantidad. Los límites de la empresa salen del plan más alto entre sus productos. Combinar productos da 30% de descuento a cada uno después del de mayor valor.
 
 ## Productos
 
-**Accesos** — cupo de instalaciones activas (`max_clients`). Menú: Mi empresa, Facturación, Clientes, Instalaciones, Pánicos, Empleados, Usuarios, Mis datos, Ajustes. **No** Descargas.
+**Accesos** — cantidad `max_clients`. Menú: Mi empresa, Facturación, Clientes, Instalaciones, Pánicos, Empleados, Usuarios, Mis datos, Ajustes. **No** Descargas.
 
-**Supervisión** — mismo metal. Menú: Facturación, Clientes, Instalaciones, Supervisión, Pánicos, Descargas, Empleados, Usuarios, Mis datos, Ajustes. **No** Mi empresa. GPS y app de campo: [`SUPERVISION-CAMPO.md`](SUPERVISION-CAMPO.md).
+**Supervisión** — cantidad `max_supervision_clients`. Menú: Facturación, Clientes, Instalaciones, Supervisión, Pánicos, Descargas, Empleados, Usuarios, Mis datos, Ajustes. **No** Mi empresa. GPS y app de campo: [`SUPERVISION-CAMPO.md`](SUPERVISION-CAMPO.md).
 
-**Indexación** — sola: lista (cupo + carpetas). Con Accesos o Supervisión: **add-on más barato**, solo carpetas (no suma cupo). Flags `has_indexing`.
+**Indexación** — cantidad `indexing_seats`, precio propio (ya no es complemento).
 
-**Observatorio** — un solo módulo. Precio según el metal de Accesos. Sin Accesos no se vende. Flag `has_observatory`.
+**Observatorio** — cantidad `observatory_seats`, precio propio. Se vende solo. Menú: Mi empresa, Facturación, Clientes, Instalaciones, Observatorio, Usuarios, Mis datos, Ajustes. Por cliente: `has_observatory`.
 
-Módulos por producto se marcan en `/admin/pricing` → Editar catálogo.
+Módulos por producto se marcan en `/admin/pricing` → Editar planes.
 
-## Cupo de sedes
+## Cupo de instalaciones
 
-Crear cliente o instalación pide 1 cupo libre. Archivar sede libera. `has_access` / `has_supervision` por cliente siguen aparte. Excel de clientes solo da de alta la ficha. [`CLIENTES-Y-ESTRUCTURA.md`](CLIENTES-Y-ESTRUCTURA.md).
+Crear cliente o instalación pide 1 cupo libre de cada producto que tenga el cliente (Accesos, Supervisión, Observatorio). Archivar libera; restaurar vuelve a pedir cupo. El súper admin amplía cupos en la ficha empresa y la empresa puede **Solicitar ampliación** en Facturación. [`CLIENTES-Y-ESTRUCTURA.md`](CLIENTES-Y-ESTRUCTURA.md).
 
 ## Checkout
 
-`/` y `/planes` muestran el catálogo nuevo. El alta pública (`signup`) aún mapea metales a SKU legacy (`pack_5/10/50/100_manual`). La ficha empresa aplica Accesos + Supervisión ya / fecha / corte. Cobro aparte.
+`/planes` (tarjetas por plan) → `/planes/carrito` → `/contratar` con las cantidades de los 4 productos. La ficha empresa y Facturación cambian el plan ya, en una fecha o al corte.
 
 ## App de campo
 

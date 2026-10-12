@@ -12,7 +12,7 @@
     $selectedInstallations = collect(old('installation_ids', $managedUser?->assignedInstallations?->pluck('id')->all() ?? []))
         ->map(fn ($id) => (int) $id)
         ->all();
-    $selectedSitePermission = old('site_permission', $managedUser?->assignedInstallations?->first()?->pivot?->site_permission ?? 'admin');
+    $selectedInstallationPermission = old('installation_permission', $managedUser?->assignedInstallations?->first()?->pivot?->installation_permission ?? 'admin');
     $selectedOrigin = old('origin', $managedUser?->admin_origin ?? 'internal');
     $companyGrantLevels = [];
     foreach (array_keys(GrantableModules::forScope(AccessGrantScope::Company)) as $module) {
@@ -48,7 +48,7 @@
         'origin' => $selectedOrigin,
         'clientIds' => array_map('strval', $selectedClients),
         'installationIds' => array_map('strval', $selectedInstallations),
-        'sitePermission' => (string) $selectedSitePermission,
+        'installationPermission' => (string) $selectedInstallationPermission,
         'generated' => filled(old('username')),
         'clients' => $clients->map(fn ($client) => [
             'id' => (string) $client->id,
@@ -90,7 +90,7 @@
             documentResults: [],
             pickedClientIds: cfg.clientIds || [],
             selectedInstallationIds: cfg.installationIds || [],
-            sitePermission: cfg.sitePermission || 'admin',
+            installationPermission: cfg.installationPermission || 'admin',
             installations: [],
             clients: cfg.clients || [],
             companyModules: cfg.companyModules || [],
@@ -277,7 +277,7 @@
     <template x-for="id in selectedInstallationIds" :key="'i'+id">
         <input type="hidden" name="installation_ids[]" :value="id" :disabled="!isInstallationAdmin && !isCollaborator">
     </template>
-    <input type="hidden" name="site_permission" :value="sitePermission" :disabled="!isInstallationAdmin">
+    <input type="hidden" name="installation_permission" :value="installationPermission" :disabled="!isInstallationAdmin">
     @if ($isEdit && ! ($managedUser?->admin_origin === 'external' || $managedUser?->hasRole('client-installation-admin')))
         <input type="hidden" name="name" value="{{ $employee?->fullName() ?: $managedUser->name }}">
     @endif
@@ -312,7 +312,7 @@
         <p class="text-[11px] text-slate-500">Interno puede operar varios clientes. Externo queda amarrado a uno.</p>
         <x-ui.field-error :messages="$errors->get('origin')" />
     </div>
-    <p x-show="isInstallationAdmin" class="text-xs text-slate-500">Admin instalaciones es siempre externo: varias sedes del mismo cliente. En la ficha sale en Administrador o Apoyo (cargo · nombre). No crea usuarios ni cambia Ajustes.</p>
+    <p x-show="isInstallationAdmin" class="text-xs text-slate-500">Admin instalaciones es siempre externo: varias instalaciones del mismo cliente. En la ficha sale en Administrador o Apoyo (cargo · nombre). No crea usuarios ni cambia Ajustes.</p>
     <p x-show="usesCompanyMatrix" class="text-xs text-slate-500">Nada, Ver o Gestionar. Pánico y Observatorio son independientes. Supervisión también oye pánico.</p>
 
     <div x-show="usesCompanyMatrix" x-cloak class="space-y-3 rounded-lg border border-slate-800 bg-slate-950/50 p-3">
@@ -474,18 +474,18 @@
             </div>
             <p class="mt-2 text-[11px] text-slate-500">Puede operar varias del mismo cliente.</p>
             <div class="mt-3 space-y-2" x-show="isInstallationAdmin">
-                <p class="text-xs font-medium text-slate-300">Permiso en esas sedes</p>
+                <p class="text-xs font-medium text-slate-300">Permiso en esas instalaciones</p>
                 <label class="flex items-center gap-2 text-sm text-slate-300">
-                    <input type="radio" value="admin" x-model="sitePermission" class="border-slate-600 bg-slate-950 text-indigo-600">
+                    <input type="radio" value="admin" x-model="installationPermission" class="border-slate-600 bg-slate-950 text-indigo-600">
                     Admin · opera y puede borrar nodos
                 </label>
                 <label class="flex items-center gap-2 text-sm text-slate-300">
-                    <input type="radio" value="support" x-model="sitePermission" class="border-slate-600 bg-slate-950 text-indigo-600">
-                    Apoyo · mismas sedes, no borra nodos ni edita la ficha
+                    <input type="radio" value="support" x-model="installationPermission" class="border-slate-600 bg-slate-950 text-indigo-600">
+                    Apoyo · mismas instalaciones, no borra nodos ni edita la ficha
                 </label>
             </div>
             <x-ui.field-error :messages="$errors->get('installation_ids')" />
-            <x-ui.field-error :messages="$errors->get('site_permission')" />
+            <x-ui.field-error :messages="$errors->get('installation_permission')" />
         </div>
     </div>
 
@@ -511,7 +511,7 @@
 
     <div x-show="usesInstallationMatrix && (isCollaborator ? installations.length : selectedInstallationIds.length)" x-cloak class="space-y-3 rounded-lg border border-slate-800 bg-slate-950/40 p-3">
         <p class="text-xs font-medium text-slate-300">Permisos por instalación</p>
-        <p class="text-[11px] text-slate-500">Nada / Ver / Gestionar por módulo de esas sedes. Portería no se recorta aquí. Empleados y documentos quedan en Nada salvo que los marques.</p>
+        <p class="text-[11px] text-slate-500">Nada / Ver / Gestionar por módulo de esas instalaciones. Portería no se recorta aquí. Empleados y documentos quedan en Nada salvo que los marques.</p>
         <template x-for="row in (isCollaborator ? installations : installations.filter((item) => selectedInstallationIds.includes(String(item.id))))" :key="'ig'+row.id">
             <div class="space-y-1">
                 <p class="text-sm text-white" x-text="row.name"></p>

@@ -13,7 +13,7 @@
     </x-slot:actions>
 
     <div class="space-y-4" x-data="{ filter: 'all' }">
-        <p class="text-sm text-slate-400">Revisión temporal. La ficha no consume cupo; Accesos y Supervisión sí.</p>
+        <p class="text-sm text-slate-400">Revisión temporal. La ficha no consume cupo; Accesos, Supervisión y Observatorio sí.</p>
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div class="rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-3">

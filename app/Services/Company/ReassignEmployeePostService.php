@@ -8,6 +8,8 @@ use App\Models\Client;
 use App\Models\Employee;
 use App\Models\Installation;
 use App\Models\SupervisorPost;
+use App\Services\Ops\RecordOperationalAlertService;
+use App\Support\Catalog\PostQuota;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -57,13 +59,25 @@ final class ReassignEmployeePostService
             ]);
         }
 
+        if (! $post->is_active) {
+            throw ValidationException::withMessages([
+                'supervisor_post_id' => 'El puesto «'.$post->name.'» está archivado. Restáuralo primero.',
+            ]);
+        }
+
+        PostQuota::assertEmployeesFit(
+            $post,
+            PostQuota::assignedEmployees($post, (int) $employee->id) + 1,
+            'No puedes asignar a '.$employee->fullName().':',
+        );
+
         DB::transaction(function () use ($employee, $post): void {
             $employee->supervisorPosts()->sync([$post->id]);
         });
 
         $post->load(['installation', 'client']);
         if ($post->client instanceof Client && $post->installation instanceof Installation) {
-            app(\App\Services\Ops\RecordOperationalAlertService::class)->serviceChange(
+            app(RecordOperationalAlertService::class)->serviceChange(
                 $post->client,
                 $employee->fullName().' asignado a «'.$post->name.'» · '.$post->installation->name,
                 $post->installation,

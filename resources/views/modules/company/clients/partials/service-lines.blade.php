@@ -1,7 +1,7 @@
 @php
     $accessOn = (bool) old('has_access', $accessDefault ?? false);
     $proOn = (bool) old('has_supervision', $proDefault ?? false);
-    $accessRemaining = (int) ($metrics['clients_remaining'] ?? 0);
+    $accessRemaining = (int) ($metrics['access_remaining'] ?? 0);
     $proRemaining = (int) ($metrics['supervision_remaining'] ?? 0);
     $accessMax = (int) ($metrics['max_clients'] ?? 0);
     $proMax = (int) ($metrics['max_supervision_clients'] ?? 0);
@@ -9,15 +9,23 @@
     $supervisionCap = $unlimited ? 'Ilimitada' : $proRemaining.'/'.$proMax;
     $supervisionDisabled = (! $unlimited && ($proMax < 1 || ($proRemaining < 1 && ! $proOn)));
     $foldersOn = (bool) old('show_personnel_folders', $foldersDefault ?? false);
+    $obsOn = (bool) old('has_observatory', $observatoryDefault ?? false);
+    $obsRemaining = (int) ($metrics['observatory_remaining'] ?? 0);
+    $obsMax = (int) ($metrics['max_observatory'] ?? 0);
+    $obsDisabled = $obsMax < 1 || ($obsRemaining < 1 && ! $obsOn);
 @endphp
 
 <div>
     <p class="text-sm font-medium text-white">Líneas de servicio</p>
-    <p class="text-xs text-slate-500 mt-0.5">El paquete cuenta <strong>instalaciones activas</strong> ({{ $metrics['installations_remaining'] ?? 0 }} de {{ $accessMax }} libres). Accesos y Supervisión son líneas aparte.</p>
-    <x-ui.field-error :messages="$errors->get('has_access')" />
-    <x-ui.field-error :messages="$errors->get('has_supervision')" />
+    <p class="text-xs text-slate-500 mt-0.5">Tu plan cuenta <strong>instalaciones activas</strong>: {{ $metrics['installations_remaining'] ?? 0 }} libres de {{ $metrics['installation_capacity'] ?? 0 }}. Cada línea activa en el cliente usa un cupo de esa línea por cada instalación.</p>
+    @unless ($errorsListedAbove ?? false)
+        <x-ui.field-error name="package" />
+        <x-ui.field-error :messages="$errors->get('has_access')" />
+        <x-ui.field-error :messages="$errors->get('has_supervision')" />
+        <x-ui.field-error :messages="$errors->get('has_observatory')" />
+    @endunless
 
-    <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
         <label class="rounded-xl border px-4 py-3 cursor-pointer {{ $accessOn ? 'border-indigo-500 bg-indigo-950/30' : 'border-slate-800 bg-slate-950/40' }}">
             <input type="hidden" name="has_access" value="0">
             <input type="checkbox" name="has_access" value="1" class="rounded border-slate-600 text-indigo-600" @checked($accessOn) @disabled(($accessMax < 1 || ($accessRemaining < 1 && ! $accessOn)))>
@@ -29,6 +37,12 @@
             <input type="checkbox" name="has_supervision" value="1" class="rounded border-slate-600 text-amber-500" @checked($proOn) @disabled($supervisionDisabled)>
             <span class="ml-2 text-sm font-semibold text-white">Supervisión</span>
             <p class="mt-1 text-[11px] text-slate-400 leading-relaxed">App, GPS y revista en puestos de Supervisión. Cupo {{ $supervisionCap }}.</p>
+        </label>
+        <label class="rounded-xl border px-4 py-3 cursor-pointer {{ $obsOn ? 'border-sky-500 bg-sky-950/20' : 'border-slate-800 bg-slate-950/40' }}">
+            <input type="hidden" name="has_observatory" value="0">
+            <input type="checkbox" name="has_observatory" value="1" class="rounded border-slate-600 text-sky-500" @checked($obsOn) @disabled($obsDisabled)>
+            <span class="ml-2 text-sm font-semibold text-white">Observatorio</span>
+            <p class="mt-1 text-[11px] text-slate-400 leading-relaxed">Tablero y reportes del cliente. Cupo {{ $obsRemaining }}/{{ $obsMax }}.</p>
         </label>
     </div>
 

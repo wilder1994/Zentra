@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\AccessGrantScope;
+use App\Services\Auth\AllocateLoginUsername;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -64,7 +65,7 @@ class User extends Authenticatable
             $seed = filled($user->email)
                 ? (string) $user->email
                 : 'user'.Str::lower(Str::random(8)).'@local.test';
-            $user->username = app(\App\Services\Auth\AllocateLoginUsername::class)->fromEmail($seed);
+            $user->username = app(AllocateLoginUsername::class)->fromEmail($seed);
         });
     }
 
@@ -101,7 +102,7 @@ class User extends Authenticatable
     public function assignedInstallations(): BelongsToMany
     {
         return $this->belongsToMany(Installation::class, 'client_user_installation_assignments')
-            ->withPivot('site_permission')
+            ->withPivot('installation_permission')
             ->withTimestamps();
     }
 
@@ -171,19 +172,19 @@ class User extends Authenticatable
         return $ids === null || in_array($installationId, $ids, true);
     }
 
-    public function sitePermissionOn(int $installationId): string
+    public function installationPermissionOn(int $installationId): string
     {
         $row = $this->relationLoaded('installationAssignments')
             ? $this->installationAssignments->firstWhere('installation_id', $installationId)
             : $this->installationAssignments()->where('installation_id', $installationId)->first();
 
-        return $row?->site_permission ?? 'admin';
+        return $row?->installation_permission ?? 'admin';
     }
 
     public function isSiteSupport(int $installationId): bool
     {
         return $this->hasRole('client-installation-admin')
-            && $this->sitePermissionOn($installationId) === 'support';
+            && $this->installationPermissionOn($installationId) === 'support';
     }
 
     /** @return list<int> */

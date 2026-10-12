@@ -21,7 +21,7 @@ final class PriceCalculatorTest extends TestCase
                 'access_hardware' => 150_000,
                 'supervision' => 50_000,
                 'indexing' => 40_000,
-                'indexing_addon' => 15_000,
+                'observatory' => 40_000,
             ],
             'discounts' => [
                 'access' => ['bronce' => 0.05, 'plata' => 0.08, 'oro' => 0.10, 'platino' => 0.12],

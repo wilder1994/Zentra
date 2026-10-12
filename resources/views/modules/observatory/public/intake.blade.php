@@ -19,7 +19,7 @@
         enctype="multipart/form-data"
         class="mt-6 space-y-4"
         x-data="observatoryIntake(@js([
-            'sitesUrl' => route('observatory.public.sites', $client->slug),
+            'installationsUrl' => route('observatory.public.installations', $client->slug),
             'storageKey' => 'observatory.identity.'.$client->slug,
             'installationId' => (string) old('installation_id', ''),
             'installationName' => old('installation_label', ''),
@@ -61,13 +61,13 @@
             >
             <p x-show="installationName" class="text-sm text-teal-300" x-text="'Elegido: ' + installationName"></p>
             <div class="rounded-lg border border-slate-800 divide-y divide-slate-800 overflow-hidden">
-                <template x-for="row in sites" :key="row.id">
+                <template x-for="row in installations" :key="row.id">
                     <button type="button" class="block w-full text-left px-3 py-2.5 text-sm text-slate-200 hover:bg-slate-800" @click="pick(row)">
                         <span x-text="row.name"></span>
                         <span class="block text-[11px] text-slate-500" x-text="(row.dane_code ? 'DANE ' + row.dane_code : '') + (row.city ? ' · ' + row.city : '')"></span>
                     </button>
                 </template>
-                <p x-show="searched && sites.length === 0" class="px-3 py-3 text-xs text-slate-500">No hay colegios con ese nombre o DANE.</p>
+                <p x-show="searched && installations.length === 0" class="px-3 py-3 text-xs text-slate-500">No hay colegios con ese nombre o DANE.</p>
             </div>
             <button type="button" class="w-full h-11 rounded-lg bg-teal-600 text-sm font-semibold text-white disabled:opacity-40" :disabled="!installationId" @click="goStep(2)">
                 Continuar

@@ -19,6 +19,7 @@ use App\Http\Controllers\Company\ObservatoryEventController;
 use App\Http\Controllers\Company\PanicAttentionController;
 use App\Http\Controllers\Company\PersonnelDocumentController;
 use App\Http\Controllers\Company\PorteriaController;
+use App\Http\Controllers\Company\QuotaRequestController;
 use App\Http\Controllers\Company\SettingsController;
 use App\Http\Controllers\Company\StructureTypeController;
 use App\Http\Controllers\Company\SupervisionFieldSheetController;
@@ -115,6 +116,10 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
         Route::post('/billing/package/schedule', [BillingController::class, 'schedulePackageChange'])
             ->middleware('permission:company.billing.manage')
             ->name('billing.package.schedule');
+
+        Route::post('/billing/quota-requests', [QuotaRequestController::class, 'store'])
+            ->middleware('permission:company.billing.manage')
+            ->name('quota-requests.store');
 
         Route::post('/billing/supervision', [BillingController::class, 'updateSupervisionPackage'])
             ->middleware('permission:company.billing.manage')
@@ -365,6 +370,12 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
         Route::put('/clients/{client}/installations/{installation}', [ClientInstallationController::class, 'update'])
             ->middleware('permission:company.clients.manage')
             ->name('clients.installations.update');
+        Route::post('/clients/{client}/installations/{installation}/archive', [ClientInstallationController::class, 'archive'])
+            ->middleware('permission:company.clients.manage')
+            ->name('clients.installations.archive');
+        Route::post('/clients/{client}/installations/{installation}/restore', [ClientInstallationController::class, 'restore'])
+            ->middleware('permission:company.clients.manage')
+            ->name('clients.installations.restore');
         Route::delete('/clients/{client}/installations/{installation}', [ClientInstallationController::class, 'destroy'])
             ->middleware('permission:company.clients.manage')
             ->name('clients.installations.destroy');
@@ -385,9 +396,25 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
         Route::put('/clients/{client}/posts/{post}', [ClientSupervisorPostController::class, 'update'])
             ->middleware('permission:company.clients.manage')
             ->name('clients.posts.update');
+        Route::post('/clients/{client}/posts/{post}/archive', [ClientSupervisorPostController::class, 'archive'])
+            ->middleware('permission:company.clients.manage')
+            ->name('clients.posts.archive');
+        Route::post('/clients/{client}/posts/{post}/restore', [ClientSupervisorPostController::class, 'restore'])
+            ->middleware('permission:company.clients.manage')
+            ->name('clients.posts.restore');
         Route::delete('/clients/{client}/posts/{post}', [ClientSupervisorPostController::class, 'destroy'])
             ->middleware('permission:company.clients.manage')
             ->name('clients.posts.destroy');
 
-        Route::resource('clients', ClientController::class);
+        Route::post('/clients/{client}/archive', [ClientController::class, 'archive'])
+            ->middleware('permission:company.clients.manage')
+            ->name('clients.archive');
+        Route::post('/clients/{client}/restore', [ClientController::class, 'restore'])
+            ->middleware('permission:company.clients.manage')
+            ->name('clients.restore');
+        Route::delete('/clients/{client}', [ClientController::class, 'release'])
+            ->middleware('permission:company.clients.manage')
+            ->name('clients.release');
+
+        Route::resource('clients', ClientController::class)->except(['destroy']);
     });

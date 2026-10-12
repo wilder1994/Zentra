@@ -41,7 +41,7 @@ SJ-SIG nació para un pliego. El avance útil (mapa, unidades, expediente, table
 
 ## 3. Geometría unificada (la que se va a completar)
 
-Hoy Zentra ya tiene empresa → clientes → instalaciones, con tres hijos: puertas (`locations`, Accesos), puestos (`supervisor_posts`, compartidos) y **censo** (`structures.installation_id`). Falta el cupo (unidades por cargo) y admins de sede.
+Hoy Zentra ya tiene empresa → clientes → instalaciones, con tres hijos: puertas (`locations`, Accesos), puestos (`supervisor_posts`, compartidos) y **censo** (`structures.installation_id`). Falta el cupo (unidades por cargo) y admins de instalación.
 
 **Modelo objetivo:**
 
@@ -51,7 +51,7 @@ W Codex / empresa de seguridad (tenant Zentra)
         └── asignación → Puesto
 
 Cliente (PH, bodega, Secretaría, contrato…)
-  └── Instalación (sede, colegio, predio)
+  └── Instalación (propia del cliente, colegio, predio)
         ├── Administradores opcionales (rector, auxiliar, admin del sitio)
         ├── Accesos (puertas)                    ← mundo Accesos
         ├── Puestos (modalidad + unidades)       ← mundo Supervisión
@@ -68,7 +68,7 @@ Tres reglas fijas:
 |--------|---------|
 | Vigilante | Ficha en **Empleados** de la empresa. El Excel de empleados no elige cliente ni puesto (sigue [`EMPLEADOS-Y-CARGOS.md`](EMPLEADOS-Y-CARGOS.md)). La asignación es un **segundo paso**. |
 | Puesto | Siempre de una instalación. Siempre con modalidad 8/12/24 h y unidades por cargo (de SJ-SIG: `GuardRole` + `post_staffings`; en Zentra enriquecer `supervisor_posts`). |
-| Estructura | Cuelga de la **instalación**, no del cliente suelto (`structures.installation_id`). Un PH de una sola sede no cambia de cara (instalación = el mismo cliente). Un colegio o un cliente con dos sedes sí lo necesita. **Hecho 2026-09-11.** |
+| Estructura | Cuelga de la **instalación**, no del cliente suelto (`structures.installation_id`). Un PH de una sola instalación no cambia de cara (instalación = el mismo cliente). Un colegio o un cliente con dos instalaciones sí lo necesita. **Hecho 2026-09-11.** |
 
 Accesos y Supervisión siguen siendo dos mundos: un acceso no es un puesto. Las **instalaciones son compartidas**.
 
@@ -81,7 +81,7 @@ SJ-SIG no se pega al código de Zentra. Se portan flujos y reglas, servicio por 
 | Pieza SJ-SIG | Qué aporta | Dónde cae en Zentra |
 |--------------|------------|------------------------|
 | Places + pin de cliente/instalación | Dirección real, mapa, pines PNG | Ficha de cliente e **instalación** (hoy la instalación es poco más que un nombre) |
-| Código automático de sede | `{sigla}-01` | Alta de instalación |
+| Código automático de instalación | `{sigla}-01` | Alta de instalación |
 | Puesto: modalidad + unidades por cargo | Cupo contratado, no “quién está hoy” | `supervisor_posts` (+ staffing) |
 | Bitácora de cambio | Motivo según instalación / puesto / cupo | Edición de instalación/puestos |
 | Excel personal + preview/diff | Ritual ya similar al maestro WM | Maestro WM **ampliado** con columnas SJ-SIG opcionales (ver §5) |
@@ -113,19 +113,19 @@ La **asignación empleado → puesto** ya está en la ficha del cliente (mismo p
 
 ---
 
-## 6. Instalación enriquecida y administradores de sede
+## 6. Instalación enriquecida y administradores de instalación
 
-Hoy el alta de instalación en Zentra es nombre + “sede = cliente” + mapa + puestos (modalidad y vigilantes) + puertas. Falta código de sede, cupo por cargo y admin de sede.
+Hoy el alta de instalación en Zentra es nombre + “instalación = cliente” + mapa + puestos (modalidad y vigilantes) + puertas. Falta código de instalación, cupo por cargo y admin de instalación.
 
 **Objetivo de la ficha de instalación:**
 
 - Nombre, dirección (Places), ciudad, pin en mapa
 - Código automático
-- Flag sede-cliente (`is_client_site`)
+- Flag instalación propia del cliente (`is_client_site`)
 - Tipo/kind opcional: `conjunto` · `bodega` · `colegio` · … (para no pedir código DANE en una bodega)
 - **Administradores opcionales** (N personas, cargo del catálogo: rector, auxiliar, administrador del sitio, coordinador…)
 
-El `client-admin` sigue viendo **todo el cliente**. El admin de instalación solo **esa sede**. Imprescindible si el cliente es una Secretaría con cientos de colegios: el rector de Santa Librada no puede ver los 400 planteles.
+El `client-admin` sigue viendo **todo el cliente**. El admin de instalación solo **esa instalación**. Imprescindible si el cliente es una Secretaría con cientos de colegios: el rector de Santa Librada no puede ver los 400 planteles.
 
 Sirve igual al PH: admin del cliente ≠ conserje de una torre.
 
@@ -184,12 +184,12 @@ Zentra es maduro en **accesos, censo y supervisión de campo**. El Observatorio 
 
 | Factor | Cobertura hoy | Reutilizable | Brecha para la visita |
 |--------|---------------|--------------|------------------------|
-| 1 Maestro + búsqueda | ~95 % | Directorio con tipo, DANE de sede **escrito a mano** (si colegio; 8–12 dígitos, único), nombre repetible, personal N (admin/apoyo + cargo), área, mapa, búsqueda | Catálogo MEN / typeahead al escribir; DANE de *establecimiento* compartido entre sucursales |
-| 2 Geográfico | **Sí** | Mapa Observatorio (cualquier sede + pin; calor en círculos; **comunas IDESC**: Todas = Cali + 22, o zoom a una). Google Maps 3.65 sin HeatmapLayer | PostGIS no es requisito del pliego |
+| 1 Maestro + búsqueda | ~95 % | Directorio con tipo, DANE de la instalación **escrito a mano** (si colegio; 8–12 dígitos, único), nombre repetible, personal N (admin/apoyo + cargo), área, mapa, búsqueda | Catálogo MEN / typeahead al escribir; DANE de *establecimiento* compartido entre sucursales |
+| 2 Geográfico | **Sí** | Mapa Observatorio (cualquier instalación + pin; calor en círculos; **comunas IDESC**: Todas = Cali + 22, o zoom a una). Google Maps 3.65 sin HeatmapLayer | PostGIS no es requisito del pliego |
 | 3 Multifuente | **Sí** | Comunidad, panel, PWA, minuta y API; origen (canal + rol) en la ficha | — |
-| 4 Comunidad | **Sí** | Intake `/o/{slug}`, anónimo, aviso menores, flujo de estados, vínculo a sede/folio | — |
+| 4 Comunidad | **Sí** | Intake `/o/{slug}`, anónimo, aviso menores, flujo de estados, vínculo a instalación/folio | — |
 | 5 Eventos | **Sí** | Folio; agrupa 1 h; unir/sacar; bitácora; rector **Agregar** / **Cerrar folio** | — |
-| 6 Analítica | **Sí** | Tablero + tipos del cliente (nivel/color) + puntaje + líneas + picos + calor sede/riesgo + **PPTX** | — |
+| 6 Analítica | **Sí** | Tablero + tipos del cliente (nivel/color) + puntaje + líneas + picos + calor instalación/riesgo + **PPTX** | — |
 | 7 Interoperabilidad | ~90 % | `/api/observatory/*` Sanctum + OpenAPI `/docs/observatory` | Tokens de integración dedicados (hoy login del usuario) |
 
 **No cumple el Anexo, por sí solo:** pánico de portería, minuta, `locations`, clustering visual de pines, ni el tablero de la empresa de seguridad.
@@ -216,7 +216,7 @@ Capa **Observatorio**. Lee instalaciones/colegios. **No** vive en minuta ni en `
 | Actor | Superficie |
 |--------|------------|
 | Comunidad (padre, docente, entorno) | Web móvil 3 pasos. **No** instala APK |
-| Rector / admin de sede | Solo su instalación |
+| Rector / admin de instalación | Solo su instalación |
 | Secretaría (client-admin / entidad) | Mapa ciudad, tablero, ranking, API de lectura |
 | Empresa de vigilancia | Sigue en Accesos / Supervisión / PWA. Alimenta fuentes; no es el panel del Observatorio |
 
@@ -347,7 +347,7 @@ No se abre código en este corte. El orden acordado:
 
 | Fecha | Cambio |
 |--------|--------|
-| 2026-09-10 | Alta del informe. W Codex dueña; Zentra producto; SJ-SIG cantera. Geometría instalación + puesto con modalidad + admins de sede + censo bajo instalación. APK para GPS de fondo. Hostinger 48 meses en Cloud/VPS. Observatorio escolar como capa, no como Accesos. |
+| 2026-09-10 | Alta del informe. W Codex dueña; Zentra producto; SJ-SIG cantera. Geometría instalación + puesto con modalidad + admins de instalación + censo bajo instalación. APK para GPS de fondo. Hostinger 48 meses en Cloud/VPS. Observatorio escolar como capa, no como Accesos. |
 | 2026-09-10 | Empleados de empresa: ficha SJ-SIG Personal (4 bloques + foto). Excel WM ampliado, no sustituido. Sin indexador ni asignación a puesto. |
 | 2026-09-10 | Instalaciones con georreferencia. Casilla «La instalación es el mismo cliente» copia nombre + pin. Un catálogo para Accesos y Supervisión. Cartera vacía habla de clientes, no de conjuntos. |
 | 2026-09-10 | Puesto compartido Accesos/Supervisión: modalidad 8/12/24 h + vigilantes. Puertas solo en Accesos (`locations`). |
@@ -356,36 +356,36 @@ No se abre código en este corte. El orden acordado:
 | 2026-09-10 | Documentos de personal (indexador SJ-SIG) en empresa. Cliente: flag Accesos + solo empleados de sus puestos, solo lectura. Distinto de Normoteca. |
 | 2026-09-11 | Censo bajo instalación (`structures.installation_id`). Panel cliente: elige instalación → nodos → personas → acceso. Usuarios del cliente = `client-admin`. Vigilante portería solo con puertas. Supervisor firma revista en minuta. Término de producto: **cliente**, no conjunto. |
 | 2026-09-11 | Alta de nodo sin código visible: `code` interno (slug, `-2` si choca, prefijo del padre). Panel ancho: árbol + **Crear dentro de** indentado; **+** en el nodo. |
-| 2026-09-11 | Administradores del cliente interno (empleado, 1+ clientes) o externo (ficha propia, 1 cliente). Línea **Admin instalaciones**: varias sedes del mismo cliente; Ajustes solo ver; no crea usuarios. |
+| 2026-09-11 | Administradores del cliente interno (empleado, 1+ clientes) o externo (ficha propia, 1 cliente). Línea **Admin instalaciones**: varias instalaciones del mismo cliente; Ajustes solo ver; no crea usuarios. |
 | 2026-09-11 | `/company/users`: pestañas Activos/Desactivados en el header; foto circular; Cliente + Instalaciones en una fila con filtro. |
 | 2026-09-11 | Ficha cliente: tarjeta **Gestión de módulos**. Sidebar fijo (Resumen, Instalaciones, Personas, Usuarios, Accesos, Ajustes) y opcional (Vehículos, Mascotas, Autorizaciones, Puertas). |
 | 2026-09-11 | Alta de usuarios solo súper admin y admin empresa. Personas: tipo de documento (TI/RC) + fecha de nacimiento. Menores: Ley 1581 art. 7; portería solo nombre; sin export. |
 | 2026-09-11 | Protección de menores en Normoteca (`minors_data_policy`): clickwrap de contrato; aviso al crear cliente y admin cliente/instalaciones; Personas lee el texto vigente. |
 | 2026-09-11 | Anexo 7.5 *Herramienta de Seguridad Educativa* (4 puntos, 7 factores): brecha vs Zentra, definición del Observatorio (institución / reporte / evento / mapa / tablero / API). Sin código. |
 | 2026-09-11 | Factor 1 (directorio): módulo `/company/installations` (tabla, búsqueda, ficha con código, comuna, rector = admin de instalaciones, mapa). |
-| 2026-09-11 | Instalaciones unificadas: alta en módulo y en ficha cliente; admin de sede = rol + cargo; ficha empresa con puestos; sidebar cliente **Instalaciones** (estructura dentro de la ficha). |
-| 2026-09-11 | Ficha de sede: mapa a la izquierda, datos a la derecha. Árbol: sin vehículos/mascotas si el módulo está apagado. Miniaturas del indexador: worker pdf.js como blob (MIME `.mjs` en CloudPanel). |
+| 2026-09-11 | Instalaciones unificadas: alta en módulo y en ficha cliente; admin de instalación = rol + cargo; ficha empresa con puestos; sidebar cliente **Instalaciones** (estructura dentro de la ficha). |
+| 2026-09-11 | Ficha de instalación: mapa a la izquierda, datos a la derecha. Árbol: sin vehículos/mascotas si el módulo está apagado. Miniaturas del indexador: worker pdf.js como blob (MIME `.mjs` en CloudPanel). |
 | 2026-09-11 | Indexador: columna izquierda `minmax(24rem, 32rem)`; miniaturas ~220px (`scale` 0.48). |
-| 2026-09-11 | Área de la sede desde el mapa: comuna / localidad / vereda / corregimiento; si no aplica no se guarda. |
-| 2026-09-11 | Factor 1: `kind` + DANE de sede (único, solo colegio, texto 8–12 dígitos; sin catálogo MEN); nombre repetible; personal N con permiso admin/apoyo; `rector_user_id` = contacto del directorio. |
-| 2026-09-11 | Ficha de sede: dirección bajo el nombre; bloques Administrador y Apoyo (`cargo · nombre`). |
+| 2026-09-11 | Área de la instalación desde el mapa: comuna / localidad / vereda / corregimiento; si no aplica no se guarda. |
+| 2026-09-11 | Factor 1: `kind` + DANE de la instalación (único, solo colegio, texto 8–12 dígitos; sin catálogo MEN); nombre repetible; personal N con permiso admin/apoyo; `rector_user_id` = contacto del directorio. |
+| 2026-09-11 | Ficha de instalación: dirección bajo el nombre; bloques Administrador y Apoyo (`cargo · nombre`). |
 | 2026-09-11 | Observatorio v1: reporte → evento. Público `/o/{slug}` (colegios, 3 pasos, foto opcional, anónimo). Estados `nuevo` → `en_atencion` → `cerrado`; los cierra el admin de instalaciones. Empresa y `client-admin` ven, no cambian estado. |
 | 2026-09-11 | Observatorio: link público copiable en empresa y cliente. Permisos `observatory.view` / `observatory.events.update`. Siguiente: mapa/calor. |
 | 2026-09-11 | Observatorio mapa/calor v1: pines de colegios por estado y capa de calor de eventos abiertos. |
 | 2026-09-11 | Observatorio tablero v1: KPIs por estado, ranking de colegios, filtro fecha; vista reordenada (filtro → cifras → mapa/ranking → eventos). |
 | 2026-09-11 | Observatorio: agrupa reportes (mismo colegio + tipo, ventana 1 h) y pin en el intake; calor por ubicación del reporte. |
-| 2026-09-12 | Observatorio: el admin de la sede une folios del mismo colegio o saca un reporte a un folio nuevo. Empresa, `client-admin` y apoyo no. |
+| 2026-09-12 | Observatorio: el admin de la instalación une folios del mismo colegio o saca un reporte a un folio nuevo. Empresa, `client-admin` y apoyo no. |
 | 2026-09-12 | Observatorio fuentes: comunidad (alumno/padre/vecino + recordar en el teléfono), panel (rector/apoyo), PWA patrulla (supervisor), minuta novedad si hay puerta de colegio (vigilante). Anónimo oculta nombre y teléfono. |
 | 2026-09-12 | Observatorio tablero (tendencia, tipos, canales, medidor de cierre) y API Sanctum + OpenAPI `/docs/observatory`. Secretaría escribe como Integración; empresa solo lee. |
 | 2026-09-12 | Observatorio: pestañas Tablero / Eventos; ficha con bitácora (Agregar / Cerrar folio, nota obligatoria); Compartir link; Nuevo reporte visible y bloqueado si no es rector/apoyo. |
 | 2026-09-12 | Shell: pestañas colgando del header; Nuevo reporte en `$actions`; Cerrar sesión en el pie del sidebar (todos los paneles); flecha para ocultar/mostrar el menú. |
 | 2026-09-12 | Tablero Observatorio: mapa + leyenda; colegios + tendencia ancha; tipo/canal más grandes; controles Pines/Calor y Mapa/Satélite fuera del lienzo de Google. |
 | 2026-09-12 | Anexo 7.5 leído en literal. Visita Cali. Falta para el pliego (ya cubierto después): capas comunas IDESC, prioridad configurable, export. |
-| 2026-09-13 | Observatorio: tipos del cliente (nivel+color), puntaje, líneas, picos, calor sede/riesgo, filtro empresa por cliente, módulo opt-in. Falta comunas y PPTX. |
+| 2026-09-13 | Observatorio: tipos del cliente (nivel+color), puntaje, líneas, picos, calor instalación/riesgo, filtro empresa por cliente, módulo opt-in. Falta comunas y PPTX. |
 | 2026-09-13 | Observatorio: capa y filtro por comuna urbana de Cali (IDESC). Queda export PPTX. |
 | 2026-09-12 | Ficha de instalación: el pin en Cali asigna y pinta la comuna IDESC (no solo Places). |
-| 2026-09-12 | Observatorio UX: buscador de comuna en el mapa (sin chips 01–22), zoom al polígono aunque no haya sedes, fechas en modal, cliente más angosto. |
-| 2026-09-12 | Observatorio: pines de cualquier tipo de sede; sin sedes = mapa Colombia + 22 comunas; con sedes = zoom a pines y solo comunas ocupadas; comuna vacía se pinta. Área IDESC de la ficha bloqueada. |
+| 2026-09-12 | Observatorio UX: buscador de comuna en el mapa (sin chips 01–22), zoom al polígono aunque no haya instalaciones, fechas en modal, cliente más angosto. |
+| 2026-09-12 | Observatorio: pines de cualquier tipo de instalación; sin instalaciones = mapa Colombia + 22 comunas; con instalaciones = zoom a pines y solo comunas ocupadas; comuna vacía se pinta. Área IDESC de la ficha bloqueada. |
 | 2026-09-12 | Observatorio: Google Maps 3.65 quitó HeatmapLayer; el calor es círculo propio. La capa IDESC se carga siempre (ruta relativa); Todas = Cali + 22; una comuna hace zoom a ese polígono. |
 | 2026-09-12 | Observatorio: export PPTX del tablero (mismos filtros; cifras, ranking, tendencia, picos y canal). |
 | 2026-09-12 | App de campo: APK debug (Capacitor) en Descargas; API fija a zentra.wcodex.cloud. GPS con pantalla off = corte 2. |
@@ -403,7 +403,7 @@ No se abre código en este corte. El orden acordado:
 | 2026-09-16 | APK/PWA v1.6: selfie de inicio en el círculo de perfil. PWA `zentra-sup-v47`. |
 | 2026-09-17 | Portería: consola vigilante (ingreso unificado, censo, pánico `operational_alerts`). Puerta solo al login del vigilante; Operar portería no. Empleado = empresa; persona = instalación. |
 | 2026-09-15 | Matriz de permisos (admin y colaborador): tablero, instalaciones, pánicos, SIG. Overlay pánico/observatorio independientes, palpitante y sonido en bucle. |
-| 2026-09-15 | Admin cliente e instalaciones: misma matriz (SIG, Observatorio, Censo) por cliente o sede. |
+| 2026-09-15 | Admin cliente e instalaciones: misma matriz (SIG, Observatorio, Censo) por cliente o instalación. |
 | 2026-09-15 | Ficha de folio Observatorio: grilla mapa + datos / novedades + bitácora, con scroll en los paneles inferiores. |
 | 2026-09-15 | Tablero Observatorio: medidor de carga (verde→rojo). Nuevo empuja a rojo; atender baja; cerrar baja más. Arco sin recorte; leyenda bajo la aguja. |
 | 2026-09-15 | Pánico: envío al toque (panel/APK). Enterado silencia a un usuario; Atender apaga overlay y sonido en todos. APK v1.5. |

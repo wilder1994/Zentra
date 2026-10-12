@@ -44,6 +44,7 @@ class Client extends Model
         'is_active',
         'has_access',
         'has_supervision',
+        'has_observatory',
         'show_personnel_folders',
         'panel_modules',
         'service_started_at',
@@ -52,6 +53,7 @@ class Client extends Model
         'lifecycle',
         'released_at',
         'archived_at',
+        'archived_with_parent',
         'tenant_data_purged_at',
     ];
 
@@ -66,6 +68,7 @@ class Client extends Model
             'is_active' => 'boolean',
             'has_access' => 'boolean',
             'has_supervision' => 'boolean',
+            'has_observatory' => 'boolean',
             'show_personnel_folders' => 'boolean',
             'panel_modules' => 'array',
             'service_started_at' => 'date',
@@ -74,8 +77,28 @@ class Client extends Model
             'lifecycle' => ClientLifecycle::class,
             'released_at' => 'datetime',
             'archived_at' => 'datetime',
+            'archived_with_parent' => 'boolean',
             'tenant_data_purged_at' => 'datetime',
         ];
+    }
+
+    /** Al reactivar la empresa vuelven los clientes que archivó ella; los archivados a mano siguen archivados. */
+    public static function restoreFromCompanyArchive(int $companyId): void
+    {
+        self::query()
+            ->where('security_company_id', $companyId)
+            ->where('lifecycle', ClientLifecycle::ArchivedCompany)
+            ->where('archived_with_parent', true)
+            ->update([
+                'archived_at' => null,
+                'archived_with_parent' => false,
+                'is_active' => true,
+            ]);
+
+        self::query()
+            ->where('security_company_id', $companyId)
+            ->where('lifecycle', ClientLifecycle::ArchivedCompany)
+            ->update(['lifecycle' => ClientLifecycle::Active]);
     }
 
     public function securityCompany(): BelongsTo
@@ -107,7 +130,7 @@ class Client extends Model
 
     public function isCatalogOnly(): bool
     {
-        return ! $this->has_access && ! $this->has_supervision;
+        return ! $this->has_access && ! $this->has_supervision && ! $this->has_observatory;
     }
 
     public function supervisorShiftReviews(): HasMany
@@ -167,6 +190,10 @@ class Client extends Model
 
         if ($key === ClientPanelModules::DOORS) {
             return $enabled && $this->hasDoors();
+        }
+
+        if ($key === ClientPanelModules::OBSERVATORY) {
+            return $enabled && (bool) $this->has_observatory;
         }
 
         return $enabled;

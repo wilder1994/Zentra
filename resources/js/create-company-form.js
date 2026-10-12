@@ -47,7 +47,7 @@ export function createCompanyForm(config) {
             }
             if (this.isEmpty) {
                 event.preventDefault();
-                this.showToast('Indica instalaciones de Accesos o clientes de Supervisión');
+                this.showToast('Elige al menos un producto: Accesos, Supervisión, Indexación u Observatorio');
             }
         },
     };

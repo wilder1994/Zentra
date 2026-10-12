@@ -68,6 +68,8 @@ final class TenantSeeder extends Seeder
         );
 
         $company->update([
+            'indexing_seats' => 50,
+            'observatory_seats' => 50,
             'party_type' => 'legal_entity',
             'address' => 'Av. 6N # 28-90, Cali',
             'latitude' => 3.4516,
@@ -100,6 +102,7 @@ final class TenantSeeder extends Seeder
                 'is_active' => true,
                 'has_access' => true,
                 'has_supervision' => true,
+                'has_observatory' => true,
                 'panel_modules' => array_merge(ClientPanelModules::defaultOptional(), [
                     ClientPanelModules::OBSERVATORY => true,
                 ]),
@@ -128,6 +131,7 @@ final class TenantSeeder extends Seeder
                 'access_url' => 'https://zentra.test',
                 'is_active' => true,
                 'has_access' => true,
+                'has_observatory' => true,
                 'panel_modules' => array_merge(ClientPanelModules::defaultOptional(), [
                     ClientPanelModules::OBSERVATORY => true,
                 ]),

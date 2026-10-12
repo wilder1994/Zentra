@@ -19,13 +19,13 @@ final class InstallationQuotaTest extends TestCase
         $this->seedWithPilot();
         $admin = User::query()->where('email', 'empresa@sj-seguridad.test')->firstOrFail();
         $company = $admin->securityCompany;
-        $company->update(['max_clients' => max(1, $company->installationSeatsCount())]);
+        $this->capInstallations($company, max(1, $company->installationSeatsCount()));
         $client = Client::query()->where('slug', 'palmas-del-ingenio')->firstOrFail();
 
         $this->actingAs($admin)
             ->post(route('company.installations.store'), [
                 'client_id' => $client->id,
-                'name' => 'Sede extra',
+                'name' => 'Instalación extra',
                 'address' => 'Calle 1 # 2-3',
                 'city' => 'Cali',
                 'department' => 'Valle del Cauca',
@@ -34,7 +34,7 @@ final class InstallationQuotaTest extends TestCase
             ])
             ->assertSessionHasErrors('package');
 
-        $this->assertNull(Installation::query()->where('name', 'Sede extra')->first());
+        $this->assertNull(Installation::query()->where('name', 'Instalación extra')->first());
     }
 
     public function test_archive_frees_seat_and_reactivate_needs_one(): void
@@ -48,7 +48,7 @@ final class InstallationQuotaTest extends TestCase
             ->where('is_active', true)
             ->firstOrFail();
 
-        $company->update(['max_clients' => max(1, $company->installationSeatsCount())]);
+        $this->capInstallations($company, max(1, $company->installationSeatsCount()));
 
         $this->actingAs($admin)
             ->put(route('company.installations.update', $site), [
@@ -69,7 +69,7 @@ final class InstallationQuotaTest extends TestCase
         $this->actingAs($admin)
             ->post(route('company.installations.store'), [
                 'client_id' => $client->id,
-                'name' => 'Sede nueva',
+                'name' => 'Instalación nueva',
                 'address' => 'Calle 8 # 9-10',
                 'city' => 'Cali',
                 'department' => 'Valle del Cauca',
@@ -78,7 +78,7 @@ final class InstallationQuotaTest extends TestCase
             ])
             ->assertRedirect();
 
-        $this->assertNotNull(Installation::query()->where('name', 'Sede nueva')->first());
+        $this->assertNotNull(Installation::query()->where('name', 'Instalación nueva')->first());
 
         $this->actingAs($admin)
             ->put(route('company.installations.update', $site), [

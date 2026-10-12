@@ -9,12 +9,14 @@ use App\Models\Client;
 use App\Models\CompanyCollaboratorType;
 use App\Models\CompanyJobTitle;
 use App\Models\Employee;
+use App\Models\Location;
 use App\Models\SecurityCompany;
 use App\Models\SupervisorChecklistItem;
 use App\Models\SupervisorPost;
 use App\Models\SupervisorShiftTemplate;
 use App\Models\SupervisorZone;
 use App\Models\User;
+use App\Services\Access\PorteriaDoorService;
 use App\Services\Company\GrantEmployeeAccessService;
 use App\Services\Company\SeedSupervisorIntakeDefaultsService;
 use App\Services\User\EnsureCompanyAdminCatalog;
@@ -47,6 +49,17 @@ abstract class TestCase extends BaseTestCase
     protected function pilotCompany(): SecurityCompany
     {
         return SecurityCompany::query()->where('tax_id', '900123456-1')->firstOrFail();
+    }
+
+    /** Deja todos los productos con la misma cantidad de instalaciones (bolsa = $seats). */
+    protected function capInstallations(SecurityCompany $company, int $seats): void
+    {
+        $company->update([
+            'max_clients' => $seats,
+            'max_supervision_clients' => $company->hasSupervisionPackage() ? $seats : $company->max_supervision_clients,
+            'indexing_seats' => $company->indexing_seats > 0 ? $seats : 0,
+            'observatory_seats' => $company->observatory_seats > 0 ? $seats : 0,
+        ]);
     }
 
     protected function pilotCompanyId(): int
@@ -233,9 +246,9 @@ abstract class TestCase extends BaseTestCase
     }
 
     /** @return array<string, int> */
-    protected function porteriaSession(\App\Models\Client $client, ?int $doorId = null): array
+    protected function porteriaSession(Client $client, ?int $doorId = null): array
     {
-        $doorId ??= (int) \App\Models\Location::query()
+        $doorId ??= (int) Location::query()
             ->withoutGlobalScopes()
             ->where('client_id', $client->id)
             ->where('is_active', true)
@@ -244,7 +257,7 @@ abstract class TestCase extends BaseTestCase
 
         return [
             config('tenancy.session.active_client_key') => $client->id,
-            \App\Services\Access\PorteriaDoorService::SESSION_KEY => $doorId,
+            PorteriaDoorService::SESSION_KEY => $doorId,
         ];
     }
 }

@@ -85,7 +85,7 @@ final class ManageScopedUserService
             $user = User::query()->create($attributes);
             $user->syncRoles([$data->role]);
             $this->syncClientAssignments($user, $clientIds, $data->role);
-            $this->syncInstallationAssignments($user, $installationIds, $data->role, $data->sitePermission);
+            $this->syncInstallationAssignments($user, $installationIds, $data->role, $data->installationPermission);
             $this->syncGrants($user, $actor, $data->role, $data->grants, $companyId);
 
             return $user->fresh(['roles', 'clients', 'assignedInstallations', 'moduleGrants']);
@@ -177,7 +177,7 @@ final class ManageScopedUserService
                 $target,
                 $installationIds,
                 $role,
-                $data->sitePermission ?? $target->installationAssignments()->value('site_permission') ?? 'admin',
+                $data->installationPermission ?? $target->installationAssignments()->value('installation_permission') ?? 'admin',
             );
             $this->syncGrants($target, $actor, $role, $data->grants ?? [], $companyId);
 
@@ -568,7 +568,7 @@ final class ManageScopedUserService
     }
 
     /** @param list<int> $installationIds */
-    private function syncInstallationAssignments(User $user, array $installationIds, string $role, string $sitePermission = 'admin'): void
+    private function syncInstallationAssignments(User $user, array $installationIds, string $role, string $installationPermission = 'admin'): void
     {
         ClientUserInstallationAssignment::query()->where('user_id', $user->id)->delete();
 
@@ -576,13 +576,13 @@ final class ManageScopedUserService
             return;
         }
 
-        $permission = $sitePermission === 'support' ? 'support' : 'admin';
+        $permission = $installationPermission === 'support' ? 'support' : 'admin';
 
         foreach ($installationIds as $installationId) {
             ClientUserInstallationAssignment::query()->create([
                 'user_id' => $user->id,
                 'installation_id' => $installationId,
-                'site_permission' => $permission,
+                'installation_permission' => $permission,
             ]);
         }
     }

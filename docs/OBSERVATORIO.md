@@ -9,7 +9,7 @@ Intake de reportes escolares y seguimiento de eventos. No es portería ni PQRS d
 | Pieza | Qué es |
 |--------|--------|
 | **Reporte** | Denuncia. Canal (`source`) + quién (`reporter_role`). Puede llevar pin (lat/lng). |
-| **Evento** | Incidente. Folio `EV-000123`. Varios reportes del mismo colegio y tipo se unen si el evento sigue abierto y el último reporte de ese tipo fue hace menos de 1 hora (`OBSERVATORY_MERGE_WINDOW_MINUTES`). Cerrado nunca recibe más reportes. El admin de esa sede puede unir folios a mano o sacar un reporte a un folio nuevo. |
+| **Evento** | Incidente. Folio `EV-000123`. Varios reportes del mismo colegio y tipo se unen si el evento sigue abierto y el último reporte de ese tipo fue hace menos de 1 hora (`OBSERVATORY_MERGE_WINDOW_MINUTES`). Cerrado nunca recibe más reportes. El admin de esa instalación puede unir folios a mano o sacar un reporte a un folio nuevo. |
 
 ## Fuentes
 
@@ -20,14 +20,14 @@ En la ficha: `tipo · Canal · Rol · fecha` y abajo el nombre, o **Anónimo**.
 | Alumno, padre, vecino | Link `/o/{slug}` | Comunidad · Alumno / Padre / Vecino |
 | Rector / apoyo | Panel `/client/observatory` (ya tienen usuario) | Panel · Rector / Apoyo |
 | Supervisor de patrulla | PWA Supervisión → Observatorio | App de patrulla · Supervisor |
-| Vigilante | Minuta, novedad, si la sede es colegio y tiene puerta | Portería · Vigilante |
+| Vigilante | Minuta, novedad, si la instalación es colegio y tiene puerta | Portería · Vigilante |
 | Software de Secretaría | `POST /api/observatory/reports` | Integración · Sistema externo |
 
 Anónimo (todas las superficies): aviso «se oculta tu nombre y teléfono; solo se muestra la denuncia». No se guarda nombre, teléfono ni `reported_by_user_id`. Sí quedan canal y rol.
 
 ## Público `/o/{slug}`
 
-Ejemplo: `/o/palmas-del-ingenio`. Solo sedes `kind=colegio` y activas. Tres pasos, móvil, sin app:
+Ejemplo: `/o/palmas-del-ingenio`. Solo instalaciones `kind=colegio` y activas. Tres pasos, móvil, sin app:
 
 1. Colegio (nombre o DANE)
 2. Qué pasó + tipo (amenaza / riña / hurto / otro) + mapa satélite (pin en el colegio; se arrastra) + hasta 3 fotos (cámara y miniatura; opcional)
@@ -51,7 +51,7 @@ En `/access/guard_logs/create`, tipo **Novedad** y ubicación de un **colegio co
 
 ## Estados
 
-`nuevo` → `en_atencion` → `cerrado`. **Los gestiona el admin de instalaciones** de esa sede (`client-installation-admin` con `site_permission=admin`) en la ficha:
+`nuevo` → `en_atencion` → `cerrado`. **Los gestiona el admin de instalaciones** de esa instalación (`client-installation-admin` con `installation_permission=admin`) en la ficha:
 
 - **Agregar:** observación obligatoria. Desde Nuevo pasa a En atención. Si ya está en atención, el folio no cambia y la nota va a la bitácora.
 - **Cerrar folio:** solo En atención; observación obligatoria. No se reabre.
@@ -65,10 +65,10 @@ El mismo admin puede **unir** otro folio del mismo colegio o **sacar** un report
 | Actor | Superficie |
 |--------|------------|
 | Comunidad | `/o/{slug}` |
-| Admin instalaciones / apoyo | `/client/observatory/events` — solo sus sedes. Solo el administrador (no el apoyo) cambia estado, une folios o saca un reporte. Ambos pueden **Nuevo reporte**. |
+| Admin instalaciones / apoyo | `/client/observatory/events` — solo sus instalaciones. Solo el administrador (no el apoyo) cambia estado, une folios o saca un reporte. Ambos pueden **Nuevo reporte**. |
 | Admin del cliente | Mismo listado, todo el cliente. Ve **Nuevo reporte** pero no puede enviarlo. Sin cambiar estado ni unir. |
 | Empresa | `/company/observatory/events` — clientes de la empresa. Seguimiento, no portal, no cambia estado ni une. |
-| Colaborador con Observatorio | Mismo panel empresa. Grant a nivel empresa: todos los clientes y el **detalle** del evento. Grant a cliente o sede: ese alcance. |
+| Colaborador con Observatorio | Mismo panel empresa. Grant a nivel empresa: todos los clientes y el **detalle** del evento. Grant a cliente o instalación: ese alcance. |
 | Supervisor | PWA Observatorio |
 | Vigilante | Minuta → Observatorio si hay puerta de colegio |
 | Software de Secretaría | `/docs/observatory` + token Sanctum. Solo Observatorio de ese cliente |
@@ -77,7 +77,7 @@ Permisos: `observatory.view`, `observatory.events.update`. Tras el alta: `php ar
 
 ## Unir / sacar (v1)
 
-En la ficha del evento (`/client/observatory/events/{id}`), solo el admin de esa sede:
+En la ficha del evento (`/client/observatory/events/{id}`), solo el admin de esa instalación:
 
 - **Unir aquí:** elige otro folio del mismo colegio. Los reportes pasan a este evento y el otro folio se elimina. No se une a un evento cerrado.
 - **Sacar a folio nuevo:** en cada reporte, si el evento está abierto y tiene dos o más. Crea un `EV-` nuevo (`nuevo`) con ese reporte. No se saca de un evento cerrado.
@@ -88,8 +88,8 @@ Empresa, `client-admin` y apoyo no ven esos botones.
 
 Pestañas **Tablero** | **Eventos** (cuelgan del header, no van dentro de la barra).
 
-- **Tablero:** filtros en una sola fila (xl): **Cliente** angosto (solo empresa), **Desde — Hasta** (ícono; modal Aceptar/Cerrar), Líneas, Buscar, **Filtrar**, Compartir link, **PPTX**, API. `?comuna=` va hidden. Fila 1: mapa + leyenda. **Todas** encuadra Cali y pinta las 22 comunas. Una comuna hace zoom a ese polígono. Calor = círculos (Google quitó HeatmapLayer). Fila 2: sedes por riesgo + tendencia. Fila 3: picos · canal · **Atención de folios** (arco verde→rojo; % en el hueco; leyenda Cerrados / En trámite / Total; `load_rate` = `(nuevos + en atención × 0,4) / total`). En vivo: Reverb + sondeo 12 s si el socket no está conectado. El PPTX usa los mismos filtros (fechas, cliente, comuna, grano); solo cifras. Alpine: `panelSidebar` (layout) + `observatoryBoard` / `observatoryMap`. Si `app.js` no registra `panelSidebar`, el mapa y las gráficas quedan en blanco.
-- **Eventos:** tabla folio / sede / tipo / estado / abierto / Ver (+ cliente en empresa). **Ver** abre la ficha.
+- **Tablero:** filtros en una sola fila (xl): **Cliente** angosto (solo empresa), **Desde — Hasta** (ícono; modal Aceptar/Cerrar), Líneas, Buscar, **Filtrar**, Compartir link, **PPTX**, API. `?comuna=` va hidden. Fila 1: mapa + leyenda. **Todas** encuadra Cali y pinta las 22 comunas. Una comuna hace zoom a ese polígono. Calor = círculos (Google quitó HeatmapLayer). Fila 2: instalaciones por riesgo + tendencia. Fila 3: picos · canal · **Atención de folios** (arco verde→rojo; % en el hueco; leyenda Cerrados / En trámite / Total; `load_rate` = `(nuevos + en atención × 0,4) / total`). En vivo: Reverb + sondeo 12 s si el socket no está conectado. El PPTX usa los mismos filtros (fechas, cliente, comuna, grano); solo cifras. Alpine: `panelSidebar` (layout) + `observatoryBoard` / `observatoryMap`. Si `app.js` no registra `panelSidebar`, el mapa y las gráficas quedan en blanco.
+- **Eventos:** tabla folio / instalación / tipo / estado / abierto / Ver (+ cliente en empresa). **Ver** abre la ficha.
 
 ## Ficha
 
@@ -101,7 +101,7 @@ Para el software de Secretaría (u otro sistema). Token Sanctum (`POST /api/auth
 
 | Método | Ruta | Quién |
 |--------|------|--------|
-| GET | `/api/observatory/events` | Secretaría, rector/apoyo (sus sedes), empresa |
+| GET | `/api/observatory/events` | Secretaría, rector/apoyo (sus instalaciones), empresa |
 | GET | `/api/observatory/events/{id}` | Igual |
 | GET | `/api/observatory/board` | Igual |
 | GET | `/api/observatory/sites` | Igual |
@@ -119,7 +119,7 @@ Puntaje del colegio = suma de niveles de sus reportes. Tablero: líneas por tipo
 
 ## Mapa
 
-Círculo = sede activa con coordenadas (cualquier `kind`). Gota = reporte. Modos: Pines · Calor sede · Calor riesgo (círculos propios; Google quitó `HeatmapLayer` en Maps JS 3.65). Requiere `GOOGLE_MAPS_API_KEY`. El intake público `/o/{slug}` sigue siendo solo `kind=colegio`.
+Círculo = instalación activa con coordenadas (cualquier `kind`). Gota = reporte. Modos: Pines · Calor instalación · Calor riesgo (círculos propios; Google quitó `HeatmapLayer` en Maps JS 3.65). Requiere `GOOGLE_MAPS_API_KEY`. El intake público `/o/{slug}` sigue siendo solo `kind=colegio`.
 
 Capa y filtro: **22 comunas urbanas de Cali** (IDESC), ruta relativa `/geo/cali-comunas.geojson`. **Todas** (sin `?comuna=`) encuadra Cali y pinta las 22. Una comuna recorta y hace zoom a ese polígono. Fuera del perímetro: **Fuera de Cali**.
 

@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Tenant;
 
 use App\Domain\Geo\GeoAddressData;
-use App\Domain\Pricing\Data\AccessSeatSplit;
+use App\Domain\Pricing\Data\PlanSelection;
 use App\Enums\BillingCycle;
 use App\Enums\PartyType;
-use App\Enums\SupervisionPackageSku;
 use App\Models\SecurityCompany;
 use App\Services\Pricing\CompanyPriceHistory;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +32,8 @@ final class CreateCompanyService
      *     manual_seats?: int|string|null,
      *     hardware_seats?: int|string|null,
      *     supervision_seats?: int|string|null,
+     *     indexing_seats?: int|string|null,
+     *     observatory_seats?: int|string|null,
      *     billing_cycle: string,
      * }  $attributes
      */
@@ -44,19 +45,21 @@ final class CreateCompanyService
             ]);
         }
 
-        $seats = new AccessSeatSplit(
+        $selection = PlanSelection::of(
             (int) ($attributes['manual_seats'] ?? 0),
             (int) ($attributes['hardware_seats'] ?? 0),
+            (int) ($attributes['supervision_seats'] ?? 0),
+            (int) ($attributes['indexing_seats'] ?? 0),
+            (int) ($attributes['observatory_seats'] ?? 0),
         );
-        $supervisionSeats = (int) ($attributes['supervision_seats'] ?? 0);
 
-        if ($seats->isEmpty() && $supervisionSeats < 1) {
+        if ($selection->isEmpty()) {
             throw ValidationException::withMessages([
-                'manual_seats' => 'Indica instalaciones de Accesos o clientes de Supervisión.',
+                'manual_seats' => 'Elige al menos un producto: Accesos, Supervisión, Indexación u Observatorio.',
             ]);
         }
 
-        return DB::transaction(function () use ($attributes, $geo, $seats, $supervisionSeats): SecurityCompany {
+        return DB::transaction(function () use ($attributes, $geo, $selection): SecurityCompany {
             $partyType = $attributes['party_type'] instanceof PartyType
                 ? $attributes['party_type']
                 : PartyType::from((string) $attributes['party_type']);
@@ -74,13 +77,11 @@ final class CreateCompanyService
 
             $before = $this->priceHistory->snapshot($company);
             $cycle = BillingCycle::from((string) $attributes['billing_cycle']);
-            $this->assignCompanyPackageService->execute($company, $seats->sku(), $cycle, null, $seats);
+            $this->assignCompanyPackageService->execute($company, $selection->access->sku(), $cycle, null, $selection->access);
+            $this->assignCompanyPackageService->assignProducts($company->fresh(), $selection->indexing, $selection->observatory);
 
-            if ($supervisionSeats > 0) {
-                $this->assignCompanySupervisionPackageService->execute(
-                    $company->fresh(),
-                    SupervisionPackageSku::fromSize($supervisionSeats),
-                );
+            if ($selection->supervision > 0) {
+                $this->assignCompanySupervisionPackageService->execute($company->fresh(), $selection->supervisionSku());
             }
 
             $this->priceHistory->record($company, $before, 'signup');

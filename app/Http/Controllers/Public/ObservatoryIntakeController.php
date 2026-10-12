@@ -44,12 +44,12 @@ final class ObservatoryIntakeController extends Controller
         ]);
     }
 
-    public function sites(Request $request, string $slug): JsonResponse
+    public function installations(Request $request, string $slug): JsonResponse
     {
         $row = $this->client($slug);
         $search = $request->string('q')->trim()->toString();
 
-        $sites = Installation::query()
+        $installations = Installation::query()
             ->withoutGlobalScopes()
             ->where('client_id', $row->id)
             ->where('is_active', true)
@@ -65,13 +65,13 @@ final class ObservatoryIntakeController extends Controller
             ->get(['id', 'name', 'dane_code', 'city', 'latitude', 'longitude']);
 
         return response()->json([
-            'sites' => $sites->map(static fn (Installation $site): array => [
-                'id' => (int) $site->id,
-                'name' => $site->name,
-                'dane_code' => $site->dane_code,
-                'city' => $site->city,
-                'lat' => $site->latitude !== null ? (float) $site->latitude : null,
-                'lng' => $site->longitude !== null ? (float) $site->longitude : null,
+            'installations' => $installations->map(static fn (Installation $installation): array => [
+                'id' => (int) $installation->id,
+                'name' => $installation->name,
+                'dane_code' => $installation->dane_code,
+                'city' => $installation->city,
+                'lat' => $installation->latitude !== null ? (float) $installation->latitude : null,
+                'lng' => $installation->longitude !== null ? (float) $installation->longitude : null,
             ])->all(),
         ]);
     }

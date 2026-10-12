@@ -4,49 +4,56 @@ declare(strict_types=1);
 
 namespace App\Services\Tenant;
 
-use App\Enums\ClientLifecycle;
 use App\Models\Client;
 use App\Models\SecurityCompany;
+use App\Support\Catalog\CompanyEntitlements;
+use App\Support\Catalog\InstallationQuota;
 use Illuminate\Validation\ValidationException;
 
+/** Activar una línea en un cliente consume un cupo de esa línea por cada instalación activa del cliente. */
 final class AssertClientServiceSeats
 {
-    public function execute(
-        SecurityCompany $company,
-        bool $hasAccess,
-        bool $hasSupervision,
-        ?int $exceptClientId = null,
-    ): void {
-        if ($hasAccess) {
-            $max = (int) ($company->max_clients ?: 0);
-            $used = $company->accessSeatsCount($exceptClientId);
-            if ($max < 1 || $used >= $max) {
-                throw ValidationException::withMessages([
-                    'has_access' => 'Cupo de Accesos lleno ('.$used.'/'.$max.'). Puedes guardar la ficha sin operar accesos.',
-                ]);
-            }
-        }
+    /**
+     * @param  array{access?: bool, supervision?: bool, observatory?: bool}  $lines
+     */
+    public function execute(SecurityCompany $company, array $lines, ?Client $client = null): void
+    {
+        $entitlements = CompanyEntitlements::for($company);
+        $installations = $client !== null ? max(1, $this->activeInstallations($client)) : 1;
 
-        if ($hasSupervision) {
-            if ($company->hasUnlimitedSupervision()) {
-                return;
+        $map = [
+            InstallationQuota::ACCESS => [$entitlements->hasAccess(), 'Accesos'],
+            InstallationQuota::SUPERVISION => [$entitlements->hasSupervision(), 'Supervisión'],
+            InstallationQuota::OBSERVATORY => [$entitlements->hasObservatory(), 'Observatorio'],
+        ];
+
+        foreach ($map as $line => [$contracted, $label]) {
+            if (! ($lines[$line] ?? false)) {
+                continue;
             }
 
-            $max = (int) ($company->max_supervision_clients ?: 0);
-            $used = $company->supervisionSeatsCount($exceptClientId);
-            if ($max < 1 || $used >= $max) {
+            if (! $contracted) {
                 throw ValidationException::withMessages([
-                    'has_supervision' => 'Cupo de Supervisión lleno ('.$used.'/'.$max.'). Contrata Supervisión o deja la ficha sin esa línea.',
+                    'has_'.$line => 'Tu plan no incluye '.$label.'. Agrégalo en Facturación → Cambiar plan.',
                 ]);
             }
+
+            $already = $client !== null && (bool) $client->{'has_'.$line};
+            if ($already) {
+                continue;
+            }
+
+            $company->installationQuota()->assertRoom(
+                [$line],
+                $installations,
+                'No puedes activar '.$label.' en este cliente ('.$installations.' '.($installations === 1 ? 'instalación' : 'instalaciones').'):',
+                exceptClientId: $client?->id,
+            );
         }
     }
 
-    public function catalogCount(SecurityCompany $company): int
+    private function activeInstallations(Client $client): int
     {
-        return Client::query()
-            ->where('security_company_id', $company->id)
-            ->where('lifecycle', ClientLifecycle::Active)
-            ->count();
+        return $client->installations()->where('is_active', true)->count();
     }
 }

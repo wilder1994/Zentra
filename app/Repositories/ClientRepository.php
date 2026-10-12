@@ -8,6 +8,7 @@ use App\Enums\ClientLifecycle;
 use App\Models\Client;
 use App\Models\SecurityCompany;
 use App\Models\User;
+use App\Support\Catalog\CompanyEntitlements;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -152,14 +153,17 @@ final class ClientRepository
         $maxSupervision = $company->hasUnlimitedSupervision()
             ? null
             : (int) ($company->max_supervision_clients ?: 0);
+        $quota = $company->installationQuota();
+        $capacity = $quota->capacity();
         $accessUsed = $company->accessSeatsCount();
         $installationsUsed = $company->installationSeatsCount();
         $supervisionUsed = $company->supervisionSeatsCount();
-        $usageRatio = $maxClients > 0 ? round(($installationsUsed / $maxClients) * 100, 1) : 0.0;
+        $entitlements = CompanyEntitlements::for($company);
+        $usageRatio = $capacity > 0 ? round(($installationsUsed / $capacity) * 100, 1) : 0.0;
         $features = $company->package_modality?->features() ?? [];
         $featureLabels = $company->package_modality?->featureLabels() ?? [];
         $contractedAmount = $company->contractedAmount();
-        $costPerClientSlot = $maxClients > 0 ? round($contractedAmount / $maxClients, 0) : 0.0;
+        $costPerClientSlot = $capacity > 0 ? round($contractedAmount / $capacity, 0) : 0.0;
         $endsAt = $company->package_ends_at;
         $daysUntilRenewal = $endsAt !== null
             ? (int) now()->startOfDay()->diffInDays($endsAt->copy()->startOfDay(), false)
@@ -175,10 +179,19 @@ final class ClientRepository
             'released' => $released,
             'max_clients' => $maxClients,
             'access_used' => $accessUsed,
-            'clients_remaining' => $company->clientsRemaining(),
+            'access_remaining' => $company->accessSeatsRemaining(),
+            'installation_capacity' => $capacity,
             'installations_used' => $installationsUsed,
             'installations_remaining' => $company->installationSeatsRemaining(),
-            'is_installation_quota_full' => $maxClients > 0 && $installationsUsed >= $maxClients,
+            'installations_breakdown' => $quota->breakdown(),
+            'is_installation_quota_full' => $capacity > 0 && $installationsUsed >= $capacity,
+            'max_observatory' => $entitlements->observatorySeats(),
+            'observatory_used' => $company->observatorySeatsCount(),
+            'observatory_remaining' => $company->observatorySeatsRemaining(),
+            'plan_metal_label' => $entitlements->metal()?->label(),
+            'employee_cap' => $entitlements->employeeCap(),
+            'posts_per_installation' => $entitlements->postsPerInstallation(),
+            'employees_per_post' => $entitlements->employeesPerPost(),
             'max_supervision_clients' => $maxSupervision,
             'supervision_used' => $supervisionUsed,
             'supervision_remaining' => $company->supervisionSeatsRemaining(),

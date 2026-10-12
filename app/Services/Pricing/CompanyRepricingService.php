@@ -26,55 +26,23 @@ final class CompanyRepricingService
     public const REASON_INCREASE = 'annual_increase';
 
     public function __construct(
-        private readonly PriceCalculator $priceCalculator,
+        private readonly CompanyPlanPricer $planPricer,
         private readonly CompanyPriceHistory $history,
         private readonly RecordLifecycleEvidenceService $evidenceService,
     ) {}
 
-    /**
-     * @return array{
-     *   access_monthly: float, access_annual: float, unit: float, discount: float, annual_discount: float,
-     *   supervision_monthly: ?float, supervision_annual: ?float, supervision_unit: ?float, amount: float
-     * }
-     */
-    public function quote(SecurityCompany $company, ?CatalogSettings $catalog = null): array
+    /** Valor del ciclo de la empresa con el catálogo dado (por defecto el vigente). */
+    public function quoteAmount(SecurityCompany $company, ?CatalogSettings $catalog = null): float
     {
-        $cycle = $company->billing_cycle ?? BillingCycle::Monthly;
-        $access = $this->priceCalculator->quoteAccess($company->accessSeats(), $cycle, $catalog);
-
-        $sup = $company->supervision_package_sku !== null
-            ? $this->priceCalculator->quoteSupervisionSku($company->supervision_package_sku, $cycle, $catalog)
-            : null;
-
-        $amount = $access->amountDue() + ($sup?->amountDue() ?? 0.0);
-
-        return [
-            'access_monthly' => $access->priceMonthly,
-            'access_annual' => $access->priceAnnual,
-            'unit' => $access->unitPrice,
-            'discount' => $access->volumeDiscountPct,
-            'annual_discount' => $access->annualDiscountPct,
-            'supervision_monthly' => $sup?->priceMonthly,
-            'supervision_annual' => $sup?->priceAnnual,
-            'supervision_unit' => $sup?->unitPrice,
-            'amount' => round($amount, 2),
-        ];
+        return $this->planPricer->amount($company, $catalog);
     }
 
     public function apply(SecurityCompany $company, string $reason, ?User $actor = null, ?string $note = null): SecurityCompany
     {
         $before = $this->history->snapshot($company);
-        $quote = $this->quote($company);
 
         $company->update([
-            'unit_price_snapshot' => $quote['unit'],
-            'volume_discount_pct' => $quote['discount'],
-            'annual_discount_pct' => $quote['annual_discount'],
-            'package_price_monthly' => $quote['access_monthly'],
-            'package_price_annual' => $quote['access_annual'],
-            'supervision_unit_price_snapshot' => $quote['supervision_unit'],
-            'supervision_package_price_monthly' => $quote['supervision_monthly'],
-            'supervision_package_price_annual' => $quote['supervision_annual'],
+            ...$this->planPricer->fields($company),
             'pending_reprice_at' => null,
             'pending_reprice_reason' => null,
             'pending_reprice_note' => null,
@@ -178,7 +146,7 @@ final class CompanyRepricingService
                 'name' => $company->displayName(),
                 'plan' => $this->history->planLabel($company),
                 'current' => $company->contractedAmount(),
-                'new' => $locked ? $company->contractedAmount() : $this->quote($company, $catalog)['amount'],
+                'new' => $locked ? $company->contractedAmount() : $this->quoteAmount($company, $catalog),
                 'locked' => $locked,
                 'effective_at' => $locked ? null : $this->nextBillingOnOrAfter($company, $from)->format('d/m/Y'),
             ];
@@ -209,7 +177,10 @@ final class CompanyRepricingService
         return SecurityCompany::query()
             ->whereNull('archived_at')
             ->where(function (Builder $q): void {
-                $q->whereNotNull('package_sku')->orWhereNotNull('supervision_package_sku');
+                $q->whereNotNull('package_sku')
+                    ->orWhereNotNull('supervision_package_sku')
+                    ->orWhere('indexing_seats', '>', 0)
+                    ->orWhere('observatory_seats', '>', 0);
             });
     }
 }

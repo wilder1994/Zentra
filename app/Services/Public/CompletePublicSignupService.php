@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Public;
 
-use App\Domain\Pricing\Data\AccessSeatSplit;
 use App\Enums\EvidenceEventType;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
@@ -68,16 +67,15 @@ final class CompletePublicSignupService
                 'is_active' => true,
             ]);
 
+            $selection = $intent->planSelection();
             $this->assignPackageService->execute(
                 $company,
-                $intent->package_sku,
+                $selection->access->sku(),
                 $intent->billing_cycle,
                 $now,
-                new AccessSeatSplit(
-                    (int) ($intent->package_manual_seats ?? $intent->package_sku->size()),
-                    (int) ($intent->package_hardware_seats ?? 0),
-                ),
+                $selection->access,
             );
+            $this->assignPackageService->assignProducts($company->fresh(), $selection->indexing, $selection->observatory);
 
             if ($intent->supervision_package_sku !== null) {
                 $this->assignSupervisionPackageService->execute(

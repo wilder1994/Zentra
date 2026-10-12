@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Company;
 
+use App\Domain\Pricing\Data\PlanSelection;
 use App\Enums\BillingCycle;
+use App\Enums\CommercialProduct;
 use App\Enums\CompanyPackageSku;
 use App\Enums\ManualPaymentIntent;
 use App\Enums\PaymentStatus;
@@ -15,14 +17,16 @@ use App\Http\Requests\Company\SchedulePackageChangeRequest;
 use App\Http\Requests\Company\UpdateSupervisionPackageRequest;
 use App\Models\CommercialPayment;
 use App\Models\PlatformDocument;
+use App\Models\QuotaRequest;
 use App\Models\SecurityCompany;
 use App\Services\Platform\CancelCompanyMembershipService;
 use App\Services\Platform\ScheduleCompanyPackageChangeService;
 use App\Services\Platform\UndoCompanyMembershipCancellationService;
 use App\Services\Pricing\CompanyRepricingService;
-use App\Services\Pricing\PriceCalculator;
+use App\Services\Pricing\PlanQuoter;
 use App\Services\Tenant\PurchaseCompanySupervisionPackageService;
 use App\Support\Catalog\CatalogSettings;
+use App\Support\Catalog\QuotaOverview;
 use App\Support\Platform\ActingCompanyResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,7 +39,7 @@ final class BillingController extends Controller
         private readonly UndoCompanyMembershipCancellationService $undoCompanyMembershipCancellationService,
         private readonly ScheduleCompanyPackageChangeService $scheduleCompanyPackageChangeService,
         private readonly PurchaseCompanySupervisionPackageService $purchaseCompanySupervisionPackageService,
-        private readonly PriceCalculator $priceCalculator,
+        private readonly PlanQuoter $planQuoter,
         private readonly CompanyRepricingService $repricingService,
     ) {}
 
@@ -70,9 +74,7 @@ final class BillingController extends Controller
         $pendingPayment = $payments
             ->first(fn (CommercialPayment $p) => $p->status === PaymentStatus::Pending && $p->gateway_driver === 'local');
 
-        $seats = $company->accessSeats();
-        $quote = $this->priceCalculator->quoteAccess($seats, BillingCycle::Monthly);
-        $quoteAnnual = $this->priceCalculator->quoteAccess($seats, BillingCycle::Annual);
+        $selection = PlanSelection::fromCompany($company);
 
         $isUpToDate = $company->isUpToDate();
         $defaultCheckoutIntent = match (true) {
@@ -93,15 +95,22 @@ final class BillingController extends Controller
             'invoicesCount' => $invoices->count(),
             'pendingPayment' => $pendingPayment,
             'isUpToDate' => $isUpToDate,
-            'quote' => $quote,
-            'quoteAnnual' => $quoteAnnual,
+            'planQuote' => $this->planQuoter->quote($selection, $company->billing_cycle ?? BillingCycle::Monthly),
+            'planQuoteAnnual' => $this->planQuoter->quote($selection, BillingCycle::Annual),
             'planCatalog' => $this->companyCatalog($company),
             'pendingRepriceAmount' => $company->hasPendingReprice()
-                ? $this->repricingService->quote($company)['amount']
+                ? $this->repricingService->quoteAmount($company)
                 : null,
             'cycleOptions' => BillingCycle::options(),
             'defaultCheckoutIntent' => $defaultCheckoutIntent,
             'gatewayDriver' => config('billing.gateway.driver'),
+            'quotaOverview' => QuotaOverview::for($company),
+            'quotaRequests' => QuotaRequest::query()
+                ->where('security_company_id', $company->id)
+                ->with(['installation', 'post'])
+                ->latest('id')
+                ->limit(10)
+                ->get(),
         ]);
     }
 
@@ -157,18 +166,11 @@ final class BillingController extends Controller
         $company = $this->resolveCompany($request);
 
         try {
-            $cycle = BillingCycle::from($request->validated('billing_cycle'));
-            $seats = $request->accessSeats();
-            $includeSup = $request->has('supervision_seats');
-
             $payment = $this->scheduleCompanyPackageChangeService->scheduleWithLocalCheckout(
                 $company,
                 $request->user(),
-                $seats->sku(),
-                $cycle,
-                $seats,
-                $includeSup,
-                $includeSup ? $request->supervisionSku() : null,
+                BillingCycle::from($request->validated('billing_cycle')),
+                $request->planSelection($company),
             );
         } catch (\InvalidArgumentException|\RuntimeException $e) {
             return redirect()
@@ -213,7 +215,11 @@ final class BillingController extends Controller
     private function companyCatalog(SecurityCompany $company): array
     {
         $data = CatalogSettings::current()->forClient();
-        $keep = array_filter([$company->accessMetal()?->value, $company->supervisionMetal()?->value]);
+        $owned = PlanSelection::fromCompany($company);
+        $keep = array_filter(array_map(
+            fn (CommercialProduct $product) => $owned->metal($product)?->value,
+            CommercialProduct::cases(),
+        ));
 
         foreach ($data['metals'] as $i => $metal) {
             if (in_array($metal['key'], $keep, true)) {

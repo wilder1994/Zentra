@@ -14,8 +14,9 @@
         class="w-full space-y-4"
         x-data="{
             cancelOpen: {{ $errors->has('reason') ? 'true' : 'false' }},
-            changeOpen: {{ $errors->hasAny(['manual_seats', 'hardware_seats', 'supervision_seats', 'billing_cycle']) ? 'true' : 'false' }},
-            reactivateOpen: false
+            changeOpen: {{ $errors->hasAny(['manual_seats', 'hardware_seats', 'supervision_seats', 'indexing_seats', 'observatory_seats', 'billing_cycle']) ? 'true' : 'false' }},
+            reactivateOpen: false,
+            quotaOpen: {{ $errors->hasAny(['kind', 'quantity']) ? 'true' : 'false' }}
         }"
     >
         @if ($company->hasPendingCancellation())
@@ -57,6 +58,12 @@
                             : (\App\Enums\SupervisionPackageSku::tryFrom($company->scheduled_supervision_package_sku)?->label() ?? $company->scheduled_supervision_package_sku) }}
                     </strong>
                 @endif
+                @if ($company->scheduled_indexing_seats !== null)
+                    · Indexación <strong>{{ $company->scheduled_indexing_seats }}</strong>
+                @endif
+                @if ($company->scheduled_observatory_seats !== null)
+                    · Observatorio <strong>{{ $company->scheduled_observatory_seats }}</strong>
+                @endif
                 @if ($company->scheduled_change_at)
                     · aplica el {{ $company->scheduled_change_at->format('d/m/Y') }}
                 @endif
@@ -75,7 +82,15 @@
                         @endif
                         @if ($company->supervision_package_sku)
                             <span class="ui-chip ui-chip-warning">Supervisión {{ $company->supervisionMetal()?->label() }}</span>
-                            <span class="text-slate-400">{{ $company->supervision_package_sku->size() }} clientes</span>
+                            <span class="text-slate-400">{{ $company->supervision_package_sku->size() }} instalaciones</span>
+                        @endif
+                        @if ((int) $company->indexing_seats > 0)
+                            <span class="ui-chip ui-chip-success">Indexación {{ \App\Enums\CommercialMetal::forSeats((int) $company->indexing_seats)?->label() }}</span>
+                            <span class="text-slate-400">{{ $company->indexing_seats }} instalaciones</span>
+                        @endif
+                        @if ((int) $company->observatory_seats > 0)
+                            <span class="ui-chip">Observatorio {{ \App\Enums\CommercialMetal::forSeats((int) $company->observatory_seats)?->label() }}</span>
+                            <span class="text-slate-400">{{ $company->observatory_seats }} instalaciones</span>
                         @endif
                         <span class="text-slate-500">· {{ $company->billing_cycle?->label() ?? '—' }} · {{ $statusLabel }}</span>
                     </div>
@@ -97,18 +112,21 @@
             </div>
 
             @php
-                $sizeAccess = $company->accessSeats()->size();
-                $sizeSup = (int) ($company->supervision_package_sku?->size() ?? 0);
+                $amounts = $company->contractedAmounts();
             @endphp
             <div class="rounded-lg border border-indigo-800/40 bg-indigo-950/20 p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                 <div>
-                    <p class="text-xs text-slate-500 uppercase">Valor por instalación</p>
-                    @if ($sizeAccess > 0)
-                        <p class="text-base font-semibold text-white tabular-nums">{{ $fmt($quote->effectiveUnitMonthly) }}<span class="text-xs font-normal text-slate-500">/mes Accesos</span></p>
-                        <p class="text-xs text-emerald-400/80">−{{ $quote->volumeDiscountLabel() }} por plan {{ $company->accessMetal()?->label() }}</p>
-                    @endif
-                    @if ($sizeSup > 0)
-                        <p class="text-xs text-slate-400 tabular-nums mt-1">Supervisión {{ $fmt((float) $company->supervision_package_price_monthly / max(1, $sizeSup)) }}/mes por cliente</p>
+                    <p class="text-xs text-slate-500 uppercase">Valor por producto</p>
+                    <ul class="mt-1 space-y-0.5 text-xs">
+                        @foreach ($planQuote['lines'] as $key => $line)
+                            <li class="flex justify-between gap-3">
+                                <span class="text-slate-400">{{ $line['label'] }} {{ $line['metal_label'] }} · {{ $line['seats'] }}</span>
+                                <span class="tabular-nums text-slate-200">{{ $fmt($amounts[$key] ?? 0) }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                    @if ($planQuote['lines'] === [])
+                        <p class="text-xs text-slate-500">Sin productos.</p>
                     @endif
                 </div>
                 <div>
@@ -120,8 +138,8 @@
                 </div>
                 <div>
                     <p class="text-xs text-emerald-400/80 uppercase">Pagando anual</p>
-                    <p class="text-base font-semibold text-emerald-300 tabular-nums">{{ $fmt($quoteAnnual->priceAnnual + (float) ($company->supervision_package_price_annual ?? 0)) }}</p>
-                    <p class="text-xs text-emerald-400/70">−{{ $quoteAnnual->annualDiscountLabel() }} vs 12 meses</p>
+                    <p class="text-base font-semibold text-emerald-300 tabular-nums">{{ $fmt($planQuoteAnnual['amount']) }}</p>
+                    <p class="text-xs text-emerald-400/70">−{{ round($planQuoteAnnual['annual_discount'] * 100) }}% vs 12 meses</p>
                 </div>
             </div>
 
@@ -214,6 +232,8 @@
                 </p>
             </div>
         </div>
+
+        @include('modules.company.billing.partials.quotas')
 
         <div class="grid grid-cols-1 xl:grid-cols-12 gap-4">
             <section class="xl:col-span-4 rounded-lg border border-slate-800 bg-slate-900/80 p-4 flex flex-col min-h-0 max-h-[28rem]">
@@ -393,7 +413,7 @@
                 <div class="relative w-full max-w-lg rounded-xl border border-slate-700 bg-slate-900 p-5" @click.stop>
                     <h3 class="text-sm font-semibold text-white">Cambiar plan</h3>
                     <p class="text-xs text-slate-500 mt-1">
-                        Agrega o quita instalaciones. El plan (Bronce, Plata, Oro o Platino) sale del total y todas las instalaciones toman ese precio.
+                        Agrega o quita instalaciones por producto. Cada producto toma el plan (Bronce, Plata, Oro o Platino) de su cantidad.
                         Se paga online ahora y aplica el {{ $company->package_ends_at?->format('d/m/Y') ?? 'fin del periodo' }}.
                     </p>
                     <form method="POST" action="{{ route('company.billing.package.schedule') }}" class="mt-4 space-y-3"
@@ -402,6 +422,8 @@
                             'manual' => (int) old('manual_seats', $company->accessSeats()->manual),
                             'hardware' => (int) old('hardware_seats', $company->accessSeats()->hardware),
                             'supervision' => (int) old('supervision_seats', $company->supervision_package_sku?->size() ?? 0),
+                            'indexing' => (int) old('indexing_seats', $company->indexing_seats ?? 0),
+                            'observatory' => (int) old('observatory_seats', $company->observatory_seats ?? 0),
                             'cycle' => old('billing_cycle', $company->billing_cycle?->value ?? 'monthly'),
                             'initialCycle' => $company->billing_cycle?->value ?? 'monthly',
                             'blockUnchanged' => true,

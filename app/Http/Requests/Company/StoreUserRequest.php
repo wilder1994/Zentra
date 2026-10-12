@@ -47,7 +47,7 @@ final class StoreUserRequest extends FormRequest
                 'is_active' => ['sometimes', 'boolean'],
                 'installation_ids' => ['nullable', 'array'],
                 'installation_ids.*' => ['integer', 'exists:installations,id'],
-                'site_permission' => ['nullable', 'in:admin,support'],
+                'installation_permission' => ['nullable', 'in:admin,support'],
                 'grants' => ['nullable', 'array'],
                 'grants.company' => ['nullable', 'array'],
                 'grants.company.*' => ['nullable', 'in:none,view,manage'],

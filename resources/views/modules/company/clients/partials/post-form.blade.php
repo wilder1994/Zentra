@@ -155,7 +155,7 @@
         <label class="block text-[11px] text-slate-500 mb-1">Lng. puesto (opcional)</label>
         <input type="text" name="longitude" value="{{ old('longitude', $post?->longitude) }}" placeholder="Sin pin propio" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-2 py-1.5 text-xs text-white">
     </div>
-    <p class="sm:col-span-2 text-[11px] text-slate-500">Crear o editar el puesto no pide GPS. La revista sí: {{ \App\Support\Supervision\SupervisorReviewGeofence::RADIUS_METERS }} m del pin del puesto o, si no hay, de la instalación. Un pin lejos de la sede se anota; no se bloquea el alta.</p>
+    <p class="sm:col-span-2 text-[11px] text-slate-500">Crear o editar el puesto no pide GPS. La revista sí: {{ \App\Support\Supervision\SupervisorReviewGeofence::RADIUS_METERS }} m del pin del puesto o, si no hay, de la instalación. Un pin lejos de la instalación se anota; no se bloquea el alta.</p>
 
     <div class="sm:col-span-2">
         <label class="block text-[11px] text-slate-500 mb-1">Observaciones @if ($isEdit)<span class="text-slate-600">(obligatorio si el servicio ya está armado)</span>@else<span class="text-slate-600">(opcional en el alta)</span>@endif</label>
@@ -167,7 +167,7 @@
             <label class="inline-flex items-center gap-1 text-[11px] text-slate-300">
                 <input type="hidden" name="is_active" value="0">
                 <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $post->is_active)) class="rounded border-slate-700 {{ $check }}">
-                Activo
+                Activo · desmarcar lo archiva y libera cupo de la instalación
             </label>
         @endif
         <button type="submit" class="rounded-lg {{ $isEdit ? $btn.' px-2 py-1 text-[11px] font-semibold text-white' : 'bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700' }}">

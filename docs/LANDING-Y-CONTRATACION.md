@@ -29,7 +29,7 @@ Usuarios autenticados son redirigidos a `/home`. Invitados ven la landing comple
 
 | Variable | Origen |
 |----------|--------|
-| `$minMonthly` | `PriceCalculator::quote(Manual, 1, Monthly)` con `PricingSettings::current()` |
+| `$minMonthlyAmount` | Primer plan disponible de `CatalogPricer::matrix(Access, Monthly, true)` |
 | `$annualDiscount` | `config('tenancy.pricing.annual_discount')` (default 17%) |
 
 El precio mostrado es el **mínimo mensual** (1 conjunto, modalidad manual), no un paquete arbitrario.
@@ -51,8 +51,9 @@ Requiere junction `public/images` → `resources/images` (ver README § Assets e
 | Ruta | Función |
 |------|---------|
 | `GET /` | Welcome con tarjeta comercial |
-| `GET /planes` | Matriz de precios (PriceCalculator) |
-| `GET /contratar?sku=&cycle=` | Crea `commercial_signup_intents` |
+| `GET /planes` | «Arma tu plan»: tarjeta por plan con los 4 productos y Agregar al carrito |
+| `GET /planes/carrito` | Carrito (`localStorage`), Mensual/Anual, descuentos y Contratar |
+| `GET /contratar?access=&hardware=&supervision=&indexing=&observatory=&cycle=` | Crea `commercial_signup_intents` (cotiza con `PlanQuoter`) |
 | `GET/POST /contratar/datos/{token}` | Paso 1: datos empresa, contacto, dirección/ciudad/depto/geo, contraseña |
 | `GET/POST /contratar/legal/{token}` | Paso 2: contrato del SKU + T&C + privacidad + menores + procedimiento (texto) + clickwrap |
 | `GET /contratar/resumen/{token}` | Resumen |
@@ -73,7 +74,7 @@ Requiere junction `public/images` → `resources/images` (ver README § Assets e
 | Rutas | `routes/modules/public.php` (middleware `guest`) |
 | Layout público | `resources/views/layouts/public.blade.php` |
 | Vistas wizard | `resources/views/modules/public/signup/*` |
-| Planes | `resources/views/modules/public/plans/index.blade.php` |
+| Planes | `resources/views/modules/public/plans/index.blade.php` · `cart.blade.php` · `resources/js/plan-cart.js` |
 
 Migración: `2026_08_02_160000_create_commercial_signup_intents_table.php` (incluye city/department/geo en el create baseline).
 

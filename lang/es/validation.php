@@ -186,7 +186,7 @@ return [
         'phone' => 'teléfono',
         'plate' => 'placa',
         'role' => 'rol',
-        'site_permission' => 'permiso de sede',
+        'installation_permission' => 'permiso de instalación',
         'structure_id' => 'unidad',
         'tax_id' => 'NIT',
         'unit_number' => 'número de unidad',

@@ -38,14 +38,14 @@ final class ObservatoryReportFlowTest extends TestCase
             ->assertSee('Foto 1', false)
             ->assertSee('capture="environment"', false);
 
-        $this->getJson(route('observatory.public.sites', ['slug' => $client->slug, 'q' => 'Santa']))
+        $this->get('/o/'.$client->slug.'/instalaciones?q=Santa')
             ->assertOk()
-            ->assertJsonPath('sites.0.id', $colegio->id)
+            ->assertJsonPath('installations.0.id', $colegio->id)
             ->assertJsonMissing(['id' => $conjunto->id]);
 
-        $this->getJson(route('observatory.public.sites', ['slug' => $client->slug, 'q' => 'Palmas']))
+        $this->getJson(route('observatory.public.installations', ['slug' => $client->slug, 'q' => 'Palmas']))
             ->assertOk()
-            ->assertJsonPath('sites', []);
+            ->assertJsonPath('installations', []);
 
         $this->post(route('observatory.public.store', $client->slug), [
             'installation_id' => $conjunto->id,
@@ -270,7 +270,7 @@ final class ObservatoryReportFlowTest extends TestCase
             ->assertSee('/o/'.$client->slug, false)
             ->assertSee('Copiar', false)
             ->assertSee('Nuevos', false)
-            ->assertSee('Sedes por riesgo', false)
+            ->assertSee('Instalaciones por riesgo', false)
             ->assertSee('IE Santa Librada', false)
             ->assertSee('PPTX', false)
             ->assertSee('tablero.pptx', false);
@@ -312,7 +312,7 @@ final class ObservatoryReportFlowTest extends TestCase
             ->assertOk()
             ->assertSee($clientAdmin->name, false)
             ->assertSee('no puedes realizar el reporte', false)
-            ->assertSee('administrador de la sede', false);
+            ->assertSee('administrador de la instalación', false);
 
         $this->actingAs($clientAdmin)->withSession($session)
             ->get(route('client.observatory.events.show', $event))
@@ -1056,7 +1056,7 @@ final class ObservatoryReportFlowTest extends TestCase
             'password_confirmation' => 'Cliente123!',
             'client_ids' => [$client->id],
             'installation_ids' => [$site->id],
-            'site_permission' => $permission,
+            'installation_permission' => $permission,
             'is_active' => '1',
         ])->assertRedirect();
 

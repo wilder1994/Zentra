@@ -264,7 +264,14 @@ final class EmployeeController extends Controller
     {
         $this->assertCompany($request, $employee);
         $this->authorize('restore', $employee);
-        $this->manageEmployeeService->restore($employee);
+
+        try {
+            $this->manageEmployeeService->restore($employee);
+        } catch (ValidationException $e) {
+            return redirect()
+                ->route('company.employees.show', $employee)
+                ->with('error', $e->validator->errors()->first());
+        }
 
         return redirect()
             ->route('company.employees.show', $employee)

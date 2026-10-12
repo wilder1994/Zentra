@@ -76,23 +76,38 @@ final class ClientSupervisorPostController extends Controller
         return $this->backToClient($client, $request, 'Puesto actualizado.');
     }
 
+    public function archive(Request $request, Client $client, SupervisorPost $post): RedirectResponse
+    {
+        return $this->lifecycle($request, $client, $post, fn () => $this->posts->archive($post, $request->input('observations')), 'Puesto archivado: liberó un cupo de la instalación.');
+    }
+
+    public function restore(Request $request, Client $client, SupervisorPost $post): RedirectResponse
+    {
+        return $this->lifecycle($request, $client, $post, fn () => $this->posts->restore($post, $request->input('observations')), 'Puesto restaurado.');
+    }
+
     public function destroy(Request $request, Client $client, SupervisorPost $post): RedirectResponse
+    {
+        return $this->lifecycle($request, $client, $post, fn () => $this->posts->delete($post, $request->input('observations')), 'Puesto dado de baja.');
+    }
+
+    private function lifecycle(Request $request, Client $client, SupervisorPost $post, \Closure $action, string $message): RedirectResponse
     {
         $this->assertPost($request, $client, $post);
         $this->authorize('update', $client);
 
         try {
-            $this->posts->delete($post, $request->input('observations'));
+            $action();
         } catch (ValidationException $e) {
             return $this->backToClient(
                 $client,
                 $request,
-                $e->validator->errors()->first() ?: 'No se pudo eliminar.',
+                $e->validator->errors()->first() ?: 'No se pudo completar.',
                 error: true,
             );
         }
 
-        return $this->backToClient($client, $request, 'Puesto eliminado.');
+        return $this->backToClient($client, $request, $message);
     }
 
     /** @return array{service_days?: int, serves_holidays?: bool} */
@@ -138,10 +153,7 @@ final class ClientSupervisorPostController extends Controller
 
     private function backToClient(Client $client, Request $request, string $message, bool $error = false): RedirectResponse
     {
-        $vista = 'sitio';
-        if (! $client->has_access && ! $client->has_supervision) {
-            $vista = 'cliente';
-        }
+        $vista = $client->isCatalogOnly() ? 'cliente' : 'sitio';
 
         if ($request->input('return_to') === 'installation') {
             $installationId = (int) ($request->input('installation_id') ?: $request->route('post')?->installation_id);

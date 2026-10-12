@@ -31,7 +31,7 @@
                     </div>
                     @if ($installation->dane_code)
                         <div>
-                            <dt class="text-xs text-slate-500">DANE de sede</dt>
+                            <dt class="text-xs text-slate-500">DANE de la instalación</dt>
                             <dd class="font-mono text-teal-300">{{ $installation->dane_code }}</dd>
                         </div>
                     @endif

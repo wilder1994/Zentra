@@ -12,6 +12,8 @@ Revista 80 m + historial limpio (11 oct 2026): radio de revista `SupervisorRevie
 
 Paradas en historial + km GPS (11 oct 2026): `/company/supervision/turnos/{shift}/ruta` devuelve `stops`, `start`, `end`, `km`; el historial pinta paradas (≥ 2 min en 75 m). Cierre por el sistema guarda `km_traveled` por GPS si no hay km de odómetro. Turnos viejos: `php artisan supervision:backfill-gps-km`. Pull + `npm run build` + `view:cache` + `config:cache` + `route:cache` + backfill. Sin migrate ni APK.
 
+Planes por instalación + carrito (13 oct 2026): migrate `2026_10_13_100000` (cupos, archivo unificado, `quota_requests`), `2026_10_13_110000` (precios Indexación/Observatorio) y `2026_10_13_120000` (`site_permission` → `installation_permission`). Ruta pública `/o/{slug}/sedes` pasa a `/o/{slug}/instalaciones` (sin redirección). Pull + `migrate --force` + `npm run build` + `config:cache` + `route:cache` + `view:cache`. Sin APK ni seeder.
+
 Cumplimiento por puesto (12 oct 2026): migrate `2026_10_12_010000` (`supervisor_posts.service_days` máscara Lun..Dom, `serves_holidays`). Un puesto activo espera ≥ 1 revista por día operativo (06:00–06:00) en sus días de servicio; festivos de Colombia calculados en `ColombiaHolidays`. `BuildPostComplianceService` alimenta mapa en vivo (Clientes/Instalaciones, interruptor Pendientes, pin con número, aviso de instalaciones sin ubicación), tira del día, Resumen, PPTX y panel Mi empresa. Pull + `migrate --force` + `npm run build` + `config:cache` + `route:cache` + `view:cache`. Sin APK.
 
 Catálogo comercial (29 sep 2026): migrate `2026_09_29_010000` (`pricing_settings.catalog`, `has_indexing`, `has_observatory`). Pull + `migrate --force` + `npm run build` + `view:cache` + `route:cache`. Artisan como `wcodex-zentra`.
@@ -70,7 +72,7 @@ Traza GPS En vivo (15 sep 2026): `BuildSupervisorTrailService` filtra precisión
 
 Permisos + overlay (15 sep 2026): catálogo de matriz (dashboard, instalaciones, pánicos, SIG, etc.) para **admin y colaborador**. Pánico y Observatorio independientes. Overlay palpitante; Observatorio también en bucle. Sin migrate de tablas. Pull + `RoleAndPermissionSeeder` (crea `company.installations.*`, `ops.sig.view` y rellena grants de `company-admin`) + `npm run build` + `view:cache` + `route:cache`. Artisan como `wcodex-zentra`.
 
-Matriz cliente/sedes (15 sep 2026): catálogo partido (nodos, personas, vehículos, etc.). Empleados/documentos recortados a puestos. Migrate `2026_09_15_150000` + `RoleAndPermissionSeeder` + `npm run build` + `view:cache` + `route:cache`. Artisan como `wcodex-zentra`.
+Matriz cliente/instalaciones (15 sep 2026): catálogo partido (nodos, personas, vehículos, etc.). Empleados/documentos recortados a puestos. Migrate `2026_09_15_150000` + `RoleAndPermissionSeeder` + `npm run build` + `view:cache` + `route:cache`. Artisan como `wcodex-zentra`.
 
 Ficha folio Observatorio (15 sep 2026): grilla 2×2; fila 1 mapa+datos `h-[28rem]`, acciones fijas al pie. Pull + `npm run build` + `view:cache`. Sin migrate ni seeder. Artisan como `wcodex-zentra`.
 

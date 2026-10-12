@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Public;
 
 use App\Domain\Pricing\Data\AccessSeatSplit;
+use App\Domain\Pricing\Data\PlanSelection;
 use App\Enums\BillingCycle;
 use App\Enums\CompanyPackageSku;
 use App\Enums\SignupIntentStatus;
@@ -46,13 +47,20 @@ final class SignupController extends Controller
                 ? AccessSeatSplit::resolve($legacySku, $manual !== null ? (int) $manual : null, $hardware !== null ? (int) $hardware : null)
                 : new AccessSeatSplit(max(0, (int) $manual), max(0, (int) $hardware));
 
-            if ($seats->isEmpty() && $sup === null) {
+            $selection = new PlanSelection(
+                $seats,
+                (int) ($sup?->size() ?? 0),
+                min(SupervisionPackageSku::MAX_SEATS, max(0, (int) $request->query('indexing', 0))),
+                min(SupervisionPackageSku::MAX_SEATS, max(0, (int) $request->query('observatory', 0))),
+            );
+
+            if ($selection->isEmpty()) {
                 return redirect()
                     ->route('planes.index')
                     ->with('warning', 'Selecciona un plan para continuar.');
             }
 
-            $intent = $this->startSignupIntentService->execute($seats, $cycle, $sup);
+            $intent = $this->startSignupIntentService->execute($selection, $cycle);
         } catch (\InvalidArgumentException $e) {
             return redirect()->route('planes.index')->with('warning', $e->getMessage());
         }

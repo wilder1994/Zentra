@@ -321,7 +321,7 @@ final class ScopedUserManagementTest extends TestCase
         $site = Installation::query()->where('client_id', $palmas->id)->firstOrFail();
         $extra = Installation::query()->create([
             'client_id' => $palmas->id,
-            'name' => 'Sede norte',
+            'name' => 'Instalación norte',
             'is_client_site' => false,
             'is_active' => true,
         ]);
@@ -329,11 +329,11 @@ final class ScopedUserManagementTest extends TestCase
         $response = $this->actingAs($admin)->post(route('company.users.store'), [
             'role' => 'client-installation-admin',
             'origin' => 'external',
-            'name' => 'Laura Sede',
+            'name' => 'Laura Instalación',
             'document_number' => '1098000088',
-            'job_title' => 'Administradora de sede',
-            'email' => 'laura.sede@palmas.test',
-            'username' => 'laura.sede.8800',
+            'job_title' => 'Administradora de instalación',
+            'email' => 'laura.instalacion@palmas.test',
+            'username' => 'laura.instalacion.8800',
             'password' => 'Cliente123!',
             'password_confirmation' => 'Cliente123!',
             'client_ids' => [$palmas->id],
@@ -342,7 +342,7 @@ final class ScopedUserManagementTest extends TestCase
         ]);
 
         $response->assertRedirect();
-        $created = User::query()->where('email', 'laura.sede@palmas.test')->firstOrFail();
+        $created = User::query()->where('email', 'laura.instalacion@palmas.test')->firstOrFail();
         $this->assertTrue($created->hasRole('client-installation-admin'));
         $this->assertSame('external', $created->admin_origin);
         $this->assertEqualsCanonicalizing([$site->id, $extra->id], $created->assignedInstallations()->pluck('installations.id')->all());
@@ -355,7 +355,7 @@ final class ScopedUserManagementTest extends TestCase
             ->withSession(['tenancy.active_client_id' => $palmas->id])
             ->get(route('client.users.index'))
             ->assertOk()
-            ->assertSee('Laura Sede', false)
+            ->assertSee('Laura Instalación', false)
             ->assertSee('Admin instalaciones', false);
 
         $this->actingAs($created)
@@ -386,22 +386,22 @@ final class ScopedUserManagementTest extends TestCase
         $this->actingAs($admin)->post(route('company.users.store'), [
             'role' => 'client-installation-admin',
             'origin' => 'external',
-            'name' => 'Apoyo Sede',
+            'name' => 'Apoyo Instalación',
             'document_number' => '1098000099',
             'job_title' => 'Auxiliar',
-            'email' => 'apoyo.sede@palmas.test',
-            'username' => 'apoyo.sede.9900',
+            'email' => 'apoyo.instalacion@palmas.test',
+            'username' => 'apoyo.instalacion.9900',
             'password' => 'Cliente123!',
             'password_confirmation' => 'Cliente123!',
             'client_ids' => [$palmas->id],
             'installation_ids' => [$site->id],
-            'site_permission' => 'support',
+            'installation_permission' => 'support',
             'is_active' => '1',
         ])->assertRedirect();
 
-        $support = User::query()->where('email', 'apoyo.sede@palmas.test')->firstOrFail();
+        $support = User::query()->where('email', 'apoyo.instalacion@palmas.test')->firstOrFail();
         $this->assertTrue($support->isSiteSupport((int) $site->id));
-        $this->assertSame('support', $support->assignedInstallations()->first()?->pivot?->site_permission);
+        $this->assertSame('support', $support->assignedInstallations()->first()?->pivot?->installation_permission);
         $this->assertFalse($support->can('delete', $structure));
         $this->assertTrue($support->can('update', $structure));
     }

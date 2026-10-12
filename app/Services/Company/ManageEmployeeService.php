@@ -58,6 +58,12 @@ final class ManageEmployeeService
 
     public function restore(Employee $employee): Employee
     {
+        if ($employee->is_active) {
+            return $employee;
+        }
+
+        $this->assertEmployeeCap((int) $employee->security_company_id, 'No puedes restaurar este empleado:');
+
         $employee->update([
             'is_active' => true,
             'ceased_at' => null,
@@ -114,14 +120,15 @@ final class ManageEmployeeService
         ];
     }
 
-    private function assertEmployeeCap(int $companyId): void
+    private function assertEmployeeCap(int $companyId, string $action = 'No puedes crear este empleado:'): void
     {
         $company = SecurityCompany::query()->find($companyId);
         if ($company === null) {
             return;
         }
 
-        $cap = CompanyEntitlements::for($company)->employeeCap();
+        $entitlements = CompanyEntitlements::for($company);
+        $cap = $entitlements->employeeCap();
         if ($cap <= 0) {
             return;
         }
@@ -132,8 +139,14 @@ final class ManageEmployeeService
             ->count();
 
         if ($used >= $cap) {
+            $plan = $entitlements->metal()?->label() ?? 'tu plan';
+            $extra = (int) $company->extra_employees;
+            $detail = $extra > 0
+                ? "{$entitlements->planEmployeeCap()} del plan {$plan} + {$extra} adicionales"
+                : "plan {$plan}";
+
             throw ValidationException::withMessages([
-                'document_number' => "Cupo de empleados lleno ({$used}/{$cap}). Amplía el plan.",
+                'document_number' => "{$action} tu cupo es de {$cap} empleados activos ({$detail}) y ya tienes {$used}. Archiva un empleado retirado o pide más cupo con «Solicitar ampliación».",
             ]);
         }
     }

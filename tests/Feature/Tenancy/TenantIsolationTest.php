@@ -35,7 +35,7 @@ final class TenantIsolationTest extends TestCase
         if ($site === null) {
             $site = Installation::query()->create([
                 'client_id' => $clientB->id,
-                'name' => 'Sede Torres',
+                'name' => 'Instalación Torres',
                 'is_client_site' => true,
                 'is_active' => true,
             ]);

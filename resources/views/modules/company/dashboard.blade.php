@@ -29,7 +29,7 @@
     $dashboardLiveUrl = route('company.dashboard.live');
     $dashboardLivePayload = [
         'metrics' => [
-            'clients_remaining' => $metrics['clients_remaining'] ?? ($portfolio['available'] ?? 0),
+            'access_remaining' => $metrics['access_remaining'] ?? ($portfolio['available'] ?? 0),
             'supervision_remaining' => $metrics['supervision_remaining'] ?? 0,
             'supervision_remaining_label' => $metrics['supervision_remaining_label'] ?? ($metrics['supervision_remaining'] ?? 0),
             'package_label' => $metrics['package_label'] ?? '—',
@@ -485,7 +485,7 @@
                             </div>
                             <div class="flex items-center justify-between gap-2">
                                 <span class="text-slate-500">Disponibles Accesos</span>
-                                <span class="font-semibold text-indigo-300 tabular-nums" x-text="metrics.clients_remaining ?? portfolio('available')">{{ $metrics['clients_remaining'] ?? $portfolio['available'] ?? 0 }}</span>
+                                <span class="font-semibold text-indigo-300 tabular-nums" x-text="metrics.access_remaining ?? portfolio('available')">{{ $metrics['access_remaining'] ?? $portfolio['available'] ?? 0 }}</span>
                             </div>
                             <div class="flex items-center justify-between gap-2">
                                 <span class="text-slate-500">Disponibles Supervisión</span>

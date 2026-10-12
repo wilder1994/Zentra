@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\StoreClientInstallationRequest;
 use App\Models\Client;
 use App\Models\Installation;
+use App\Services\Company\ManageArchiveService;
 use App\Services\Company\ManageClientInstallationService;
 use App\Support\Platform\ActingCompanyResolver;
 use Illuminate\Http\RedirectResponse;
@@ -19,6 +20,7 @@ final class ClientInstallationController extends Controller
 {
     public function __construct(
         private readonly ManageClientInstallationService $installations,
+        private readonly ManageArchiveService $archives,
     ) {}
 
     public function store(StoreClientInstallationRequest $request, Client $client): RedirectResponse
@@ -81,23 +83,38 @@ final class ClientInstallationController extends Controller
         return $this->backToClient($client, $request, 'Instalación actualizada.');
     }
 
+    public function archive(Request $request, Client $client, Installation $installation): RedirectResponse
+    {
+        return $this->lifecycle($request, $client, $installation, fn () => $this->archives->archiveInstallation($installation), 'Instalación archivada: liberó un cupo. Sus puestos quedaron archivados con ella.');
+    }
+
+    public function restore(Request $request, Client $client, Installation $installation): RedirectResponse
+    {
+        return $this->lifecycle($request, $client, $installation, fn () => $this->archives->restoreInstallation($installation), 'Instalación restaurada con sus puestos.');
+    }
+
     public function destroy(Request $request, Client $client, Installation $installation): RedirectResponse
+    {
+        return $this->lifecycle($request, $client, $installation, fn () => $this->archives->removeInstallation($installation), 'Instalación dada de baja.');
+    }
+
+    private function lifecycle(Request $request, Client $client, Installation $installation, \Closure $action, string $message): RedirectResponse
     {
         $this->assertTree($request, $client, $installation);
         $this->authorize('update', $client);
 
         try {
-            $this->installations->delete($installation);
+            $action();
         } catch (ValidationException $e) {
             return $this->backToClient(
                 $client,
                 $request,
-                $e->validator->errors()->first() ?: 'No se pudo eliminar.',
+                $e->validator->errors()->first() ?: 'No se pudo completar.',
                 error: true,
             );
         }
 
-        return $this->backToClient($client, $request, 'Instalación eliminada.');
+        return $this->backToClient($client, $request, $message);
     }
 
     private function assertTree(Request $request, Client $client, Installation $installation): void
@@ -121,9 +138,13 @@ final class ClientInstallationController extends Controller
 
     private function backToClient(Client $client, Request $request, string $message, bool $error = false): RedirectResponse
     {
-        $vista = 'sitio';
-        if (! $client->has_access && ! $client->has_supervision) {
-            $vista = 'cliente';
+        $vista = $client->isCatalogOnly() ? 'cliente' : 'sitio';
+
+        $installation = $request->route('installation');
+        if ($request->input('return_to') === 'installation' && $installation instanceof Installation && ! $installation->trashed()) {
+            return redirect()
+                ->route('company.installations.show', $installation)
+                ->with($error ? 'error' : 'success', $message);
         }
 
         return redirect()

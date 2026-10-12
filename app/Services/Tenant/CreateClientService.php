@@ -16,8 +16,14 @@ final class CreateClientService
     public function execute(CreateClientData $data): Client
     {
         $company = SecurityCompany::query()->findOrFail($data->securityCompanyId);
-        app(AssertInstallationSeats::class)->execute($company, AssertInstallationSeats::ACTION_CREATE_CLIENT);
-        app(AssertClientServiceSeats::class)->execute($company, $data->hasAccess, $data->hasSupervision);
+        if ($data->isActive) {
+            app(AssertInstallationSeats::class)->execute($company, AssertInstallationSeats::ACTION_CREATE_CLIENT);
+            app(AssertClientServiceSeats::class)->execute($company, [
+                'access' => $data->hasAccess,
+                'supervision' => $data->hasSupervision,
+                'observatory' => $data->hasObservatory,
+            ]);
+        }
 
         $slug = $this->uniqueSlug($data->securityCompanyId, $data->name);
         $loginSuffix = $this->uniqueLoginSuffix($data->securityCompanyId, $slug);
@@ -47,6 +53,8 @@ final class CreateClientService
             'is_active' => $data->isActive,
             'has_access' => $data->hasAccess,
             'has_supervision' => $data->hasSupervision,
+            'has_observatory' => $data->hasObservatory,
+            'archived_at' => $data->isActive ? null : now(),
             'show_personnel_folders' => $data->hasAccess && $data->showPersonnelFolders,
             'service_started_at' => $data->serviceStartedAt ?? now()->toDateString(),
             'lifecycle' => ClientLifecycle::Active,

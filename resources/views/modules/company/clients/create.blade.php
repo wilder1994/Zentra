@@ -9,10 +9,8 @@
 
     <div class="max-w-2xl space-y-4">
         <p class="text-sm text-slate-400">
-            Alta comercial. Crear un cliente pide al menos 1 cupo de instalaciones.
-            Instalaciones: {{ $metrics['installations_remaining'] ?? $metrics['clients_remaining'] }} de {{ $metrics['max_clients'] }}
-            · Accesos: {{ $metrics['clients_remaining'] }} de {{ $metrics['max_clients'] }}
-            · Supervisión: {{ ($metrics['supervision_unlimited'] ?? false) ? 'Ilimitada' : (($metrics['supervision_remaining'] ?? 0).' de '.($metrics['max_supervision_clients'] ?? 0)) }}.
+            Cada cliente usa al menos 1 instalación de tu plan.
+            Instalaciones libres: {{ $metrics['installations_remaining'] }} de {{ $metrics['installation_capacity'] }}.
         </p>
 
         <form method="POST" action="{{ route('company.clients.store') }}" class="space-y-4 rounded-lg border border-slate-800 bg-slate-900/80 p-4">
@@ -29,6 +27,7 @@
             @endif
 
             @include('modules.company.clients.partials.service-lines', [
+                'errorsListedAbove' => true,
                 'metrics' => $metrics,
                 'accessDefault' => false,
                 'proDefault' => false,
@@ -135,7 +134,7 @@
             <label class="inline-flex items-center gap-2 text-sm text-slate-300">
                 <input type="hidden" name="is_active" value="0">
                 <input type="checkbox" name="is_active" value="1" @checked(old('is_active', true)) class="rounded border-slate-600 bg-slate-950 text-indigo-600">
-                Cliente activo
+                Cliente activo · sin marcar se crea archivado y no usa cupo
             </label>
 
             <div class="pt-2">

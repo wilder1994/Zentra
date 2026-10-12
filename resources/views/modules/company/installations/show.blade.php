@@ -25,7 +25,7 @@
                         @if ($installation->is_client_site)
                             · Mismo cliente
                         @endif
-                        · {{ $installation->is_active ? 'Activa' : 'Inactiva' }}
+                        · {{ $installation->is_active ? 'Activa' : 'Archivada' }}
                     </p>
                 </div>
                 <dl class="space-y-3 text-sm">
@@ -39,7 +39,7 @@
                     </div>
                     @if ($installation->dane_code)
                         <div>
-                            <dt class="text-xs text-slate-500">DANE de sede</dt>
+                            <dt class="text-xs text-slate-500">DANE de la instalación</dt>
                             <dd class="font-mono text-indigo-300">{{ $installation->dane_code }}</dd>
                         </div>
                     @endif

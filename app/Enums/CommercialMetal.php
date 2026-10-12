@@ -44,11 +44,53 @@ enum CommercialMetal: string
     public function employeeCap(): int
     {
         return match ($this) {
-            self::Bronce => 3_000,
-            self::Plata => 6_000,
-            self::Oro => 9_000,
-            self::Platino => 12_000,
+            self::Bronce => 1_000,
+            self::Plata => 2_000,
+            self::Oro => 3_000,
+            self::Platino => 5_000,
         };
+    }
+
+    public function postsPerInstallation(): int
+    {
+        return match ($this) {
+            self::Bronce => 2,
+            self::Plata => 5,
+            self::Oro => 7,
+            self::Platino => 10,
+        };
+    }
+
+    public function employeesPerPost(): int
+    {
+        return match ($this) {
+            self::Bronce => 3,
+            self::Plata => 5,
+            self::Oro => 7,
+            self::Platino => 10,
+        };
+    }
+
+    public function rank(): int
+    {
+        return match ($this) {
+            self::Bronce => 1,
+            self::Plata => 2,
+            self::Oro => 3,
+            self::Platino => 4,
+        };
+    }
+
+    public static function highest(?self ...$metals): ?self
+    {
+        $best = null;
+        foreach ($metals as $metal) {
+            if ($metal !== null && ($best === null || $metal->rank() > $best->rank())) {
+                $best = $metal;
+            }
+        }
+
+        return $best;
     }
 
     public function rangeLabel(): string

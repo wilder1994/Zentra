@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Pricing\Data\AccessSeatSplit;
+use App\Domain\Pricing\Data\PlanSelection;
 use App\Enums\BillingCycle;
 use App\Enums\CompanyPackageSku;
 use App\Enums\PartyType;
@@ -21,6 +22,8 @@ class CommercialSignupIntent extends Model
         'package_manual_seats',
         'package_hardware_seats',
         'supervision_package_sku',
+        'indexing_seats',
+        'observatory_seats',
         'billing_cycle',
         'amount',
         'currency',
@@ -57,6 +60,8 @@ class CommercialSignupIntent extends Model
             'package_manual_seats' => 'integer',
             'package_hardware_seats' => 'integer',
             'supervision_package_sku' => SupervisionPackageSku::class,
+            'indexing_seats' => 'integer',
+            'observatory_seats' => 'integer',
             'billing_cycle' => BillingCycle::class,
             'party_type' => PartyType::class,
             'latitude' => 'decimal:7',
@@ -87,16 +92,28 @@ class CommercialSignupIntent extends Model
             && $this->content_hash !== null;
     }
 
-    public function packageLabel(): string
+    public function accessSeats(): AccessSeatSplit
     {
         $manual = $this->package_manual_seats;
         $hardware = $this->package_hardware_seats;
-        $seats = $manual === null && $hardware === null && $this->package_sku !== null
+
+        return $manual === null && $hardware === null && $this->package_sku !== null
             ? AccessSeatSplit::fromSku($this->package_sku)
             : new AccessSeatSplit((int) $manual, (int) $hardware);
-        $access = $seats->isEmpty() ? null : 'Accesos '.$seats->label();
-        $sup = $this->supervision_package_sku?->label();
+    }
 
-        return implode(' + ', array_filter([$access, $sup])) ?: 'Sin plan';
+    public function planSelection(): PlanSelection
+    {
+        return new PlanSelection(
+            $this->accessSeats(),
+            (int) ($this->supervision_package_sku?->size() ?? 0),
+            (int) ($this->indexing_seats ?? 0),
+            (int) ($this->observatory_seats ?? 0),
+        );
+    }
+
+    public function packageLabel(): string
+    {
+        return $this->planSelection()->label();
     }
 }

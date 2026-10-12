@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Tenant;
 
+use App\Models\Client;
 use App\Models\SecurityCompany;
-use Illuminate\Validation\ValidationException;
+use App\Support\Catalog\InstallationQuota;
 
 final class AssertInstallationSeats
 {
@@ -15,23 +16,29 @@ final class AssertInstallationSeats
 
     public const ACTION_REACTIVATE = 'reactivate';
 
-    public function execute(SecurityCompany $company, string $action, ?int $exceptInstallationId = null): void
+    private const ACTIONS = [
+        self::ACTION_CREATE_CLIENT => 'No puedes crear este cliente:',
+        self::ACTION_CREATE_INSTALLATION => 'No puedes crear esta instalación:',
+        self::ACTION_REACTIVATE => 'No puedes restaurar esta instalación:',
+    ];
+
+    /**
+     * @param  list<string>  $lines  Líneas del cliente que también deben tener cupo.
+     */
+    public function execute(SecurityCompany $company, string $action, ?int $exceptInstallationId = null, array $lines = []): void
     {
-        $max = (int) ($company->max_clients ?: 0);
-        $used = $company->installationSeatsCount($exceptInstallationId);
+        $company->installationQuota()->assertRoom(
+            $lines,
+            1,
+            self::ACTIONS[$action] ?? self::ACTIONS[self::ACTION_CREATE_INSTALLATION],
+            $exceptInstallationId,
+        );
+    }
 
-        if ($max >= 1 && $used < $max) {
-            return;
-        }
+    public function forClient(Client $client, string $action, ?int $exceptInstallationId = null): void
+    {
+        $company = SecurityCompany::query()->findOrFail($client->security_company_id);
 
-        $messages = [
-            self::ACTION_CREATE_CLIENT => 'No puedes crear este cliente: no hay cupo de instalaciones ('.$used.'/'.$max.'). Amplía el paquete o archiva una instalación de otro cliente para liberar cupo.',
-            self::ACTION_CREATE_INSTALLATION => 'No puedes crear esta instalación: no hay cupo ('.$used.'/'.$max.'). Amplía el paquete o archiva otra instalación.',
-            self::ACTION_REACTIVATE => 'No puedes reactivar esta instalación: el cupo está lleno ('.$used.'/'.$max.'). Archiva otra o amplía el paquete.',
-        ];
-
-        throw ValidationException::withMessages([
-            'package' => $messages[$action] ?? $messages[self::ACTION_CREATE_INSTALLATION],
-        ]);
+        $this->execute($company, $action, $exceptInstallationId, InstallationQuota::linesOf($client));
     }
 }

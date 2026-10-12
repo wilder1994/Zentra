@@ -193,7 +193,7 @@ final class ObservatoryEventController extends Controller
 
         $user = $request->user();
         $canReport = $this->canReportFromPanel($user);
-        $permission = $user?->installationAssignments()->value('site_permission') ?? 'admin';
+        $permission = $user?->installationAssignments()->value('installation_permission') ?? 'admin';
 
         $client = Client::query()->findOrFail((int) $this->tenantContext->clientId());
         app(EnsureObservatoryReportTypesService::class)->execute($client);

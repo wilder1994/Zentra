@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Platform;
 
 use App\Enums\BillingCycle;
-use App\Enums\ClientLifecycle;
 use App\Enums\EvidenceEventType;
 use App\Enums\ManualPaymentIntent;
 use App\Enums\PaymentMethod;
@@ -299,14 +298,7 @@ final class RegisterCommercialPaymentService
         }
 
         if ($intent === ManualPaymentIntent::Reactivate) {
-            Client::query()
-                ->where('security_company_id', $company->id)
-                ->where('lifecycle', ClientLifecycle::ArchivedCompany)
-                ->update([
-                    'lifecycle' => ClientLifecycle::Active,
-                    'archived_at' => null,
-                    'is_active' => true,
-                ]);
+            Client::restoreFromCompanyArchive((int) $company->id);
 
             $this->evidenceService->record(
                 EvidenceEventType::MembershipReactivated,

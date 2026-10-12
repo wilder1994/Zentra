@@ -58,7 +58,7 @@ final class CompanyDashboardTest extends TestCase
             ->getJson(route('company.dashboard.live'))
             ->assertOk()
             ->assertJsonStructure([
-                'metrics' => ['clients_remaining', 'package_label'],
+                'metrics' => ['access_remaining', 'package_label'],
                 'ops' => ['kpis', 'workforce', 'portfolio', 'open_shifts_table', 'revista_monthly', 'revista_week'],
             ]);
 

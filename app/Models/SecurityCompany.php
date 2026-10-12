@@ -5,15 +5,16 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Pricing\Data\AccessSeatSplit;
+use App\Domain\Pricing\Data\PlanSelection;
 use App\Enums\ArchiveReason;
 use App\Enums\BillingCycle;
-use App\Enums\ClientLifecycle;
 use App\Enums\CommercialMetal;
 use App\Enums\CompanyPackageSku;
 use App\Enums\PackageModality;
 use App\Enums\PartyType;
 use App\Enums\SubscriptionStatus;
 use App\Enums\SupervisionPackageSku;
+use App\Support\Catalog\InstallationQuota;
 use App\Support\Tenancy\CompanyPackage;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
@@ -50,9 +51,13 @@ class SecurityCompany extends Model
         'supervision_unlimited',
         'package_price_monthly',
         'max_clients',
-        'has_indexing',
-        'has_observatory',
         'max_supervision_clients',
+        'indexing_seats',
+        'observatory_seats',
+        'extra_employees',
+        'posts_per_installation',
+        'employees_per_post',
+        'quota_note',
         'supervision_package_size',
         'billing_cycle',
         'billing_day',
@@ -63,6 +68,10 @@ class SecurityCompany extends Model
         'package_price_annual',
         'supervision_package_price_monthly',
         'supervision_package_price_annual',
+        'indexing_price_monthly',
+        'indexing_price_annual',
+        'observatory_price_monthly',
+        'observatory_price_annual',
         'package_starts_at',
         'package_ends_at',
         'grace_ends_at',
@@ -78,6 +87,8 @@ class SecurityCompany extends Model
         'scheduled_manual_seats',
         'scheduled_hardware_seats',
         'scheduled_supervision_package_sku',
+        'scheduled_indexing_seats',
+        'scheduled_observatory_seats',
         'scheduled_billing_cycle',
         'scheduled_change_at',
         'scheduled_change_payment_id',
@@ -105,9 +116,12 @@ class SecurityCompany extends Model
             'supervision_unlimited' => 'boolean',
             'package_price_monthly' => 'decimal:2',
             'max_clients' => 'integer',
-            'has_indexing' => 'boolean',
-            'has_observatory' => 'boolean',
             'max_supervision_clients' => 'integer',
+            'indexing_seats' => 'integer',
+            'observatory_seats' => 'integer',
+            'extra_employees' => 'integer',
+            'posts_per_installation' => 'integer',
+            'employees_per_post' => 'integer',
             'supervision_package_size' => 'integer',
             'billing_cycle' => BillingCycle::class,
             'billing_day' => 'integer',
@@ -118,6 +132,12 @@ class SecurityCompany extends Model
             'package_price_annual' => 'decimal:2',
             'supervision_package_price_monthly' => 'decimal:2',
             'supervision_package_price_annual' => 'decimal:2',
+            'indexing_price_monthly' => 'decimal:2',
+            'indexing_price_annual' => 'decimal:2',
+            'observatory_price_monthly' => 'decimal:2',
+            'observatory_price_annual' => 'decimal:2',
+            'scheduled_indexing_seats' => 'integer',
+            'scheduled_observatory_seats' => 'integer',
             'package_starts_at' => 'datetime',
             'package_ends_at' => 'datetime',
             'grace_ends_at' => 'datetime',
@@ -196,7 +216,16 @@ class SecurityCompany extends Model
     public function hasScheduledPackageChange(): bool
     {
         return $this->scheduled_change_at !== null
-            && ($this->scheduled_package_sku !== null || $this->scheduled_supervision_package_sku !== null);
+            && ($this->scheduled_package_sku !== null
+                || $this->scheduled_supervision_package_sku !== null
+                || $this->scheduled_indexing_seats !== null
+                || $this->scheduled_observatory_seats !== null);
+    }
+
+    public function sameProductsAs(PlanSelection $selection): bool
+    {
+        return (int) ($this->indexing_seats ?? 0) === $selection->indexing
+            && (int) ($this->observatory_seats ?? 0) === $selection->observatory;
     }
 
     public function accessSeats(): AccessSeatSplit
@@ -347,28 +376,34 @@ class SecurityCompany extends Model
         return CompanyPackage::allows($this, $feature);
     }
 
-    public function clientsRemaining(): int
+    public function installationQuota(): InstallationQuota
     {
-        $max = (int) ($this->max_clients ?: 0);
-
-        return max(0, $max - $this->accessSeatsCount());
+        return InstallationQuota::for($this);
     }
 
-    public function installationSeatsCount(?int $exceptInstallationId = null): int
+    public function installationSeatsCount(): int
     {
-        return Installation::query()
-            ->withoutGlobalScopes()
-            ->whereHas('client', fn ($q) => $q->where('security_company_id', $this->id))
-            ->where('is_active', true)
-            ->when($exceptInstallationId !== null, fn ($q) => $q->whereKeyNot($exceptInstallationId))
-            ->count();
+        return $this->installationQuota()->used();
     }
 
     public function installationSeatsRemaining(): int
     {
-        $max = (int) ($this->max_clients ?: 0);
+        return $this->installationQuota()->remaining();
+    }
 
-        return max(0, $max - $this->installationSeatsCount());
+    public function accessSeatsCount(): int
+    {
+        return $this->installationQuota()->used(InstallationQuota::ACCESS);
+    }
+
+    public function accessSeatsRemaining(): int
+    {
+        return $this->installationQuota()->remaining(InstallationQuota::ACCESS);
+    }
+
+    public function supervisionSeatsCount(): int
+    {
+        return $this->installationQuota()->used(InstallationQuota::SUPERVISION);
     }
 
     public function supervisionSeatsRemaining(): int
@@ -377,49 +412,36 @@ class SecurityCompany extends Model
             return 0;
         }
 
-        if ($this->hasUnlimitedSupervision()) {
-            return 1_000_000;
-        }
-
-        $max = (int) ($this->max_supervision_clients ?: 0);
-
-        return max(0, $max - $this->supervisionSeatsCount());
+        return min(1_000_000, $this->installationQuota()->remaining(InstallationQuota::SUPERVISION));
     }
 
-    public function operationalClientsCount(): int
+    public function observatorySeatsCount(): int
     {
-        return $this->accessSeatsCount();
+        return $this->installationQuota()->used(InstallationQuota::OBSERVATORY);
     }
 
-    public function accessSeatsCount(?int $exceptClientId = null): int
+    public function observatorySeatsRemaining(): int
     {
-        return $this->clients()
-            ->where('lifecycle', ClientLifecycle::Active)
-            ->where('has_access', true)
-            ->when($exceptClientId !== null, fn ($q) => $q->whereKeyNot($exceptClientId))
-            ->count();
-    }
-
-    public function supervisionSeatsCount(?int $exceptClientId = null): int
-    {
-        return $this->clients()
-            ->where('lifecycle', ClientLifecycle::Active)
-            ->where('has_supervision', true)
-            ->when($exceptClientId !== null, fn ($q) => $q->whereKeyNot($exceptClientId))
-            ->count();
+        return $this->installationQuota()->remaining(InstallationQuota::OBSERVATORY);
     }
 
     public function contractedAmount(): float
     {
-        $access = $this->billing_cycle === BillingCycle::Annual
-            ? (float) ($this->package_price_annual ?? 0)
-            : (float) ($this->package_price_monthly ?? 0);
+        return round(array_sum($this->contractedAmounts()), 2);
+    }
 
-        $supervision = $this->billing_cycle === BillingCycle::Annual
-            ? (float) ($this->supervision_package_price_annual ?? 0)
-            : (float) ($this->supervision_package_price_monthly ?? 0);
+    /** @return array{access: float, supervision: float, indexing: float, observatory: float} */
+    public function contractedAmounts(): array
+    {
+        $annual = $this->billing_cycle === BillingCycle::Annual;
+        $pick = fn (string $prefix): float => (float) ($this->getAttribute($prefix.($annual ? '_annual' : '_monthly')) ?? 0);
 
-        return $access + $supervision;
+        return [
+            'access' => $pick('package_price'),
+            'supervision' => $pick('supervision_package_price'),
+            'indexing' => $pick('indexing_price'),
+            'observatory' => $pick('observatory_price'),
+        ];
     }
 
     public function billingPeriodLabel(): string

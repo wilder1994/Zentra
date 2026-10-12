@@ -169,7 +169,7 @@ final class ExportObservatoryBoardService
      */
     private function rankingSlide(Slide $slide, array $board, string $caption): void
     {
-        $this->heading($slide, 'Sedes por riesgo', $caption);
+        $this->heading($slide, 'Instalaciones por riesgo', $caption);
 
         $rows = $board['top'] ?? [];
         if ($rows === []) {

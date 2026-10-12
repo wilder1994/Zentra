@@ -9,7 +9,7 @@ use App\Enums\CommercialMetal;
 use App\Enums\CommercialProduct;
 
 /**
- * Precio por instalación: unidad × (1 − descuento del plan). El plan sale de la cantidad total;
+ * Precio por instalación: unidad × (1 − descuento del plan). El plan sale de la cantidad del producto;
  * al cruzar un rango todas las instalaciones pasan al nuevo plan. Desde 101 se sigue cobrando a precio Platino.
  */
 final class CatalogPricer
@@ -21,33 +21,24 @@ final class CatalogPricer
         return new self(CatalogSettings::current());
     }
 
-    public function unitKey(CommercialProduct $product, bool $indexingAddon = false): string
+    public function netUnit(CommercialProduct $product, CommercialMetal $metal): float
     {
-        return $product === CommercialProduct::Indexing && $indexingAddon
-            ? 'indexing_addon'
-            : $product->value;
-    }
-
-    public function netUnit(CommercialProduct $product, CommercialMetal $metal, bool $indexingAddon = false): float
-    {
-        $unit = $this->catalog->unit($this->unitKey($product, $indexingAddon));
-
-        return round($unit * (1 - $this->catalog->discount($product, $metal)), 2);
+        return round($this->catalog->unit($product->value) * (1 - $this->catalog->discount($product, $metal)), 2);
     }
 
     /** Precio del plan lleno (tope del rango). */
-    public function packMonthly(CommercialProduct $product, CommercialMetal $metal, bool $indexingAddon = false): float
+    public function packMonthly(CommercialProduct $product, CommercialMetal $metal): float
     {
-        return round($this->netUnit($product, $metal, $indexingAddon) * $metal->packSize(), 2);
+        return round($this->netUnit($product, $metal) * $metal->packSize(), 2);
     }
 
-    public function seatsMonthly(CommercialProduct $product, int $seats, bool $indexingAddon = false): float
+    public function seatsMonthly(CommercialProduct $product, int $seats): float
     {
         if ($seats <= 0) {
             return 0.0;
         }
 
-        return round($this->netUnit($product, CommercialMetal::fromSeats($seats), $indexingAddon) * $seats, 2);
+        return round($this->netUnit($product, CommercialMetal::fromSeats($seats)) * $seats, 2);
     }
 
     public function applyCycle(float $monthly, BillingCycle $cycle): float
@@ -64,9 +55,9 @@ final class CatalogPricer
     /**
      * @return list<array<string, mixed>>
      */
-    public function matrix(CommercialProduct $product, BillingCycle $cycle, bool $indexingAddon = false, bool $onlyAvailable = false): array
+    public function matrix(CommercialProduct $product, BillingCycle $cycle, bool $onlyAvailable = false): array
     {
-        $unit = $this->catalog->unit($this->unitKey($product, $indexingAddon));
+        $unit = $this->catalog->unit($product->value);
         $rows = [];
 
         foreach (CommercialMetal::cases() as $metal) {
@@ -75,8 +66,8 @@ final class CatalogPricer
                 continue;
             }
 
-            $net = $this->netUnit($product, $metal, $indexingAddon);
-            $monthly = $this->packMonthly($product, $metal, $indexingAddon);
+            $net = $this->netUnit($product, $metal);
+            $monthly = $this->packMonthly($product, $metal);
             $from = round($net * $metal->rangeMin(), 2);
             $list = $unit * $metal->packSize();
             $rows[] = [
@@ -86,6 +77,8 @@ final class CatalogPricer
                 'min' => $metal->rangeMin(),
                 'pack' => $metal->packSize(),
                 'employees' => $metal->employeeCap(),
+                'posts' => $metal->postsPerInstallation(),
+                'per_post' => $metal->employeesPerPost(),
                 'discount' => $this->catalog->discount($product, $metal),
                 'unit' => $unit,
                 'unit_net' => $net,
@@ -99,29 +92,6 @@ final class CatalogPricer
                 'savings' => max(0, $list - $monthly),
                 'available' => $available,
                 'modules' => $this->catalog->modules($product),
-            ];
-        }
-
-        return $rows;
-    }
-
-    /**
-     * @return list<array<string, mixed>>
-     */
-    public function observatoryMatrix(BillingCycle $cycle, bool $onlyAvailable = false): array
-    {
-        $rows = [];
-        foreach (CommercialMetal::cases() as $metal) {
-            if ($onlyAvailable && ! $this->catalog->isMetalAvailable($metal)) {
-                continue;
-            }
-            $monthly = $this->catalog->observatoryPrice($metal);
-            $rows[] = [
-                'metal' => $metal->value,
-                'label' => $metal->label(),
-                'price_monthly' => $monthly,
-                'price_annual' => $this->applyCycle($monthly, BillingCycle::Annual),
-                'amount' => $this->applyCycle($monthly, $cycle),
             ];
         }
 

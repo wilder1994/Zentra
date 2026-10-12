@@ -9,6 +9,8 @@ use App\Models\Client;
 use App\Models\Installation;
 use App\Models\ObservatoryReportType;
 use App\Models\User;
+use App\Services\Observatory\BuildObservatoryBoardService;
+use App\Services\Observatory\EnsureObservatoryReportTypesService;
 use App\Support\Client\ClientPanelModules;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -117,7 +119,7 @@ final class ObservatoryCatalogTest extends TestCase
     public function test_ranking_uses_type_level(): void
     {
         $client = $this->palmas();
-        app(\App\Services\Observatory\EnsureObservatoryReportTypesService::class)->execute($client);
+        app(EnsureObservatoryReportTypesService::class)->execute($client);
         $amenaza = ObservatoryReportType::query()->where('client_id', $client->id)->where('slug', 'amenaza')->firstOrFail();
         $otro = ObservatoryReportType::query()->where('client_id', $client->id)->where('slug', 'otro')->firstOrFail();
 
@@ -161,7 +163,7 @@ final class ObservatoryCatalogTest extends TestCase
             'reporter_role' => 'padre',
         ])->assertRedirect();
 
-        $board = app(\App\Services\Observatory\BuildObservatoryBoardService::class)
+        $board = app(BuildObservatoryBoardService::class)
             ->execute(null, (int) $client->id, null, null, null);
 
         $this->assertSame('IE Alto Riesgo', $board['top'][0]['name']);
@@ -189,7 +191,7 @@ final class ObservatoryCatalogTest extends TestCase
             'password_confirmation' => 'Cliente123!',
             'client_ids' => [$client->id],
             'installation_ids' => [$site->id],
-            'site_permission' => 'admin',
+            'installation_permission' => 'admin',
             'is_active' => '1',
         ])->assertRedirect();
 

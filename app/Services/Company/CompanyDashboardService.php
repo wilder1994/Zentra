@@ -76,7 +76,7 @@ final class CompanyDashboardService
 
         return [
             'metrics' => [
-                'clients_remaining' => $metrics['clients_remaining'] ?? ($ops['portfolio']['available'] ?? 0),
+                'access_remaining' => $metrics['access_remaining'] ?? ($ops['portfolio']['available'] ?? 0),
                 'supervision_remaining' => $metrics['supervision_remaining'] ?? 0,
                 'supervision_remaining_label' => $metrics['supervision_remaining_label'] ?? ($metrics['supervision_remaining'] ?? 0),
                 'package_label' => $metrics['package_label'] ?? '—',

@@ -225,7 +225,7 @@ final class UserController extends Controller
                 regenerateSupervisorCode: $request->boolean('regenerate_supervisor_code'),
                 documentNumber: $external ? $request->validated('document_number') : $user->document_number,
                 installationIds: array_map('intval', $request->input('installation_ids', [])),
-                sitePermission: $request->validated('site_permission'),
+                installationPermission: $request->validated('installation_permission'),
                 grants: app(ParseAccessGrants::class)->fromInput(
                     $request->input('grants', []),
                     app(ActingCompanyResolver::class)->requireId($request->user()),
@@ -284,7 +284,7 @@ final class UserController extends Controller
                 adminOrigin: $origin,
                 documentNumber: $request->validated('document_number'),
                 installationIds: array_map('intval', $request->input('installation_ids', [])),
-                sitePermission: (string) ($request->validated('site_permission') ?: 'admin'),
+                installationPermission: (string) ($request->validated('installation_permission') ?: 'admin'),
                 grants: app(ParseAccessGrants::class)->fromInput(
                     $request->input('grants', []),
                     app(ActingCompanyResolver::class)->requireId($request->user()),

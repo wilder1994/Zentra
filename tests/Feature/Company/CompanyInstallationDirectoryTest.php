@@ -34,7 +34,7 @@ final class CompanyInstallationDirectoryTest extends TestCase
     public function test_company_creates_installation_with_context_and_rector(): void
     {
         [$admin, $client] = $this->palmas();
-        $rector = User::query()->where('email', 'laura.sede@palmas.test')->first();
+        $rector = User::query()->where('email', 'laura.instalacion@palmas.test')->first();
         if ($rector === null) {
             $rector = $this->makeRector($admin, $client);
         }
@@ -44,7 +44,7 @@ final class CompanyInstallationDirectoryTest extends TestCase
             ->assertOk()
             ->assertSee('Código', false)
             ->assertSee('Comuna', false)
-            ->assertSee('Tipo de sede', false)
+            ->assertSee('Tipo de instalación', false)
             ->assertSee('Contacto en directorio', false);
 
         $this->actingAs($admin)
@@ -95,7 +95,7 @@ final class CompanyInstallationDirectoryTest extends TestCase
         $this->actingAs($admin)
             ->post(route('company.installations.store'), [
                 'client_id' => $client->id,
-                'name' => 'Sede Jamundí',
+                'name' => 'Instalación Jamundí',
                 'commune' => 'Centro',
                 'address' => 'Calle 10 # 1-20',
                 'city' => 'Jamundí',
@@ -105,7 +105,7 @@ final class CompanyInstallationDirectoryTest extends TestCase
             ])
             ->assertRedirect();
 
-        $installation = Installation::query()->where('name', 'Sede Jamundí')->firstOrFail();
+        $installation = Installation::query()->where('name', 'Instalación Jamundí')->firstOrFail();
         $this->assertNull($installation->commune);
         $this->assertSame('none', $installation->area_kind);
     }

@@ -23,6 +23,7 @@
                 'metrics' => $metrics,
                 'accessDefault' => $client->has_access,
                 'proDefault' => $client->has_supervision,
+                'observatoryDefault' => $client->has_observatory,
                 'foldersDefault' => $client->show_personnel_folders,
             ])
 
@@ -132,7 +133,7 @@
             <label class="inline-flex items-center gap-2 text-sm text-slate-300">
                 <input type="hidden" name="is_active" value="0">
                 <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $client->is_active)) class="rounded border-slate-600 bg-slate-950 text-indigo-600">
-                Cliente activo
+                Cliente activo · desmarcar lo archiva con sus instalaciones y puestos y libera cupo
             </label>
 
             <x-ui.button type="submit" size="md">Guardar cambios</x-ui.button>

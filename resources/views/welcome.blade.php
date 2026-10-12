@@ -112,16 +112,19 @@
 
                     <section class="mt-8 space-y-3">
                         <div class="flex items-end justify-between gap-3">
-                            <h2 class="text-lg font-semibold text-white">Planes Accesos</h2>
-                            <a href="{{ route('planes.index') }}" class="text-sm text-cyan-400 hover:text-cyan-300">Ver todo</a>
+                            <h2 class="text-lg font-semibold text-white">Planes</h2>
+                            <a href="{{ route('planes.index') }}" class="text-sm text-cyan-400 hover:text-cyan-300">Arma tu plan</a>
                         </div>
                         <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                             @foreach ($accessMatrix as $row)
                                 <li class="rounded-xl border border-white/10 bg-white/5 p-3">
-                                    <p class="text-sm font-semibold text-cyan-300">{{ $row['label'] }}</p>
-                                    <p class="text-xs text-slate-500">{{ $row['range'] }} · {{ number_format($row['employees']) }} empleados</p>
-                                    <p class="mt-1 text-lg font-bold text-white tabular-nums">{{ '$'.number_format($row['unit_net'], 0, ',', '.') }}<span class="text-xs font-normal text-slate-500">/mes por instalación</span></p>
-                                    <p class="text-[11px] text-emerald-400">−{{ number_format($row['discount'] * 100, 0) }}% · desde {{ '$'.number_format($row['from_monthly'], 0, ',', '.') }}/mes</p>
+                                    <a href="{{ route('planes.index') }}" class="block">
+                                        <p class="text-sm font-semibold text-cyan-300">{{ $row['label'] }}</p>
+                                        <p class="text-xs text-slate-500">{{ $row['range'] }} · {{ number_format($row['employees'], 0, ',', '.') }} empleados</p>
+                                        <p class="text-xs text-slate-500">{{ $row['posts'] }} puestos por instalación · {{ $row['per_post'] }} empleados por puesto</p>
+                                        <p class="mt-1 text-lg font-bold text-white tabular-nums">{{ '$'.number_format($row['unit_net'], 0, ',', '.') }}<span class="text-xs font-normal text-slate-500">/mes por instalación de Accesos</span></p>
+                                        <p class="text-[11px] text-emerald-400">−{{ number_format($row['discount'] * 100, 0) }}% · desde {{ '$'.number_format($row['from_monthly'], 0, ',', '.') }}/mes</p>
+                                    </a>
                                 </li>
                             @endforeach
                         </ul>
@@ -159,7 +162,7 @@
                                 </div>
                                 <div class="min-w-0">
                                     <p class="text-base font-semibold text-cyan-300">Observatorio</p>
-                                    <p class="mt-1 text-sm leading-snug text-slate-400">Reportes de comunidad y tablero por colegio o sede.</p>
+                                    <p class="mt-1 text-sm leading-snug text-slate-400">Reportes de comunidad y tablero por colegio o instalación.</p>
                                 </div>
                             </li>
                         </ul>

@@ -84,7 +84,7 @@
                     @endif
                 </div>
             @elseif (! $canUpdateStatus)
-                <p class="mt-3 shrink-0 border-t border-slate-800 pt-3 text-xs text-slate-500">Los estados los cierra el admin de instalaciones de esa sede.</p>
+                <p class="mt-3 shrink-0 border-t border-slate-800 pt-3 text-xs text-slate-500">Los estados los cierra el admin de instalaciones de esa instalación.</p>
             @endif
         </div>
 

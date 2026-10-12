@@ -6,7 +6,7 @@
     <div class="max-w-xl space-y-4">
         <p class="text-sm text-slate-400">
             Representante legal y aceptación del corpus vigente
-            @if ($intent->package_sku || $intent->supervision_package_sku)
+            @if (! $intent->planSelection()->isEmpty())
                 para el plan <span class="text-slate-200">{{ $intent->packageLabel() }}</span>.
             @endif
         </p>

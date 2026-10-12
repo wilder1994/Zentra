@@ -4,7 +4,7 @@
 <div class="obs-card p-2.5 h-full min-h-0 flex flex-col">
     <p class="text-[10px] uppercase tracking-wide text-slate-500">Tipos y nivel</p>
     <div class="mt-1.5 flex items-center gap-3 text-[11px] text-slate-400 shrink-0">
-        <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-slate-300"></span>Sede</span>
+        <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-slate-300"></span>Instalación</span>
         <span class="inline-flex items-center gap-1.5">▾ reporte</span>
     </div>
     <div class="mt-2 space-y-1 overflow-y-auto sidebar-scroll min-h-0">

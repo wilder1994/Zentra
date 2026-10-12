@@ -88,7 +88,7 @@
                                     <p class="mt-1 text-xs text-slate-400 leading-relaxed">Entra a {{ $installations->first()->name }}.</p>
                                     <input type="hidden" name="installation_id" value="{{ $installations->first()->id }}">
                                 @else
-                                    <p class="mt-1 text-xs text-slate-400 leading-relaxed">Elige la sede y entra a su panel.</p>
+                                    <p class="mt-1 text-xs text-slate-400 leading-relaxed">Elige la instalación y entra a su panel.</p>
                                     <select name="installation_id" required class="mt-2 w-full h-9 rounded-lg border border-slate-700 bg-slate-950 px-2 text-xs text-white">
                                         <option value="">Selecciona…</option>
                                         @foreach ($installations as $site)

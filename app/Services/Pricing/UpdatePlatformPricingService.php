@@ -20,7 +20,7 @@ final class UpdatePlatformPricingService
         $defaults = CatalogSettings::defaults()['default_units'] ?? [];
 
         $discounts = [];
-        foreach ([CommercialProduct::Access, CommercialProduct::Supervision, CommercialProduct::Indexing] as $product) {
+        foreach (CommercialProduct::cases() as $product) {
             foreach (CommercialMetal::cases() as $metal) {
                 $pct = (float) data_get($payload, "discounts.{$product->value}.{$metal->value}", 0);
                 $discounts[$product->value][$metal->value] = round($pct / 100, 4);
@@ -31,11 +31,6 @@ final class UpdatePlatformPricingService
         foreach (CommercialProduct::cases() as $product) {
             $mods = $payload['modules'][$product->value] ?? [];
             $modules[$product->value] = array_values(array_unique(array_filter($mods)));
-        }
-
-        $observatory = [];
-        foreach (CommercialMetal::cases() as $metal) {
-            $observatory[$metal->value] = (float) data_get($payload, "observatory.{$metal->value}", 0);
         }
 
         $availability = [];
@@ -55,7 +50,7 @@ final class UpdatePlatformPricingService
             'catalog' => [
                 'units' => $unitValues,
                 'discounts' => $discounts,
-                'observatory' => $observatory,
+                'combo_discount' => round((float) ($payload['combo_discount'] ?? 0) / 100, 4),
                 'modules' => $modules,
                 'availability' => $availability,
             ],
@@ -65,7 +60,7 @@ final class UpdatePlatformPricingService
         return $settings->fresh();
     }
 
-    /** Sube unidades y Observatorio un % para nuevas empresas (descuentos y disponibilidad iguales). */
+    /** Sube las unidades un % para nuevas empresas (descuentos y disponibilidad iguales). */
     public function increase(float $pct, ?User $actor = null): PricingSettings
     {
         $settings = PricingSettings::current();
@@ -77,8 +72,8 @@ final class UpdatePlatformPricingService
             'unit_price_supervision' => $raised['units']['supervision'],
             'catalog' => array_merge(is_array($settings->catalog) ? $settings->catalog : [], [
                 'units' => $raised['units'],
-                'observatory' => $raised['observatory'],
                 'discounts' => $raised['discounts'],
+                'combo_discount' => $raised['combo_discount'],
                 'availability' => $raised['availability'],
                 'modules' => $raised['modules'],
             ]),

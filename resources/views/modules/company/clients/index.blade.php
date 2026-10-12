@@ -46,7 +46,7 @@
                         <option value="all" @selected($status === 'all')>Estado: Todos</option>
                     @endif
                     <option value="active" @selected($status === 'active')>Activos</option>
-                    <option value="inactive" @selected($status === 'inactive')>Inactivos</option>
+                    <option value="inactive" @selected($status === 'inactive')>Archivados</option>
                 </select>
             </div>
             <div class="flex items-center gap-2 shrink-0">
@@ -59,8 +59,10 @@
             @if ($metrics)
                 <p class="text-xs text-slate-500 sm:ml-auto sm:text-right whitespace-nowrap">
                     {{ $clients->total() }} {{ $clients->total() === 1 ? 'cliente' : 'clientes' }}
-                    · Instalaciones {{ $metrics['installations_remaining'] ?? $metrics['clients_remaining'] }}/{{ $metrics['max_clients'] }}
-                    · Accesos {{ $metrics['clients_remaining'] }}/{{ $metrics['max_clients'] }}
+                    · Instalaciones libres {{ $metrics['installations_remaining'] }}/{{ $metrics['installation_capacity'] }}
+                    @if ($metrics['max_clients'] > 0)
+                        · Accesos {{ $metrics['access_remaining'] }}/{{ $metrics['max_clients'] }}
+                    @endif
                     · Supervisión {{ ($metrics['supervision_unlimited'] ?? false) ? 'Ilimitada' : (($metrics['supervision_remaining'] ?? 0).'/'.($metrics['max_supervision_clients'] ?? 0)) }}
                 </p>
             @else
@@ -72,18 +74,18 @@
 
         @if ($metrics && ($metrics['is_installation_quota_full'] ?? false) && ! $operateMode)
             <div class="rounded-lg border border-amber-800/60 bg-amber-950/30 px-4 py-3 text-sm text-amber-200">
-                Cupo de instalaciones lleno ({{ $metrics['installations_used'] ?? 0 }}/{{ $metrics['max_clients'] }}).
-                No puedes crear clientes ni sedes nuevas. Archiva una instalación o amplía el paquete.
-                <a href="{{ route('company.dashboard') }}" class="text-amber-100 underline hover:no-underline">
-                    Ver opciones en Mi empresa
+                Tu plan es de {{ $metrics['installation_capacity'] }} instalaciones y ya usas {{ $metrics['installations_used'] ?? 0 }}{{ ($metrics['installations_breakdown'] ?? '') !== '' ? ': '.$metrics['installations_breakdown'] : '' }}.
+                No puedes crear clientes ni instalaciones nuevas. Archiva una instalación o un cliente, o amplía el plan.
+                <a href="{{ route('company.billing.index') }}" class="text-amber-100 underline hover:no-underline">
+                    Ir a Facturación
                 </a>
             </div>
         @elseif ($metrics && $metrics['is_quota_full'] && ! $operateMode)
             <div class="rounded-lg border border-amber-800/60 bg-amber-950/30 px-4 py-3 text-sm text-amber-200">
-                Cupo de Accesos lleno ({{ $metrics['access_used'] ?? $metrics['total'] }}/{{ $metrics['max_clients'] }}).
-                Puedes seguir creando fichas; no podrás marcar Accesos hasta ampliar.
-                <a href="{{ route('company.dashboard') }}" class="text-amber-100 underline hover:no-underline">
-                    Ver opciones en Mi empresa
+                Tu plan de Accesos cubre {{ $metrics['max_clients'] }} instalaciones y ya usas {{ $metrics['access_used'] ?? 0 }}.
+                Puedes seguir creando clientes sin Accesos; para activarlo quítalo a otro cliente, archiva una instalación o amplía el plan.
+                <a href="{{ route('company.billing.index') }}" class="text-amber-100 underline hover:no-underline">
+                    Ir a Facturación
                 </a>
             </div>
         @endif
@@ -182,7 +184,7 @@
                                     @if ($client->is_active)
                                         <span class="ui-chip ui-chip-success">Activo</span>
                                     @else
-                                        <span class="ui-chip">Inactivo</span>
+                                        <span class="ui-chip">Archivado</span>
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 text-right whitespace-nowrap">

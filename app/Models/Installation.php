@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\ColombianAreaKind;
+use App\Enums\InstallationKind;
 use App\Models\Concerns\BelongsToClient;
+use App\Support\Company\InstallationSiteAdmins;
 use App\Support\Geo\ColombianArea;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 final class Installation extends Model
@@ -29,6 +32,10 @@ final class Installation extends Model
         'rector_user_id',
         'is_client_site',
         'is_active',
+        'max_posts',
+        'max_posts_note',
+        'archived_at',
+        'archived_with_parent',
         'address',
         'city',
         'department',
@@ -41,6 +48,9 @@ final class Installation extends Model
         return [
             'is_client_site' => 'boolean',
             'is_active' => 'boolean',
+            'max_posts' => 'integer',
+            'archived_at' => 'datetime',
+            'archived_with_parent' => 'boolean',
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
         ];
@@ -48,7 +58,7 @@ final class Installation extends Model
 
     protected static function booted(): void
     {
-        static::creating(function (Installation $installation): void {
+        self::creating(function (Installation $installation): void {
             if (filled($installation->code) || ! $installation->client_id) {
                 return;
             }
@@ -95,12 +105,12 @@ final class Installation extends Model
 
     public function kindLabel(): string
     {
-        return \App\Enums\InstallationKind::tryFrom((string) $this->kind)?->label() ?? '—';
+        return InstallationKind::tryFrom((string) $this->kind)?->label() ?? '—';
     }
 
     public function requiresOfficialCode(): bool
     {
-        return \App\Enums\InstallationKind::tryFrom((string) $this->kind)?->requiresOfficialCode() ?? false;
+        return InstallationKind::tryFrom((string) $this->kind)?->requiresOfficialCode() ?? false;
     }
 
     public function addressLine(): string
@@ -117,8 +127,8 @@ final class Installation extends Model
         return implode(' · ', $parts);
     }
 
-    /** @return \Illuminate\Support\Collection<int, string> */
-    public function staffRoleLines(string $permission): \Illuminate\Support\Collection
+    /** @return Collection<int, string> */
+    public function staffRoleLines(string $permission): Collection
     {
         $people = $this->relationLoaded('assignedAdmins')
             ? $this->assignedAdmins
@@ -126,17 +136,17 @@ final class Installation extends Model
 
         return $people
             ->filter(static function (User $user) use ($permission): bool {
-                $value = $user->pivot->site_permission ?? 'admin';
+                $value = $user->pivot->installation_permission ?? 'admin';
 
                 return $permission === 'support' ? $value === 'support' : $value !== 'support';
             })
-            ->map(static fn (User $user): string => \App\Support\Company\InstallationSiteAdmins::roleName($user))
+            ->map(static fn (User $user): string => InstallationSiteAdmins::roleName($user))
             ->filter()
             ->values();
     }
 
-    /** @return \Illuminate\Support\Collection<int, string> */
-    public function staffLines(): \Illuminate\Support\Collection
+    /** @return Collection<int, string> */
+    public function staffLines(): Collection
     {
         return $this->staffRoleLines('admin')
             ->merge($this->staffRoleLines('support'))
@@ -172,7 +182,7 @@ final class Installation extends Model
     public function assignedAdmins(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'client_user_installation_assignments')
-            ->withPivot('site_permission')
+            ->withPivot('installation_permission')
             ->withTimestamps()
             ->orderBy('users.name');
     }

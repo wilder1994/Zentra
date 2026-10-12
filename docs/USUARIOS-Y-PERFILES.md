@@ -18,7 +18,7 @@ Tres administradores; el **admin empresa** también usa la matriz Nada / Ver / G
 |--------|---------|
 | Admin empresa (`company-admin`) | Matriz de módulos de empresa + portería/censo del rol |
 | Admin cliente (`client-admin`) | Ese cliente. Matriz por módulo (SIG, Observatorio, nodos, personas, vehículos, mascotas, autorizaciones, usuarios, app, empleados, documentos). **No crea usuarios empresa.** |
-| Admin instalaciones (`client-installation-admin`) | Sedes asignadas. Misma matriz recortada a esas sedes. Apoyo: no borra nodos ni edita ficha. **No crea usuarios empresa.** |
+| Admin instalaciones (`client-installation-admin`) | Instalaciones asignadas. Misma matriz recortada a esas instalaciones. Apoyo: no borra nodos ni edita ficha. **No crea usuarios empresa.** |
 
 Oficios (no son un collage):
 
@@ -27,7 +27,7 @@ Oficios (no son un collage):
 | **Supervisor** | Solo app de campo. Login usuario + clave. Extra: código 6 dígitos para revista. |
 | **Vigilante** | Solo portería del cliente asignado (con puertas). Reasignar a otro cliente con puertas: mismas credenciales. |
 
-**Admin cliente** e **admin instalaciones**: matriz Nada / Ver / Gestionar por módulo de cliente o sede (no solo SIG / Observatorio / Censo). Portería no se recorta en esa matriz. Empleados y documentos empiezan en Nada: si se conceden, el listado es el de puestos de ese cliente o de esa instalación. Tipos de persona: botón en **Personas**, no en Ajustes.
+**Admin cliente** e **admin instalaciones**: matriz Nada / Ver / Gestionar por módulo de cliente o instalación (no solo SIG / Observatorio / Censo). Portería no se recorta en esa matriz. Empleados y documentos empiezan en Nada: si se conceden, el listado es el de puestos de ese cliente o de esa instalación. Tipos de persona: botón en **Personas**, no en Ajustes.
 
 ---
 
@@ -81,11 +81,11 @@ Dos líneas de externo:
 | Rol UI | Spatie | Alcance |
 |--------|--------|---------|
 | **Administrador del cliente** | `client-admin` | Todo el panel de ese cliente |
-| **Admin instalaciones** | `client-installation-admin` | Varias instalaciones **del mismo cliente**. En la ficha de sede: bloque **Administrador** o **Apoyo** (`cargo · nombre`). El cargo (rector, auxiliar…) es `job_title`. Permiso `site_permission`: **admin** (opera y puede borrar nodos) o **apoyo** (mismas sedes, no borra nodos). No se crea un tercer rol. **Ajustes**: solo ver. **No** crea usuarios. `client-admin` externo no lleva sede (p. ej. Secretario). |
+| **Admin instalaciones** | `client-installation-admin` | Varias instalaciones **del mismo cliente**. En la ficha de instalación: bloque **Administrador** o **Apoyo** (`cargo · nombre`). El cargo (rector, auxiliar…) es `job_title`. Permiso `installation_permission`: **admin** (opera y puede borrar nodos) o **apoyo** (mismas instalaciones, no borra nodos). No se crea un tercer rol. **Ajustes**: solo ver. **No** crea usuarios. `client-admin` externo no lleva instalación (p. ej. Secretario). |
 
 El panel `/client/users` **lista** administradores externos de ese cliente. **No crea usuarios**: el alta queda en `/company/users` o `/admin/users`. Los internos se asignan en `/company/users`.
 
-Asignación de sedes: `client_user_installation_assignments`. El censo (estructura, personas, vehículos, mascotas, accesos de persona) se filtra a esas instalaciones.
+Asignación de instalaciones: `client_user_installation_assignments`. El censo (estructura, personas, vehículos, mascotas, accesos de persona) se filtra a esas instalaciones.
 
 ---
 
@@ -98,7 +98,7 @@ Usar **siempre** estos nombres en UI y documentación de producto. Los slugs Spa
 | **Vigilante** | `guardia` | Empresa | Opera **portería** de una instalación **con puertas**. Debe estar asignado a un puesto de esa instalación. Sin puertas no hay usuario de portería. |
 | **Supervisor de vigilancia** | `supervisor` | Empresa | **Solo app de campo** (PWA/APK). Login: `users.username` + clave. **Sin** panel empresa ni portería. Firma revista en la **minuta** con código **6 dígitos** (`supervisor_code`). API: `/api/supervision/login`. |
 | **Administrador del cliente** | `client-admin` | Cliente | Interno (empleado, 1+ clientes) o externo (1 cliente). Panel del cliente; **no crea usuarios**. |
-| **Admin instalaciones** | `client-installation-admin` | Cliente | Siempre externo. Varias instalaciones del mismo cliente. Admin o apoyo (`site_permission`). Sin crear usuarios; Ajustes solo lectura. |
+| **Admin instalaciones** | `client-installation-admin` | Cliente | Siempre externo. Varias instalaciones del mismo cliente. Admin o apoyo (`installation_permission`). Sin crear usuarios; Ajustes solo lectura. |
 | **Administrador empresa** | `company-admin` | Empresa | Cartera, usuarios operativos, perfil. |
 | **Colaborador** | `colaborador` | Empresa | Matriz por módulo (`user_module_grants`). |
 | **Admin empresa** | `company-admin` | Empresa | Misma matriz; el rol solo deja portería/censo. |
@@ -110,7 +110,7 @@ Usar **siempre** estos nombres en UI y documentación de producto. Los slugs Spa
 
 Zentra **no** factura ni muestra deuda del cliente hacia la empresa de seguridad. Ese cobro es externo (contrato de vigilancia).
 
-En el cliente se registran datos comerciales (`party_type`, documento, contactos, representante, ciudad) y **`service_started_at`**. El **tipo de estructura** se fija en el alta. Instalaciones, accesos y puestos **no** van en el Excel; sedes en `/company/installations` o ficha del cliente; puestos en la ficha de la sede. Ver [`CLIENTES-Y-ESTRUCTURA.md`](CLIENTES-Y-ESTRUCTURA.md).
+En el cliente se registran datos comerciales (`party_type`, documento, contactos, representante, ciudad) y **`service_started_at`**. El **tipo de estructura** se fija en el alta. Instalaciones, accesos y puestos **no** van en el Excel; instalaciones en `/company/installations` o ficha del cliente; puestos en la ficha de la instalación. Ver [`CLIENTES-Y-ESTRUCTURA.md`](CLIENTES-Y-ESTRUCTURA.md).
 
 ---
 
@@ -165,7 +165,7 @@ Roles que requieren asignación a cliente (`client_ids`): `client-admin`, `clien
 - `client-admin` interno: **uno o varios** clientes.
 - `client-admin` externo y `client-installation-admin`: **exactamente un** cliente.
 - `supervisor`: **sin** `client_ids` (alcance empresa).
-- `colaborador`: clientes e instalaciones salen de los grants (empresa ancha, cliente o sede). Grant empresa **Clientes** = listado y expediente de todos los clientes de la empresa.
+- `colaborador`: clientes e instalaciones salen de los grants (empresa ancha, cliente o instalación). Grant empresa **Clientes** = listado y expediente de todos los clientes de la empresa.
 
 ---
 
@@ -181,7 +181,7 @@ Reglas:
 
 - Clientes Ver/Gestionar a nivel empresa abre `/company/clients` (listado y ficha). Gestionar también crea/edita. Sin esa rama el menú se veía y el listado respondía 403.
 - Observatorio o Supervisión a nivel empresa abre **todos** los clientes e instalaciones de la empresa (detalle de evento incluido).
-- Grant a un cliente abre las sedes de ese cliente; grant a una sede solo esa.
+- Grant a un cliente abre las instalaciones de ese cliente; grant a una instalación solo esa.
 - Empleados: `company.employees.view` / `manage` (`EmployeePolicy`). Documentos: `company.documents.view` / `manage` (indexar, carga masiva y **descargar** = manage; Ver no descarga).
 - Usuarios → Gestionar no incluye promover a admin empresa.
 
@@ -230,7 +230,7 @@ Reglas:
 | `client.users.manage` | Ver/editar administradores del cliente. **No** crear. |
 | `client.settings.manage` | Crear/editar tipos de persona. El admin de instalaciones no lo tiene (Ajustes solo ver) |
 | `observatory.view` | Ver eventos del Observatorio (empresa: sus clientes; cliente: su alcance). Misma llave para la API `/api/observatory/*` |
-| `observatory.events.update` | Cambiar estado, unir folios del mismo colegio o sacar un reporte a folio nuevo. Solo admin de instalaciones de esa sede (`site_permission=admin`), no el apoyo |
+| `observatory.events.update` | Cambiar estado, unir folios del mismo colegio o sacar un reporte a folio nuevo. Solo admin de instalaciones de esa instalación (`installation_permission=admin`), no el apoyo |
 
 El rol `supervisor` **no** tiene permisos `access.*` (solo app). Tras cambios en permisos:
 
@@ -322,7 +322,7 @@ Usado en: signup paso 1, **Mis datos** (`/company/settings`), perfil/alta admin 
 | Roles / labels | `AssignableRoles` (`forCompanyActor` recorta `company-admin` al colaborador) |
 | Listado paginado | `UserRepository::paginateScoped()` |
 
-Vistas empresa (crear = editar): `modules/company/users/partials/form.blade.php`. Foto: `x-client.member-photo-picker` (`name=avatar`). Cliente: `modules/client/users/partials/form.blade.php` (solo externos). Plataforma: `modules/shared/managed-user-form.blade.php`. Perfil: `modules/shared/company-profile-form.blade.php`. Asignación de sedes: `ClientUserInstallationAssignment`.
+Vistas empresa (crear = editar): `modules/company/users/partials/form.blade.php`. Foto: `x-client.member-photo-picker` (`name=avatar`). Cliente: `modules/client/users/partials/form.blade.php` (solo externos). Plataforma: `modules/shared/managed-user-form.blade.php`. Perfil: `modules/shared/company-profile-form.blade.php`. Asignación de instalaciones: `ClientUserInstallationAssignment`.
 
 ---
 

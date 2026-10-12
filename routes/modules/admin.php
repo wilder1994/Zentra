@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Platform\CompanyController;
+use App\Http\Controllers\Platform\CompanyQuotaController;
 use App\Http\Controllers\Platform\DashboardController;
 use App\Http\Controllers\Platform\DocumentController;
 use App\Http\Controllers\Platform\DownloadsController;
@@ -135,6 +136,26 @@ Route::middleware(['auth', 'password.changed', 'active', 'platform.admin', 'tena
         Route::put('/companies/{company}/price-lock', [CompanyController::class, 'updatePriceLock'])
             ->middleware('permission:platform.companies.manage')
             ->name('companies.price-lock.update');
+
+        Route::put('/companies/{company}/quotas', [CompanyQuotaController::class, 'updateCompany'])
+            ->middleware('permission:platform.companies.manage')
+            ->name('companies.quotas.update');
+
+        Route::put('/companies/{company}/quotas/installation', [CompanyQuotaController::class, 'updateInstallation'])
+            ->middleware('permission:platform.companies.manage')
+            ->name('companies.quotas.installation');
+
+        Route::put('/companies/{company}/quotas/post', [CompanyQuotaController::class, 'updatePost'])
+            ->middleware('permission:platform.companies.manage')
+            ->name('companies.quotas.post');
+
+        Route::post('/companies/{company}/quota-requests/{quotaRequest}/approve', [CompanyQuotaController::class, 'approve'])
+            ->middleware('permission:platform.companies.manage')
+            ->name('companies.quota-requests.approve');
+
+        Route::post('/companies/{company}/quota-requests/{quotaRequest}/reject', [CompanyQuotaController::class, 'reject'])
+            ->middleware('permission:platform.companies.manage')
+            ->name('companies.quota-requests.reject');
 
         Route::get('/companies/{company}/profile', [CompanyController::class, 'editProfile'])
             ->middleware('permission:platform.companies.manage')

@@ -14,6 +14,7 @@ use App\Models\ObservatoryEvent;
 use App\Models\ObservatoryReport;
 use App\Models\ObservatoryReportType;
 use App\Models\User;
+use App\Services\Ops\RecordOperationalAlertService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -47,7 +48,7 @@ final class SubmitObservatoryReportService
             throw ValidationException::withMessages([
                 'installation_id' => $source === ObservatoryReportSource::Comunidad
                     ? 'Elige un colegio de esta Secretaría.'
-                    : 'Elige una sede de este cliente.',
+                    : 'Elige una instalación de este cliente.',
             ]);
         }
 
@@ -98,7 +99,7 @@ final class SubmitObservatoryReportService
 
         $report->setRelation('client', $client);
         $report->setRelation('installation', $installation);
-        app(\App\Services\Ops\RecordOperationalAlertService::class)->observatory($report);
+        app(RecordOperationalAlertService::class)->observatory($report);
 
         return $report;
     }

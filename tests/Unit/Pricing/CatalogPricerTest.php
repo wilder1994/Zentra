@@ -21,7 +21,7 @@ final class CatalogPricerTest extends TestCase
                 'access_hardware' => 150_000,
                 'supervision' => 80_000,
                 'indexing' => 40_000,
-                'indexing_addon' => 10_000,
+                'observatory' => 40_000,
             ],
             'discounts' => [
                 'access' => ['bronce' => 0.05, 'plata' => 0.08, 'oro' => 0.10, 'platino' => 0.12],
@@ -47,7 +47,7 @@ final class CatalogPricerTest extends TestCase
         $pricer = $this->pricer(['oro' => false]);
 
         $all = $pricer->matrix(CommercialProduct::Access, BillingCycle::Monthly);
-        $public = $pricer->matrix(CommercialProduct::Access, BillingCycle::Monthly, false, true);
+        $public = $pricer->matrix(CommercialProduct::Access, BillingCycle::Monthly, true);
 
         $this->assertCount(4, $all);
         $this->assertSame(['bronce', 'plata', 'platino'], array_column($public, 'metal'));

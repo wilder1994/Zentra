@@ -9,12 +9,17 @@
 
     <div class="max-w-xl space-y-4">
         <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-4 space-y-2 text-sm">
-            @if ((int) $intent->package_manual_seats + (int) $intent->package_hardware_seats > 0)
-                <div class="flex justify-between gap-3"><span class="text-slate-500">Accesos</span><span class="text-white text-right">{{ (new \App\Domain\Pricing\Data\AccessSeatSplit((int) $intent->package_manual_seats, (int) $intent->package_hardware_seats))->label() }}</span></div>
-            @endif
-            @if ($intent->supervision_package_sku)
-                <div class="flex justify-between gap-3"><span class="text-slate-500">Supervisión</span><span class="text-amber-200 text-right">{{ $intent->supervision_package_sku->label() }}</span></div>
-            @endif
+            @php
+                $selection = $intent->planSelection();
+            @endphp
+            @foreach (\App\Enums\CommercialProduct::cases() as $product)
+                @if ($selection->seats($product) > 0)
+                    <div class="flex justify-between gap-3">
+                        <span class="text-slate-500">{{ $product->label() }}</span>
+                        <span class="text-white text-right">{{ $selection->metal($product)?->label() }} · {{ $selection->seats($product) }} instalaciones</span>
+                    </div>
+                @endif
+            @endforeach
             <div class="flex justify-between"><span class="text-slate-500">Ciclo</span><span>{{ $intent->billing_cycle->label() }}</span></div>
             <div class="flex justify-between"><span class="text-slate-500">Empresa</span><span>{{ $intent->legal_name }}</span></div>
             <div class="flex justify-between"><span class="text-slate-500">Email</span><span>{{ $intent->email }}</span></div>

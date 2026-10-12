@@ -6,14 +6,17 @@ namespace App\Services\Tenant;
 
 use App\Enums\PartyType;
 use App\Models\Client;
-use App\Models\SecurityCompany;
+use App\Services\Company\ManageArchiveService;
 
 final class UpdateClientService
 {
     /** @param array<string, mixed> $attributes */
     public function execute(Client $client, array $attributes): Client
     {
-        unset($attributes['plan_tier'], $attributes['max_structures'], $attributes['slug'], $attributes['login_suffix']);
+        unset(
+            $attributes['plan_tier'], $attributes['max_structures'], $attributes['slug'], $attributes['login_suffix'],
+            $attributes['archived_at'], $attributes['archived_with_parent'],
+        );
 
         if (isset($attributes['party_type']) && is_string($attributes['party_type'])) {
             $attributes['party_type'] = PartyType::from($attributes['party_type']);
@@ -23,29 +26,44 @@ final class UpdateClientService
             $attributes['legal_name'] = $attributes['name'];
         }
 
-        $hasAccess = array_key_exists('has_access', $attributes)
-            ? $this->toBool($attributes['has_access'])
-            : (bool) $client->has_access;
-        $hasSupervision = array_key_exists('has_supervision', $attributes)
-            ? $this->toBool($attributes['has_supervision'])
-            : (bool) $client->has_supervision;
-
-        $company = SecurityCompany::query()->findOrFail($client->security_company_id);
-        app(AssertClientServiceSeats::class)->execute($company, $hasAccess, $hasSupervision, $client->id);
-
-        if (array_key_exists('has_access', $attributes)) {
-            $attributes['has_access'] = $hasAccess;
+        $lines = [];
+        foreach (['access', 'supervision', 'observatory'] as $line) {
+            $key = 'has_'.$line;
+            $lines[$line] = array_key_exists($key, $attributes)
+                ? $this->toBool($attributes[$key])
+                : (bool) $client->{$key};
+            if (array_key_exists($key, $attributes)) {
+                $attributes[$key] = $lines[$line];
+            }
         }
-        if (array_key_exists('has_supervision', $attributes)) {
-            $attributes['has_supervision'] = $hasSupervision;
-        }
-        if (! $hasAccess) {
+
+        $archives = app(ManageArchiveService::class);
+        $nextActive = array_key_exists('is_active', $attributes) ? $this->toBool($attributes['is_active']) : (bool) $client->is_active;
+        unset($attributes['is_active']);
+
+        if (! $lines['access']) {
             $attributes['show_personnel_folders'] = false;
         } elseif (array_key_exists('show_personnel_folders', $attributes)) {
             $attributes['show_personnel_folders'] = $this->toBool($attributes['show_personnel_folders']);
         }
 
+        if ($nextActive && ! $client->is_active) {
+            $client->fill($attributes);
+            $archives->restoreClient($client);
+            $client->save();
+
+            return $client->fresh();
+        }
+
+        if ($nextActive) {
+            $archives->assertLines($client, $lines);
+        }
+
         $client->update($attributes);
+
+        if (! $nextActive && $client->is_active) {
+            $archives->archiveClient($client);
+        }
 
         return $client->fresh();
     }

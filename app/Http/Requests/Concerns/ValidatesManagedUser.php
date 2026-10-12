@@ -23,7 +23,7 @@ trait ValidatesManagedUser
                 : ['nullable', 'confirmed', Password::defaults()],
             'is_active' => ['sometimes', 'boolean'],
             'regenerate_supervisor_code' => ['sometimes', 'boolean'],
-            'site_permission' => ['nullable', 'in:admin,support'],
+            'installation_permission' => ['nullable', 'in:admin,support'],
         ];
     }
 

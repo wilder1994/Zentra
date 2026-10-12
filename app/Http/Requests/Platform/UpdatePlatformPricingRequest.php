@@ -32,7 +32,8 @@ final class UpdatePlatformPricingRequest extends FormRequest
             'units.access_hardware' => ['required', 'numeric', 'min:0'],
             'units.supervision' => ['required', 'numeric', 'min:0'],
             'units.indexing' => ['required', 'numeric', 'min:0'],
-            'units.indexing_addon' => ['required', 'numeric', 'min:0'],
+            'units.observatory' => ['required', 'numeric', 'min:0'],
+            'combo_discount' => ['required', 'numeric', 'min:0', 'max:90'],
             'apply_scope' => ['required', Rule::in([self::SCOPE_NEW, self::SCOPE_CURRENT])],
             'availability' => ['nullable', 'array'],
         ];
@@ -41,20 +42,13 @@ final class UpdatePlatformPricingRequest extends FormRequest
             $rules["availability.{$key}"] = ['nullable', 'boolean'];
         }
 
-        foreach ([CommercialProduct::Access, CommercialProduct::Supervision, CommercialProduct::Indexing] as $product) {
+        foreach (CommercialProduct::cases() as $product) {
             foreach ($metals as $metal) {
                 $rules["discounts.{$product->value}.{$metal}"] = ['required', 'numeric', 'min:0', 'max:90'];
             }
             $rules["modules.{$product->value}"] = ['nullable', 'array'];
             $rules["modules.{$product->value}.*"] = ['string', Rule::in($moduleKeys)];
         }
-
-        foreach ($metals as $metal) {
-            $rules["observatory.{$metal}"] = ['required', 'numeric', 'min:0'];
-        }
-
-        $rules['modules.observatory'] = ['nullable', 'array'];
-        $rules['modules.observatory.*'] = ['string', Rule::in($moduleKeys)];
 
         return $rules;
     }
@@ -66,8 +60,9 @@ final class UpdatePlatformPricingRequest extends FormRequest
             'units.access' => 'unidad Accesos',
             'units.access_hardware' => 'unidad Accesos con hardware',
             'units.supervision' => 'unidad Supervisión',
-            'units.indexing' => 'unidad Indexación sola',
-            'units.indexing_addon' => 'unidad Indexación add-on',
+            'units.indexing' => 'unidad Indexación',
+            'units.observatory' => 'unidad Observatorio',
+            'combo_discount' => 'descuento por combinar',
             'apply_scope' => 'a quién aplica',
         ];
     }

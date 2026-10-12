@@ -30,5 +30,6 @@ final readonly class CreateClientData
         public bool $hasSupervision = false,
         public bool $showPersonnelFolders = false,
         public ?string $serviceStartedAt = null,
+        public bool $hasObservatory = false,
     ) {}
 }

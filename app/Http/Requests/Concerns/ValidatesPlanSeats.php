@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Requests\Concerns;
 
 use App\Domain\Pricing\Data\AccessSeatSplit;
+use App\Domain\Pricing\Data\PlanSelection;
 use App\Enums\CommercialMetal;
+use App\Enums\CommercialProduct;
 use App\Enums\CompanyPackageSku;
 use App\Enums\SupervisionPackageSku;
 use App\Models\SecurityCompany;
@@ -13,7 +15,8 @@ use App\Support\Catalog\CatalogSettings;
 use Illuminate\Validation\Validator;
 
 /**
- * Formularios de plan por cantidad: `manual_seats`, `hardware_seats` (Accesos) y `supervision_seats`.
+ * Formularios de plan por cantidad: `manual_seats`, `hardware_seats` (Accesos), `supervision_seats`,
+ * `indexing_seats` y `observatory_seats`. Todos cuentan instalaciones.
  */
 trait ValidatesPlanSeats
 {
@@ -26,6 +29,8 @@ trait ValidatesPlanSeats
             'manual_seats' => ['nullable', 'integer', 'min:0', 'max:'.$max],
             'hardware_seats' => ['nullable', 'integer', 'min:0', 'max:'.$max],
             'supervision_seats' => ['nullable', 'integer', 'min:0', 'max:'.$max],
+            'indexing_seats' => ['nullable', 'integer', 'min:0', 'max:'.$max],
+            'observatory_seats' => ['nullable', 'integer', 'min:0', 'max:'.$max],
         ];
     }
 
@@ -40,16 +45,16 @@ trait ValidatesPlanSeats
 
         $manual = (int) $this->input('manual_seats', 0);
         $hardware = (int) $this->input('hardware_seats', 0);
-        $supervision = (int) $this->input('supervision_seats', 0);
 
-        if ($manual + $hardware < 1 && $supervision < 1) {
-            $validator->errors()->add('manual_seats', 'Indica instalaciones de Accesos o clientes de Supervisión.');
+        if ($manual + $hardware > CompanyPackageSku::MAX_SEATS) {
+            $validator->errors()->add('manual_seats', 'El cupo de Accesos supera el máximo permitido.');
 
             return;
         }
 
-        if ($manual + $hardware > CompanyPackageSku::MAX_SEATS) {
-            $validator->errors()->add('manual_seats', 'El cupo de Accesos supera el máximo permitido.');
+        $selection = $this->planSelection($current);
+        if ($selection->isEmpty()) {
+            $validator->errors()->add('manual_seats', 'Elige al menos un producto: Accesos, Supervisión, Indexación u Observatorio.');
 
             return;
         }
@@ -64,14 +69,19 @@ trait ValidatesPlanSeats
             $validator->errors()->add('hardware_seats', 'La modalidad con hardware aún no está disponible.');
         }
 
-        $accessMetal = CommercialMetal::forSeats($manual + $hardware);
-        if ($accessMetal !== null && ! $catalog->isMetalAvailable($accessMetal) && $current?->accessMetal() !== $accessMetal) {
-            $validator->errors()->add('manual_seats', "El plan {$accessMetal->label()} no está disponible.");
-        }
+        $fields = [
+            CommercialProduct::Access->value => 'manual_seats',
+            CommercialProduct::Supervision->value => 'supervision_seats',
+            CommercialProduct::Indexing->value => 'indexing_seats',
+            CommercialProduct::Observatory->value => 'observatory_seats',
+        ];
+        $owned = $current !== null ? PlanSelection::fromCompany($current) : null;
 
-        $supMetal = CommercialMetal::forSeats($supervision);
-        if ($supMetal !== null && ! $catalog->isMetalAvailable($supMetal) && $current?->supervisionMetal() !== $supMetal) {
-            $validator->errors()->add('supervision_seats', "El plan {$supMetal->label()} de Supervisión no está disponible.");
+        foreach (CommercialProduct::cases() as $product) {
+            $metal = $selection->metal($product);
+            if ($metal instanceof CommercialMetal && ! $catalog->isMetalAvailable($metal) && $owned?->metal($product) !== $metal) {
+                $validator->errors()->add($fields[$product->value], "El plan {$metal->label()} de {$product->label()} no está disponible.");
+            }
         }
     }
 
@@ -90,13 +100,29 @@ trait ValidatesPlanSeats
         return $seats > 0 ? SupervisionPackageSku::fromSize($seats) : null;
     }
 
+    /** Un producto que el formulario no envía conserva la cantidad actual de la empresa. */
+    public function planSelection(?SecurityCompany $current = null): PlanSelection
+    {
+        $owned = $current !== null ? PlanSelection::fromCompany($current) : null;
+        $seats = fn (string $key, int $fallback): int => $this->has($key) ? (int) $this->input($key, 0) : $fallback;
+
+        return new PlanSelection(
+            $this->accessSeats(),
+            $seats('supervision_seats', $owned->supervision ?? 0),
+            $seats('indexing_seats', $owned->indexing ?? 0),
+            $seats('observatory_seats', $owned->observatory ?? 0),
+        );
+    }
+
     /** @return array<string, string> */
     protected function planSeatAttributes(): array
     {
         return [
             'manual_seats' => 'instalaciones de Accesos',
             'hardware_seats' => 'instalaciones con hardware',
-            'supervision_seats' => 'clientes de Supervisión',
+            'supervision_seats' => 'instalaciones de Supervisión',
+            'indexing_seats' => 'instalaciones de Indexación',
+            'observatory_seats' => 'instalaciones de Observatorio',
         ];
     }
 }

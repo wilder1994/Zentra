@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Tenant;
 
+use App\Domain\Pricing\Data\PlanSelection;
 use App\Enums\BillingCycle;
 use App\Enums\SupervisionPackageSku;
 use App\Models\CommercialPayment;
@@ -37,16 +38,13 @@ final class PurchaseCompanySupervisionPackageService
             return $this->scheduleCompanyPackageChangeService->scheduleSupervisionRemoval($company);
         }
 
-        $seats = $company->accessSeats();
+        $current = PlanSelection::fromCompany($company);
 
         return $this->scheduleCompanyPackageChangeService->scheduleWithLocalCheckout(
             $company,
             $actor,
-            $seats->sku(),
             $company->billing_cycle ?? BillingCycle::Monthly,
-            $seats,
-            true,
-            $sku,
+            new PlanSelection($current->access, $sku->size(), $current->indexing, $current->observatory),
         );
     }
 }

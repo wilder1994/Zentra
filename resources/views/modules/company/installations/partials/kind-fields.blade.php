@@ -6,7 +6,7 @@
 
 <div class="grid sm:grid-cols-2 gap-3" x-data="{ kind: @js($selectedKind) }">
     <div>
-        <x-ui.label for="kind">Tipo de sede</x-ui.label>
+        <x-ui.label for="kind">Tipo de instalación</x-ui.label>
         <select
             id="kind"
             name="kind"
@@ -21,7 +21,7 @@
         <x-ui.field-error :messages="$errors->get('kind')" />
     </div>
     <div x-show="kind === 'colegio'" x-cloak>
-        <x-ui.label for="dane_code">Código DANE de sede</x-ui.label>
+        <x-ui.label for="dane_code">Código DANE de la instalación</x-ui.label>
         <input
             id="dane_code"
             type="text"

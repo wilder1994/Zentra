@@ -14,7 +14,7 @@ enum ClientLifecycle: string
     {
         return match ($this) {
             self::Active => 'Operativo',
-            self::Released => 'Retirado',
+            self::Released => 'Dado de baja',
             self::ArchivedCompany => 'Archivado (empresa)',
         };
     }

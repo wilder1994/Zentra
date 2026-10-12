@@ -22,7 +22,7 @@ final readonly class UpdateUserData
         public bool $regenerateSupervisorCode = false,
         public ?string $documentNumber = null,
         public ?array $installationIds = null,
-        public ?string $sitePermission = null,
+        public ?string $installationPermission = null,
         /** @var list<AccessGrantData>|null */
         public ?array $grants = null,
     ) {}

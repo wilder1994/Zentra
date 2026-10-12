@@ -27,10 +27,14 @@
                         @if ($installation->is_client_site)
                             <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-900/40 text-indigo-300">Mismo cliente</span>
                         @endif
-                        <span class="text-[10px] px-2 py-0.5 rounded-full {{ $installation->is_active ? 'bg-emerald-900/40 text-emerald-300' : 'bg-rose-900/40 text-rose-300' }}">
-                            {{ $installation->is_active ? 'Activa' : 'Inactiva' }}
+                        <span class="text-[10px] px-2 py-0.5 rounded-full {{ $installation->is_active ? 'bg-emerald-900/40 text-emerald-300' : 'bg-slate-800 text-slate-400' }}">
+                            {{ $installation->is_active ? 'Activa' : 'Archivada' }}
                         </span>
-                        <span class="text-xs text-slate-500">{{ $installation->supervisorPosts->count() }} puesto{{ $installation->supervisorPosts->count() === 1 ? '' : 's' }}</span>
+                        @php
+                            $activePosts = $installation->supervisorPosts->where('is_active', true)->count();
+                            $postsLimit = \App\Support\Catalog\PostQuota::postsLimit($installation);
+                        @endphp
+                        <span class="text-xs text-slate-500" title="Puestos activos / permitidos por tu plan">{{ $activePosts }}/{{ $postsLimit }} puestos</span>
                         @if ($installation->address || $installation->city)
                             <span class="text-xs text-slate-500">{{ $installation->address }}{{ $installation->city ? ' · '.$installation->city : '' }}</span>
                         @endif
@@ -38,12 +42,22 @@
                     @if ($canManageTree)
                         <div class="flex items-center gap-2">
                             <button type="button" @click="editing = !editing" class="text-xs text-indigo-300 hover:text-indigo-200">Editar</button>
-                            <form method="POST" action="{{ route('company.clients.installations.destroy', [$client, $installation]) }}" onsubmit="return confirm('¿Eliminar esta instalación?')">
-                                @csrf
-                                @method('DELETE')
-                                <input type="hidden" name="vista" value="sitio">
-                                <button type="submit" class="text-xs text-rose-400 hover:text-rose-300">Eliminar</button>
-                            </form>
+                            @if ($installation->is_active)
+                                <form method="POST" action="{{ route('company.clients.installations.archive', [$client, $installation]) }}" onsubmit="return confirm('¿Archivar esta instalación? Sus puestos también se archivan y libera un cupo.')">
+                                    @csrf
+                                    <button type="submit" class="text-xs text-amber-300 hover:text-amber-200">Archivar</button>
+                                </form>
+                            @else
+                                <form method="POST" action="{{ route('company.clients.installations.restore', [$client, $installation]) }}">
+                                    @csrf
+                                    <button type="submit" class="text-xs text-emerald-300 hover:text-emerald-200">Restaurar</button>
+                                </form>
+                                <form method="POST" action="{{ route('company.clients.installations.destroy', [$client, $installation]) }}" onsubmit="return confirm('¿Dar de baja esta instalación? No se puede deshacer.')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-xs text-rose-400 hover:text-rose-300">Dar de baja</button>
+                                </form>
+                            @endif
                         </div>
                     @endif
                 </div>
@@ -60,15 +74,17 @@
                     </div>
                 @endif
 
-                @include('modules.company.clients.partials.posts-block', [
-                    'client' => $client,
-                    'installation' => $installation,
-                    'installations' => $installations,
-                    'vista' => 'sitio',
-                    'accent' => 'indigo',
-                    'canManageTree' => $canManageTree,
-                    'postModalities' => $postModalities,
-                ])
+                @if ($client->has_access || $client->has_supervision)
+                    @include('modules.company.clients.partials.posts-block', [
+                        'client' => $client,
+                        'installation' => $installation,
+                        'installations' => $installations,
+                        'vista' => 'sitio',
+                        'accent' => 'indigo',
+                        'canManageTree' => $canManageTree && $installation->is_active,
+                        'postModalities' => $postModalities,
+                    ])
+                @endif
             </article>
         @empty
             <p class="text-sm text-slate-500">Aún no hay instalaciones. Créela aquí y luego sus puestos.</p>

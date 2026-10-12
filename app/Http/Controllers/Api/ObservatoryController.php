@@ -163,7 +163,7 @@ final class ObservatoryController extends Controller
 
         if ($installation?->client === null) {
             throw ValidationException::withMessages([
-                'installation_id' => 'Elige una sede de tu alcance.',
+                'installation_id' => 'Elige una instalación de tu alcance.',
             ]);
         }
 
@@ -256,7 +256,7 @@ final class ObservatoryController extends Controller
             abort(403, 'Ese colegio no es de tu empresa.');
         }
         if ($scope['installation_ids'] !== null && ! in_array($installationId, $scope['installation_ids'], true)) {
-            abort(403, 'Esa sede no está en tu alcance.');
+            abort(403, 'Esa instalación no está en tu alcance.');
         }
     }
 

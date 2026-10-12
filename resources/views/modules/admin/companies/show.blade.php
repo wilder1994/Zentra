@@ -201,7 +201,7 @@
                 <div>
                     <h3 class="text-sm font-semibold text-white">Plan y ciclo</h3>
                     <p class="text-xs text-slate-500 mt-1">
-                        Accesos y Supervisión por cantidad. El plan sale del total. El cobro va en Pagar factura.
+                        Cada producto por cantidad de instalaciones; cada uno toma su plan. El cobro va en Pagar factura.
                     </p>
                 </div>
 
@@ -276,6 +276,8 @@
                             'manual' => (int) old('manual_seats', $company->accessSeats()->manual),
                             'hardware' => (int) old('hardware_seats', $company->accessSeats()->hardware),
                             'supervision' => (int) old('supervision_seats', $company->supervision_package_sku?->size() ?? 0),
+                            'indexing' => (int) old('indexing_seats', $company->indexing_seats ?? 0),
+                            'observatory' => (int) old('observatory_seats', $company->observatory_seats ?? 0),
                             'cycle' => old('billing_cycle', $company->billing_cycle?->value ?? 'monthly'),
                             'enforceAvailability' => false,
                         ]))">
@@ -383,6 +385,8 @@
 
             </section>
         </div>
+
+        @include('modules.admin.companies.partials.quotas')
 
         <section class="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
             <div class="flex items-center justify-between gap-2 mb-3">

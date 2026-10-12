@@ -1,21 +1,120 @@
 /**
- * Selector de plan por cantidad. Misma regla que App\Services\Pricing\PriceCalculator:
- * cada instalación = unidad × (1 − descuento del plan del total); al cruzar un rango todas cambian de plan.
+ * Cotizador del plan. Misma regla que App\Services\Pricing\PlanQuoter:
+ * 1. cada producto = unidad × instalaciones × (1 − descuento del plan de su cantidad);
+ * 2. el de mayor valor va completo; cada producto adicional lleva el descuento por combinar;
+ * 3. anual = mensual ya descontado × 12 × (1 − descuento anual).
  */
-const money = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('es-CO');
+export const money = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('es-CO');
+
+export const PRODUCTS = [
+    { key: 'access', label: 'Accesos' },
+    { key: 'supervision', label: 'Supervisión' },
+    { key: 'indexing', label: 'Indexación' },
+    { key: 'observatory', label: 'Observatorio' },
+];
+
+const round2 = (n) => Math.round(n * 100) / 100;
+
+export function metalFor(catalog, seats) {
+    if (!seats || seats < 1) {
+        return null;
+    }
+    const metals = catalog.metals || [];
+
+    return metals.find((m) => seats >= m.min && (seats <= m.max || m.key === 'platino')) || metals[metals.length - 1] || null;
+}
+
+/**
+ * @param {object} catalog  CatalogSettings::forClient()
+ * @param {{manual?: number, hardware?: number, supervision?: number, indexing?: number, observatory?: number}} seats
+ * @param {'monthly'|'annual'} cycle
+ */
+export function quotePlan(catalog, seats, cycle) {
+    const units = catalog.units || {};
+    const annualPct = Number(catalog.annual_discount || 0);
+    const comboPct = Number(catalog.combo_discount || 0);
+    const qty = (v) => Math.max(0, Math.floor(Number(v) || 0));
+    const manual = qty(seats.manual);
+    const hardware = qty(seats.hardware);
+    const counts = {
+        access: manual + hardware,
+        supervision: qty(seats.supervision),
+        indexing: qty(seats.indexing),
+        observatory: qty(seats.observatory),
+    };
+
+    const lines = [];
+    for (const product of PRODUCTS) {
+        const n = counts[product.key];
+        if (n < 1) {
+            continue;
+        }
+        const metal = metalFor(catalog, n);
+        const discount = Number(metal?.discounts?.[product.key] || 0);
+        const list = product.key === 'access'
+            ? manual * Number(units.access || 0) + hardware * Number(units.access_hardware || 0)
+            : n * Number(units[product.key] || 0);
+        lines.push({
+            key: product.key,
+            label: product.label,
+            seats: n,
+            metal,
+            unit: round2(list / n),
+            discount,
+            list: round2(list),
+            plan: round2(list * (1 - discount)),
+            combo: false,
+            monthly: 0,
+            annual: 0,
+        });
+    }
+
+    [...lines].sort((a, b) => b.plan - a.plan).forEach((line, i) => {
+        line.combo = i > 0 && comboPct > 0;
+        line.monthly = i === 0 ? line.plan : round2(line.plan * (1 - comboPct));
+        line.annual = round2(line.monthly * 12 * (1 - annualPct));
+    });
+
+    const sum = (field) => round2(lines.reduce((acc, l) => acc + l[field], 0));
+    const months = cycle === 'annual' ? 12 : 1;
+    const listMonthly = sum('list');
+    const planMonthly = sum('plan');
+    const monthly = sum('monthly');
+    const amount = cycle === 'annual' ? sum('annual') : monthly;
+    const listAmount = round2(listMonthly * months);
+
+    return {
+        lines,
+        listMonthly,
+        monthly,
+        listAmount,
+        planSavings: round2((listMonthly - planMonthly) * months),
+        comboSavings: round2((planMonthly - monthly) * months),
+        annualSavings: cycle === 'annual' ? round2(monthly * 12 - amount) : 0,
+        amount,
+        savings: round2(listAmount - amount),
+        comboPct,
+        annualPct,
+    };
+}
 
 export function planPicker(config) {
     const catalog = config.catalog || {};
+    const num = (v) => Number(v ?? 0);
 
     return {
-        manual: Number(config.manual ?? 0),
-        hardware: Number(config.hardware ?? 0),
-        supervision: Number(config.supervision ?? 0),
+        manual: num(config.manual),
+        hardware: num(config.hardware),
+        supervision: num(config.supervision),
+        indexing: num(config.indexing),
+        observatory: num(config.observatory),
         cycle: config.cycle || 'monthly',
         initial: {
-            manual: Number(config.manual ?? 0),
-            hardware: Number(config.hardware ?? 0),
-            supervision: Number(config.supervision ?? 0),
+            manual: num(config.manual),
+            hardware: num(config.hardware),
+            supervision: num(config.supervision),
+            indexing: num(config.indexing),
+            observatory: num(config.observatory),
         },
 
         money,
@@ -29,63 +128,21 @@ export function planPicker(config) {
         },
 
         metalFor(seats) {
-            if (!seats || seats < 1) {
-                return null;
-            }
-            const metals = catalog.metals || [];
-
-            return metals.find((m) => seats >= m.min && (seats <= m.max || m.key === 'platino')) || metals[metals.length - 1] || null;
+            return metalFor(catalog, seats);
         },
 
-        get accessMetal() {
-            return this.metalFor(this.accessSeats);
-        },
-
-        get supervisionMetal() {
-            return this.metalFor(Number(this.supervision) || 0);
-        },
-
-        cycleAmount(monthly) {
-            if (this.cycle !== 'annual') {
-                return monthly;
-            }
-
-            return monthly * 12 * (1 - (catalog.annual_discount || 0));
-        },
-
-        get accessUnit() {
-            const m = this.accessMetal;
-
-            return m ? (catalog.units?.access || 0) * (1 - (m.discounts?.access || 0)) : 0;
-        },
-
-        get hardwareUnit() {
-            const m = this.accessMetal;
-
-            return m ? (catalog.units?.access_hardware || 0) * (1 - (m.discounts?.access || 0)) : 0;
-        },
-
-        get supervisionUnit() {
-            const m = this.supervisionMetal;
-
-            return m ? (catalog.units?.supervision || 0) * (1 - (m.discounts?.supervision || 0)) : 0;
-        },
-
-        get accessMonthly() {
-            return (Math.max(0, Number(this.manual) || 0) * this.accessUnit)
-                + (Math.max(0, Number(this.hardware) || 0) * this.hardwareUnit);
-        },
-
-        get supervisionMonthly() {
-            return (Number(this.supervision) || 0) * this.supervisionUnit;
-        },
-
-        get totalMonthly() {
-            return this.accessMonthly + this.supervisionMonthly;
+        get quote() {
+            return quotePlan(catalog, {
+                manual: this.manual,
+                hardware: this.hardware,
+                supervision: this.supervision,
+                indexing: this.indexing,
+                observatory: this.observatory,
+            }, this.cycle);
         },
 
         get total() {
-            return this.cycleAmount(this.totalMonthly);
+            return this.quote.amount;
         },
 
         get unavailable() {
@@ -93,11 +150,10 @@ export function planPicker(config) {
             if (config.enforceAvailability === false) {
                 return issues;
             }
-            if (this.accessMetal && !this.accessMetal.available) {
-                issues.push(`Accesos ${this.accessMetal.label}`);
-            }
-            if (this.supervisionMetal && !this.supervisionMetal.available) {
-                issues.push(`Supervisión ${this.supervisionMetal.label}`);
+            for (const line of this.quote.lines) {
+                if (line.metal && !line.metal.available) {
+                    issues.push(`${line.label} ${line.metal.label}`);
+                }
             }
             if ((Number(this.hardware) || 0) > 0 && !this.hardwareEnabled) {
                 issues.push('Hardware');
@@ -107,13 +163,12 @@ export function planPicker(config) {
         },
 
         get isEmpty() {
-            return this.accessSeats < 1 && (Number(this.supervision) || 0) < 1;
+            return this.quote.lines.length === 0;
         },
 
         get isUnchanged() {
-            return Number(this.manual) === this.initial.manual
-                && Number(this.hardware) === this.initial.hardware
-                && Number(this.supervision) === this.initial.supervision
+            return ['manual', 'hardware', 'supervision', 'indexing', 'observatory']
+                .every((k) => Number(this[k]) === this.initial[k])
                 && (config.initialCycle ? this.cycle === config.initialCycle : true);
         },
 
@@ -132,18 +187,8 @@ export function planPicker(config) {
                 return '';
             }
             const missing = next.min - seats;
-            const label = product === 'supervision' ? 'cliente' : 'instalación';
 
-            return `Con ${missing} ${label}${missing === 1 ? '' : (product === 'supervision' ? 's' : 'es')} más pasas a ${next.label} (−${Math.round((next.discounts?.[product] || 0) * 100)}% en todas).`;
-        },
-
-        signupUrl(base) {
-            const params = new URLSearchParams({ cycle: this.cycle });
-            if (Number(this.manual) > 0) params.set('access', String(Number(this.manual)));
-            if (Number(this.hardware) > 0) params.set('hardware', String(Number(this.hardware)));
-            if (Number(this.supervision) > 0) params.set('supervision', String(Number(this.supervision)));
-
-            return `${base}?${params.toString()}`;
+            return `Con ${missing} instalaci${missing === 1 ? 'ón' : 'ones'} más pasas a ${next.label} (−${Math.round((next.discounts?.[product] || 0) * 100)}% en todas).`;
         },
     };
 }

@@ -12,6 +12,8 @@
             'manual' => (int) old('manual_seats', 0),
             'hardware' => (int) old('hardware_seats', 0),
             'supervision' => (int) old('supervision_seats', 0),
+            'indexing' => (int) old('indexing_seats', 0),
+            'observatory' => (int) old('observatory_seats', 0),
             'cycle' => old('billing_cycle', 'monthly'),
             'enforceAvailability' => false,
         ]))"
@@ -82,7 +84,7 @@
 
             <div class="border-t border-slate-800 pt-4 space-y-3">
                 <p class="text-xs text-slate-400">
-                    Plan inicial. Accesos y Supervisión son independientes: puede contratar uno o ambos.
+                    Plan inicial. Accesos, Supervisión, Indexación y Observatorio son independientes: puede contratar uno o varios.
                     El plan (Bronce 1–5, Plata 6–15, Oro 16–40, Platino 41+) sale de la cantidad.
                 </p>
                 <x-plans.seat-fields :cycle-options="BillingCycle::options()" id-prefix="create" />

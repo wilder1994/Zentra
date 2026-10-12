@@ -27,8 +27,8 @@
                             :class="mode === 'pins' ? 'bg-white text-slate-900' : 'bg-slate-900 text-slate-200 border border-slate-700'"
                             @click="setMode('pins')">Pines</button>
                     <button type="button" class="h-7 px-2 rounded-md text-[11px] font-semibold"
-                            :class="mode === 'heat_site' ? 'bg-white text-slate-900' : 'bg-slate-900 text-slate-200 border border-slate-700'"
-                            @click="setMode('heat_site')">Calor sede</button>
+                            :class="mode === 'heat_installation' ? 'bg-white text-slate-900' : 'bg-slate-900 text-slate-200 border border-slate-700'"
+                            @click="setMode('heat_installation')">Calor instalación</button>
                     <button type="button" class="h-7 px-2 rounded-md text-[11px] font-semibold"
                             :class="mode === 'heat_risk' ? 'bg-white text-slate-900' : 'bg-slate-900 text-slate-200 border border-slate-700'"
                             @click="setMode('heat_risk')">Calor riesgo</button>
@@ -100,6 +100,6 @@
             {{ count($sites) + count($points) }} puntos. Configura <code class="text-indigo-300">GOOGLE_MAPS_API_KEY</code> para ver el mapa.
         </p>
     @else
-        <p class="p-4 text-sm text-slate-500">No hay sedes con coordenadas.</p>
+        <p class="p-4 text-sm text-slate-500">No hay instalaciones con coordenadas.</p>
     @endif
 </div>

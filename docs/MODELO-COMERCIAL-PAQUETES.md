@@ -8,35 +8,50 @@ Pricing B2B para empresas de seguridad. Vigente desde el 12 oct 2026.
 
 | Quién compra | Qué compra | Qué limita |
 |--------------|------------|------------|
-| Empresa de seguridad | Accesos y/o Supervisión (independientes), Indexación, Observatorio | Instalaciones activas (`max_clients`), clientes supervisados (`max_supervision_clients`) y empleados (3k–12k) |
+| Empresa de seguridad | Accesos, Supervisión, Indexación y Observatorio (cualquiera, solos o combinados) | Instalaciones por producto, puestos por instalación, empleados por puesto y empleados totales |
 
-Unidad comercial = **instalación activa** (Accesos) o **cliente supervisado** (Supervisión). Se compra cualquier cantidad (1 … 10.000); no hay packs fijos.
+Los **4 productos se cobran por instalación**. Cada uno tiene su cantidad (`max_clients`, `max_supervision_clients`, `indexing_seats`, `observatory_seats`) y su propio plan según esa cantidad. Se compra cualquier cantidad (1 … 10.000); no hay packs fijos.
 
 ---
 
-## Planes y fórmula
+## Planes y límites
 
-| Plan | Cantidad | Empleados | Dto. por defecto |
-|------|----------|-----------|------------------|
-| Bronce | 1–5 | 3.000 | 5% |
-| Plata | 6–15 | 6.000 | 8% |
-| Oro | 16–40 | 9.000 | 10% |
-| Platino | 41–100 (más de 100 a precio Platino) | 12.000 | 12% |
+| Plan | Instalaciones | Puestos por instalación | Empleados por puesto | Empleados totales | Dto. por defecto |
+|------|---------------|-------------------------|----------------------|-------------------|------------------|
+| Bronce | 1–5 | 2 | 3 | 1.000 | 5% |
+| Plata | 6–15 | 5 | 5 | 2.000 | 8% |
+| Oro | 16–40 | 7 | 7 | 3.000 | 10% |
+| Platino | 41+ (más de 100 a precio Platino) | 10 | 10 | 5.000 | 12% |
+
+Los límites de la empresa salen del **plan más alto** entre sus productos (`CommercialMetal`, `QuotaOverview`). Al cruzar un rango **todas** las instalaciones de ese producto toman el nuevo precio.
+
+## Fórmula
 
 ```
-plan             = rango que contiene la cantidad total
-precio_unidad    = unidad × (1 − descuento del plan)
-mensual          = cantidad × precio_unidad
-anual            = mensual × 12 × (1 − tenancy.pricing.annual_discount)
+precio_producto  = unidad × instalaciones × (1 − descuento de su plan)
+combinar         = los productos se ordenan de mayor a menor valor;
+                   el primero va completo, cada uno de los siguientes × (1 − combo_discount)
+mensual          = suma de productos tras combinar
+anual            = mensual × 12 × (1 − tenancy.pricing.annual_discount)   (encadenado, 17%)
 ```
 
-- Al cruzar un rango **todas** las instalaciones toman el nuevo precio (no solo las nuevas).
-- Ejemplo (unidad 80.000): 5 → Bronce 76.000 c/u = 380.000; 8 → Plata 73.600 c/u = 588.800.
-- Hardware: unidad propia (`units.access_hardware`, 150.000 por defecto) con el mismo descuento del plan de Accesos.
-- Supervisión e Indexación usan la misma lógica con su unidad. Observatorio: un precio según el plan de Accesos.
-- Accesos y Supervisión son **independientes**: se puede contratar solo Supervisión.
+- Unidades por defecto (`config/catalog.php`): Accesos 80.000, Hardware 150.000, Supervisión 80.000, Indexación 40.000, Observatorio 40.000. `combo_discount` = 30%. Todo editable en `/admin/pricing`.
+- Ejemplo: Accesos 10 (Plata, 736.000) + Supervisión 10 (Plata, 736.000 − 30% = 515.200).
+- Hardware: unidad propia con el mismo descuento del plan de Accesos.
+- Observatorio se puede contratar solo. Indexación ya no es complemento: tiene cantidad y precio propios.
 
-Motor: `App\Support\Catalog\CatalogPricer` (matrices) y `App\Services\Pricing\PriceCalculator` (cotizaciones). Selector en vistas: `resources/js/plan-picker.js` + `<x-plans.seat-fields>` (misma fórmula en JS).
+Motor PHP: `App\Domain\Pricing\Data\PlanSelection` (cantidades), `App\Services\Pricing\PlanQuoter` (cotización con combinar y anual), `CompanyPlanPricer` (columnas de precio de la empresa) y `CatalogPricer` (matrices). JS: `resources/js/plan-picker.js` (`quotePlan`, misma fórmula) y `resources/js/plan-cart.js`.
+
+## Cupos y ampliaciones
+
+- Crear instalación, puesto o asignar empleado pide cupo libre del producto y del plan. El mensaje dice qué falta y remite a archivar o ampliar en Facturación, donde está **Solicitar ampliación**.
+- **Ampliaciones del súper admin** (ficha empresa, bloque Cupos): empleados extra de la empresa (`extra_employees`), puestos por instalación y empleados por puesto (por empresa, por instalación `max_posts` o por puesto `max_employees`), con nota.
+- **Solicitar ampliación** (empresa → súper admin): `POST /company/billing/quota-requests` crea un `quota_request`; el súper admin aprueba o rechaza desde la ficha.
+- La migración `2026_10_13_100000` deja lo que hoy excede los nuevos límites como cupo adicional: ninguna empresa se bloquea.
+
+## Archivo unificado
+
+Clientes, instalaciones, puestos y empleados se archivan con el mismo flujo. Archivar un padre archiva a sus hijos en cascada (`archived_with_parent`). Restaurar pide cupo libre; los hijos que se archivaron con el padre vuelven con él.
 
 SKU almacenado: `pack_{n}_{manual|hardware|mixed}` (`CompanyPackageSku`) y `sup_{n}` (`SupervisionPackageSku`), ambos objetos valor con tamaño libre. Supervisión ilimitada ya no existe (se migró a `sup_100`).
 
@@ -70,7 +85,7 @@ Defaults en `config/catalog.php`. Editables en `/admin/pricing`.
 | Accesos | Mi empresa, Facturación, Clientes, Instalaciones, Pánicos, Empleados, Usuarios, Mis datos, Ajustes |
 | Supervisión | Facturación, Clientes, Instalaciones, Supervisión, Pánicos, Descargas, Empleados, Usuarios, Mis datos, Ajustes |
 | Indexación | Facturación, Empleados, Documentos, Usuarios, Mis datos, Ajustes |
-| Observatorio | Observatorio (solo si hay Accesos) |
+| Observatorio | Mi empresa, Facturación, Clientes, Instalaciones, Observatorio, Usuarios, Mis datos, Ajustes |
 
 ## Dónde se ve
 
@@ -79,7 +94,9 @@ Defaults en `config/catalog.php`. Editables en `/admin/pricing`.
 - Alta de empresa, cambio programado y reactivación — selector por cantidad con plan y precio en vivo.
 - Dashboard — «Empresas por plan» (Accesos y Supervisión).
 - Empresa `/company/billing` — plan, instalaciones, valor por instalación, total, próxima facturación, nuevo valor programado; «Cambiar plan» aplica al corte.
-- Público `/` y `/planes` — precio por instalación, calculadora y enlace al registro (`/contratar?access=&hardware=&supervision=&cycle=`).
+- Público `/` — tarjetas por plan con límites.
+- Público `/planes` — **Arma tu plan**: una tarjeta por plan con Accesos (y Hardware si está disponible), Supervisión, Indexación y Observatorio. Cada fila: casilla, precio unitario, +/− con cantidad limitada al rango del plan (Platino admite escribir más de 100), texto «Obtienes» y **Agregar al carrito**.
+- Público `/planes/carrito` — una línea por producto (`localStorage` `zentra.plan-cart.v1`). Agregar el mismo producto reemplaza la línea con aviso; si la cantidad cruza rango, la línea cambia de plan. Selector Mensual/Anual; total sin descuento, descuentos por plan, descuento por combinar, anual, total y ahorro. **Contratar** abre el registro (`/contratar?access=&hardware=&supervision=&indexing=&observatory=&cycle=`).
 
 Contratos: uno por plan y modalidad (`legal_corpus_versions.package_sku` = `{metal}_{modalidad}`).
 
@@ -92,6 +109,10 @@ Contratos: uno por plan y modalidad (`legal_corpus_versions.package_sku` = `{met
 | POST | `/admin/pricing/increase` | `manage` |
 | PUT | `/admin/companies/{company}/price-lock` | `manage` |
 | GET | `/planes` | público |
+| GET | `/planes/carrito` | público |
+| POST | `/company/billing/quota-requests` | empresa |
+| PUT | `/admin/companies/{company}/quotas` · `/quotas/installation` · `/quotas/post` | `manage` |
+| POST | `/admin/companies/{company}/quota-requests/{quotaRequest}/approve` · `/reject` | `manage` |
 
 ## Tests (BD `zentra_test`)
 
@@ -99,6 +120,8 @@ Contratos: uno por plan y modalidad (`legal_corpus_versions.package_sku` = `{met
 php artisan test --filter=CatalogPricerTest
 php artisan test --filter=PriceCalculatorTest
 php artisan test --filter=PlansPagesTest
+php artisan test --filter=PlanQuoterTest
+php artisan test --filter=PlanQuotaArchiveTest
 ```
 
 ## Deploy
@@ -111,10 +134,17 @@ php artisan config:cache && php artisan route:cache && php artisan view:cache
 
 Sin `migrate:fresh`. La migración `2026_10_12_120000_align_commercial_plans` agrega columnas e historial, convierte Supervisión ilimitada y re-indexa contratos; **no** cambia precios de empresas actuales. Ver [`HOSTING-VPS.md`](HOSTING-VPS.md).
 
+Migraciones del 13 oct 2026:
+
+- `2026_10_13_100000_add_plan_quotas_and_unified_archive` — cupos, cantidades de Indexación/Observatorio (desde lo que ya tenían), archivo unificado, `quota_requests`.
+- `2026_10_13_110000_add_indexing_observatory_pricing` — precios de Indexación y Observatorio. Las empresas actuales **no** pagan esos productos hasta su próximo recálculo de precio.
+- `2026_10_13_120000_rename_site_permission_to_installation_permission` — renombra la columna.
+
 ## Changelog
 
 | Fecha | Cambio |
 |-------|--------|
+| 2026-10-13 | 4 productos por instalación, descuento por combinar (30%), anual encadenado, tarjetas «Arma tu plan» y carrito, límites por plan, ampliaciones y archivo unificado; «sede» pasa a «instalación» |
 | 2026-10-12 | Planes por cantidad libre, Accesos/Supervisión independientes, disponibilidad, precio pactado, incremento anual, historial |
 | 2026-09-29 | Metales, 4 productos, módulos por plan, indexación add-on, observatorio por metal de Accesos |
 | 2026-07-20 | Modelo inicial cupo + unitarios |

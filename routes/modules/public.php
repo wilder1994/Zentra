@@ -15,7 +15,7 @@ Route::get('/geo/cali-comunas.geojson', fn () => app(CaliComunaLayer::class)->do
 
 Route::prefix('o/{slug}')->name('observatory.public.')->group(function () {
     Route::get('/', [ObservatoryIntakeController::class, 'show'])->name('show');
-    Route::get('/sedes', [ObservatoryIntakeController::class, 'sites'])->name('sites');
+    Route::get('/instalaciones', [ObservatoryIntakeController::class, 'installations'])->name('installations');
     Route::post('/', [ObservatoryIntakeController::class, 'store'])->middleware('throttle:10,1')->name('store');
     Route::get('/gracias/{report}', [ObservatoryIntakeController::class, 'thanks'])->name('thanks');
 });
@@ -23,6 +23,9 @@ Route::prefix('o/{slug}')->name('observatory.public.')->group(function () {
 Route::middleware('guest')->group(function () {
     Route::get('/planes', [PlansController::class, 'index'])
         ->name('planes.index');
+
+    Route::get('/planes/carrito', [PlansController::class, 'cart'])
+        ->name('planes.cart');
 
     Route::get('/contratar', [SignupController::class, 'create'])
         ->name('signup.create');

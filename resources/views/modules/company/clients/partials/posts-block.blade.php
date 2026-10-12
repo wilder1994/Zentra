@@ -16,20 +16,25 @@
                     @if ($post->employees->isNotEmpty())
                         <span class="text-[10px] text-slate-500">· {{ $post->employees->map->fullName()->join(', ') }}</span>
                     @endif
-                    <span class="text-[10px] {{ $post->is_active ? 'text-emerald-400' : 'text-rose-400' }}">{{ $post->is_active ? 'activo' : 'inactivo' }}</span>
+                    <span class="text-[10px] {{ $post->is_active ? 'text-emerald-400' : 'text-slate-500' }}">{{ $post->is_active ? 'activo' : 'archivado' }}</span>
+                    <span class="text-[10px] text-slate-500" title="Empleados asignados / permitidos">· {{ $post->employees->where('is_active', true)->count() }}/{{ \App\Support\Catalog\PostQuota::employeesLimit($post) }} asignados</span>
                 </p>
                 @if ($canManageTree)
                     <div class="flex items-center gap-2">
                         <button type="button" @click="editingPost = !editingPost" class="text-xs {{ $editLink }}">Editar</button>
-                        <form method="POST" action="{{ route('company.clients.posts.destroy', [$client, $post]) }}" class="flex items-center gap-1" onsubmit="return confirm('¿Eliminar este puesto?')">
+                        <form method="POST" action="{{ $post->is_active ? route('company.clients.posts.archive', [$client, $post]) : route('company.clients.posts.restore', [$client, $post]) }}" class="flex items-center gap-1">
                             @csrf
-                            @method('DELETE')
                             <input type="hidden" name="vista" value="{{ $vista }}">
                             @if ($returnTo)
                                 <input type="hidden" name="return_to" value="{{ $returnTo }}">
                             @endif
                             <input type="text" name="observations" required maxlength="2000" placeholder="Motivo" class="w-28 rounded bg-slate-950 border border-slate-700 px-1.5 py-0.5 text-[11px] text-white">
-                            <button type="submit" class="text-xs text-rose-400">Eliminar</button>
+                            @if ($post->is_active)
+                                <button type="submit" class="text-xs text-amber-300">Archivar</button>
+                            @else
+                                <button type="submit" class="text-xs text-emerald-300">Restaurar</button>
+                                <button type="submit" formaction="{{ route('company.clients.posts.destroy', [$client, $post]) }}" name="_method" value="DELETE" class="text-xs text-rose-400" onclick="return confirm('¿Dar de baja este puesto? No se puede deshacer.')">Dar de baja</button>
+                            @endif
                         </form>
                     </div>
                 @endif

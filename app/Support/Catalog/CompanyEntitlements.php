@@ -17,9 +17,39 @@ final class CompanyEntitlements
         return new self($company ?? new SecurityCompany);
     }
 
+    public function accessSeats(): int
+    {
+        return (int) ($this->company->max_clients ?? 0);
+    }
+
+    public function supervisionSeats(): int
+    {
+        if (! $this->company->exists || ! $this->company->hasSupervisionPackage()) {
+            return 0;
+        }
+
+        return (int) ($this->company->max_supervision_clients ?: $this->company->supervision_package_size ?: 0);
+    }
+
+    public function indexingSeats(): int
+    {
+        return (int) ($this->company->indexing_seats ?? 0);
+    }
+
+    public function observatorySeats(): int
+    {
+        return (int) ($this->company->observatory_seats ?? 0);
+    }
+
+    /** Bolsa compartida de instalaciones: la mayor cantidad entre los productos contratados. */
+    public function installationCapacity(): int
+    {
+        return max($this->accessSeats(), $this->supervisionSeats(), $this->indexingSeats(), $this->observatorySeats());
+    }
+
     public function hasAccess(): bool
     {
-        return (int) ($this->company->max_clients ?? 0) > 0;
+        return $this->accessSeats() > 0;
     }
 
     public function hasSupervision(): bool
@@ -29,31 +59,17 @@ final class CompanyEntitlements
 
     public function hasIndexing(): bool
     {
-        if ($this->company->exists && $this->company->has_indexing !== null) {
-            return (bool) $this->company->has_indexing;
-        }
-
-        return $this->hasAccess() || $this->hasSupervision();
+        return $this->indexingSeats() > 0;
     }
 
     public function hasObservatory(): bool
     {
-        if (! $this->hasAccess()) {
-            return false;
-        }
-
-        if ($this->company->exists && $this->company->has_observatory !== null) {
-            return (bool) $this->company->has_observatory;
-        }
-
-        return true;
+        return $this->observatorySeats() > 0;
     }
 
     public function accessMetal(): ?CommercialMetal
     {
-        $seats = (int) ($this->company->max_clients ?? 0);
-
-        return $seats > 0 ? CommercialMetal::fromSeats($seats) : null;
+        return $this->metalOf($this->accessSeats());
     }
 
     public function supervisionMetal(): ?CommercialMetal
@@ -66,31 +82,60 @@ final class CompanyEntitlements
             return CommercialMetal::Platino;
         }
 
-        $seats = (int) ($this->company->max_supervision_clients ?: $this->company->supervision_package_size ?: 0);
+        return $this->metalOf($this->supervisionSeats()) ?? CommercialMetal::Bronce;
+    }
 
-        return $seats > 0 ? CommercialMetal::fromSeats($seats) : CommercialMetal::Bronce;
+    public function indexingMetal(): ?CommercialMetal
+    {
+        return $this->metalOf($this->indexingSeats());
+    }
+
+    public function observatoryMetal(): ?CommercialMetal
+    {
+        return $this->metalOf($this->observatorySeats());
+    }
+
+    /** Al combinar productos de distinto plan rige el más alto. */
+    public function metal(): ?CommercialMetal
+    {
+        return CommercialMetal::highest(
+            $this->accessMetal(),
+            $this->supervisionMetal(),
+            $this->indexingMetal(),
+            $this->observatoryMetal(),
+        );
+    }
+
+    public function planEmployeeCap(): int
+    {
+        return $this->metal()?->employeeCap() ?? 0;
     }
 
     public function employeeCap(): int
     {
-        $caps = [];
-        $access = $this->accessMetal();
-        $supervision = $this->supervisionMetal();
-        if ($access) {
-            $caps[] = $access->employeeCap();
-        }
-        if ($supervision) {
-            $caps[] = $supervision->employeeCap();
-        }
-        if ($caps !== []) {
-            return max($caps);
+        $base = $this->planEmployeeCap();
+
+        return $base > 0 ? $base + (int) ($this->company->extra_employees ?? 0) : 0;
+    }
+
+    public function postsPerInstallation(): int
+    {
+        $override = $this->company->posts_per_installation;
+        if ($override !== null) {
+            return (int) $override;
         }
 
-        if ($this->hasIndexing() && ! $this->hasAccess() && ! $this->hasSupervision()) {
-            return CommercialMetal::Bronce->employeeCap();
+        return $this->metal()?->postsPerInstallation() ?? 0;
+    }
+
+    public function employeesPerPost(): int
+    {
+        $override = $this->company->employees_per_post;
+        if ($override !== null) {
+            return (int) $override;
         }
 
-        return 0;
+        return $this->metal()?->employeesPerPost() ?? 0;
     }
 
     /** @return list<string> */
@@ -122,5 +167,10 @@ final class CompanyEntitlements
     public function allows(string $module): bool
     {
         return in_array($module, $this->modules(), true);
+    }
+
+    private function metalOf(int $seats): ?CommercialMetal
+    {
+        return $seats > 0 ? CommercialMetal::fromSeats($seats) : null;
     }
 }

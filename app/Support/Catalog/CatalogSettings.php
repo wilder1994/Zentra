@@ -56,11 +56,11 @@ final class CatalogSettings
         return max(0, min(0.9, (float) $value));
     }
 
-    public function observatoryPrice(CommercialMetal $metal): float
+    public function comboDiscount(): float
     {
-        $defaults = self::defaults()['default_observatory'] ?? [];
+        $value = $this->data['combo_discount'] ?? self::defaults()['default_combo_discount'] ?? 0;
 
-        return (float) ($this->data['observatory'][$metal->value] ?? $defaults[$metal->value] ?? 0);
+        return max(0, min(0.9, (float) $value));
     }
 
     /** `bronce|plata|oro|platino|hardware` */
@@ -109,7 +109,7 @@ final class CatalogSettings
         return array_values(array_intersect($stored, $allowed));
     }
 
-    /** Copia con unidades y Observatorio subidos un %; descuentos y módulos iguales. */
+    /** Copia con las unidades subidas un %; descuentos y módulos iguales. */
     public function withIncrease(float $pct): self
     {
         $factor = 1 + ($pct / 100);
@@ -118,9 +118,6 @@ final class CatalogSettings
 
         foreach ($form['units'] as $key => $value) {
             $data['units'][$key] = round($value * $factor, 0);
-        }
-        foreach ($form['observatory'] as $metal => $value) {
-            $data['observatory'][$metal] = round($value * $factor, 0);
         }
 
         return new self($data, $this->currency);
@@ -136,7 +133,7 @@ final class CatalogSettings
      * @return array{
      *   units: array<string, float>,
      *   discounts: array<string, array<string, float>>,
-     *   observatory: array<string, float>,
+     *   combo_discount: float,
      *   modules: array<string, list<string>>,
      *   availability: array<string, bool>
      * }
@@ -149,16 +146,13 @@ final class CatalogSettings
         }
 
         $discounts = [];
-        foreach ([CommercialProduct::Access, CommercialProduct::Supervision, CommercialProduct::Indexing] as $product) {
+        foreach (CommercialProduct::cases() as $product) {
             foreach (CommercialMetal::cases() as $metal) {
                 $discounts[$product->value][$metal->value] = $this->discount($product, $metal);
             }
         }
 
-        $observatory = [];
-        foreach (CommercialMetal::cases() as $metal) {
-            $observatory[$metal->value] = $this->observatoryPrice($metal);
-        }
+        $combo_discount = $this->comboDiscount();
 
         $modules = [];
         foreach (CommercialProduct::cases() as $product) {
@@ -170,7 +164,7 @@ final class CatalogSettings
             $availability[$key] = $this->isAvailable($key);
         }
 
-        return compact('units', 'discounts', 'observatory', 'modules', 'availability');
+        return compact('units', 'discounts', 'combo_discount', 'modules', 'availability');
     }
 
     /** Datos que usa el selector de instalaciones en el navegador. */
@@ -184,11 +178,13 @@ final class CatalogSettings
                 'min' => $metal->rangeMin(),
                 'max' => $metal->packSize(),
                 'employees' => $metal->employeeCap(),
+                'posts' => $metal->postsPerInstallation(),
+                'per_post' => $metal->employeesPerPost(),
                 'available' => $includeUnavailable || $this->isMetalAvailable($metal),
-                'discounts' => [
-                    'access' => $this->discount(CommercialProduct::Access, $metal),
-                    'supervision' => $this->discount(CommercialProduct::Supervision, $metal),
-                ],
+                'discounts' => array_combine(
+                    array_map(fn (CommercialProduct $p) => $p->value, CommercialProduct::cases()),
+                    array_map(fn (CommercialProduct $p) => $this->discount($p, $metal), CommercialProduct::cases()),
+                ),
             ];
         }
 
@@ -197,10 +193,13 @@ final class CatalogSettings
                 'access' => $this->unit('access'),
                 'access_hardware' => $this->unit('access_hardware'),
                 'supervision' => $this->unit('supervision'),
+                'indexing' => $this->unit('indexing'),
+                'observatory' => $this->unit('observatory'),
             ],
             'metals' => $metals,
             'hardware' => $includeUnavailable || $this->hardwareAvailable(),
             'annual_discount' => (float) config('tenancy.pricing.annual_discount', 0.17),
+            'combo_discount' => $this->comboDiscount(),
             'max_seats' => $includeUnavailable ? CompanyPackageSku::MAX_SEATS : $this->maxPublicSeats(),
         ];
     }

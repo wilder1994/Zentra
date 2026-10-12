@@ -58,6 +58,7 @@ final class UpdateClientRequest extends FormRequest
             'is_active' => ['sometimes', 'boolean'],
             'has_access' => ['sometimes', 'boolean'],
             'has_supervision' => ['sometimes', 'boolean'],
+            'has_observatory' => ['sometimes', 'boolean'],
             'show_personnel_folders' => ['sometimes', 'boolean'],
         ];
     }

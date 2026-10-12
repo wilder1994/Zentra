@@ -66,8 +66,8 @@ final class StoreClientInstallationRequest extends FormRequest
         return [
             'name' => 'nombre',
             'code' => 'código',
-            'kind' => 'tipo de sede',
-            'dane_code' => 'código DANE de sede',
+            'kind' => 'tipo de instalación',
+            'dane_code' => 'código DANE de la instalación',
             'commune' => 'área',
             'rector_user_id' => 'contacto en directorio',
             'is_client_site' => 'la instalación es el mismo cliente',
@@ -85,10 +85,10 @@ final class StoreClientInstallationRequest extends FormRequest
         return [
             'latitude.required' => 'Fija la ubicación de la instalación en el mapa.',
             'longitude.required' => 'Fija la ubicación de la instalación en el mapa.',
-            'dane_code.required' => 'El colegio debe tener código DANE de sede.',
-            'dane_code.required_if' => 'El colegio debe tener código DANE de sede.',
-            'dane_code.regex' => 'El código DANE de sede debe tener entre 8 y 12 dígitos.',
-            'dane_code.unique' => 'Ya existe una sede con ese código DANE.',
+            'dane_code.required' => 'El colegio debe tener código DANE de la instalación.',
+            'dane_code.required_if' => 'El colegio debe tener código DANE de la instalación.',
+            'dane_code.regex' => 'El código DANE de la instalación debe tener entre 8 y 12 dígitos.',
+            'dane_code.unique' => 'Ya existe una instalación con ese código DANE.',
         ];
     }
 }

@@ -23,6 +23,8 @@
                         'manual' => (int) old('manual_seats', $company->accessSeats()->manual),
                         'hardware' => (int) old('hardware_seats', $company->accessSeats()->hardware),
                         'supervision' => (int) old('supervision_seats', $company->supervision_package_sku?->size() ?? 0),
+                        'indexing' => (int) old('indexing_seats', $company->indexing_seats ?? 0),
+                        'observatory' => (int) old('observatory_seats', $company->observatory_seats ?? 0),
                         'cycle' => old('billing_cycle', $company->billing_cycle?->value ?? 'monthly'),
                             'enforceAvailability' => false,
                         'initialCycle' => $company->billing_cycle?->value ?? 'monthly',

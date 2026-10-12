@@ -102,7 +102,7 @@
                             <input type="checkbox" name="to_observatory" value="1" x-model="toObservatory" class="mt-0.5 rounded bg-slate-950 border-teal-600 text-teal-500 focus:ring-teal-500">
                             <div>
                                 <p class="text-sm font-medium text-teal-200">También al Observatorio</p>
-                                <p class="text-xs text-slate-400">Copia esta novedad al folio del colegio. Solo si la sede es colegio y tiene puerta.</p>
+                                <p class="text-xs text-slate-400">Copia esta novedad al folio del colegio. Solo si la instalación es colegio y tiene puerta.</p>
                             </div>
                         </label>
                         <div x-show="toObservatory" class="mt-3 space-y-3 p-4 bg-teal-950/30 rounded-lg border border-teal-800">

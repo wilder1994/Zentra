@@ -35,12 +35,18 @@ final class ArchiveCompanyService
 
             Client::query()
                 ->where('security_company_id', $company->id)
-                ->where('lifecycle', '!=', ClientLifecycle::ArchivedCompany->value)
+                ->where('lifecycle', ClientLifecycle::Active->value)
+                ->where('is_active', true)
                 ->update([
-                    'lifecycle' => ClientLifecycle::ArchivedCompany,
                     'archived_at' => $now,
+                    'archived_with_parent' => true,
                     'is_active' => false,
                 ]);
+
+            Client::query()
+                ->where('security_company_id', $company->id)
+                ->where('lifecycle', ClientLifecycle::Active->value)
+                ->update(['lifecycle' => ClientLifecycle::ArchivedCompany]);
 
             CompanyServiceAccess::revokeOperationalTokens((int) $company->id);
 

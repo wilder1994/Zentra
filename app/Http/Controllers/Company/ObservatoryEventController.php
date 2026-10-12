@@ -205,6 +205,7 @@ final class ObservatoryEventController extends Controller
         return Client::query()
             ->where('security_company_id', $companyId)
             ->where('is_active', true)
+            ->where('has_observatory', true)
             ->whereNotNull('slug')
             ->orderBy('name')
             ->get(['id', 'name', 'slug']);

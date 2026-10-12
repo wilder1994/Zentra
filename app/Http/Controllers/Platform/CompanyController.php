@@ -25,6 +25,7 @@ use App\Http\Requests\Platform\UpdateCompanyProfileRequest;
 use App\Http\Requests\Platform\UpdateCompanySupervisionPackageRequest;
 use App\Models\CommercialPayment;
 use App\Models\PlatformDocument;
+use App\Models\QuotaRequest;
 use App\Models\SecurityCompany;
 use App\Models\User;
 use App\Repositories\SecurityCompanyRepository;
@@ -48,6 +49,7 @@ use App\Services\Tenant\CreateCompanyFirstAdminService;
 use App\Services\Tenant\CreateCompanyService;
 use App\Services\Tenant\UpdateCompanyProfileService;
 use App\Support\Catalog\CatalogSettings;
+use App\Support\Catalog\QuotaOverview;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -197,7 +199,7 @@ final class CompanyController extends Controller
 
         $cycleOptions = BillingCycle::options();
 
-        $catalogQuote = app(CompanyRepricingService::class)->quote($company);
+        $catalogAmount = app(CompanyRepricingService::class)->quoteAmount($company);
 
         $clients = $company->clients()
             ->orderBy('name')
@@ -242,8 +244,16 @@ final class CompanyController extends Controller
             'cycleOptions' => $cycleOptions,
             'planCatalog' => CatalogSettings::current()->forClient(true),
             'priceChanges' => $company->priceChanges()->with('user:id,name')->latest('effective_at')->latest('id')->limit(30)->get(),
-            'pendingRepriceAmount' => $company->hasPendingReprice() ? $catalogQuote['amount'] : null,
-            'catalogAmount' => $catalogQuote['amount'],
+            'quotaOverview' => QuotaOverview::for($company),
+            'quotaRequests' => QuotaRequest::query()
+                ->where('security_company_id', $company->id)
+                ->with(['requester:id,name', 'installation', 'post'])
+                ->orderByRaw("status = 'pending' desc")
+                ->latest('id')
+                ->limit(20)
+                ->get(),
+            'pendingRepriceAmount' => $company->hasPendingReprice() ? $catalogAmount : null,
+            'catalogAmount' => $catalogAmount,
             'portfolioClients' => $clients,
             'paidInvoicesCount' => $paidInvoicesCount,
             'pendingPaymentsCount' => $pendingPaymentsCount,
@@ -401,20 +411,14 @@ final class CompanyController extends Controller
     public function applyPlan(ApplyAdminPlanChangeRequest $request, SecurityCompany $company): RedirectResponse
     {
         try {
-            $cycle = BillingCycle::from($request->validated('billing_cycle'));
-            $seats = $request->accessSeats();
-            $sku = $seats->sku();
-            $supervision = $request->supervisionSku();
             $onDate = $request->filled('effective_on')
                 ? CarbonImmutable::parse($request->validated('effective_on'))
                 : null;
 
             $result = $this->applyAdminPlanChangeService->execute(
                 $company,
-                $sku,
-                $cycle,
-                $seats,
-                $supervision,
+                BillingCycle::from($request->validated('billing_cycle')),
+                $request->planSelection($company),
                 (string) $request->validated('apply_when'),
                 $onDate,
             );
@@ -442,17 +446,13 @@ final class CompanyController extends Controller
         SecurityCompany $company,
     ): RedirectResponse {
         try {
-            $seats = $request->accessSeats();
             $this->scheduleCompanyPackageChangeService->scheduleWithManualPayment(
                 $company,
                 $request->user(),
-                $seats->sku(),
                 BillingCycle::from($request->validated('billing_cycle')),
                 $request->validated('reference'),
                 $request->file('proof'),
-                $seats,
-                $request->supervisionSku(),
-                true,
+                $request->planSelection($company),
             );
         } catch (\InvalidArgumentException $e) {
             return redirect()

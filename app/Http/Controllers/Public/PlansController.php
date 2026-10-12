@@ -4,37 +4,47 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Public;
 
-use App\Enums\BillingCycle;
+use App\Enums\CommercialMetal;
 use App\Enums\CommercialProduct;
 use App\Http\Controllers\Controller;
-use App\Support\Catalog\CatalogPricer;
-use Illuminate\Http\Request;
+use App\Support\Catalog\CatalogSettings;
 use Illuminate\View\View;
 
 final class PlansController extends Controller
 {
-    public function index(Request $request): View
+    public function index(): View
     {
-        $cycle = BillingCycle::tryFrom((string) $request->query('cycle', 'monthly'))
-            ?? BillingCycle::Monthly;
-        $pricer = CatalogPricer::make();
-        $accessMatrix = $pricer->matrix(CommercialProduct::Access, $cycle, false, true);
-        $supervisionMatrix = $pricer->matrix(CommercialProduct::Supervision, $cycle, false, true);
-        $indexingMatrix = $pricer->matrix(CommercialProduct::Indexing, $cycle, false, true);
-        $indexingAddonMatrix = $pricer->matrix(CommercialProduct::Indexing, $cycle, true, true);
-        $observatoryMatrix = $pricer->observatoryMatrix($cycle, true);
-        $annualDiscount = (float) config('tenancy.pricing.annual_discount', 0.17);
-        $planCatalog = $pricer->catalog()->forClient();
+        $catalog = CatalogSettings::current();
+        $moduleOptions = CatalogSettings::defaults()['module_options'] ?? [];
 
-        return view('modules.public.plans.index', compact(
-            'cycle',
-            'accessMatrix',
-            'supervisionMatrix',
-            'indexingMatrix',
-            'indexingAddonMatrix',
-            'observatoryMatrix',
-            'annualDiscount',
-            'planCatalog',
-        ));
+        $modules = [];
+        foreach (CommercialProduct::cases() as $product) {
+            $modules[$product->value] = array_values(array_map(
+                fn (string $key) => $moduleOptions[$key] ?? $key,
+                $catalog->modules($product),
+            ));
+        }
+
+        return view('modules.public.plans.index', [
+            'planCatalog' => $catalog->forClient(),
+            'metals' => array_values(array_filter(
+                CommercialMetal::cases(),
+                fn (CommercialMetal $metal) => $catalog->isMetalAvailable($metal),
+            )),
+            'modules' => $modules,
+            'annualDiscount' => (float) config('tenancy.pricing.annual_discount', 0.17),
+            'comboDiscount' => $catalog->comboDiscount(),
+        ]);
+    }
+
+    public function cart(): View
+    {
+        $catalog = CatalogSettings::current();
+
+        return view('modules.public.plans.cart', [
+            'planCatalog' => $catalog->forClient(),
+            'annualDiscount' => (float) config('tenancy.pricing.annual_discount', 0.17),
+            'comboDiscount' => $catalog->comboDiscount(),
+        ]);
     }
 }

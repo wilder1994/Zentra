@@ -8,7 +8,7 @@
                 Con el usuario <span class="font-semibold text-white">{{ $reporterName ?? 'actual' }}</span> no puedes realizar el reporte.
             </p>
             <p class="text-sm text-amber-200/80">
-                Solo el administrador de la sede (rector) o el apoyo pueden reportar desde el panel.
+                Solo el administrador de la instalación (rector) o el apoyo pueden reportar desde el panel.
             </p>
         </div>
     @else
@@ -27,7 +27,7 @@
         <form method="POST" action="{{ route('client.observatory.reports.store') }}" enctype="multipart/form-data" class="mt-6 max-w-xl space-y-4" x-data="observatoryPhotos({ anonymous: {{ old('is_anonymous') ? 'true' : 'false' }} })">
             @csrf
             <div>
-                <label class="block text-xs text-slate-400 mb-1" for="installation_id">Sede</label>
+                <label class="block text-xs text-slate-400 mb-1" for="installation_id">Instalación</label>
                 <select id="installation_id" name="installation_id" required class="w-full h-11 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
                     <option value="">Seleccione…</option>
                     @foreach ($sites as $site)

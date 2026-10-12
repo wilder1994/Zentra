@@ -221,7 +221,7 @@ final class ObservatoryApiTest extends TestCase
             'password_confirmation' => 'Cliente123!',
             'client_ids' => [$client->id],
             'installation_ids' => [$site->id],
-            'site_permission' => 'admin',
+            'installation_permission' => 'admin',
             'is_active' => '1',
         ])->assertRedirect();
 
