@@ -112,7 +112,7 @@ final class SupervisionMapController extends Controller
         $filter = $this->queryFilter($request, $company);
 
         $snapshot = $this->buildSupervisionSummaryService->execute($company, $filter);
-        $file = $this->exportReport->execute($snapshot);
+        $file = $this->exportReport->execute($snapshot, $company->logo_path);
 
         return response()
             ->download($file['path'], $file['filename'])

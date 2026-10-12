@@ -5,25 +5,34 @@ declare(strict_types=1);
 namespace App\Services\Company;
 
 use App\Domain\Supervision\Data\SupervisionPeriodSnapshot;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PhpOffice\PhpPresentation\DocumentLayout;
 use PhpOffice\PhpPresentation\IOFactory;
 use PhpOffice\PhpPresentation\PhpPresentation;
+use PhpOffice\PhpPresentation\Shape\Chart\Gridlines;
 use PhpOffice\PhpPresentation\Shape\Chart\Legend;
+use PhpOffice\PhpPresentation\Shape\Chart\Marker;
 use PhpOffice\PhpPresentation\Shape\Chart\Series;
+use PhpOffice\PhpPresentation\Shape\Chart\Type\AbstractType;
 use PhpOffice\PhpPresentation\Shape\Chart\Type\Bar;
+use PhpOffice\PhpPresentation\Shape\Chart\Type\Doughnut;
+use PhpOffice\PhpPresentation\Shape\Chart\Type\Line;
 use PhpOffice\PhpPresentation\Shape\Table\Row;
 use PhpOffice\PhpPresentation\Slide;
 use PhpOffice\PhpPresentation\Slide\Background\Color as BackgroundColor;
 use PhpOffice\PhpPresentation\Style\Alignment;
 use PhpOffice\PhpPresentation\Style\Color;
 use PhpOffice\PhpPresentation\Style\Fill;
+use PhpOffice\PhpPresentation\Style\Outline;
 
 final class ExportSupervisionExecutiveReportService
 {
     private const NAVY = 'FF0F172A';
 
     private const CARD = 'FF1E293B';
+
+    private const SLATE = 'FF334155';
 
     private const GOLD = 'FFFBBF24';
 
@@ -33,17 +42,38 @@ final class ExportSupervisionExecutiveReportService
 
     private const MUTED = 'FF94A3B8';
 
+    private const GREEN = 'FF34D399';
+
+    private const RED = 'FFF87171';
+
+    private const ORANGE = 'FFFB923C';
+
+    private const WHITE = 'FFFFFFFF';
+
     private const ROW_RED = 'FF7F1D1D';
 
     private const ROW_AMBER = 'FF78350F';
 
     private const ROW_GREEN = 'FF064E3B';
 
+    private const CHART_Y = 100;
+
+    private const CHART_H = 285;
+
+    private const TEXT_Y = 398;
+
+    private const TEXT_H = 124;
+
+    /** @var list<string> */
+    private array $tempFiles = [];
+
     /**
      * @return array{path: string, filename: string}
      */
-    public function execute(SupervisionPeriodSnapshot $snapshot): array
+    public function execute(SupervisionPeriodSnapshot $snapshot, ?string $companyLogoPath = null): array
     {
+        $this->tempFiles = [];
+
         $ppt = new PhpPresentation;
         $ppt->getLayout()->setDocumentLayout(DocumentLayout::LAYOUT_SCREEN_16X9, true);
         $ppt->getDocumentProperties()
@@ -53,28 +83,29 @@ final class ExportSupervisionExecutiveReportService
             ->setSubject($snapshot->caption)
             ->setDescription('Informe gerencial de Supervisión de campo');
 
-        $this->coverSlide($ppt->getActiveSlide(), $snapshot);
-        $this->kpiSlide($this->slide($ppt), $snapshot);
-        $this->activitySlide($this->slide($ppt), $snapshot);
-        $this->fieldSlide($this->slide($ppt), $snapshot);
-        $this->chartSlide(
-            $this->slide($ppt),
-            'Actividad por supervisor',
-            $this->groupedBar(
-                $this->namedValues($snapshot->bySupervisor, 'reviews'),
-                $this->namedValues($snapshot->bySupervisor, 'km'),
-                'Revistas',
-                'Km',
-            ),
-        );
-        $this->alarmsSlide($this->slide($ppt), $snapshot);
-        $this->clientSlides($ppt, $snapshot);
-        if ($snapshot->alerts !== []) {
-            $this->alertsSlide($this->slide($ppt), $snapshot->alerts);
+        try {
+            $companyLogo = $this->companyLogo($companyLogoPath);
+
+            $this->coverSlide($ppt->getActiveSlide(), $snapshot, $companyLogo);
+            $this->kpiSlide($this->slide($ppt), $snapshot);
+            $this->activitySlide($this->slide($ppt), $snapshot);
+            $this->fieldSlide($this->slide($ppt), $snapshot);
+            $this->weaponsSlide($this->slide($ppt), $snapshot);
+            $this->supervisorSlide($this->slide($ppt), $snapshot);
+            $this->alarmsSlide($this->slide($ppt), $snapshot);
+            $this->clientSlides($ppt, $snapshot);
+            $this->closingSlide($this->slide($ppt), $snapshot, $companyLogo);
+
+            $path = $this->save($ppt);
+        } finally {
+            foreach ($this->tempFiles as $file) {
+                @unlink($file);
+            }
+            $this->tempFiles = [];
         }
 
         return [
-            'path' => $this->save($ppt),
+            'path' => $path,
             'filename' => $this->fileName($snapshot),
         ];
     }
@@ -91,41 +122,55 @@ final class ExportSupervisionExecutiveReportService
         );
     }
 
-    private function coverSlide(Slide $slide, SupervisionPeriodSnapshot $snapshot): void
+    private function coverSlide(Slide $slide, SupervisionPeriodSnapshot $snapshot, ?string $companyLogo): void
     {
         $this->paintSlide($slide);
-        $this->text($slide, 'ZENTRA', 40, 140, 880, 28, 14, self::GOLD, true);
-        $this->text($slide, 'Informe gerencial de Supervisión', 40, 176, 880, 48, 28, self::INK, true);
-        $this->text($slide, $snapshot->companyName, 40, 236, 880, 32, 16, self::CYAN);
-        $this->text($slide, $snapshot->caption, 40, 280, 880, 28, 14, self::MUTED);
-        $this->text($slide, 'Generado el '.now()->format('d/m/Y H:i'), 40, 460, 880, 24, 12, self::MUTED);
+
+        $this->image($slide, $this->zentraLogo(), 60, 48, 280, 104);
+
+        $this->box($slide, 640, 48, 260, 104, self::WHITE);
+        if ($companyLogo !== null) {
+            $this->image($slide, $companyLogo, 652, 56, 236, 88);
+        } else {
+            $this->text($slide, $snapshot->companyName, 652, 82, 236, 40, 16, self::NAVY, true, Alignment::HORIZONTAL_CENTER);
+        }
+
+        $this->box($slide, 60, 180, 840, 2, self::SLATE);
+
+        $this->text($slide, 'INFORME GERENCIAL', 60, 204, 840, 26, 14, self::GOLD, true);
+        $this->text($slide, 'Supervisión de campo', 60, 232, 840, 60, 40, self::INK, true);
+        $this->text($slide, $snapshot->companyName, 60, 300, 840, 34, 22, self::CYAN, true);
+        $this->text($slide, $snapshot->caption, 60, 340, 840, 28, 15, self::MUTED);
+
+        $this->box($slide, 0, 470, 960, 70, self::CARD);
+        $this->box($slide, 0, 470, 8, 70, self::GOLD);
+        $this->text($slide, 'Generado el '.now()->format('d/m/Y H:i'), 60, 492, 420, 26, 12, self::MUTED);
+        $this->text($slide, 'Zentra · Supervisión', 480, 492, 420, 26, 12, self::MUTED, false, Alignment::HORIZONTAL_RIGHT);
     }
 
     private function kpiSlide(Slide $slide, SupervisionPeriodSnapshot $snapshot): void
     {
-        $this->heading($slide, 'Cobertura y semáforo', $snapshot->caption);
+        $this->heading($slide, 'Indicadores del periodo', $snapshot->caption);
 
-        $coverage = $snapshot->coveragePercent !== null
-            ? number_format($snapshot->coveragePercent, 1).'%'
-            : '—';
+        $coverage = $snapshot->coveragePercent !== null ? $this->decimal($snapshot->coveragePercent).' %' : '—';
         $fill = match ($snapshot->semaphore) {
-            'green' => 'FF34D399',
-            'yellow' => 'FFFBBF24',
-            'red' => 'FFF87171',
+            'green' => self::GREEN,
+            'yellow' => self::GOLD,
+            'red' => self::RED,
             default => self::CARD,
         };
         $ink = $snapshot->semaphore === 'neutral' ? self::INK : self::NAVY;
+        $recs = $snapshot->recommendations;
 
         $boxes = [
-            [$coverage, 'Cumplimiento por puesto', $snapshot->sitesVisited.' de '.$snapshot->sitesContracted.' puesto-día', $fill, $ink],
-            [$snapshot->postsDone.' de '.$snapshot->postsTotal, 'Puestos cumplidos', ($snapshot->postsTotal - $snapshot->postsDone).' con pendientes', self::CARD, self::INK],
-            [(string) $snapshot->reviews, 'Revistas', $snapshot->reviewsWithNovelty.' con novedad', self::CARD, self::INK],
-            [(string) $snapshot->kmTraveled, 'Km recorridos', '', self::CARD, self::GOLD],
+            [$coverage, 'Cumplimiento', $this->int($snapshot->sitesVisited).' de '.$this->int($snapshot->sitesContracted).' puesto-día', $fill, $ink],
+            [$this->int($snapshot->postsDone).' de '.$this->int($snapshot->postsTotal), 'Puestos cumplidos', $this->int($snapshot->postsTotal - $snapshot->postsDone).' con pendientes', self::CARD, self::INK],
+            [$this->int($snapshot->reviews), 'Revistas', $this->int($snapshot->reviewsWithNovelty).' con novedad', self::CARD, self::INK],
+            [$this->int($snapshot->kmTraveled), 'Km recorridos', $this->int(count($snapshot->bySupervisor)).' supervisores', self::CARD, self::GOLD],
             [
-                (string) $snapshot->recommendations['total'],
+                $this->int($recs['total']),
                 'Recomendaciones',
-                'B '.$snapshot->recommendations['low'].' · M '.$snapshot->recommendations['medium']
-                    .' · A '.$snapshot->recommendations['high'].' · E '.$snapshot->recommendations['extreme'],
+                'B '.$recs['low'].' · M '.$recs['medium'].' · A '.$recs['high'].' · E '.$recs['extreme'],
                 self::CARD,
                 self::INK,
             ],
@@ -134,79 +179,143 @@ final class ExportSupervisionExecutiveReportService
         foreach ($boxes as $index => [$value, $label, $detail, $boxFill, $boxInk]) {
             $shape = $slide->createRichTextShape()
                 ->setOffsetX(40 + ($index * 178))
-                ->setOffsetY(120)
+                ->setOffsetY(104)
                 ->setWidth(168)
-                ->setHeight(130);
+                ->setHeight(124);
             $shape->setFill($this->solid($boxFill));
+            $shape->setInsetLeft(12)->setInsetTop(12);
             $valueRun = $shape->createTextRun($value);
-            $valueRun->getFont()->setName('Calibri')->setBold(true)->setSize(20)->setColor(new Color($boxInk));
+            $valueRun->getFont()->setName('Calibri')->setBold(true)->setSize(24)->setColor(new Color($boxInk));
             $shape->createBreak();
             $labelRun = $shape->createTextRun(mb_strtoupper($label));
-            $labelRun->getFont()->setName('Calibri')->setSize(9)->setColor(new Color($boxInk));
-            if ($detail !== '') {
-                $shape->createBreak();
-                $detailRun = $shape->createTextRun($detail);
-                $detailRun->getFont()->setName('Calibri')->setSize(9)->setColor(new Color($boxInk === self::NAVY ? self::NAVY : self::MUTED));
-            }
+            $labelRun->getFont()->setName('Calibri')->setBold(true)->setSize(9)->setColor(new Color($boxInk));
+            $shape->createBreak();
+            $detailRun = $shape->createTextRun($detail);
+            $detailRun->getFont()->setName('Calibri')->setSize(9)->setColor(new Color($boxInk === self::NAVY ? self::NAVY : self::MUTED));
         }
 
-        $detail = $snapshot->sitesContracted > 0
-            ? 'Revistas cumplidas por puesto y día operativo (06:00–06:00): '.$snapshot->sitesVisited.' de '.$snapshot->sitesContracted.'. Umbral verde ≥ 90 %, amarillo ≥ 70 %.'
-            : 'No hay puestos con servicio programado en este periodo.';
-        $this->text($slide, $detail, 40, 280, 880, 50, 14, self::MUTED);
-        $this->text(
-            $slide,
-            'Revistas de portería (código Accesos) no entran en este informe. Solo captura de campo.',
-            40,
-            340,
-            880,
-            40,
-            12,
-            self::MUTED,
-        );
+        $paragraphs = [[$this->kpiNarrative($snapshot), self::INK]];
+        if ($snapshot->alerts !== []) {
+            $items = array_map(fn (array $alert) => str_replace('> 12 h', 'de más de 12 h', $alert['text']), $snapshot->alerts);
+            $paragraphs[] = ['Puntos de atención: '.implode('; ', $items).'.', self::GOLD];
+        }
+        $paragraphs[] = ['Revistas de portería (código Accesos) no entran en este informe; solo la captura de campo de los supervisores.', self::MUTED];
+
+        $this->paragraphs($slide, $paragraphs, 40, 248, 880, 220, 13);
+    }
+
+    private function kpiNarrative(SupervisionPeriodSnapshot $s): string
+    {
+        if ($s->sitesContracted === 0) {
+            $text = 'En el periodo no hubo puestos con servicio programado, por lo que no se mide cumplimiento.';
+        } else {
+            $level = match ($s->semaphore) {
+                'green' => 'en verde, dentro de la meta del 90 %',
+                'yellow' => 'en amarillo, por debajo de la meta del 90 %',
+                default => 'en rojo, lejos de la meta del 90 %',
+            };
+            $pending = $s->postsTotal - $s->postsDone;
+            $text = 'Se esperaban '.$this->int($s->sitesContracted).' revistas puesto-día en '.$this->int($s->postsTotal)
+                .' puestos y se cumplieron '.$this->int($s->sitesVisited).' ('.$this->decimal((float) $s->coveragePercent).' %), un resultado '.$level.'. '
+                .($pending === 0
+                    ? 'Todos los puestos completaron sus días de servicio.'
+                    : $this->int($s->postsDone).' puestos completaron todos sus días de servicio y '.$this->int($pending).' quedan con revistas pendientes.');
+        }
+
+        $text .= ' Los supervisores hicieron '.$this->int($s->reviews).' revistas';
+        if ($s->reviews > 0) {
+            $text .= $s->reviewsWithNovelty > 0
+                ? ', '.$this->int($s->reviewsWithNovelty).' con novedad ('.$this->pct($s->reviewsWithNovelty, $s->reviews).')'
+                : ', ninguna con novedad';
+        }
+        $text .= ', y recorrieron '.$this->int($s->kmTraveled).' km.';
+
+        if ($s->sitesContracted > 0 && $s->reviews > $s->sitesVisited) {
+            $text .= ' Hay más revistas que cumplimientos porque un puesto puede recibir varias visitas el mismo día; el cumplimiento cuenta una por puesto y día operativo (06:00 a 06:00).';
+        }
+
+        $recs = $s->recommendations;
+        $critical = $recs['high'] + $recs['extreme'];
+        $text .= $recs['total'] === 0
+            ? ' No se emitieron recomendaciones.'
+            : ' Se emitieron '.$this->int($recs['total']).' recomendaciones'.($critical > 0
+                ? ', '.$this->int($critical).' de riesgo alto o extremo que requieren seguimiento.'
+                : ', ninguna de riesgo alto o extremo.');
+
+        return $text;
     }
 
     private function activitySlide(Slide $slide, SupervisionPeriodSnapshot $snapshot): void
     {
         $charts = $snapshot->charts;
-        $grain = ($charts['grain'] ?? 'day') === 'month' ? 'mensual' : 'diaria';
-        $this->heading($slide, 'Actividad '.$grain, $snapshot->caption);
+        $monthly = ($charts['grain'] ?? 'day') === 'month';
+        $this->heading($slide, $monthly ? 'Actividad mensual' : 'Actividad diaria', $snapshot->caption);
 
-        $reviews = array_sum($charts['reviews'] ?? []);
-        $novelty = array_sum($charts['novelty_yes'] ?? []);
-        $this->text($slide, 'Revistas '.$reviews.' · con novedad '.$novelty.' · km '.$snapshot->kmTraveled.'.', 40, 110, 880, 40, 14, self::CYAN);
+        $labels = array_values($charts['labels'] ?? []);
+        $reviews = array_values($charts['reviews'] ?? []);
+        $km = array_values($charts['km'] ?? []);
+        $noveltyYes = array_values($charts['novelty_yes'] ?? []);
+        $noveltyNo = array_values($charts['novelty_no'] ?? []);
+        $showValues = count($labels) <= 16;
 
-        $weapons = $charts['weapons'] ?? [];
-        $this->text(
-            $slide,
-            'Armamento: '.(int) ($weapons['total'] ?? 0).' inspecciones, '
-            .(int) ($weapons['cleaned'] ?? 0).' con aseo, '
-            .(int) ($weapons['inspection_only'] ?? 0).' solo revista, '
-            .(int) ($weapons['novelty'] ?? 0).' con novedad, '
-            .(int) ($weapons['expired'] ?? 0).' permiso vencido.',
-            40,
-            170,
-            880,
-            70,
-            14,
-            self::INK,
-        );
+        $stack = new Bar;
+        $stack->setBarDirection(Bar::DIRECTION_VERTICAL);
+        $stack->setBarGrouping(Bar::GROUPING_STACKED);
+        $stack->setOverlapWidthPercent(100);
+        $stack->addSeries($this->barSeries('Sin novedad', $this->combine($labels, $noveltyNo), self::CYAN, $showValues, true));
+        $stack->addSeries($this->barSeries('Con novedad', $this->combine($labels, $noveltyYes), self::RED, $showValues, true));
+        $this->chart($slide, $stack, 40, self::CHART_Y, 434, self::CHART_H, $monthly ? 'Revistas por mes' : 'Revistas por día');
 
-        $recs = $charts['recs_by_level'] ?? [];
-        $this->text(
-            $slide,
-            'Recomendaciones '.$snapshot->recommendations['total']
-            .' — bajo '.(int) ($recs['low'] ?? 0)
-            .', medio '.(int) ($recs['medium'] ?? 0)
-            .', alto '.(int) ($recs['high'] ?? 0)
-            .', extremo '.(int) ($recs['extreme'] ?? 0).'.',
-            40,
-            260,
-            880,
-            50,
-            14,
-            self::GOLD,
-        );
+        $line = new Line;
+        $line->addSeries($this->lineSeries('Km', $this->combine($labels, $km), self::GOLD, $showValues));
+        $this->chart($slide, $line, 486, self::CHART_Y, 434, self::CHART_H, $monthly ? 'Km por mes' : 'Km por día', false);
+
+        $this->paragraphs($slide, [[$this->activityNarrative($labels, $reviews, $km, array_sum($noveltyYes), $monthly), self::INK]], 40, self::TEXT_Y, 880, self::TEXT_H);
+    }
+
+    /**
+     * @param  list<string>  $labels
+     * @param  list<int>  $reviews
+     * @param  list<int>  $km
+     */
+    private function activityNarrative(array $labels, array $reviews, array $km, int $novelty, bool $monthly): string
+    {
+        $total = array_sum($reviews);
+        $kmTotal = array_sum($km);
+        if ($total === 0 && $kmTotal === 0) {
+            return 'No se registraron revistas ni recorridos en el periodo seleccionado.';
+        }
+
+        $unit = $monthly ? 'mes' : 'día';
+        $units = $monthly ? 'meses' : 'días';
+        $active = count(array_filter($reviews, fn (int $v) => $v > 0));
+        $text = 'Se registraron '.$this->int($total).' revistas en '.$active.' de '.count($labels).' '.$units.' con actividad';
+        if ($active > 0) {
+            $text .= ', un promedio de '.$this->decimal($total / $active).' por '.$unit.' activo';
+        }
+        $text .= '.';
+
+        if ($total > 0) {
+            $peak = array_keys($reviews, max($reviews))[0];
+            $text .= ' El '.$unit.' de mayor actividad fue el '.$labels[$peak].' con '.$this->int($reviews[$peak]).' revistas';
+            if ($kmTotal > 0) {
+                $peakKm = array_keys($km, max($km))[0];
+                $text .= ' y el de mayor recorrido el '.$labels[$peakKm].' con '.$this->int($km[$peakKm]).' km';
+            }
+            $text .= '.';
+            $text .= $novelty > 0
+                ? ' Del total, '.$this->count($novelty, 'revista reportó', 'revistas reportaron').' novedad ('.$this->pct($novelty, $total).'), marcadas en rojo en el gráfico.'
+                : ' Ninguna revista reportó novedad.';
+        } else {
+            $text .= ' Se recorrieron '.$this->int($kmTotal).' km sin revistas registradas.';
+        }
+
+        $idle = count($labels) - $active;
+        if (! $monthly && $idle > 0) {
+            $text .= ' Hubo '.$idle.' '.($idle === 1 ? 'día' : 'días').' sin revistas.';
+        }
+
+        return $text;
     }
 
     private function fieldSlide(Slide $slide, SupervisionPeriodSnapshot $snapshot): void
@@ -219,57 +328,247 @@ final class ExportSupervisionExecutiveReportService
         $folders = $charts['folders'] ?? [];
         $docs = $charts['documents'] ?? [];
 
-        $this->text($slide, 'Inventario — bueno '.(int) ($inv['good'] ?? 0).', regular '.(int) ($inv['regular'] ?? 0).', malo '.(int) ($inv['bad'] ?? 0).'.', 40, 110, 880, 40, 14, self::INK);
-        $this->text($slide, 'Libros — sin novedad '.(int) ($books['no'] ?? 0).', con novedad '.(int) ($books['yes'] ?? 0).'.', 40, 160, 880, 40, 14, self::INK);
-        $this->text($slide, 'Carpetas — completas '.(int) ($folders['complete'] ?? 0).', con faltantes '.(int) ($folders['missing'] ?? 0).'.', 40, 210, 880, 40, 14, self::INK);
-        $this->text($slide, 'Documentos del turno — entregados '.(int) ($docs['delivered'] ?? 0).', pendientes '.(int) ($docs['pending'] ?? 0).'.', 40, 260, 880, 40, 14, self::CYAN);
+        $good = (int) ($inv['good'] ?? 0);
+        $regular = (int) ($inv['regular'] ?? 0);
+        $bad = (int) ($inv['bad'] ?? 0);
+        $booksYes = (int) ($books['yes'] ?? 0);
+        $booksNo = (int) ($books['no'] ?? 0);
+        $complete = (int) ($folders['complete'] ?? 0);
+        $missing = (int) ($folders['missing'] ?? 0);
+        $delivered = (int) ($docs['delivered'] ?? 0);
+        $pending = (int) ($docs['pending'] ?? 0);
+
+        $this->donut($slide, 'Inventario', ['Bueno' => $good, 'Regular' => $regular, 'Malo' => $bad], [self::GREEN, self::GOLD, self::RED], 40, self::CHART_Y, 284, self::CHART_H);
+        $this->donut($slide, 'Libros de control', ['Sin novedad' => $booksNo, 'Con novedad' => $booksYes], [self::GREEN, self::RED], 338, self::CHART_Y, 284, self::CHART_H);
+        $this->donut($slide, 'Carpetas', ['Completas' => $complete, 'Con faltantes' => $missing], [self::GREEN, self::ORANGE], 636, self::CHART_Y, 284, self::CHART_H);
+
+        $sentences = [];
+        $invTotal = $good + $regular + $bad;
+        $sentences[] = $invTotal === 0
+            ? 'No se registró inventario de puesto.'
+            : 'Se revisaron '.$this->int($invTotal).' elementos de inventario: '.$this->int($good).' en buen estado, '
+                .$this->int($regular).' regular y '.$this->int($bad).' en mal estado ('.$this->pct($bad, $invTotal).').';
+        $booksTotal = $booksYes + $booksNo;
+        $sentences[] = $booksTotal === 0
+            ? 'No se revisaron libros de control.'
+            : 'En libros de control se '.($booksTotal === 1 ? 'revisó 1' : 'revisaron '.$this->int($booksTotal)).', '.($booksYes > 0 ? $this->int($booksYes).' con novedad' : 'todos sin novedad').'.';
+        $foldersTotal = $complete + $missing;
+        $sentences[] = $foldersTotal === 0
+            ? 'No se revisaron carpetas.'
+            : 'De '.$this->int($foldersTotal).' carpetas revisadas, '.$this->int($complete).' están completas y '.$this->int($missing).' con faltantes.';
+        if ($delivered + $pending > 0) {
+            $sentences[] = 'Documentos del turno: '.$this->count($delivered, 'entregado', 'entregados').' y '.$this->count($pending, 'pendiente', 'pendientes').'.';
+        }
+        $follow = array_filter([
+            $bad > 0 ? 'elementos en mal estado' : null,
+            $booksYes > 0 ? 'libros con novedad' : null,
+            $missing > 0 ? 'carpetas con faltantes' : null,
+            $pending > 0 ? 'documentos pendientes' : null,
+        ]);
+        if ($follow !== []) {
+            $sentences[] = 'Requieren seguimiento: '.implode(', ', $follow).'.';
+        }
+
+        $this->paragraphs($slide, [[implode(' ', $sentences), self::INK]], 40, self::TEXT_Y, 880, self::TEXT_H);
+    }
+
+    private function weaponsSlide(Slide $slide, SupervisionPeriodSnapshot $snapshot): void
+    {
+        $charts = $snapshot->charts;
+        $this->heading($slide, 'Armamento y recomendaciones', $snapshot->caption);
+
+        $weapons = $charts['weapons'] ?? [];
+        $total = (int) ($weapons['total'] ?? 0);
+        $cleaned = (int) ($weapons['cleaned'] ?? 0);
+        $inspection = (int) ($weapons['inspection_only'] ?? 0);
+        $novelty = (int) ($weapons['novelty'] ?? 0);
+        $expired = (int) ($weapons['expired'] ?? 0);
+
+        if ($total === 0) {
+            $this->emptyChart($slide, 'Inspección de armamento', 40, self::CHART_Y, 434, self::CHART_H);
+        } else {
+            $bar = new Bar;
+            $bar->setBarDirection(Bar::DIRECTION_HORIZONTAL);
+            $series = $this->barSeries('Armas', [
+                'Solo revista' => $inspection,
+                'Con aseo' => $cleaned,
+                'Con novedad' => $novelty,
+                'Permiso vencido' => $expired,
+            ], self::CYAN);
+            foreach ([self::CYAN, self::GREEN, self::RED, self::ORANGE] as $index => $color) {
+                $series->getDataPointFill($index)->setFillType(Fill::FILL_SOLID)->setStartColor(new Color($color));
+            }
+            $bar->addSeries($series);
+            $this->chart($slide, $bar, 40, self::CHART_Y, 434, self::CHART_H, 'Inspección de armamento', false);
+        }
+
+        $levels = $charts['recs_by_level'] ?? [];
+        $this->donut($slide, 'Recomendaciones por riesgo', [
+            'Bajo' => (int) ($levels['low'] ?? 0),
+            'Medio' => (int) ($levels['medium'] ?? 0),
+            'Alto' => (int) ($levels['high'] ?? 0),
+            'Extremo' => (int) ($levels['extreme'] ?? 0),
+        ], [self::GREEN, self::GOLD, self::ORANGE, self::RED], 486, self::CHART_Y, 434, self::CHART_H);
+
+        $text = $total === 0
+            ? 'No se registraron inspecciones de armamento.'
+            : 'Se '.($total === 1 ? 'inspeccionó 1 arma' : 'inspeccionaron '.$this->int($total).' armas').': '
+                .$this->int($cleaned).' con aseo y '.$this->int($inspection).' solo con revista. '
+                .($novelty > 0 ? $this->count($novelty, 'reportó', 'reportaron').' novedad' : 'Ninguna reportó novedad')
+                .($expired > 0 ? ' y '.$this->count($expired, 'tiene', 'tienen').' el permiso vencido, que debe renovarse.' : '.');
+
+        $recs = $snapshot->recommendations;
+        if ($recs['total'] === 0) {
+            $text .= ' No se emitieron recomendaciones en el periodo.';
+        } else {
+            $text .= ' Se emitieron '.$this->int($recs['total']).' recomendaciones: '.$recs['low'].' de riesgo bajo, '.$recs['medium'].' medio, '
+                .$recs['high'].' alto y '.$recs['extreme'].' extremo.';
+            $top = $charts['recs_by_type'][0] ?? null;
+            if (is_array($top)) {
+                $text .= ' El tipo más frecuente fue «'.$top['name'].'» ('.$this->int((int) $top['total']).').';
+            }
+        }
+
+        $this->paragraphs($slide, [[$text, self::INK]], 40, self::TEXT_Y, 880, self::TEXT_H);
+    }
+
+    private function supervisorSlide(Slide $slide, SupervisionPeriodSnapshot $snapshot): void
+    {
+        $this->heading($slide, 'Actividad por supervisor', $snapshot->caption);
+
+        $rows = $snapshot->bySupervisor;
+        $reviews = $this->namedValues($rows, 'reviews');
+        $km = $this->namedValues($rows, 'km');
+
+        foreach ([[$reviews, 'Revistas por supervisor', self::CYAN, 40], [$km, 'Km por supervisor', self::GOLD, 486]] as [$values, $title, $color, $x]) {
+            if ($values === []) {
+                $this->emptyChart($slide, $title, $x, self::CHART_Y, 434, self::CHART_H);
+
+                continue;
+            }
+            $bar = new Bar;
+            $bar->setBarDirection(Bar::DIRECTION_HORIZONTAL);
+            $bar->addSeries($this->barSeries($title, array_reverse($values, true), $color));
+            $this->chart($slide, $bar, $x, self::CHART_Y, 434, self::CHART_H, $title, false);
+        }
+
+        $this->paragraphs($slide, [[$this->supervisorNarrative($rows), self::INK]], 40, self::TEXT_Y, 880, self::TEXT_H);
+    }
+
+    /**
+     * @param  list<array{name: string, shifts: int, reviews: int, km: int, logs: int, alarms: int, supports: int}>  $rows
+     */
+    private function supervisorNarrative(array $rows): string
+    {
+        if ($rows === []) {
+            return 'No hubo actividad de supervisores en el periodo seleccionado.';
+        }
+
+        $count = count($rows);
+        $reviews = array_sum(array_column($rows, 'reviews'));
+        $km = array_sum(array_column($rows, 'km'));
+        $text = 'Estas son las mediciones de los '.$count.' supervisores con actividad en el periodo seleccionado. '
+            .'En total hicieron '.$this->int($reviews).' revistas y recorrieron '.$this->int($km).' km, un promedio de '
+            .$this->decimal($reviews / $count).' revistas y '.$this->decimal($km / $count).' km por supervisor.';
+
+        $topReviews = $rows[array_keys(array_column($rows, 'reviews'), max(array_column($rows, 'reviews')))[0]];
+        $topKm = $rows[array_keys(array_column($rows, 'km'), max(array_column($rows, 'km')))[0]];
+        if ($reviews > 0 && $km > 0 && $topReviews['name'] === $topKm['name']) {
+            $text .= ' '.$topReviews['name'].' lideró en revistas ('.$this->int($topReviews['reviews']).') y en kilómetros ('.$this->int($topKm['km']).' km).';
+        } else {
+            if ($reviews > 0) {
+                $text .= ' '.$topReviews['name'].' hizo más revistas ('.$this->int($topReviews['reviews']).', '.$this->pct($topReviews['reviews'], $reviews).' del total).';
+            }
+            if ($km > 0) {
+                $text .= ' '.$topKm['name'].' recorrió más kilómetros ('.$this->int($topKm['km']).' km).';
+            }
+        }
+
+        $idle = count(array_filter($rows, fn (array $row) => $row['reviews'] === 0));
+        if ($idle > 0) {
+            $text .= ' '.$idle.' '.($idle === 1 ? 'supervisor tuvo' : 'supervisores tuvieron').' actividad sin registrar revistas.';
+        }
+
+        return $text;
     }
 
     private function alarmsSlide(Slide $slide, SupervisionPeriodSnapshot $snapshot): void
     {
         $charts = $snapshot->charts;
-        $kind = $charts['alarms_kind'] ?? [];
-        $result = $charts['alarms_result'] ?? [];
-        $place = $charts['supports_place'] ?? [];
         $this->heading($slide, 'Alarmas y apoyos', $snapshot->caption);
 
-        $this->text(
-            $slide,
-            'Alarmas: '.(int) ($kind['test'] ?? 0).' pruebas y '.(int) ($kind['response'] ?? 0).' atenciones. '
-            .'OK '.(int) ($result['ok'] ?? 0)
-            .', falla '.(int) ($result['fail'] ?? 0)
-            .', real '.(int) ($result['real'] ?? 0)
-            .', falsa '.(int) ($result['false_alarm'] ?? 0)
-            .', no ubicada '.(int) ($result['not_found'] ?? 0).'.',
-            40,
-            110,
-            880,
-            80,
-            14,
-            self::INK,
-        );
-
-        $types = [];
-        foreach (array_slice($charts['alarms_by_type'] ?? [], 0, 8) as $row) {
-            $types[] = $row['name'].' (prueba '.$row['test'].', atención '.$row['response'].')';
+        $types = array_slice($charts['alarms_by_type'] ?? [], 0, 6);
+        if ($types === []) {
+            $this->emptyChart($slide, 'Alarmas por tipo', 40, self::CHART_Y, 284, self::CHART_H);
+        } else {
+            $test = [];
+            $response = [];
+            foreach ($types as $row) {
+                $test[$row['name']] = (int) $row['test'];
+                $response[$row['name']] = (int) $row['response'];
+            }
+            $bar = new Bar;
+            $bar->setBarDirection(Bar::DIRECTION_HORIZONTAL);
+            $bar->setBarGrouping(Bar::GROUPING_STACKED);
+            $bar->setOverlapWidthPercent(100);
+            $bar->addSeries($this->barSeries('Prueba', array_reverse($test, true), self::CYAN, true, true));
+            $bar->addSeries($this->barSeries('Atención', array_reverse($response, true), self::GOLD, true, true));
+            $this->chart($slide, $bar, 40, self::CHART_Y, 284, self::CHART_H, 'Alarmas por tipo');
         }
-        $this->text($slide, $types === [] ? 'Sin alarmas en el periodo.' : implode(' · ', $types), 40, 210, 880, 80, 13, self::CYAN);
+
+        $result = $charts['alarms_result'] ?? [];
+        $this->donut($slide, 'Resultado de alarmas', [
+            'OK' => (int) ($result['ok'] ?? 0),
+            'Falla' => (int) ($result['fail'] ?? 0),
+            'Real' => (int) ($result['real'] ?? 0),
+            'Falsa' => (int) ($result['false_alarm'] ?? 0),
+            'No ubicada' => (int) ($result['not_found'] ?? 0),
+        ], [self::GREEN, self::RED, self::ORANGE, self::GOLD, self::MUTED], 338, self::CHART_Y, 284, self::CHART_H);
 
         $supports = [];
-        foreach (array_slice($charts['supports_by_type'] ?? [], 0, 8) as $row) {
-            $supports[] = $row['name'].' ('.$row['total'].')';
+        foreach (array_slice($charts['supports_by_type'] ?? [], 0, 6) as $row) {
+            $supports[$row['name']] = (int) $row['total'];
         }
-        $this->text(
-            $slide,
-            ($supports === [] ? 'Sin apoyos.' : 'Apoyos: '.implode(', ', $supports))
-            .' · '.(int) ($place['site'] ?? 0).' en sitio, '.(int) ($place['road'] ?? 0).' en vía.',
-            40,
-            310,
-            880,
-            80,
-            13,
-            self::GOLD,
-        );
+        if ($supports === []) {
+            $this->emptyChart($slide, 'Apoyos por tipo', 636, self::CHART_Y, 284, self::CHART_H);
+        } else {
+            $bar = new Bar;
+            $bar->setBarDirection(Bar::DIRECTION_HORIZONTAL);
+            $bar->addSeries($this->barSeries('Apoyos', array_reverse($supports, true), self::GREEN));
+            $this->chart($slide, $bar, 636, self::CHART_Y, 284, self::CHART_H, 'Apoyos por tipo', false);
+        }
+
+        $kind = $charts['alarms_kind'] ?? [];
+        $place = $charts['supports_place'] ?? [];
+        $tests = (int) ($kind['test'] ?? 0);
+        $responses = (int) ($kind['response'] ?? 0);
+        $alarms = $tests + $responses;
+        $fail = (int) ($result['fail'] ?? 0);
+        $real = (int) ($result['real'] ?? 0);
+
+        if ($alarms === 0) {
+            $text = 'No se registraron alarmas en el periodo.';
+        } else {
+            $text = 'Se '.($alarms === 1 ? 'registró 1 alarma' : 'registraron '.$this->int($alarms).' alarmas').': '
+                .$this->count($tests, 'prueba', 'pruebas').' y '.$this->count($responses, 'atención', 'atenciones').'. '
+                .'Resultado: '.$this->int((int) ($result['ok'] ?? 0)).' OK, '.$this->int($fail).' en falla, '
+                .$this->count($real, 'real', 'reales').', '.$this->count((int) ($result['false_alarm'] ?? 0), 'falsa', 'falsas').' y '
+                .$this->count((int) ($result['not_found'] ?? 0), 'no ubicada', 'no ubicadas').'.';
+            if ($fail > 0) {
+                $text .= ' Las alarmas en falla deben escalarse a mantenimiento.';
+            }
+        }
+
+        $supportTotal = array_sum(array_column($charts['supports_by_type'] ?? [], 'total'));
+        if ($supportTotal === 0) {
+            $text .= ' No se registraron apoyos.';
+        } else {
+            $first = array_key_first($supports);
+            $text .= ' Los supervisores dieron '.$this->count($supportTotal, 'apoyo', 'apoyos').' ('.$this->int((int) ($place['site'] ?? 0)).' en sitio y '
+                .$this->int((int) ($place['road'] ?? 0)).' en vía), principalmente «'.$first.'» ('.$this->int($supports[$first]).').';
+        }
+
+        $this->paragraphs($slide, [[$text, self::INK]], 40, self::TEXT_Y, 880, self::TEXT_H);
     }
 
     /** Tabla de clientes con semáforo (rojo → ámbar → verde), 14 filas por diapositiva. */
@@ -279,10 +578,15 @@ final class ExportSupervisionExecutiveReportService
         $pages = $rows === [] ? [[]] : array_chunk($rows, 14);
         $total = count($pages);
 
+        $counts = array_count_values(array_column($rows, 'status'));
+        $legend = $this->int($counts['red'] ?? 0).' en rojo (sin revista) · '
+            .$this->int($counts['amber'] ?? 0).' en ámbar (con pendientes) · '
+            .$this->int($counts['green'] ?? 0).' en verde (cumplido)';
+
         foreach ($pages as $page => $chunk) {
             $slide = $this->slide($ppt);
             $title = 'Cumplimiento por cliente'.($total > 1 ? ' ('.($page + 1).'/'.$total.')' : '');
-            $this->heading($slide, $title, $snapshot->caption.' · rojo sin revista · ámbar con pendientes · verde cumplido');
+            $this->heading($slide, $title, $snapshot->caption.' · '.$legend);
 
             if ($chunk === []) {
                 $this->text($slide, 'No hay puestos con servicio programado en este periodo.', 40, 110, 880, 40, 14, self::MUTED);
@@ -314,6 +618,22 @@ final class ExportSupervisionExecutiveReportService
         }
     }
 
+    private function closingSlide(Slide $slide, SupervisionPeriodSnapshot $snapshot, ?string $companyLogo): void
+    {
+        $this->text($slide, 'Gracias', 0, 150, 960, 110, 80, self::INK, true, Alignment::HORIZONTAL_CENTER);
+        $this->box($slide, 400, 270, 160, 4, self::GOLD);
+        $this->text($slide, $snapshot->companyName, 0, 290, 960, 34, 20, self::CYAN, true, Alignment::HORIZONTAL_CENTER);
+        $this->text($slide, $snapshot->caption, 0, 326, 960, 26, 13, self::MUTED, false, Alignment::HORIZONTAL_CENTER);
+
+        if ($companyLogo !== null) {
+            $this->image($slide, $this->zentraLogo(), 300, 400, 170, 64);
+            $this->box($slide, 490, 400, 170, 64, self::WHITE);
+            $this->image($slide, $companyLogo, 498, 406, 154, 52);
+        } else {
+            $this->image($slide, $this->zentraLogo(), 395, 400, 170, 64);
+        }
+    }
+
     /**
      * @param  list<string>  $values
      * @param  list<int>  $widths
@@ -334,60 +654,134 @@ final class ExportSupervisionExecutiveReportService
         }
     }
 
-    /**
-     * @param  list<array{level: string, text: string}>  $alerts
-     */
-    private function alertsSlide(Slide $slide, array $alerts): void
+    private function chart(Slide $slide, AbstractType $type, int $x, int $y, int $width, int $height, string $title, bool $legend = true): void
     {
-        $this->heading($slide, 'Atención', 'Alarmas, recomendaciones extremas, turnos largos y documentos pendientes');
-
-        $shape = $slide->createRichTextShape()
-            ->setOffsetX(40)
-            ->setOffsetY(110)
-            ->setWidth(880)
-            ->setHeight(380);
-        $shape->setFill($this->solid(self::CARD));
-
-        foreach ($alerts as $index => $alert) {
-            if ($index > 0) {
-                $shape->createBreak();
-                $shape->createBreak();
-            }
-            $run = $shape->createTextRun('•  '.$alert['text']);
-            $run->getFont()->setName('Calibri')->setSize(15)
-                ->setColor(new Color($alert['level'] === 'red' ? 'FFF87171' : self::GOLD));
-        }
-    }
-
-    private function chartSlide(Slide $slide, string $title, Bar $type): void
-    {
-        $this->heading($slide, $title, 'Gráfico nativo editable en PowerPoint');
-
         $chart = $slide->createChartShape();
         $chart->setResizeProportional(false)
             ->setIncludeSpreadsheet(true)
-            ->setOffsetX(40)
-            ->setOffsetY(100)
-            ->setWidth(880)
-            ->setHeight(400);
-        $chart->getTitle()->setVisible(false);
+            ->setOffsetX($x)
+            ->setOffsetY($y)
+            ->setWidth($width)
+            ->setHeight($height);
+        $chart->setFill($this->solid(self::CARD));
+
+        $chart->getTitle()->setText($title);
+        $chart->getTitle()->getFont()->setName('Calibri')->setSize(12)->setBold(true)->setColor(new Color(self::INK));
+
+        $chart->getLegend()->setVisible($legend);
         $chart->getLegend()->setPosition(Legend::POSITION_BOTTOM);
-        $chart->getPlotArea()->setType($type);
+        $chart->getLegend()->getFont()->setName('Calibri')->setSize(9)->setColor(new Color(self::MUTED));
+
+        $plot = $chart->getPlotArea();
+        $plot->setType($type);
+        foreach ([$plot->getAxisX(), $plot->getAxisY()] as $axis) {
+            $axis->setTitle('');
+            $axis->getTickLabelFont()->setName('Calibri')->setSize(9)->setColor(new Color(self::MUTED));
+        }
+
+        if (! $type instanceof Doughnut) {
+            $grid = new Gridlines;
+            $grid->getOutline()->setWidth(1);
+            $grid->getOutline()->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor(new Color(self::SLATE));
+            $plot->getAxisY()->setMajorGridlines($grid);
+        }
     }
 
     /**
-     * @param  array<string, int>  $executed
-     * @param  array<string, int>  $target
+     * @param  array<string, int>  $values
+     * @param  list<string>  $colors
      */
-    private function groupedBar(array $executed, array $target, string $executedTitle, string $targetTitle): Bar
+    private function donut(Slide $slide, string $title, array $values, array $colors, int $x, int $y, int $width, int $height): void
     {
-        $bar = new Bar;
-        $bar->setBarDirection(Bar::DIRECTION_VERTICAL);
-        $bar->setBarGrouping(Bar::GROUPING_CLUSTERED);
-        $bar->addSeries($this->series($executedTitle, $executed, self::CYAN));
-        $bar->addSeries($this->series($targetTitle, $target, self::GOLD));
+        if (array_sum($values) === 0) {
+            $this->emptyChart($slide, $title, $x, $y, $width, $height);
 
-        return $bar;
+            return;
+        }
+
+        $series = new Series($title, $this->chartValues($values));
+        $series->setShowSeriesName(false);
+        $series->setShowCategoryName(false);
+        $series->setShowLegendKey(false);
+        $series->setShowValue(true);
+        $series->setShowPercentage(false);
+        $series->setDlblNumFormat('0;-0;;');
+        $series->getFont()->setName('Calibri')->setSize(10)->setBold(true)->setColor(new Color(self::NAVY));
+        foreach (array_values($colors) as $index => $color) {
+            $series->getDataPointFill($index)->setFillType(Fill::FILL_SOLID)->setStartColor(new Color($color));
+        }
+
+        $donut = new Doughnut;
+        $donut->setHoleSize(55);
+        $donut->addSeries($series);
+
+        $this->chart($slide, $donut, $x, $y, $width, $height, $title);
+    }
+
+    private function emptyChart(Slide $slide, string $title, int $x, int $y, int $width, int $height): void
+    {
+        $this->box($slide, $x, $y, $width, $height, self::CARD);
+        $this->text($slide, $title, $x, $y + 10, $width, 24, 12, self::INK, true, Alignment::HORIZONTAL_CENTER);
+        $this->text($slide, 'Sin registros en el periodo', $x, $y + (int) ($height / 2) - 12, $width, 24, 12, self::MUTED, false, Alignment::HORIZONTAL_CENTER);
+    }
+
+    /**
+     * @param  array<string, int>  $values
+     */
+    private function barSeries(string $title, array $values, string $color, bool $showValues = true, bool $stacked = false): Series
+    {
+        $series = new Series($title, $this->chartValues($values));
+        $series->setShowSeriesName(false);
+        $series->setShowCategoryName(false);
+        $series->setShowLegendKey(false);
+        $series->setShowValue($showValues);
+        $series->setFill($this->solid($color));
+        $series->setLabelPosition($stacked ? Series::LABEL_CENTER : Series::LABEL_OUTSIDEEND);
+        if ($stacked) {
+            $series->setDlblNumFormat('0;-0;;');
+        }
+        $series->getFont()->setName('Calibri')->setSize(9)->setBold($stacked)->setColor(new Color($stacked ? self::NAVY : self::INK));
+
+        return $series;
+    }
+
+    /**
+     * @param  array<string, int>  $values
+     */
+    private function lineSeries(string $title, array $values, string $color, bool $showValues): Series
+    {
+        $series = new Series($title, $this->chartValues($values));
+        $series->setShowSeriesName(false);
+        $series->setShowCategoryName(false);
+        $series->setShowLegendKey(false);
+        $series->setShowValue($showValues);
+        $series->setLabelPosition(Series::LABEL_TOP);
+        $series->getFont()->setName('Calibri')->setSize(9)->setColor(new Color(self::INK));
+
+        $outline = new Outline;
+        $outline->setWidth(3);
+        $outline->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor(new Color($color));
+        $series->setOutline($outline);
+
+        $series->getMarker()->setSymbol(Marker::SYMBOL_CIRCLE)->setSize(6);
+        $series->getMarker()->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor(new Color($color));
+
+        return $series;
+    }
+
+    /**
+     * @param  list<string>  $labels
+     * @param  list<int>  $values
+     * @return array<string, int>
+     */
+    private function combine(array $labels, array $values): array
+    {
+        $out = [];
+        foreach ($labels as $index => $label) {
+            $out[$label] = (int) ($values[$index] ?? 0);
+        }
+
+        return $out;
     }
 
     /**
@@ -404,22 +798,9 @@ final class ExportSupervisionExecutiveReportService
             }
             $values[$name] = (int) ($row[$key] ?? 0);
         }
+        arsort($values);
 
-        return $values;
-    }
-
-    /**
-     * @param  array<string, int>  $values
-     */
-    private function series(string $title, array $values, string $color): Series
-    {
-        $series = new Series($title, $this->chartValues($values));
-        $series->setShowSeriesName(false);
-        $series->setShowValue(true);
-        $series->setFill($this->solid($color));
-        $series->getFont()->setName('Calibri')->setSize(9)->setColor(new Color(self::NAVY));
-
-        return $series;
+        return array_slice($values, 0, 12, true);
     }
 
     /**
@@ -434,10 +815,82 @@ final class ExportSupervisionExecutiveReportService
 
         $mapped = [];
         foreach ($values as $label => $value) {
-            $mapped[$label] = (string) $value;
+            $mapped[(string) $label] = (string) $value;
         }
 
         return $mapped;
+    }
+
+    private function zentraLogo(): string
+    {
+        return resource_path('images/branding/logo-zentra.png');
+    }
+
+    private function companyLogo(?string $path): ?string
+    {
+        if ($path === null || $path === '' || ! Storage::disk('local')->exists($path)) {
+            return null;
+        }
+
+        $absolute = Storage::disk('local')->path($path);
+        $info = @getimagesize($absolute);
+        if ($info === false) {
+            return null;
+        }
+
+        $extension = strtolower(pathinfo($absolute, PATHINFO_EXTENSION));
+        if ($info[2] === IMAGETYPE_PNG && $extension === 'png') {
+            return $absolute;
+        }
+        if ($info[2] === IMAGETYPE_JPEG && in_array($extension, ['jpg', 'jpeg'], true)) {
+            return $absolute;
+        }
+
+        $image = match ($info[2]) {
+            IMAGETYPE_PNG => @imagecreatefrompng($absolute),
+            IMAGETYPE_JPEG => @imagecreatefromjpeg($absolute),
+            IMAGETYPE_WEBP => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($absolute) : false,
+            default => false,
+        };
+        if ($image === false) {
+            return null;
+        }
+
+        $base = tempnam(sys_get_temp_dir(), 'zentra_logo_');
+        if ($base === false) {
+            imagedestroy($image);
+
+            return null;
+        }
+        @unlink($base);
+        $png = $base.'.png';
+        imagesavealpha($image, true);
+        imagepng($image, $png);
+        imagedestroy($image);
+        $this->tempFiles[] = $png;
+
+        return $png;
+    }
+
+    /** Ajusta la imagen dentro de la caja sin deformarla y la centra. */
+    private function image(Slide $slide, string $path, int $x, int $y, int $maxWidth, int $maxHeight): void
+    {
+        $size = @getimagesize($path);
+        if ($size === false || $size[0] === 0 || $size[1] === 0) {
+            return;
+        }
+
+        $scale = min($maxWidth / $size[0], $maxHeight / $size[1]);
+        $width = (int) round($size[0] * $scale);
+        $height = (int) round($size[1] * $scale);
+
+        $slide->createDrawingShape()
+            ->setPath($path)
+            ->setResizeProportional(false)
+            ->setWidth($width)
+            ->setHeight($height)
+            ->setOffsetX($x + (int) (($maxWidth - $width) / 2))
+            ->setOffsetY($y + (int) (($maxHeight - $height) / 2));
     }
 
     private function slide(PhpPresentation $ppt): Slide
@@ -454,18 +907,49 @@ final class ExportSupervisionExecutiveReportService
         $background->setColor(new Color(self::NAVY));
         $slide->setBackground($background);
 
-        $bar = $slide->createRichTextShape()
-            ->setOffsetX(0)
-            ->setOffsetY(0)
-            ->setWidth(960)
-            ->setHeight(8);
-        $bar->setFill($this->solid(self::GOLD));
+        $this->box($slide, 0, 0, 960, 8, self::GOLD);
     }
 
     private function heading(Slide $slide, string $title, string $caption): void
     {
         $this->text($slide, $title, 40, 24, 880, 40, 22, self::INK, true);
-        $this->text($slide, $caption, 40, 64, 880, 28, 12, self::MUTED);
+        $this->text($slide, $caption, 40, 62, 880, 28, 11, self::MUTED);
+    }
+
+    /**
+     * @param  list<array{0: string, 1: string}>  $paragraphs  Texto y color de cada párrafo.
+     */
+    private function paragraphs(Slide $slide, array $paragraphs, int $x, int $y, int $width, int $height, int $size = 12): void
+    {
+        $this->box($slide, $x, $y, 4, $height, self::GOLD);
+
+        $shape = $slide->createRichTextShape()
+            ->setOffsetX($x + 4)
+            ->setOffsetY($y)
+            ->setWidth($width - 4)
+            ->setHeight($height);
+        $shape->setFill($this->solid(self::CARD));
+        $shape->setInsetLeft(14)->setInsetRight(14)->setInsetTop(10)->setInsetBottom(10);
+
+        foreach ($paragraphs as $index => [$content, $color]) {
+            $paragraph = $index === 0 ? $shape->getActiveParagraph() : $shape->createParagraph();
+            $paragraph->getAlignment()->setHorizontal(Alignment::HORIZONTAL_JUSTIFY);
+            if ($index > 0) {
+                $paragraph->setSpacingBefore(6);
+            }
+            $run = $paragraph->createTextRun($content);
+            $run->getFont()->setName('Calibri')->setSize($size)->setColor(new Color($color));
+        }
+    }
+
+    private function box(Slide $slide, int $x, int $y, int $width, int $height, string $fill): void
+    {
+        $shape = $slide->createRichTextShape()
+            ->setOffsetX($x)
+            ->setOffsetY($y)
+            ->setWidth($width)
+            ->setHeight($height);
+        $shape->setFill($this->solid($fill));
     }
 
     private function text(
@@ -478,18 +962,40 @@ final class ExportSupervisionExecutiveReportService
         int $size,
         string $color,
         bool $bold = false,
+        string $align = Alignment::HORIZONTAL_LEFT,
     ): void {
         $shape = $slide->createRichTextShape()
             ->setOffsetX($x)
             ->setOffsetY($y)
             ->setWidth($width)
             ->setHeight($height);
+        $shape->getActiveParagraph()->getAlignment()->setHorizontal($align);
         $run = $shape->createTextRun($content);
         $run->getFont()
             ->setName('Calibri')
             ->setSize($size)
             ->setBold($bold)
             ->setColor(new Color($color));
+    }
+
+    private function count(int $value, string $one, string $many): string
+    {
+        return $this->int($value).' '.($value === 1 ? $one : $many);
+    }
+
+    private function int(int|float $value): string
+    {
+        return number_format((float) $value, 0, ',', '.');
+    }
+
+    private function decimal(float $value): string
+    {
+        return number_format($value, 1, ',', '.');
+    }
+
+    private function pct(int $part, int $total): string
+    {
+        return $total > 0 ? $this->decimal($part * 100 / $total).' %' : '0 %';
     }
 
     private function solid(string $argb): Fill

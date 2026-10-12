@@ -12,6 +12,7 @@ use App\Enums\SupervisorRiskLevel;
 use App\Enums\SupervisorShiftStatus;
 use App\Models\SecurityCompany;
 use App\Models\SupervisorFieldLog;
+use App\Models\SupervisorPost;
 use App\Models\SupervisorRecommendation;
 use App\Models\SupervisorShift;
 use App\Models\SupervisorShiftReview;
@@ -84,13 +85,13 @@ final class BuildSupervisionSummaryService
         if ($filter->zoneId !== null) {
             $zoneName = SupervisorZone::query()->whereKey($filter->zoneId)->value('name');
             if (is_string($zoneName) && $zoneName !== '') {
-                $caption .= ' Â· '.$zoneName;
+                $caption .= ' · '.$zoneName;
             }
         }
         if ($filter->supervisorId !== null) {
             $supervisorName = User::query()->whereKey($filter->supervisorId)->value('name');
             if (is_string($supervisorName) && $supervisorName !== '') {
-                $caption .= ' Â· '.$supervisorName;
+                $caption .= ' · '.$supervisorName;
             }
         }
 
@@ -221,7 +222,7 @@ final class BuildSupervisionSummaryService
      * Un cliente por fila con el cumplimiento de sus puestos. Rojo = ninguna revista esperada hecha,
      * ámbar = parcial, verde = todos los puestos cumplidos.
      *
-     * @param  Collection<int, array{post: \App\Models\SupervisorPost, expected: int, done: int}>  $postRows
+     * @param  Collection<int, array{post: SupervisorPost, expected: int, done: int}>  $postRows
      * @param  Collection<int, SupervisorShiftReview>  $reviews
      * @return list<array<string, mixed>>
      */
@@ -320,4 +321,3 @@ final class BuildSupervisionSummaryService
         return $alerts;
     }
 }
-

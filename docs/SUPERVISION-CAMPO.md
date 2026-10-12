@@ -163,9 +163,23 @@ Mi empresa muestra la tira **Supervisión de campo (hoy)** aparte de las revista
 
 ---
 
-## Informe PPTX (pendiente — no implementado)
+## Informe PPTX
 
-Hoy el PPTX es **solo cifras y gráficos** (`ExportSupervisionExecutiveReportService`). El siguiente corte **no descarga de un clic**: abre un **compositor** (preview HTML, no el `.pptx` en el navegador). Los números no se editan. Un textarea por lámina de contenido; DeepSeek (API servidor, `DEEPSEEK_API_KEY`) propone redacción; el usuario acepta o corrige y recién entonces se genera el archivo.
+**Hoy (un clic, `ExportSupervisionExecutiveReportService`):** gráficos nativos editables y un párrafo por lámina armado con plantillas a partir de las cifras (sin IA). Láminas:
+
+1. **Portada:** logo Zentra (`resources/images/branding/logo-zentra.png`) y logo de la empresa (Mis datos; PNG/JPG directo, WebP se convierte a PNG; sin logo va el nombre).
+2. **Indicadores:** 5 KPIs + párrafo; los **puntos de atención** (alarmas reales o en falla, recomendaciones extremas, turnos > 12 h, documentos pendientes) van al final del párrafo, ya no en lámina aparte.
+3. **Actividad diaria/mensual:** revistas por día (apiladas con/sin novedad) y km por día (línea).
+4. **Puesto:** donas de inventario, libros y carpetas; documentos en el párrafo.
+5. **Armamento y recomendaciones:** barras de armamento y dona por nivel de riesgo.
+6. **Actividad por supervisor:** revistas y km en dos gráficos (top 12) + resumen.
+7. **Alarmas y apoyos:** alarmas por tipo, resultado (dona) y apoyos por tipo.
+8. **Cumplimiento por cliente:** tabla con semáforo (14 filas por lámina) y conteo rojo/ámbar/verde.
+9. **Gracias.**
+
+### Compositor con IA (pendiente — no implementado)
+
+El siguiente corte **no descarga de un clic**: abre un **compositor** (preview HTML, no el `.pptx` en el navegador). Los números no se editan. Un textarea por lámina de contenido; DeepSeek (API servidor, `DEEPSEEK_API_KEY`) propone redacción; el usuario acepta o corrige y recién entonces se genera el archivo.
 
 ### Mazo objetivo
 
