@@ -21,18 +21,23 @@ export const CART_LABELS = {
     observatory: 'Observatorio',
 };
 
+function normalizeItems(raw) {
+    const items = {};
+    for (const key of KEYS) {
+        const n = Math.floor(Number(raw?.[key]) || 0);
+        if (n > 0) {
+            items[key] = Math.min(maxFor(key), n);
+        }
+    }
+
+    return items;
+}
+
 export function readCart() {
     try {
         const raw = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || '{}');
-        const items = {};
-        for (const key of KEYS) {
-            const n = Math.floor(Number(raw.items?.[key]) || 0);
-            if (n > 0) {
-                items[key] = Math.min(maxFor(key), n);
-            }
-        }
 
-        return { cycle: raw.cycle === 'annual' ? 'annual' : 'monthly', items };
+        return { cycle: raw.cycle === 'annual' ? 'annual' : 'monthly', items: normalizeItems(raw.items) };
     } catch {
         return { cycle: 'monthly', items: {} };
     }
@@ -42,6 +47,28 @@ export function writeCart(cart) {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
     window.dispatchEvent(new CustomEvent('plan-cart-updated', { detail: cart }));
 }
+
+/** Selección de las tarjetas: el carrito público o, con `scope`, un formulario en memoria. */
+const cartStore = { read: readCart, write: writeCart, event: 'plan-cart-updated', allowUnavailable: false };
+const formStores = {};
+
+function createFormStore(scope, items, cycle) {
+    let state = { cycle: cycle === 'annual' ? 'annual' : 'monthly', items: normalizeItems(items) };
+    const event = `plan-form-updated:${scope}`;
+    formStores[scope] = {
+        event,
+        allowUnavailable: true,
+        read: () => ({ cycle: state.cycle, items: { ...state.items } }),
+        write: (next) => {
+            state = { cycle: next.cycle, items: { ...next.items } };
+            window.dispatchEvent(new CustomEvent(event, { detail: formStores[scope].read() }));
+        },
+    };
+
+    return formStores[scope];
+}
+
+const storeFor = (scope) => (scope ? formStores[scope] : cartStore);
 
 const cartCount = (cart) => Object.keys(cart.items).length;
 
@@ -75,13 +102,13 @@ export function planIdentity(quote) {
 }
 
 /**
- * Cambia la cantidad de un producto en el carrito. No deja entrar a un plan no disponible.
+ * Cambia la cantidad de un producto en la selección. El carrito público no deja entrar a un plan no disponible.
  *
  * @returns {{ok: boolean, from: ?object, to: ?object}}
  */
-function commitQty(catalog, key, value) {
+function commitQty(catalog, key, value, store = cartStore) {
     const n = Math.min(maxFor(key), Math.max(0, Math.floor(Number(value) || 0)));
-    const cart = readCart();
+    const cart = store.read();
     const from = cart.items[key] ? metalFor(catalog, planCount(cart.items, key), pricingKey(key)) : null;
     const items = { ...cart.items };
     if (n === 0) {
@@ -90,10 +117,10 @@ function commitQty(catalog, key, value) {
         items[key] = n;
     }
     const to = n > 0 ? metalFor(catalog, planCount(items, key), pricingKey(key)) : null;
-    if (to && !to.available) {
+    if (to && !to.available && !store.allowUnavailable) {
         return { ok: false, from, to };
     }
-    writeCart({ ...cart, items });
+    store.write({ ...cart, items });
 
     return { ok: true, from, to };
 }
@@ -132,6 +159,8 @@ export function planCard(config) {
         ranges[row] = metalRange(catalog, metal, pricingKey(row));
     }
     const metalOf = (items, key) => metalFor(catalog, planCount(items, key), pricingKey(key));
+    const scope = config.scope || null;
+    const store = storeFor(scope);
 
     return {
         money,
@@ -144,11 +173,13 @@ export function planCard(config) {
         glow: false,
 
         init() {
-            this.cart = readCart().items;
-            window.addEventListener('plan-cart-updated', (e) => { this.cart = { ...e.detail.items }; });
-            window.addEventListener('storage', () => { this.cart = readCart().items; });
+            this.cart = store.read().items;
+            window.addEventListener(store.event, (e) => { this.cart = { ...e.detail.items }; });
+            if (!scope) {
+                window.addEventListener('storage', () => { this.cart = readCart().items; });
+            }
             window.addEventListener('plan-moved', (e) => {
-                if (e.detail.metal !== metal.key) {
+                if (e.detail.metal !== metal.key || e.detail.scope !== scope) {
                     return;
                 }
                 this.flash(e.detail.message);
@@ -205,7 +236,7 @@ export function planCard(config) {
         },
 
         commit(row, value, input = null) {
-            const result = commitQty(catalog, row, value);
+            const result = commitQty(catalog, row, value, store);
             if (!result.ok) {
                 this.flash(`El plan ${result.to.label} no está a la venta por ahora.`);
                 if (input) {
@@ -218,7 +249,7 @@ export function planCard(config) {
             if (to && to.key !== metal.key) {
                 const pct = Math.round(Number(to.discounts?.[pricingKey(row)] || 0) * 100);
                 window.dispatchEvent(new CustomEvent('plan-moved', {
-                    detail: { metal: to.key, message: `${CART_LABELS[row]} pasó a ${to.label} (−${pct}% por ${this.unitName(row)}).` },
+                    detail: { scope, metal: to.key, message: `${CART_LABELS[row]} pasó a ${to.label} (−${pct}% por ${this.unitName(row)}).` },
                 }));
             }
         },
@@ -346,7 +377,6 @@ export function planCard(config) {
     };
 }
 
-/** Barra fija de /planes: nombre del plan, total combinado y acceso al carrito. */
 const HELP_SEEN_KEY = 'zentra.plan-help.seen';
 
 /** Guía de /planes: se abre sola la primera visita y luego con el botón. */
@@ -380,6 +410,63 @@ export function planHelp() {
     };
 }
 
+/**
+ * Formulario con tarjetas de metal (cambio de plan del superadmin). La selección vive en memoria bajo `scope`;
+ * las tarjetas del mismo scope la comparten y el formulario envía las cantidades en campos ocultos.
+ */
+export function planForm(config) {
+    const catalog = config.catalog || {};
+    const store = createFormStore(config.scope, config.items, config.cycle);
+    const initial = store.read();
+
+    return {
+        money,
+        labels: CART_LABELS,
+        items: initial.items,
+        cycle: initial.cycle,
+
+        init() {
+            window.addEventListener(store.event, (e) => {
+                this.items = { ...e.detail.items };
+                this.cycle = e.detail.cycle;
+            });
+        },
+
+        setCycle(cycle) {
+            store.write({ cycle, items: this.items });
+        },
+
+        reset() {
+            store.write(initial);
+        },
+
+        get keys() {
+            return KEYS.filter((k) => this.items[k] > 0);
+        },
+
+        get quote() {
+            return quotePlan(catalog, seatsOf(this.items), this.cycle);
+        },
+
+        get identity() {
+            return planIdentity(this.quote);
+        },
+
+        get changed() {
+            return this.cycle !== initial.cycle || KEYS.some((k) => (this.items[k] || 0) !== (initial.items[k] || 0));
+        },
+
+        metalOf(key) {
+            return metalFor(catalog, planCount(this.items, key), pricingKey(key));
+        },
+
+        unitName(key, n = 1) {
+            return unitLabel(pricingKey(key), n);
+        },
+    };
+}
+
+/** Barra fija de /planes: nombre del plan, total combinado y acceso al carrito. */
 export function planSummary(config) {
     const catalog = config.catalog || {};
 

@@ -109,6 +109,21 @@ final class CatalogSettings
         return array_values(array_intersect($stored, $allowed));
     }
 
+    /** @return array<string, list<string>> Nombres de los módulos de cada producto, por clave de producto. */
+    public function moduleLabels(): array
+    {
+        $options = self::defaults()['module_options'] ?? [];
+        $labels = [];
+        foreach (CommercialProduct::cases() as $product) {
+            $labels[$product->value] = array_values(array_map(
+                fn (string $key) => $options[$key] ?? $key,
+                $this->modules($product),
+            ));
+        }
+
+        return $labels;
+    }
+
     /** Copia con las unidades subidas un %; descuentos y módulos iguales. */
     public function withIncrease(float $pct): self
     {

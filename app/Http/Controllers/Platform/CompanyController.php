@@ -8,6 +8,7 @@ use App\Domain\Geo\GeoAddressData;
 use App\Enums\ArchiveReason;
 use App\Enums\BillingCycle;
 use App\Enums\ClientLifecycle;
+use App\Enums\CommercialMetal;
 use App\Enums\ManualPaymentIntent;
 use App\Enums\PaymentStatus;
 use App\Enums\PlatformDocumentType;
@@ -51,9 +52,11 @@ use App\Services\Tenant\UpdateCompanyProfileService;
 use App\Support\Catalog\CatalogSettings;
 use App\Support\Catalog\QuotaOverview;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -201,19 +204,9 @@ final class CompanyController extends Controller
 
         $catalogAmount = app(CompanyRepricingService::class)->quoteAmount($company);
 
-        $clients = $company->clients()
-            ->orderBy('name')
-            ->limit(20)
-            ->get(['id', 'name', 'lifecycle', 'latitude', 'longitude', 'city']);
-
         $pendingPaymentsCount = CommercialPayment::query()
             ->where('security_company_id', $company->id)
             ->where('status', PaymentStatus::Pending)
-            ->count();
-
-        $paidInvoicesCount = CommercialPayment::query()
-            ->where('security_company_id', $company->id)
-            ->where('status', PaymentStatus::Completed)
             ->count();
 
         $latestPayment = CommercialPayment::query()
@@ -233,17 +226,15 @@ final class CompanyController extends Controller
                 ->diffInDays(CarbonImmutable::parse($company->package_ends_at)->startOfDay(), false);
         }
 
-        $riskLabel = match (true) {
-            $pendingPaymentsCount > 0 || ($daysToRenewal !== null && $daysToRenewal < 15) => 'Alto',
-            $quotaPct >= 90 || ($daysToRenewal !== null && $daysToRenewal < 45) => 'Medio',
-            default => 'Bajo',
-        };
+        $catalog = CatalogSettings::current();
 
         return view('modules.admin.companies.show', [
             'company' => $company,
             'cycleOptions' => $cycleOptions,
-            'planCatalog' => CatalogSettings::current()->forClient(true),
-            'priceChanges' => $company->priceChanges()->with('user:id,name')->latest('effective_at')->latest('id')->limit(30)->get(),
+            'planCatalog' => $catalog->forClient(true),
+            'metals' => CommercialMetal::cases(),
+            'modules' => $catalog->moduleLabels(),
+            'movements' => $this->recentMovements($company),
             'quotaOverview' => QuotaOverview::for($company),
             'quotaRequests' => QuotaRequest::query()
                 ->where('security_company_id', $company->id)
@@ -254,18 +245,61 @@ final class CompanyController extends Controller
                 ->get(),
             'pendingRepriceAmount' => $company->hasPendingReprice() ? $catalogAmount : null,
             'catalogAmount' => $catalogAmount,
-            'portfolioClients' => $clients,
-            'paidInvoicesCount' => $paidInvoicesCount,
             'pendingPaymentsCount' => $pendingPaymentsCount,
             'latestPayment' => $latestPayment,
             'companyAdminEmail' => $companyAdminEmail,
             'quotaPct' => $quotaPct,
             'daysToRenewal' => $daysToRenewal,
-            'riskLabel' => $riskLabel,
             'hasAcceptance' => $company->hasCompletedAcceptance(),
             'isUpToDate' => $company->isUpToDate(),
-            'opsAlertsCount' => 0,
         ]);
+    }
+
+    /**
+     * Últimos pagos y cambios de precio, mezclados por fecha.
+     *
+     * @return Collection<int, array{date: CarbonInterface, kind: string, title: string, detail: ?string, amount: float, previous: ?float, tone: string}>
+     */
+    private function recentMovements(SecurityCompany $company, int $limit = 6): Collection
+    {
+        $payments = CommercialPayment::query()
+            ->where('security_company_id', $company->id)
+            ->latest('created_at')
+            ->limit($limit)
+            ->get()
+            ->map(fn (CommercialPayment $payment) => [
+                'date' => $payment->paid_at ?? $payment->created_at,
+                'kind' => 'payment',
+                'title' => 'Pago '.mb_strtolower($payment->status?->label() ?? ''),
+                'detail' => $payment->method?->label(),
+                'amount' => (float) $payment->amount,
+                'previous' => null,
+                'tone' => match ($payment->status) {
+                    PaymentStatus::Completed => 'success',
+                    PaymentStatus::Pending => 'warning',
+                    default => 'danger',
+                },
+            ]);
+
+        $prices = $company->priceChanges()
+            ->latest('effective_at')
+            ->latest('id')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($change) => [
+                'date' => $change->effective_at,
+                'kind' => 'price',
+                'title' => $change->reasonLabel(),
+                'detail' => trim(($change->new_plan ?? '').($change->note ? ' · '.$change->note : ''), ' ·') ?: null,
+                'amount' => (float) $change->new_amount,
+                'previous' => (float) $change->previous_amount,
+                'tone' => 'info',
+            ]);
+
+        return $payments->concat($prices)
+            ->sortByDesc(fn (array $row) => $row['date']?->getTimestamp() ?? 0)
+            ->take($limit)
+            ->values();
     }
 
     public function historial(SecurityCompany $company): View

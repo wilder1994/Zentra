@@ -25,7 +25,10 @@ final class PlansPagesTest extends TestCase
         $this->actingAs($admin)->get(route('admin.companies.show', $company))
             ->assertOk()
             ->assertSee('Precio pactado')
-            ->assertSee('Historial de precios');
+            ->assertSee('Movimientos')
+            ->assertSee('Cambiar plan')
+            ->assertSee('planForm(', false)
+            ->assertSee('Platino');
 
         $this->actingAs($admin)->get(route('admin.companies.create'))->assertOk();
         $this->actingAs($admin)->get(route('admin.dashboard'))->assertOk();

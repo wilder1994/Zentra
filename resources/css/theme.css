@@ -500,6 +500,7 @@ html[data-theme="light"] .plan-cart-count { color: var(--ui-accent); }
         0 0 0 1px color-mix(in srgb, var(--metal) 40%, transparent),
         0 18px 50px -14px color-mix(in srgb, var(--metal) 90%, transparent);
 }
+.plan-metal-static:hover { transform: none; }
 .plan-metal-glow {
     box-shadow:
         0 0 0 2px var(--metal),

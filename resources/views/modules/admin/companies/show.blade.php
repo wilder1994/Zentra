@@ -1,12 +1,55 @@
 @php
-    use App\Enums\ClientLifecycle;
+    use App\Enums\CommercialProduct;
+    use App\Domain\Pricing\Data\PlanSelection;
 
     $fmt = fn (?float $n) => $n !== null ? '$'.number_format($n, 0, ',', '.') : '—';
-    $riskClass = match ($riskLabel) {
-        'Alto' => 'text-rose-300 border-rose-800/50 bg-rose-950/30',
-        'Medio' => 'text-amber-300 border-amber-800/50 bg-amber-950/30',
-        default => 'text-emerald-300 border-emerald-800/50 bg-emerald-950/30',
-    };
+    $companyPlan = PlanSelection::fromCompany($company);
+    $planKey = $companyPlan->uniformMetal()?->value ?? 'personalizado';
+    $perCycle = $company->billing_cycle?->value === 'annual' ? '/ año' : '/ mes';
+    $q = $quotaOverview;
+    $installPct = (int) $q['capacity'] > 0 ? (int) min(100, round($q['used'] / $q['capacity'] * 100)) : 0;
+    $planErrors = $errors->hasAny(['manual_seats', 'hardware_seats', 'supervision_seats', 'indexing_seats', 'observatory_seats', 'billing_cycle', 'apply_when', 'effective_on']);
+
+    $alerts = [];
+    if ($company->archived_at !== null) {
+        $alerts[] = ['tone' => 'slate', 'title' => 'Servicio archivado', 'text' => 'Fuera de cartera; nadie opera. Usa «Reactivar acceso» si vuelve el acuerdo.'];
+    } elseif (! $company->is_active) {
+        $alerts[] = ['tone' => 'rose', 'title' => 'Servicio suspendido', 'text' => 'Solo el admin empresa entra, en solo lectura.'];
+    }
+    if ($company->hasPendingCancellation()) {
+        $alerts[] = ['tone' => 'amber', 'title' => 'Cancelación programada', 'text' => trim(($company->package_ends_at ? 'Acceso hasta '.$company->package_ends_at->format('d/m/Y').'. ' : '').($company->cancellation_reason ? 'Motivo: '.$company->cancellation_reason : ''))];
+    }
+    if ($pendingRepriceAmount !== null) {
+        $alerts[] = ['tone' => 'sky', 'title' => 'Nuevo valor desde el '.$company->pending_reprice_at->format('d/m/Y'), 'text' => $fmt($pendingRepriceAmount).' (hoy '.$fmt($company->contractedAmount()).')'.($company->pending_reprice_note ? ' · '.$company->pending_reprice_note : '')];
+    }
+    if ($company->hasScheduledPackageChange()) {
+        $parts = [];
+        if ($company->scheduled_package_sku) {
+            $parts[] = 'Accesos '.(\App\Enums\CompanyPackageSku::tryFrom((string) $company->scheduled_package_sku)?->label() ?? $company->scheduled_package_sku);
+        }
+        if ($company->scheduled_supervision_package_sku) {
+            $parts[] = 'Supervisión '.($company->scheduled_supervision_package_sku === 'none'
+                ? 'sin Supervisión'
+                : (\App\Enums\SupervisionPackageSku::tryFrom($company->scheduled_supervision_package_sku)?->label() ?? $company->scheduled_supervision_package_sku));
+        }
+        if ($company->scheduled_change_at) {
+            $parts[] = 'aplica el '.$company->scheduled_change_at->format('d/m/Y');
+        }
+        $alerts[] = ['tone' => 'violet', 'title' => 'Cambio de plan programado', 'text' => implode(' · ', $parts)];
+    }
+    $alertTone = [
+        'slate' => 'border-slate-600/60 bg-slate-900 text-slate-100',
+        'rose' => 'border-rose-800/50 bg-rose-950/30 text-rose-100',
+        'amber' => 'border-amber-800/50 bg-amber-950/30 text-amber-100',
+        'sky' => 'border-sky-800/50 bg-sky-950/30 text-sky-100',
+        'violet' => 'border-violet-800/50 bg-violet-950/30 text-violet-100',
+    ];
+    $movementTone = [
+        'success' => 'bg-emerald-400',
+        'warning' => 'bg-amber-400',
+        'danger' => 'bg-rose-400',
+        'info' => 'bg-sky-400',
+    ];
 @endphp
 
 <x-admin-layout :title="'Empresa: '.$company->displayName()">
@@ -27,454 +70,222 @@
             archiveOpen: false,
             cutOpen: false,
             reactivateServiceOpen: false,
-            applyWhen: @js(old('apply_when', 'now')),
+            planOpen: {{ $planErrors ? 'true' : 'false' }},
+            quotaOpen: {{ $errors->hasAny(['extra_employees', 'posts_per_installation', 'employees_per_post', 'quota_note', 'max_posts', 'max_employees']) ? 'true' : 'false' }},
             lockOpen: {{ $errors->hasAny(['price_locked_until', 'price_lock_note']) ? 'true' : 'false' }},
+            menuOpen: false,
+            applyWhen: @js(old('apply_when', 'now')),
         }"
     >
-        @if ($company->archived_at !== null)
-            <div class="rounded-lg border border-slate-600/60 bg-slate-900 px-4 py-3 text-sm text-slate-100">
-                <p class="font-semibold">Servicio archivado</p>
-                <p class="text-xs text-slate-400 mt-1">La empresa está fuera de cartera. Nadie opera. Usa «Reactivar servicio» si vuelve el acuerdo.</p>
-            </div>
-        @elseif (! $company->is_active)
-            <div class="rounded-lg border border-rose-800/50 bg-rose-950/30 px-4 py-3 text-sm text-rose-100">
-                <p class="font-semibold">Servicio suspendido</p>
-                <p class="text-xs text-rose-200/80 mt-1">Solo el admin empresa entra (solo lectura). El resto ve: «Este usuario no tiene acceso al sistema. Comuníquese con el administrador.»</p>
-            </div>
-        @endif
-
-        @if ($company->hasPendingCancellation())
-            <div class="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-3 text-sm text-amber-100">
-                Cancelación programada
-                @if ($company->package_ends_at)
-                    · acceso hasta {{ $company->package_ends_at->format('d/m/Y') }}
-                @endif
-                @if ($company->cancellation_reason)
-                    <span class="block text-xs text-amber-200/80 mt-1">Motivo: {{ $company->cancellation_reason }}</span>
-                @endif
+        @if ($alerts !== [])
+            <div class="space-y-2">
+                @foreach ($alerts as $alert)
+                    <div class="rounded-lg border px-4 py-2 text-sm {{ $alertTone[$alert['tone']] }}">
+                        <span class="font-semibold">{{ $alert['title'] }}</span>
+                        @if ($alert['text'] !== '')
+                            <span class="opacity-80"> · {{ $alert['text'] }}</span>
+                        @endif
+                    </div>
+                @endforeach
             </div>
         @endif
 
-        @if ($pendingRepriceAmount !== null)
-            <div class="rounded-lg border border-sky-800/50 bg-sky-950/30 px-4 py-3 text-sm text-sky-100">
-                Nuevo valor desde el {{ $company->pending_reprice_at->format('d/m/Y') }}:
-                <strong class="tabular-nums">{{ $fmt($pendingRepriceAmount) }}</strong>
-                (hoy {{ $fmt($company->contractedAmount()) }})
-                @if ($company->pending_reprice_note)
-                    · {{ $company->pending_reprice_note }}
-                @endif
+        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+            <div class="col-span-2 md:col-span-1 rounded-lg border border-slate-800 bg-slate-900/80 px-4 py-3">
+                <p class="text-xs text-slate-500">Plan</p>
+                <div class="mt-1 flex flex-wrap items-center gap-2">
+                    @if ($companyPlan->isEmpty())
+                        <span class="text-sm text-slate-400">Sin plan</span>
+                    @else
+                        <span class="plan-name-chip" data-metal="{{ $planKey }}">{{ $companyPlan->planName() }}</span>
+                    @endif
+                </div>
+                <p class="mt-1 text-lg font-semibold text-white tabular-nums">{{ $fmt($company->contractedAmount()) }} <span class="text-xs font-normal text-slate-500">{{ $perCycle }}</span></p>
             </div>
-        @endif
-
-        @if ($company->hasScheduledPackageChange())
-            <div class="rounded-lg border border-violet-800/50 bg-violet-950/30 px-4 py-3 text-sm text-violet-100">
-                Cambio de plan programado
-                @if ($company->scheduled_package_sku)
-                    · Accesos {{ \App\Enums\CompanyPackageSku::tryFrom((string) $company->scheduled_package_sku)?->label() ?? $company->scheduled_package_sku }}
-                @endif
-                @if ($company->scheduled_supervision_package_sku)
-                    · Supervisión {{ $company->scheduled_supervision_package_sku === 'none'
-                        ? 'sin Supervisión'
-                        : (\App\Enums\SupervisionPackageSku::tryFrom($company->scheduled_supervision_package_sku)?->label() ?? $company->scheduled_supervision_package_sku) }}
-                @endif
-                @if ($company->scheduled_change_at)
-                    · aplica el {{ $company->scheduled_change_at->format('d/m/Y') }}
-                @endif
-            </div>
-        @endif
-
-        <div class="rounded-lg border border-slate-800 bg-slate-900/80 p-4 sm:p-5 space-y-4">
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                <div class="rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3">
-                    <p class="text-xs text-slate-500">Instalaciones en uso</p>
-                    <p class="mt-1 text-lg font-semibold text-white tabular-nums">
-                        {{ $company->operational_clients_count ?? 0 }} / {{ $company->max_clients }}
-                    </p>
-                </div>
-                <div class="rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3">
-                    <p class="text-xs text-slate-500">Contratado {{ $company->billing_cycle?->value === 'annual' ? '/ año' : '/ mes' }}</p>
-                    <p class="mt-1 text-lg font-semibold text-white tabular-nums">{{ $fmt($company->contractedAmount()) }}</p>
-                </div>
-                <div class="rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3">
-                    <p class="text-xs text-slate-500">A renovación</p>
-                    <p class="mt-1 text-lg font-semibold {{ ($daysToRenewal !== null && $daysToRenewal < 45) ? 'text-amber-300' : 'text-white' }} tabular-nums">
-                        {{ $daysToRenewal !== null ? $daysToRenewal.' d' : '—' }}
-                    </p>
-                </div>
-                <div class="rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3">
-                    <p class="text-xs text-slate-500">Pagos pendientes</p>
-                    <p class="mt-1 text-lg font-semibold {{ $pendingPaymentsCount > 0 ? 'text-amber-300' : 'text-white' }} tabular-nums">
-                        {{ $pendingPaymentsCount }}
-                    </p>
-                </div>
-                <div class="rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3">
-                    <p class="text-xs text-slate-500">Alertas ops</p>
-                    <p class="mt-1 text-lg font-semibold text-white tabular-nums">{{ $opsAlertsCount }}</p>
+            <div class="rounded-lg border border-slate-800 bg-slate-900/80 px-4 py-3">
+                <p class="text-xs text-slate-500">Instalaciones</p>
+                <p class="mt-1 text-lg font-semibold text-white tabular-nums">{{ $q['used'] }} <span class="text-sm text-slate-500">/ {{ $q['capacity'] }}</span></p>
+                <div class="mt-1.5 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                    <div class="h-full rounded-full bg-cyan-500" style="width: {{ max($installPct, $installPct > 0 ? 2 : 0) }}%"></div>
                 </div>
             </div>
-
-            <div class="flex flex-wrap gap-2">
-                @php($companyPlan = \App\Domain\Pricing\Data\PlanSelection::fromCompany($company))
-                @unless ($companyPlan->isEmpty())
-                    <span class="plan-name-chip" data-metal="{{ $companyPlan->uniformMetal()?->value ?? 'personalizado' }}">{{ $companyPlan->planName() }}</span>
-                @endunless
-                @if ($company->hasAccessPackage())
-                    <span class="ui-chip ui-chip-accent">Accesos · {{ $company->accessMetal()?->label() }}</span>
-                @endif
-                @if ($company->supervision_package_sku)
-                    <span class="ui-chip ui-chip-warning">Supervisión · {{ $company->supervisionMetal()?->label() }}</span>
-                @endif
-                @if ($company->isPriceLocked())
-                    <span class="ui-chip ui-chip-success" title="{{ $company->price_lock_note }}">
-                        Precio pactado{{ $company->price_locked_until ? ' · hasta '.$company->price_locked_until->format('d/m/Y') : '' }}
-                    </span>
-                @endif
-                <span class="ui-chip {{ $company->billing_cycle?->value === 'annual' ? 'ui-chip-success' : '' }}">
-                    Ciclo · {{ $company->billingPeriodLabel() }}
-                </span>
-                @if ($company->package_ends_at)
-                    <span class="ui-chip">
-                        Vigencia {{ $company->package_starts_at?->format('d/m/Y') ?? '—' }}
-                        → {{ $company->package_ends_at->format('d/m/Y') }}
-                    </span>
-                @endif
-                <span class="rounded-full border px-2.5 py-0.5 text-xs {{ $riskClass }}">
-                    Riesgo · {{ $riskLabel }}
-                </span>
+            <div class="rounded-lg border border-slate-800 bg-slate-900/80 px-4 py-3">
+                <p class="text-xs text-slate-500">Clientes</p>
+                <p class="mt-1 text-lg font-semibold text-white tabular-nums">{{ $company->operational_clients_count ?? 0 }} <span class="text-sm text-slate-500">activos</span></p>
+                <p class="text-xs text-slate-500">{{ $company->clients_count ?? 0 }} en total</p>
             </div>
-
-            <div>
-                <div class="flex items-center justify-between text-xs text-slate-500 mb-1.5">
-                    <span>Uso de cupo</span>
-                    <span class="tabular-nums">{{ $quotaPct }}%</span>
-                </div>
-                <div class="h-1.5 rounded-full bg-slate-800 overflow-hidden">
-                    <div class="h-full rounded-full bg-violet-500" style="width: {{ max($quotaPct, $quotaPct > 0 ? 2 : 0) }}%"></div>
-                </div>
+            <div class="rounded-lg border border-slate-800 bg-slate-900/80 px-4 py-3">
+                <p class="text-xs text-slate-500">Renovación</p>
+                <p class="mt-1 text-lg font-semibold tabular-nums {{ ($daysToRenewal !== null && $daysToRenewal < 45) ? 'text-amber-300' : 'text-white' }}">
+                    {{ $daysToRenewal !== null ? $daysToRenewal.' días' : '—' }}
+                </p>
+                <p class="text-xs text-slate-500">{{ $company->package_ends_at?->format('d/m/Y') ?? 'Sin fecha de corte' }}</p>
+            </div>
+            <div class="rounded-lg border border-slate-800 bg-slate-900/80 px-4 py-3">
+                <p class="text-xs text-slate-500">Pagos pendientes</p>
+                <p class="mt-1 text-lg font-semibold tabular-nums {{ $pendingPaymentsCount > 0 ? 'text-amber-300' : 'text-white' }}">{{ $pendingPaymentsCount }}</p>
+                <p class="text-xs text-slate-500">{{ $isUpToDate ? 'Al día' : 'Revisar cobro' }}</p>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div class="relative min-h-0 max-h-[min(36rem,calc(100dvh-16rem))] lg:max-h-none">
-            <section class="rounded-lg border border-slate-800 bg-slate-900/80 p-4 min-w-0 flex flex-col overflow-hidden h-full max-h-full lg:absolute lg:inset-0">
-                <div class="flex items-center justify-between gap-2 mb-3 shrink-0">
-                    <h3 class="text-sm font-semibold text-white">Cartera de clientes</h3>
-                    <span class="text-xs text-slate-500">
-                        {{ $portfolioClients->where('lifecycle', ClientLifecycle::Active)->count() }} activos
-                    </span>
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+            <section class="plan-metal plan-metal-static lg:col-span-3 rounded-lg border p-4 space-y-4 min-w-0" data-metal="{{ $planKey }}">
+                <div class="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                        <h3 class="plan-metal-title text-lg font-bold">{{ $companyPlan->planName() }}</h3>
+                        <p class="text-xs text-slate-400">
+                            {{ $company->billing_cycle?->label() ?? '—' }}
+                            @if ($company->package_ends_at)
+                                · vigencia {{ $company->package_starts_at?->format('d/m/Y') ?? '—' }} → {{ $company->package_ends_at->format('d/m/Y') }}
+                            @endif
+                        </p>
+                    </div>
+                    @if ($company->isPriceLocked())
+                        <span class="ui-chip ui-chip-success" title="{{ $company->price_lock_note }}">
+                            Precio pactado{{ $company->price_locked_until ? ' · hasta '.$company->price_locked_until->format('d/m/Y') : '' }}
+                        </span>
+                    @endif
                 </div>
-                <div class="flex-1 min-h-0 overflow-y-auto">
-                    <table class="min-w-full text-sm">
-                        <thead class="text-xs uppercase tracking-wide text-slate-500 sticky top-0 bg-slate-900/95">
-                            <tr>
-                                <th class="pb-2 text-left font-medium">Cliente</th>
-                                <th class="pb-2 text-left font-medium">Lifecycle</th>
-                                <th class="pb-2 text-center font-medium">Geo</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-800">
-                            @forelse ($portfolioClients as $client)
-                                <tr>
-                                    <td class="py-2 text-slate-200">{{ $client->name }}</td>
-                                    <td class="py-2">
-                                        <span @class([
-                                            'text-xs',
-                                            'text-emerald-400' => $client->lifecycle === ClientLifecycle::Active,
-                                            'text-slate-500' => $client->lifecycle !== ClientLifecycle::Active,
-                                        ])>
-                                            {{ $client->lifecycle?->label() ?? '—' }}
-                                        </span>
-                                    </td>
-                                    <td class="py-2 text-center text-xs text-slate-400">
-                                        {{ ($client->latitude && $client->longitude) ? 'Sí' : 'No' }}
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="3" class="py-6 text-center text-slate-500">Sin clientes en cartera.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-                <p class="mt-2 text-xs text-slate-600 shrink-0">Usa «Entrar como empresa» para operar clientes y portería.</p>
-            </section>
-            </div>
 
-            <section class="rounded-lg border border-slate-800 bg-slate-900/80 p-4 space-y-4 min-w-0 h-full">
-                <div>
-                    <h3 class="text-sm font-semibold text-white">Plan y ciclo</h3>
-                    <p class="text-xs text-slate-500 mt-1">
-                        Cada producto por cantidad de instalaciones; cada uno toma su plan. El cobro va en Pagar factura.
+                <table class="min-w-full text-sm">
+                    <thead class="text-xs text-slate-500">
+                        <tr>
+                            <th class="pb-2 text-left font-medium">Producto</th>
+                            <th class="pb-2 text-left font-medium">Plan</th>
+                            <th class="pb-2 text-right font-medium">Cantidad</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/80">
+                        @foreach (CommercialProduct::cases() as $product)
+                            @php($seats = $companyPlan->seats($product))
+                            @continue($seats < 1)
+                            <tr>
+                                <td class="py-2 text-slate-200">
+                                    {{ $product->label() }}
+                                    @if ($product === CommercialProduct::Access && $companyPlan->access->hardware > 0)
+                                        <span class="block text-[11px] text-slate-500">{{ $companyPlan->access->hardware }} con hardware</span>
+                                    @endif
+                                </td>
+                                <td class="py-2"><span class="plan-name-chip" data-metal="{{ $companyPlan->metal($product)?->value }}">{{ $companyPlan->metal($product)?->label() }}</span></td>
+                                <td class="py-2 text-right text-white tabular-nums">{{ number_format($seats, 0, ',', '.') }} <span class="text-xs text-slate-500">{{ $product->unitLabel($seats) }}</span></td>
+                            </tr>
+                        @endforeach
+                        @if ($companyPlan->isEmpty())
+                            <tr><td colspan="3" class="py-4 text-center text-slate-500">Sin productos contratados.</td></tr>
+                        @endif
+                    </tbody>
+                </table>
+
+                <div class="flex flex-wrap items-end justify-between gap-3 border-t border-slate-800/80 pt-3">
+                    <div>
+                        <p class="text-xs text-slate-500">Total contratado</p>
+                        <p class="text-2xl font-bold text-white tabular-nums">{{ $fmt($company->contractedAmount()) }} <span class="text-sm font-normal text-slate-500">{{ $perCycle }}</span></p>
+                    </div>
+                    <p class="text-xs text-slate-500 text-right">
+                        Con catálogo de hoy <span class="text-emerald-300 tabular-nums">{{ $fmt($catalogAmount) }}</span>
+                        <span class="block">Referencia si se recalcula</span>
                     </p>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <p class="text-xs text-slate-500">Plan actual</p>
-                        <p class="mt-1 text-sm font-medium text-white">{{ $company->packageLabel() }}</p>
-                        @if ($company->supervision_package_sku)
-                            <p class="text-sm font-medium text-amber-200">{{ $company->supervision_package_sku->label() }}</p>
-                        @endif
-                    </div>
-                    <div>
-                        <p class="text-xs text-slate-500">Ciclo de facturación</p>
-                        <p class="mt-1 text-sm font-medium text-white">{{ $company->billing_cycle?->label() ?? '—' }}</p>
-                    </div>
-                </div>
-
-                <div class="rounded-lg border border-violet-800/40 bg-violet-950/20 p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-                    <div>
-                        <p class="text-xs text-slate-500 uppercase">Valor por instalación</p>
-                        <p class="text-base font-semibold text-white tabular-nums">{{ $fmt((float) $company->package_price_monthly / max(1, $company->accessSeats()->size())) }}</p>
-                        <p class="text-xs text-slate-500">Lista {{ $fmt((float) $company->unit_price_snapshot) }} · −{{ number_format((float) $company->volume_discount_pct * 100, 0) }}%</p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-slate-500 uppercase">Total contratado</p>
-                        <p class="text-base font-semibold text-white tabular-nums">{{ $fmt($company->contractedAmount()) }}</p>
-                        <p class="text-xs text-slate-500">{{ $company->billing_cycle?->value === 'annual' ? 'por año' : 'por mes' }}</p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-slate-500 uppercase">Con catálogo de hoy</p>
-                        <p class="text-base font-semibold text-emerald-300 tabular-nums">{{ $fmt($catalogAmount) }}</p>
-                        <p class="text-xs text-slate-500">Referencia si se recalcula</p>
-                    </div>
-                </div>
-
                 @can('platform.companies.manage')
-                    <div class="rounded-lg border border-sky-900/50 bg-sky-950/15 p-3 space-y-2">
-                        <div class="flex flex-wrap items-center justify-between gap-2">
-                            <div>
-                                <p class="text-sm font-medium text-white">Precio pactado</p>
-                                <p class="text-xs text-slate-400">Si está activo, los cambios de catálogo y el incremento anual no tocan a esta empresa.</p>
-                            </div>
-                            <button type="button" class="ui-chip-link" @click="lockOpen = ! lockOpen">{{ $company->price_locked ? 'Editar' : 'Activar' }}</button>
-                        </div>
-                        <form method="POST" action="{{ route('admin.companies.price-lock.update', $company) }}" class="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end" x-show="lockOpen" x-cloak>
-                            @csrf
-                            @method('PUT')
-                            <label class="flex items-center gap-2 text-sm text-slate-200">
-                                <input type="hidden" name="price_locked" value="0">
-                                <input type="checkbox" name="price_locked" value="1" @checked(old('price_locked', $company->price_locked))>
-                                Pactado
-                            </label>
-                            <div>
-                                <x-ui.label for="price_locked_until">Hasta (opcional)</x-ui.label>
-                                <input type="date" id="price_locked_until" name="price_locked_until" value="{{ old('price_locked_until', $company->price_locked_until?->format('Y-m-d')) }}" class="w-full h-9 px-2 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                                <x-ui.field-error name="price_locked_until" />
-                            </div>
-                            <div>
-                                <x-ui.label for="price_lock_note">Nota del acuerdo</x-ui.label>
-                                <input type="text" id="price_lock_note" name="price_lock_note" maxlength="255" value="{{ old('price_lock_note', $company->price_lock_note) }}" class="w-full h-9 px-2 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                                <x-ui.field-error name="price_lock_note" />
-                            </div>
-                            <div class="sm:col-span-3 flex justify-end">
-                                <x-ui.button type="submit" variant="secondary" size="sm">Guardar</x-ui.button>
-                            </div>
-                        </form>
-                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <x-ui.button type="button" size="sm" @click="planOpen = true">Cambiar plan</x-ui.button>
+                        <x-ui.button type="button" variant="secondary" size="sm" @click="payOpen = true">Pagar factura</x-ui.button>
+                        <x-ui.button type="button" variant="secondary" size="sm" @click="lockOpen = true">Precio pactado</x-ui.button>
 
-                    <form method="POST" action="{{ route('admin.companies.plan.apply', $company) }}" class="rounded-lg border border-amber-800/40 bg-amber-950/10 p-4 space-y-3"
-                        x-data="planPicker(@js([
-                            'catalog' => $planCatalog,
-                            'manual' => (int) old('manual_seats', $company->accessSeats()->manual),
-                            'hardware' => (int) old('hardware_seats', $company->accessSeats()->hardware),
-                            'supervision' => (int) old('supervision_seats', $company->supervision_package_sku?->size() ?? 0),
-                            'indexing' => (int) old('indexing_seats', $company->indexing_seats ?? 0),
-                            'observatory' => (int) old('observatory_seats', $company->observatory_seats ?? 0),
-                            'cycle' => old('billing_cycle', $company->billing_cycle?->value ?? 'monthly'),
-                            'enforceAvailability' => false,
-                        ]))">
-                        @csrf
-                        <x-plans.seat-fields :cycle-options="$cycleOptions" id-prefix="plan" />
-                        <fieldset class="space-y-2">
-                            <legend class="text-xs text-slate-400">Cuándo aplica</legend>
-                            <label class="flex items-center gap-2 text-sm text-slate-200">
-                                <input type="radio" name="apply_when" value="now" x-model="applyWhen">
-                                Ya — cupo nuevo al instante
-                            </label>
-                            <label class="flex items-center gap-2 text-sm text-slate-200">
-                                <input type="radio" name="apply_when" value="on_date" x-model="applyWhen">
-                                El día
-                                <input type="date" name="effective_on" value="{{ old('effective_on') }}" class="h-8 px-2 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                            </label>
-                            <label class="flex items-center gap-2 text-sm text-slate-200">
-                                <input type="radio" name="apply_when" value="period_end" x-model="applyWhen" @disabled(! $company->package_ends_at)>
-                                Al corte{{ $company->package_ends_at ? ' ('.$company->package_ends_at->format('d/m/Y').')' : '' }}
-                            </label>
-                            <x-ui.field-error name="apply_when" />
-                            <x-ui.field-error name="effective_on" />
-                        </fieldset>
-                        <x-ui.button type="submit" variant="secondary" size="sm" x-bind:disabled="isEmpty">Aplicar plan</x-ui.button>
-                    </form>
-                @endcan
+                        <div class="relative ml-auto" @click.outside="menuOpen = false">
+                            <x-ui.button type="button" variant="secondary" size="sm" @click="menuOpen = ! menuOpen" x-bind:aria-expanded="menuOpen">
+                                Más acciones
+                                <svg class="ml-1 h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M5.5 7.5L10 12l4.5-4.5z"/></svg>
+                            </x-ui.button>
+                            <div x-show="menuOpen" x-cloak x-transition.opacity
+                                class="absolute right-0 z-30 mt-1 w-64 rounded-lg border border-slate-700 bg-slate-900 p-1 shadow-xl text-sm">
+                                <p class="px-3 pt-2 pb-1 text-[11px] uppercase tracking-wide text-slate-500">Membresía</p>
+                                @if ($isUpToDate)
+                                    <button type="button" class="w-full rounded-md px-3 py-2 text-left text-slate-200 hover:bg-slate-800" @click="menuOpen = false; changeOpen = true">Cobrar y programar al corte</button>
+                                @endif
+                                @if ($isUpToDate && ! $company->hasPendingCancellation())
+                                    <button type="button" class="w-full rounded-md px-3 py-2 text-left text-slate-200 hover:bg-slate-800" @click="menuOpen = false; cancelOpen = true">Cancelar membresía</button>
+                                @endif
+                                @if ($company->canUndoCancellation())
+                                    <button type="button" class="w-full rounded-md px-3 py-2 text-left text-slate-200 hover:bg-slate-800" @click="menuOpen = false; reactivateOpen = true">Reactivar membresía</button>
+                                @elseif ($company->needsPaidReactivation())
+                                    <button type="button" class="w-full rounded-md px-3 py-2 text-left text-slate-200 hover:bg-slate-800" @click="menuOpen = false; payOpen = true">Reactivar membresía</button>
+                                @endif
 
-                @can('platform.companies.manage')
-                    <div class="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-800">
-                        <x-ui.button type="button" variant="secondary" size="md" @click="payOpen = true">
-                            Pagar factura
-                        </x-ui.button>
-                        @if ($isUpToDate && ! $company->hasPendingCancellation())
-                            <x-ui.button type="button" variant="secondary" size="md" @click="cancelOpen = true">
-                                Cancelar membresía
-                            </x-ui.button>
-                        @endif
-                        @if ($isUpToDate)
-                            <x-ui.button type="button" variant="secondary" size="md" @click="changeOpen = true">
-                                Cobrar y programar al corte
-                            </x-ui.button>
-                        @endif
-
-                        @if ($company->canUndoCancellation())
-                            <x-ui.button type="button" variant="secondary" size="md" @click="reactivateOpen = true">
-                                Reactivar membresía
-                            </x-ui.button>
-                        @elseif ($company->needsPaidReactivation())
-                            <x-ui.button type="button" variant="secondary" size="md" @click="payOpen = true">
-                                Reactivar membresía
-                            </x-ui.button>
-                        @else
-                            <x-ui.button
-                                type="button"
-                                variant="secondary"
-                                size="md"
-                                disabled
-                                class="opacity-40 cursor-not-allowed hover:bg-transparent"
-                                title="Disponible cuando la membresía esté cancelada"
-                            >
-                                Reactivar membresía
-                            </x-ui.button>
-                        @endif
-                    </div>
-
-                    <div class="rounded-lg border border-rose-900/40 bg-rose-950/15 p-3 space-y-2">
-                        <div class="flex flex-wrap items-center justify-between gap-2">
-                            <div>
-                                <p class="text-xs uppercase tracking-wide text-rose-300/80">Acceso al sistema</p>
-                                <p class="text-sm font-semibold text-white">
-                                    @if ($company->archived_at !== null)
-                                        Archivado
-                                    @elseif (! $company->is_active)
-                                        Suspendido
-                                    @else
-                                        Activo
-                                    @endif
-                                </p>
-                                <p class="text-xs text-slate-400 mt-0.5">
-                                    No es la membresía. Aquí se apaga o se prende el acceso de todos los usuarios.
-                                </p>
+                                <p class="mt-1 border-t border-slate-800 px-3 pt-2 pb-1 text-[11px] uppercase tracking-wide text-rose-300/80">Acceso al sistema</p>
+                                @if ($company->is_active && $company->archived_at === null)
+                                    <button type="button" class="w-full rounded-md px-3 py-2 text-left text-rose-200 hover:bg-rose-950/40" @click="menuOpen = false; cutOpen = true">Suspender acceso</button>
+                                @else
+                                    <button type="button" class="w-full rounded-md px-3 py-2 text-left text-emerald-200 hover:bg-slate-800" @click="menuOpen = false; reactivateServiceOpen = true">Reactivar acceso</button>
+                                @endif
+                                @if ($company->archived_at === null)
+                                    <button type="button" class="w-full rounded-md px-3 py-2 text-left text-rose-200 hover:bg-rose-950/40" @click="menuOpen = false; archiveOpen = true">Archivar empresa</button>
+                                @endif
                             </div>
-                        </div>
-                        <div class="flex flex-wrap items-center gap-2">
-                            @if ($company->is_active && $company->archived_at === null)
-                                <x-ui.button type="button" variant="secondary" size="md" @click="cutOpen = true">
-                                    Suspender acceso
-                                </x-ui.button>
-                            @else
-                                <x-ui.button type="button" variant="secondary" size="md" @click="reactivateServiceOpen = true">
-                                    Reactivar acceso
-                                </x-ui.button>
-                            @endif
-
-                            @if ($company->archived_at === null)
-                                <x-ui.button type="button" variant="secondary" size="md" @click="archiveOpen = true">
-                                    Archivar empresa
-                                </x-ui.button>
-                            @endif
                         </div>
                     </div>
                 @else
                     <p class="text-xs text-slate-500">No tienes permiso para gestionar la membresía.</p>
                 @endcan
-
             </section>
-        </div>
 
-        @include('modules.admin.companies.partials.quotas')
+            <div class="lg:col-span-2 min-w-0">
+                @include('modules.admin.companies.partials.quotas')
+            </div>
+        </div>
 
         <section class="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
             <div class="flex items-center justify-between gap-2 mb-3">
-                <h3 class="text-sm font-semibold text-white">Historial de precios</h3>
-                <span class="text-xs text-slate-500">Últimos {{ $priceChanges->count() }}</span>
+                <div>
+                    <h3 class="text-sm font-semibold text-white">Movimientos</h3>
+                    <p class="text-xs text-slate-500">Pagos y cambios de precio recientes</p>
+                </div>
+                <a href="{{ route('admin.companies.historial', $company) }}" class="ui-chip-link shrink-0">Ver todo</a>
             </div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="text-xs uppercase tracking-wide text-slate-500">
-                        <tr>
-                            <th class="pb-2 text-left font-medium">Fecha</th>
-                            <th class="pb-2 text-left font-medium">Motivo</th>
-                            <th class="pb-2 text-left font-medium">Plan</th>
-                            <th class="pb-2 text-right font-medium">Antes</th>
-                            <th class="pb-2 text-right font-medium">Después</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-800">
-                        @forelse ($priceChanges as $change)
-                            <tr>
-                                <td class="py-2 text-xs text-slate-400 whitespace-nowrap">{{ $change->effective_at->format('d/m/Y') }}</td>
-                                <td class="py-2 text-slate-300">
-                                    {{ $change->reasonLabel() }}
-                                    @if ($change->note)
-                                        <span class="block text-[11px] text-slate-500">{{ $change->note }}</span>
-                                    @endif
-                                </td>
-                                <td class="py-2 text-xs text-slate-400">{{ $change->new_plan }}</td>
-                                <td class="py-2 text-right text-slate-500 tabular-nums">{{ $fmt((float) $change->previous_amount) }}</td>
-                                <td class="py-2 text-right text-white tabular-nums">{{ $fmt((float) $change->new_amount) }}</td>
-                            </tr>
-                        @empty
-                            <tr><td colspan="5" class="py-4 text-center text-slate-500">Sin cambios de precio registrados.</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+            @if ($movements->isEmpty())
+                <p class="py-4 text-center text-sm text-slate-500">Sin movimientos registrados.</p>
+            @else
+                <ul class="divide-y divide-slate-800">
+                    @foreach ($movements as $move)
+                        <li class="flex items-center gap-3 py-2 text-sm">
+                            <span class="h-2 w-2 shrink-0 rounded-full {{ $movementTone[$move['tone']] }}"></span>
+                            <span class="w-20 shrink-0 text-xs text-slate-500 tabular-nums">{{ $move['date']?->format('d/m/Y') ?? '—' }}</span>
+                            <span class="min-w-0 flex-1">
+                                <span class="text-slate-200">{{ $move['title'] }}</span>
+                                @if ($move['detail'])
+                                    <span class="block truncate text-[11px] text-slate-500">{{ $move['detail'] }}</span>
+                                @endif
+                            </span>
+                            <span class="shrink-0 text-right tabular-nums">
+                                @if ($move['previous'] !== null)
+                                    <span class="text-xs text-slate-500 line-through">{{ $fmt($move['previous']) }}</span>
+                                @endif
+                                <span class="text-white">{{ $fmt($move['amount']) }}</span>
+                            </span>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
         </section>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <section class="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
-                <div class="flex items-start justify-between gap-3">
-                    <div>
-                        <h3 class="text-sm font-semibold text-white">Historial de pagos</h3>
-                        <p class="text-xs text-slate-500 mt-1">Facturas pagadas registradas</p>
-                    </div>
-                    <a href="{{ route('admin.companies.historial', $company) }}" class="ui-chip-link shrink-0">
-                        Ver historial
-                    </a>
-                </div>
-                <p class="mt-4 text-3xl font-semibold text-white tabular-nums">{{ $paidInvoicesCount }}</p>
-                <p class="text-xs text-slate-500 mt-1">
-                    {{ $paidInvoicesCount === 1 ? 'pago completado' : 'pagos completados' }}
-                </p>
-            </section>
+        <p class="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-xs text-slate-500">
+            <span>Admin empresa: <span class="text-slate-300 break-all">{{ $companyAdminEmail }}</span></span>
+            <span>Último pago:
+                <span class="text-slate-300">
+                    @if ($latestPayment)
+                        {{ ($latestPayment->paid_at ?? $latestPayment->created_at)?->format('d/m/Y') }} · {{ $latestPayment->method?->label() ?? '—' }}
+                    @else
+                        —
+                    @endif
+                </span>
+            </span>
+            <a href="{{ route('admin.documents.expedientes.show', $company) }}" class="text-violet-400 hover:text-violet-300">Expediente docs →</a>
+        </p>
 
-            <section class="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
-                <h3 class="text-sm font-semibold text-white mb-3">Contacto y soporte</h3>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-                    <div>
-                        <p class="text-xs text-slate-500">Admin empresa</p>
-                        <p class="mt-1 font-medium text-slate-200 break-all">{{ $companyAdminEmail }}</p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-slate-500">Último pago</p>
-                        <p class="mt-1 font-medium text-slate-200">
-                            @if ($latestPayment)
-                                {{ ($latestPayment->paid_at ?? $latestPayment->created_at)?->format('d/m/Y') }}
-                                · {{ $latestPayment->method?->label() ?? '—' }}
-                            @else
-                                —
-                            @endif
-                        </p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-slate-500">Docs legales</p>
-                        <a href="{{ route('admin.documents.expedientes.show', $company) }}" class="mt-1 inline-block font-medium text-violet-400 hover:text-violet-300">
-                            Abrir expediente →
-                        </a>
-                    </div>
-                </div>
-            </section>
-        </div>
-
+        @include('modules.admin.companies.partials.plan-change-modal')
+        @include('modules.admin.companies.partials.price-lock-modal')
+        @include('modules.admin.companies.partials.quotas-modal')
         @include('modules.admin.companies.partials.pay-invoice-modal', [
             'company' => $company,
             'hasAcceptance' => $hasAcceptance,
