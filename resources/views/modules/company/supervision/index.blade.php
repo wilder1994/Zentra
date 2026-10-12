@@ -197,7 +197,7 @@
                     <section class="lg:col-span-5 xl:col-span-4 rounded-lg border border-slate-800 bg-slate-900/80 p-4 min-h-[420px] lg:min-h-0 lg:h-[min(78vh,740px)] flex flex-col">
                         <h3 class="text-sm font-semibold text-white shrink-0">Supervisores en turno</h3>
                         @include('modules.company.supervision.partials.pin-legend', ['live' => true])
-                        <p class="text-xs text-slate-500 mt-2 shrink-0">Se actualiza solo. Clic en la fila o «Mapa»: solo el recorrido en vivo de ese supervisor; «Ver todos» en el mapa vuelve a la vista general. Ver: ficha del turno. Día operativo de revistas: 06:00 a 06:00.</p>
+                        <p class="text-xs text-slate-500 mt-2 shrink-0">Se actualiza solo. Clic en un supervisor: solo su recorrido en vivo; otro clic o «Ver todos» vuelve a la vista general. Ver: ficha del turno. Día operativo de revistas: 06:00 a 06:00.</p>
                         <div class="mt-3 overflow-auto flex-1" id="supervision-live-list">
                             @include('modules.company.supervision.partials.live-roster', ['rows' => $map['live']])
                         </div>
@@ -392,27 +392,40 @@
                     anchor: new google.maps.Point(anchor, anchor),
                 });
 
-                const iconStart = () => svgIcon(
-                    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="#16a34a" stroke="#052e16" stroke-width="2"/><circle cx="16" cy="16" r="5" fill="#ecfdf5"/></svg>',
-                    22,
-                    11,
-                );
+                const PIN_SIZE = 24;
+                @php
+                    $pinSvgs = [];
+                    foreach (['start', 'flag', 'review', 'novelty', 'alarm', 'stop', 'support'] as $pinKind) {
+                        $pinSvgs[$pinKind] = trim(view('modules.company.supervision.partials.pin-icon', ['kind' => $pinKind])->render());
+                    }
+                @endphp
+                const pinSvgs = @json($pinSvgs);
+                const pinIcon = (key, count) => {
+                    let svg = pinSvgs[key];
+                    if (count > 1) {
+                        const text = count > 99 ? '99+' : String(count);
+                        svg = svg.replace('viewBox="0 0 32 32"', 'viewBox="0 0 36 36"').replace(/<svg([^>]*)>/, '<svg$1><g transform="translate(0 4)">')
+                            .replace(/<\/svg>$/, '</g><circle cx="29" cy="7" r="6.5" fill="#0b1220" stroke="#f8fafc" stroke-width="1.2"/>'
+                                + '<text x="29" y="9.8" text-anchor="middle" font-family="system-ui,sans-serif" font-size="' + (text.length > 2 ? 6 : 8) + '" font-weight="700" fill="#ffffff">' + text + '</text></svg>');
+                        const box = PIN_SIZE * 36 / 32;
+                        return {
+                            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
+                            scaledSize: new google.maps.Size(box, box),
+                            anchor: new google.maps.Point(box * 16 / 36, box * 20 / 36),
+                        };
+                    }
+                    return svgIcon(svg, PIN_SIZE, PIN_SIZE / 2);
+                };
                 const iconMoto = () => ({
                     url: @json(asset('images/ui/supervisor-moto.png').'?v='.(string) filemtime(public_path('images/ui/supervisor-moto.png'))),
                     scaledSize: new google.maps.Size(50, 36),
                     anchor: new google.maps.Point(25, 34),
                     labelOrigin: new google.maps.Point(25, -6),
                 });
-                const iconFlag = () => svgIcon(
-                    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path fill="#111827" d="M8 4h3v24H8z"/><path fill="#dc2626" d="M11 5h16l-4 6 4 6H11z"/></svg>',
-                    28,
-                    4,
-                );
-
                 function circleIcon(color, scale) {
                     return {
                         path: google.maps.SymbolPath.CIRCLE,
-                        scale: scale || 7,
+                        scale: scale || 9,
                         fillColor: color,
                         fillOpacity: 1,
                         strokeColor: '#0b1220',
@@ -488,11 +501,7 @@
                                 + '<td class="py-2 pr-2 text-xs text-slate-300 leading-snug">' + esc(row.status_line || liveStatus(row)) + '</td>'
                                 + '<td class="py-2 text-right text-slate-300 tabular-nums">' + Number(row.km || 0).toFixed(1) + '</td>'
                                 + '<td class="py-2 text-right text-slate-300 tabular-nums">' + String(row.reviews_count || 0) + '</td>'
-                                + '<td class="py-2 pl-2 text-right"><div class="flex flex-col items-end gap-1">'
-                                + '<button type="button" class="inline-flex rounded-md border px-2 py-0.5 text-[11px] font-semibold '
-                                + (selected ? 'border-indigo-400 bg-indigo-600 text-white' : 'border-slate-700 text-amber-300 hover:bg-slate-800')
-                                + '">' + (selected ? 'En mapa' : 'Mapa') + '</button>'
-                                + sheet + '</div></td>'
+                                + '<td class="py-2 pl-2 text-right">' + sheet + '</td>'
                                 + '</tr>';
                         }).join('')
                         + '</tbody></table>';
@@ -592,7 +601,7 @@
 
                 function coverageIcon(row, count) {
                     const text = String(count);
-                    const size = text.length > 2 ? 34 : 30;
+                    const size = text.length > 2 ? 28 : 26;
                     const color = coverageColor(row);
                     const ring = pointsMode === 'installation' ? '<circle cx="16" cy="16" r="13" fill="none" stroke="#ffffff" stroke-width="1" stroke-dasharray="3 2"/>' : '';
                     return svgIcon(
@@ -722,12 +731,12 @@
                 }
 
                 function pinAccent(pin) {
-                    if (pin.kind === 'review') return pin.novelty ? '#f87171' : '#34d399';
-                    if (pin.kind === 'alarm') return '#fbbf24';
-                    if (pin.kind === 'support') return '#38bdf8';
-                    if (pin.kind === 'stop') return '#c084fc';
-                    if (pin.kind === 'start') return '#22c55e';
-                    if (pin.kind === 'flag') return '#ef4444';
+                    if (pin.kind === 'review') return pin.novelty ? '#ea580c' : '#16a34a';
+                    if (pin.kind === 'alarm') return '#dc2626';
+                    if (pin.kind === 'support') return '#2563eb';
+                    if (pin.kind === 'stop') return '#991b1b';
+                    if (pin.kind === 'start') return '#16a34a';
+                    if (pin.kind === 'flag') return '#f8fafc';
                     if (pin.kind === 'moto') return '#e2e8f0';
                     if (pin.kind === 'installation') return '#22d3ee';
                     return '#818cf8';
@@ -998,15 +1007,11 @@
                     });
                 }
 
-                function markerIconFor(pin) {
-                    if (pin.kind === 'review') return circleIcon(pin.novelty ? '#f87171' : '#34d399', 7);
-                    if (pin.kind === 'alarm') return circleIcon('#fbbf24', 8);
-                    if (pin.kind === 'support') return circleIcon('#38bdf8', 8);
-                    if (pin.kind === 'stop') return circleIcon('#c084fc', 8);
-                    if (pin.kind === 'start') return iconStart();
+                function markerIconFor(pin, count) {
+                    if (pin.kind === 'review') return pinIcon(pin.novelty ? 'novelty' : 'review', count);
                     if (pin.kind === 'moto') return iconMoto();
-                    if (pin.kind === 'flag') return iconFlag();
-                    return circleIcon('#6366f1', 8);
+                    if (pinSvgs[pin.kind]) return pinIcon(pin.kind, count);
+                    return circleIcon('#6366f1');
                 }
 
                 function placePin(map, pin) {
@@ -1020,14 +1025,8 @@
                             position: pos,
                             zIndex: 22,
                             title: pin.title,
-                            icon: markerIconFor(face),
+                            icon: markerIconFor(face, listed.length),
                             opacity: 1,
-                            label: listed.length > 1 ? {
-                                text: String(listed.length),
-                                color: '#f8fafc',
-                                fontSize: '11px',
-                                fontWeight: '700',
-                            } : undefined,
                         }));
                         bindPinOpen(marker, pin);
                         return;
@@ -1035,13 +1034,12 @@
                     if (pin.kind === 'client' || pin.kind === 'installation') {
                         const color = pin.kind === 'installation' ? '#22d3ee' : '#6366f1';
                         const marker = addOverlay(new google.maps.Marker({
-                            map, position: pos, title: pin.title, zIndex: 1, icon: circleIcon(color, 8),
+                            map, position: pos, title: pin.title, zIndex: 1, icon: circleIcon(color),
                         }));
                         bindPinOpen(marker, pin);
                         return;
                     }
                     const extras = {};
-                    if (pin.kind === 'stop') extras.label = { text: pin.minutesLabel, color: '#1e1b4b', fontSize: '10px', fontWeight: '700' };
                     if (pin.kind === 'moto') {
                         extras.opacity = pin.opacity;
                         extras.label = pin.label;
@@ -1115,7 +1113,6 @@
                             lat: stop.lat,
                             lng: stop.lng,
                             title: stop.label || ('Parado ' + stop.minutes + ' min'),
-                            minutesLabel: String(stop.minutes) + '’',
                         });
                     });
                     if (opts.current && row.end) {
