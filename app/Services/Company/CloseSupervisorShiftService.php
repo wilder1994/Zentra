@@ -75,4 +75,47 @@ final class CloseSupervisorShiftService
             return $closed ?? $shift;
         });
     }
+
+    /**
+     * El supervisor cerró sin red y el sistema ya había cerrado el turno: se guardan su km y fotos
+     * sin mover la hora de cierre.
+     */
+    public function attachToSystemClosed(
+        SupervisorShift $shift,
+        int $kmEnd,
+        UploadedFile $odometerPhoto,
+        UploadedFile $selfiePhoto,
+        ?string $clientEventId = null,
+    ): SupervisorShift {
+        if ($shift->km_start !== null && $kmEnd < (int) $shift->km_start) {
+            throw ValidationException::withMessages([
+                'km_end' => 'El kilometraje de cierre debe ser mayor o igual al de inicio ('.$shift->km_start.' km).',
+            ]);
+        }
+
+        return DB::transaction(function () use ($shift, $kmEnd, $odometerPhoto, $selfiePhoto, $clientEventId) {
+            $shift->load('fleetVehicle');
+            $dir = 'supervision/'.$shift->security_company_id.'/'.$shift->id;
+
+            $shift->update([
+                'km_end' => $kmEnd,
+                'km_traveled' => $shift->km_start !== null ? $kmEnd - (int) $shift->km_start : $shift->km_traveled,
+                'km_end_photo_path' => $odometerPhoto->storeAs($dir, 'end_odometer.jpg', 'local'),
+                'km_end_selfie_path' => $selfiePhoto->storeAs($dir, 'end_selfie.jpg', 'local'),
+                'close_client_event_id' => $clientEventId,
+                'notes' => trim((string) $shift->notes."\nCierre del supervisor recibido sin red después del cierre automático."),
+            ]);
+
+            if ($shift->fleetVehicle !== null) {
+                $shift->fleetVehicle->update(['last_km' => $kmEnd]);
+            }
+
+            $closed = $shift->fresh(['fleetVehicle', 'user', 'zone', 'shiftTemplate', 'securityCompany', 'reviews.client', 'fieldLogs.client', 'locations']);
+            if ($closed instanceof SupervisorShift) {
+                $this->shiftSheets->freeze($closed);
+            }
+
+            return $closed ?? $shift;
+        });
+    }
 }

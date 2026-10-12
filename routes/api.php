@@ -47,6 +47,7 @@ Route::middleware(['auth:sanctum', 'company.service'])->group(function () {
         Route::get('/shift-photo/start-selfie', [SupervisorShiftController::class, 'startSelfie']);
         Route::post('/shifts/open', [SupervisorShiftController::class, 'open']);
         Route::post('/shifts/ping', [SupervisorShiftController::class, 'ping']);
+        Route::post('/shifts/pings', [SupervisorShiftController::class, 'pings']);
         Route::post('/shifts/close', [SupervisorShiftController::class, 'close']);
         Route::post('/reviews', [SupervisorShiftController::class, 'review']);
         Route::post('/panic', [SupervisorShiftController::class, 'panic']);

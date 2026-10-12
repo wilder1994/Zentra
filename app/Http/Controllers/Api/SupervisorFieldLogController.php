@@ -10,7 +10,9 @@ use App\Http\Requests\Api\StoreSupervisorFieldLogRequest;
 use App\Models\SupervisorRecommendation;
 use App\Services\Company\ManageSupervisorShiftService;
 use App\Services\Company\RecordSupervisorFieldLogService;
+use App\Services\Company\RefreshLateSyncedShiftService;
 use App\Support\Supervision\FieldModuleCatalog;
+use App\Support\Supervision\SupervisorCaptureTime;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -20,6 +22,7 @@ final class SupervisorFieldLogController extends Controller
         private readonly ManageSupervisorShiftService $shiftService,
         private readonly RecordSupervisorFieldLogService $logService,
         private readonly FieldModuleCatalog $catalog,
+        private readonly RefreshLateSyncedShiftService $lateSync,
     ) {}
 
     public function catalog(Request $request): JsonResponse
@@ -31,7 +34,8 @@ final class SupervisorFieldLogController extends Controller
 
     public function store(StoreSupervisorFieldLogRequest $request): JsonResponse
     {
-        $shift = $this->shiftService->currentFor($request->user());
+        $at = SupervisorCaptureTime::parse($request->validated('recorded_at'));
+        $shift = $this->shiftService->shiftForCapture($request->user(), $at);
         abort_if($shift === null, 422, 'No hay turno abierto.');
 
         $log = $this->logService->execute(
@@ -46,7 +50,11 @@ final class SupervisorFieldLogController extends Controller
             $request->validated('latitude') !== null ? (float) $request->validated('latitude') : null,
             $request->validated('longitude') !== null ? (float) $request->validated('longitude') : null,
             $request->validated('client_event_id'),
+            $at,
         );
+        if (! $shift->isOpen()) {
+            $this->lateSync->execute($shift);
+        }
 
         return response()->json([
             'log' => $log->load(['client:id,name', 'recommendation']),

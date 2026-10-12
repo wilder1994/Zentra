@@ -103,6 +103,55 @@ final class BuildSupervisorTrailTest extends TestCase
         $this->assertEqualsWithDelta(3.4570, $trail['end']['lat'], 0.0002);
     }
 
+    public function test_network_fixes_are_ignored_when_gps_exists(): void
+    {
+        $start = CarbonImmutable::parse('2026-10-11 09:00:00');
+        $locations = new Collection([
+            $this->point(3.4516, -76.5320, $start, 4.0),
+            $this->point(3.4530, -76.5335, $start->addSeconds(15), 150.0),
+            $this->point(3.45161, -76.53201, $start->addSeconds(30), 4.0),
+            $this->point(3.4502, -76.5306, $start->addSeconds(45), 150.0),
+            $this->point(3.45162, -76.53202, $start->addSeconds(60), 5.0),
+        ]);
+
+        $trail = app(BuildSupervisorTrailService::class)->execute($locations, true);
+
+        $this->assertSame(0.0, $trail['km']);
+        $this->assertCount(1, $trail['path']);
+    }
+
+    public function test_short_boomerang_jitter_is_dropped(): void
+    {
+        $start = CarbonImmutable::parse('2026-10-11 09:30:00');
+        $locations = new Collection([
+            $this->point(3.4516, -76.5320, $start, 8.0),
+            $this->point(3.4521, -76.5320, $start->addSeconds(15), 10.0),
+            $this->point(3.45161, -76.53201, $start->addSeconds(30), 8.0),
+            $this->point(3.4511, -76.5320, $start->addSeconds(45), 10.0),
+            $this->point(3.45162, -76.53202, $start->addSeconds(60), 8.0),
+        ]);
+
+        $trail = app(BuildSupervisorTrailService::class)->execute($locations, true);
+
+        $this->assertSame(0.0, $trail['km']);
+    }
+
+    public function test_parked_moto_stays_on_stop_centroid(): void
+    {
+        $start = CarbonImmutable::parse('2026-10-11 10:00:00');
+        $locations = new Collection([
+            $this->point(3.45160, -76.53200, $start, 10.0),
+            $this->point(3.45172, -76.53200, $start->addMinutes(1), 10.0),
+            $this->point(3.45155, -76.53200, $start->addMinutes(2), 10.0),
+            $this->point(3.45168, -76.53200, $start->addMinutes(3), 10.0),
+        ]);
+
+        $trail = app(BuildSupervisorTrailService::class)->execute($locations, true, $start->addMinutes(3));
+
+        $this->assertEqualsWithDelta(3.451637, $trail['end']['lat'], 0.00001);
+        $this->assertNotNull($trail['parked']);
+    }
+
     private function point(float $lat, float $lng, CarbonImmutable $at, ?float $accuracy = null): SupervisorShiftLocation
     {
         $location = new SupervisorShiftLocation;

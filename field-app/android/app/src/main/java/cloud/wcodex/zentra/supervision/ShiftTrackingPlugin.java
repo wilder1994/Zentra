@@ -41,7 +41,8 @@ public class ShiftTrackingPlugin extends Plugin {
             return;
         }
 
-        ShiftTrackingStore.save(getContext(), apiBase.replaceAll("/+$", ""), token);
+        String userId = call.getString("userId", "");
+        ShiftTrackingStore.save(getContext(), apiBase.replaceAll("/+$", ""), token, userId == null ? "" : userId);
 
         ArrayList<String> aliases = new ArrayList<>();
         if (!hasLocation()) {

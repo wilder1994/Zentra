@@ -28,6 +28,7 @@ final class StoreSupervisorFieldLogRequest extends FormRequest
             'latitude' => ['nullable', 'numeric'],
             'longitude' => ['nullable', 'numeric'],
             'client_event_id' => ['nullable', 'uuid'],
+            'recorded_at' => ['nullable', 'date'],
         ];
     }
 

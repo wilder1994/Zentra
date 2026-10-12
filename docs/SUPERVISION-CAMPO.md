@@ -39,7 +39,7 @@ Flota: `supervisor_fleet_vehicles` (placa/marca la primera vez). **No** es `vehi
 
 ## App de campo
 
-PWA en `field-app/` (copia `public/campo/` y Laragon `Zentra_Supervision`). Caché SW `zentra-sup-v51`. Hosting: `https://zentra.wcodex.cloud/campo`. APK Android v1.9 (Capacitor) en `field-app/android/`; el binario se publica en `public/downloads/zentra-supervision.apk`. Selfie de inicio en el círculo de perfil.
+PWA en `field-app/` (copia `public/campo/` y Laragon `Zentra_Supervision`). Caché SW `zentra-sup-v52`. Hosting: `https://zentra.wcodex.cloud/campo`. APK Android v2.0 (Capacitor) en `field-app/android/`; el binario se publica en `public/downloads/zentra-supervision.apk`. Selfie de inicio en el círculo de perfil.
 
 **Cambio de dispositivo:** el supervisor queda atado a un celular (identificador `zentra_device_id` en el almacenamiento de la app; APK y PWA igual). El primer login lo registra solo. Desde otro celular el login responde `423` y crea **una** solicitud (modelo + GPS si hay) que vence en **10 min**; la app muestra «Cambio de celular» en espera. La aprueba o rechaza quien tenga el módulo **Cambio de dispositivo** (`company.devices.approve`) o el admin de empresa: alerta flotante con sonido en el panel y menú `/company/dispositivos`. Al aprobar, el celular viejo pierde el token y el turno abierto sigue en el nuevo. Borrar datos de la app cuenta como celular nuevo.
 
@@ -70,6 +70,14 @@ Login y **abrir turno** requieren internet. Al iniciar turno (o al entrar con tu
 Sin red puede registrar revistas, alarmas, apoyos, documentos y pings GPS: quedan en una **cola por supervisor** (`zentra-sup-u{id}`). Con red, la PWA sube **todas** las colas del teléfono usando el token guardado de quien las generó. El supervisor de turno sigue trabajando: un cierre/cola ajena no bloquea Registrar ni GPS. Solo su propio cierre pendiente traba su sesión. Al abrir turno se limpia ese candado.
 
 Cerrar turno sin red también se encola (fotos incluidas). No borrar datos del sitio hasta que el banner desaparezca. iPhone: hay que **abrir la app** al recuperar señal.
+
+**Hora de captura:** revista, módulos, observatorio y GPS mandan `recorded_at` (hora del celular al capturar). El servidor guarda esa hora (acotada al turno y nunca en el futuro, `SupervisorCaptureTime`), no la de llegada. Si el sistema cerró el turno mientras no había red, lo capturado **dentro** del horario del turno se acepta en ese turno cerrado hasta 72 h después; se recalcula km GPS (si cerró el sistema sin odómetro) y la ficha congelada (`RefreshLateSyncedShiftService`). Un cierre encolado después de un cierre del sistema se adjunta a ese turno (km y fotos) sin cambiar la hora de cierre.
+
+**Rechazados:** si el servidor no acepta algo de la cola (4xx distinto de 401), la app **no lo borra**: queda en una caja roja con el motivo y botones **Reintentar** / **Descartar**. Solo los pings GPS rechazados se descartan solos.
+
+**APK 2.0 (GPS nativo):** GPS primero; la red (celdas/wifi) solo si el GPS lleva 60 s sin posición. No reenvía la misma lectura: cada punto lleva la hora real del fix. Lecturas peores de 50 m solo salen como latido cada 2 min (para «en línea»). Sin red guarda los puntos en el celular (archivo por supervisor, máx. 72 h) y los sube por lotes a `POST /api/supervision/shifts/pings` (hasta 300). 401 detiene; 422 sin turno abierto descarta el lote y detiene.
+
+**Recorrido en el mapa:** solo lecturas ≤ 50 m dibujan la línea (si el turno solo tiene red, tope 150 m). Precisión 0 = desconocida. Se quitan los «ir y volver» (punto que se aleja más de 25 m y el siguiente vuelve cerca del anterior). Salir de una parada exige confirmación (dos puntos fuera de 75 m o un salto grande al final). Detenida, la moto queda fija en el centro de la parada.
 
 ---
 

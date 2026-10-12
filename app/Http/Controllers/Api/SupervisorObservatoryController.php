@@ -13,6 +13,7 @@ use App\Models\Installation;
 use App\Services\Company\ManageSupervisorShiftService;
 use App\Services\Observatory\EnsureObservatoryReportTypesService;
 use App\Services\Observatory\SubmitObservatoryReportService;
+use App\Support\Supervision\SupervisorCaptureTime;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -77,7 +78,8 @@ final class SupervisorObservatoryController extends Controller
 
     public function store(StoreSupervisorObservatoryReportRequest $request): JsonResponse
     {
-        abort_if($this->shifts->currentFor($request->user()) === null, 422, 'No hay turno abierto.');
+        $at = SupervisorCaptureTime::parse($request->input('recorded_at'));
+        abort_if($this->shifts->shiftForCapture($request->user(), $at) === null, 422, 'No hay turno abierto.');
 
         $installation = Installation::query()
             ->withoutGlobalScopes()

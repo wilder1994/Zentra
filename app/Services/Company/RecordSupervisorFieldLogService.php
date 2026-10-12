@@ -15,6 +15,8 @@ use App\Models\SupervisorFieldLog;
 use App\Models\SupervisorRecommendation;
 use App\Models\SupervisorShift;
 use App\Models\SupervisorShiftReview;
+use App\Support\Supervision\SupervisorCaptureTime;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -37,12 +39,9 @@ final class RecordSupervisorFieldLogService
         ?float $lat,
         ?float $lng,
         ?string $clientEventId = null,
+        ?CarbonImmutable $recordedAt = null,
     ): SupervisorFieldLog {
-        if (! $shift->isOpen()) {
-            throw ValidationException::withMessages([
-                'shift' => 'El turno está cerrado.',
-            ]);
-        }
+        SupervisorCaptureTime::assertAccepts($shift, $recordedAt);
 
         if ($clientEventId !== null && $clientEventId !== '') {
             $replay = SupervisorFieldLog::query()
@@ -61,7 +60,7 @@ final class RecordSupervisorFieldLogService
         $this->assertGps($module, $lat, $lng);
         $validated = $this->assertPayload->execute($module, $payload, (int) $shift->security_company_id);
 
-        return DB::transaction(function () use ($shift, $module, $validated, $client, $review, $notes, $lat, $lng, $clientEventId) {
+        return DB::transaction(function () use ($shift, $module, $validated, $client, $review, $notes, $lat, $lng, $clientEventId, $recordedAt) {
             $recommendationId = null;
             $payload = $validated->payload;
 
@@ -111,7 +110,7 @@ final class RecordSupervisorFieldLogService
                 'notes' => $notes !== null && $notes !== '' ? $notes : null,
                 'latitude' => $lat,
                 'longitude' => $lng,
-                'recorded_at' => now(),
+                'recorded_at' => SupervisorCaptureTime::resolve($shift, $recordedAt),
                 'client_event_id' => $clientEventId,
             ]);
         });

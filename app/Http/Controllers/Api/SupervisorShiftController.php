@@ -14,6 +14,7 @@ use App\Http\Requests\Api\StoreSupervisorShiftReviewRequest;
 use App\Models\SupervisorChecklistItem;
 use App\Models\SupervisorFleetVehicle;
 use App\Models\SupervisorShift;
+use App\Models\SupervisorShiftLocation;
 use App\Models\SupervisorShiftReview;
 use App\Models\SupervisorShiftTemplate;
 use App\Models\SupervisorZone;
@@ -28,8 +29,11 @@ use App\Services\Company\ManageSupervisorShiftService;
 use App\Services\Company\OpenSupervisorShiftService;
 use App\Services\Company\RecordSupervisorFieldLogService;
 use App\Services\Company\RecordSupervisorProReviewService;
+use App\Services\Company\RefreshLateSyncedShiftService;
 use App\Services\Company\SeedSupervisorIntakeDefaultsService;
 use App\Services\Ops\TriggerPanicService;
+use App\Support\Supervision\SupervisorCaptureTime;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -53,6 +57,7 @@ final class SupervisorShiftController extends Controller
         private readonly BuildSupervisorOfflinePackService $offlinePack,
         private readonly TriggerPanicService $panic,
         private readonly BindSupervisorDevice $deviceBinding,
+        private readonly RefreshLateSyncedShiftService $lateSync,
     ) {}
 
     public function login(Request $request): JsonResponse
@@ -327,23 +332,81 @@ final class SupervisorShiftController extends Controller
             'pending_outbox' => ['nullable', 'integer', 'min:0', 'max:9999'],
             'screen_on' => ['nullable', 'boolean'],
             'source' => ['nullable', 'in:app,apk'],
+            'recorded_at' => ['nullable', 'date'],
         ]);
 
-        $shift = $this->shiftService->currentFor($request->user());
+        $at = SupervisorCaptureTime::parse($data['recorded_at'] ?? null);
+        $shift = $this->shiftService->shiftForCapture($request->user(), $at);
         abort_if($shift === null, 422, 'No hay turno abierto.');
 
-        $point = $this->shiftService->ping(
+        $point = $this->storePing($shift, $data, $at);
+        if (isset($data['pending_outbox']) && $shift->isOpen()) {
+            $shift->update(['pending_outbox_count' => max(0, (int) $data['pending_outbox'])]);
+        }
+        if (! $shift->isOpen()) {
+            $this->lateSync->execute($shift);
+        }
+
+        return response()->json(['location' => $point]);
+    }
+
+    /** Lote de GPS guardado en el celular sin red (APK). Cada punto va a su turno según su hora. */
+    public function pings(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'points' => ['required', 'array', 'min:1', 'max:300'],
+            'points.*.latitude' => ['required', 'numeric'],
+            'points.*.longitude' => ['required', 'numeric'],
+            'points.*.accuracy' => ['nullable', 'numeric'],
+            'points.*.client_event_id' => ['nullable', 'uuid'],
+            'points.*.screen_on' => ['nullable', 'boolean'],
+            'points.*.source' => ['nullable', 'in:app,apk'],
+            'points.*.recorded_at' => ['nullable', 'date'],
+        ]);
+
+        $user = $request->user();
+        $stored = 0;
+        $late = [];
+        foreach ($data['points'] as $row) {
+            $at = SupervisorCaptureTime::parse($row['recorded_at'] ?? null);
+            $shift = $this->shiftService->shiftForCapture($user, $at);
+            if ($shift === null) {
+                continue;
+            }
+            try {
+                $this->storePing($shift, $row, $at);
+                $stored++;
+                if (! $shift->isOpen()) {
+                    $late[$shift->id] = $shift;
+                }
+            } catch (ValidationException) {
+                continue;
+            }
+        }
+        foreach ($late as $shift) {
+            $this->lateSync->execute($shift);
+        }
+
+        $open = $this->shiftService->currentFor($user) !== null;
+        abort_if($stored === 0 && ! $open, 422, 'No hay turno abierto.');
+
+        return response()->json(['stored' => $stored, 'open' => $open]);
+    }
+
+    /** @param  array<string, mixed>  $data */
+    private function storePing(SupervisorShift $shift, array $data, ?CarbonImmutable $at): SupervisorShiftLocation
+    {
+        return $this->shiftService->ping(
             $shift,
             (float) $data['latitude'],
             (float) $data['longitude'],
             isset($data['accuracy']) ? (float) $data['accuracy'] : null,
             (string) ($data['source'] ?? 'app'),
             isset($data['client_event_id']) ? (string) $data['client_event_id'] : null,
-            isset($data['pending_outbox']) ? (int) $data['pending_outbox'] : null,
+            null,
             array_key_exists('screen_on', $data) ? (bool) $data['screen_on'] : null,
+            $at,
         );
-
-        return response()->json(['location' => $point]);
     }
 
     public function close(CloseSupervisorShiftRequest $request): JsonResponse
@@ -360,7 +423,24 @@ final class SupervisorShiftController extends Controller
         }
 
         $shift = $this->shiftService->currentFor($request->user());
-        abort_if($shift === null, 422, 'No hay turno abierto.');
+        if ($shift === null) {
+            $systemClosed = SupervisorShift::query()
+                ->where('user_id', $request->user()->id)
+                ->where('closed_by_system', true)
+                ->whereNull('close_client_event_id')
+                ->where('ended_at', '>=', now()->subHours(SupervisorCaptureTime::LATE_SYNC_HOURS))
+                ->latest('ended_at')
+                ->first();
+            abort_if($systemClosed === null, 422, 'No hay turno abierto.');
+
+            return response()->json(['shift' => $this->closeShift->attachToSystemClosed(
+                $systemClosed,
+                (int) $request->validated('km_end'),
+                $request->file('odometer_photo'),
+                $request->file('selfie_photo'),
+                is_string($eventId) && $eventId !== '' ? $eventId : null,
+            )]);
+        }
 
         $closed = $this->closeShift->execute(
             $shift,
@@ -375,7 +455,8 @@ final class SupervisorShiftController extends Controller
 
     public function review(StoreSupervisorShiftReviewRequest $request): JsonResponse
     {
-        $shift = $this->shiftService->currentFor($request->user());
+        $at = SupervisorCaptureTime::parse($request->validated('recorded_at'));
+        $shift = $this->shiftService->shiftForCapture($request->user(), $at);
         abort_if($shift === null, 422, 'No hay turno abierto.');
 
         $review = $this->reviewService->execute(
@@ -392,8 +473,12 @@ final class SupervisorShiftController extends Controller
                 logs: $request->validated('logs') ?? [],
                 logPhotos: is_array($request->file('log_photos')) ? $request->file('log_photos') : [],
                 clientEventId: $request->validated('client_event_id'),
+                recordedAt: $at,
             ),
         );
+        if (! $shift->isOpen()) {
+            $this->lateSync->execute($shift);
+        }
 
         return response()->json([
             'review' => $this->reviewPayload($review),

@@ -16,25 +16,48 @@ import android.os.Build;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.PowerManager;
+import android.os.SystemClock;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 import java.util.Locale;
+import java.util.TimeZone;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 public class ShiftTrackingService extends Service implements LocationListener {
     private static final String CHANNEL = "zentra_shift_gps";
     private static final int NOTICE_ID = 2201;
+    /** La red (celdas/wifi) solo se usa si el GPS lleva este tiempo sin dar posición. */
+    private static final long GPS_PREFERRED_MS = 60_000L;
+    /** Peor que esto no dibuja ruta: solo sirve de latido para "en línea". */
+    private static final float MAX_ACCURACY_M = 50f;
+    private static final long HEARTBEAT_MS = 120_000L;
+    private static final int BATCH = 300;
+
     private LocationManager locationManager;
-    private Location lastLocation;
+    private volatile Location lastGps;
+    private volatile Location lastNetwork;
+    private long lastSentFixTime = 0L;
+    private long lastQueuedAt = 0L;
     private ScheduledExecutorService ticker;
+    private String cachedToken = "";
+    private String cachedApi = "";
+    private String cachedUser = "";
 
     @Override
     public void onCreate() {
@@ -53,7 +76,7 @@ public class ShiftTrackingService extends Service implements LocationListener {
         }
         startLocations();
         ticker = Executors.newSingleThreadScheduledExecutor();
-        ticker.scheduleAtFixedRate(this::pingOnce, 2, 15, TimeUnit.SECONDS);
+        ticker.scheduleWithFixedDelay(this::tick, 2, 15, TimeUnit.SECONDS);
     }
 
     @Override
@@ -79,13 +102,24 @@ public class ShiftTrackingService extends Service implements LocationListener {
             } catch (Exception ignored) {
             }
         }
+        final String token = cachedToken;
+        final String api = cachedApi;
+        final String user = cachedUser;
+        if (!token.isEmpty() && !api.isEmpty()) {
+            new Thread(() -> flush(api, token, user)).start();
+        }
         super.onDestroy();
     }
 
     @Override
     public void onLocationChanged(Location location) {
-        if (location != null) {
-            lastLocation = location;
+        if (location == null) {
+            return;
+        }
+        if (LocationManager.GPS_PROVIDER.equals(location.getProvider())) {
+            lastGps = location;
+        } else {
+            lastNetwork = location;
         }
     }
 
@@ -99,51 +133,157 @@ public class ShiftTrackingService extends Service implements LocationListener {
             return;
         }
         try {
-            lastLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-            if (lastLocation == null) {
-                lastLocation = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-            }
             if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                 locationManager.requestLocationUpdates(
-                    LocationManager.GPS_PROVIDER, 15000, 5, this, Looper.getMainLooper()
+                    LocationManager.GPS_PROVIDER, 10000, 0, this, Looper.getMainLooper()
                 );
             }
             if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
                 locationManager.requestLocationUpdates(
-                    LocationManager.NETWORK_PROVIDER, 15000, 8, this, Looper.getMainLooper()
+                    LocationManager.NETWORK_PROVIDER, 15000, 0, this, Looper.getMainLooper()
                 );
             }
         } catch (SecurityException ignored) {
         }
     }
 
-    private void pingOnce() {
+    private static long ageMs(Location loc) {
+        return (SystemClock.elapsedRealtimeNanos() - loc.getElapsedRealtimeNanos()) / 1_000_000L;
+    }
+
+    /** GPS fresco primero; la red solo si el GPS no responde. */
+    @Nullable
+    private Location pick() {
+        Location gps = lastGps;
+        if (gps != null && ageMs(gps) <= GPS_PREFERRED_MS) {
+            return gps;
+        }
+        Location net = lastNetwork;
+        if (net != null && ageMs(net) <= GPS_PREFERRED_MS) {
+            return net;
+        }
+        return null;
+    }
+
+    private void tick() {
         String token = ShiftTrackingStore.token(this);
         String apiBase = ShiftTrackingStore.apiBase(this);
-        Location loc = lastLocation;
-        if (token.isEmpty() || apiBase.isEmpty() || loc == null) {
+        String user = ShiftTrackingStore.userId(this);
+        if (token.isEmpty() || apiBase.isEmpty()) {
             return;
         }
+        cachedToken = token;
+        cachedApi = apiBase;
+        cachedUser = user;
+        queueCurrent(user);
+        flush(apiBase, token, user);
+    }
+
+    private void queueCurrent(String user) {
+        long now = System.currentTimeMillis();
+        Location loc = pick();
+        if (loc == null) {
+            return;
+        }
+        boolean fresh = loc.getTime() != lastSentFixTime;
+        boolean precise = loc.hasAccuracy() && loc.getAccuracy() <= MAX_ACCURACY_M;
+        boolean heartbeat = now - lastQueuedAt >= HEARTBEAT_MS;
+        if (!(fresh && precise) && !heartbeat) {
+            return;
+        }
+        long at = fresh ? loc.getTime() : now;
         boolean screenOn = false;
         PowerManager power = (PowerManager) getSystemService(POWER_SERVICE);
         if (power != null) {
             screenOn = power.isInteractive();
         }
-        String body = String.format(
-            Locale.US,
-            "{\"latitude\":%.7f,\"longitude\":%.7f,\"accuracy\":%.1f,\"client_event_id\":\"%s\",\"screen_on\":%s,\"source\":\"apk\"}",
-            loc.getLatitude(),
-            loc.getLongitude(),
-            loc.hasAccuracy() ? loc.getAccuracy() : 0,
-            UUID.randomUUID().toString(),
-            screenOn ? "true" : "false"
-        );
-        HttpURLConnection conn = null;
         try {
-            URL url = new URL(apiBase + "/supervision/shifts/ping");
-            conn = (HttpURLConnection) url.openConnection();
-            conn.setConnectTimeout(15000);
-            conn.setReadTimeout(15000);
+            JSONObject point = new JSONObject();
+            point.put("latitude", loc.getLatitude());
+            point.put("longitude", loc.getLongitude());
+            if (loc.hasAccuracy()) {
+                point.put("accuracy", Math.round(loc.getAccuracy() * 10f) / 10.0);
+            }
+            point.put("client_event_id", UUID.randomUUID().toString());
+            point.put("screen_on", screenOn);
+            point.put("source", "apk");
+            point.put("recorded_at", iso(at));
+            point.put("t", at);
+            ShiftPingQueue.append(this, user, point);
+            lastSentFixTime = loc.getTime();
+            lastQueuedAt = now;
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** Sube la cola por lotes. 2xx borra lo enviado; sin red queda para el siguiente intento. */
+    private void flush(String apiBase, String token, String user) {
+        for (int round = 0; round < 10; round++) {
+            List<JSONObject> rows = ShiftPingQueue.read(this, user);
+            if (rows.isEmpty()) {
+                return;
+            }
+            List<JSONObject> batch = rows.subList(0, Math.min(BATCH, rows.size()));
+            List<String> ids = new ArrayList<>();
+            JSONArray points = new JSONArray();
+            for (JSONObject row : batch) {
+                ids.add(row.optString("client_event_id"));
+                JSONObject copy = new JSONObject();
+                try {
+                    copy.put("latitude", row.get("latitude"));
+                    copy.put("longitude", row.get("longitude"));
+                    if (row.has("accuracy")) {
+                        copy.put("accuracy", row.get("accuracy"));
+                    }
+                    copy.put("client_event_id", row.optString("client_event_id"));
+                    copy.put("screen_on", row.optBoolean("screen_on"));
+                    copy.put("source", "apk");
+                    copy.put("recorded_at", row.optString("recorded_at"));
+                } catch (Exception ignored) {
+                    continue;
+                }
+                points.put(copy);
+            }
+            int code;
+            String response;
+            try {
+                JSONObject body = new JSONObject();
+                body.put("points", points);
+                String[] result = post(apiBase + "/supervision/shifts/pings", token, body.toString());
+                code = Integer.parseInt(result[0]);
+                response = result[1];
+            } catch (Exception offline) {
+                return;
+            }
+            if (code == 401) {
+                stopSelf();
+                return;
+            }
+            if (code == 422) {
+                ShiftPingQueue.remove(this, user, ids);
+                stopSelf();
+                return;
+            }
+            if (code < 200 || code >= 300) {
+                return;
+            }
+            ShiftPingQueue.remove(this, user, ids);
+            try {
+                if (!new JSONObject(response).optBoolean("open", true)
+                    && ShiftPingQueue.read(this, user).isEmpty()) {
+                    stopSelf();
+                    return;
+                }
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    private static String[] post(String url, String token, String body) throws Exception {
+        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+        try {
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(20000);
             conn.setRequestMethod("POST");
             conn.setDoOutput(true);
             conn.setRequestProperty("Authorization", "Bearer " + token);
@@ -151,19 +291,32 @@ public class ShiftTrackingService extends Service implements LocationListener {
             conn.setRequestProperty("Content-Type", "application/json");
             byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
             conn.setFixedLengthStreamingMode(bytes.length);
-            OutputStream out = conn.getOutputStream();
-            out.write(bytes);
-            out.close();
+            try (OutputStream out = conn.getOutputStream()) {
+                out.write(bytes);
+            }
             int code = conn.getResponseCode();
-            if (code == 401 || code == 422) {
-                stopSelf();
+            InputStream in = code >= 400 ? conn.getErrorStream() : conn.getInputStream();
+            String text = "";
+            if (in != null) {
+                ByteArrayOutputStream buf = new ByteArrayOutputStream();
+                byte[] chunk = new byte[2048];
+                int n;
+                while ((n = in.read(chunk)) > 0) {
+                    buf.write(chunk, 0, n);
+                }
+                in.close();
+                text = buf.toString("UTF-8");
             }
-        } catch (Exception ignored) {
+            return new String[] { String.valueOf(code), text };
         } finally {
-            if (conn != null) {
-                conn.disconnect();
-            }
+            conn.disconnect();
         }
+    }
+
+    private static String iso(long epochMs) {
+        SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
+        fmt.setTimeZone(TimeZone.getTimeZone("UTC"));
+        return fmt.format(new Date(epochMs));
     }
 
     private void ensureChannel() {

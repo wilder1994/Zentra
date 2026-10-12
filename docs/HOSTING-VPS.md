@@ -6,6 +6,8 @@ Migración a Zentra (10 oct 2026): el sitio CloudPanel `controla.wcodex.cloud` s
 
 Cambio de dispositivo (11 oct 2026): migrate `2026_10_11_150000` (`users.single_session_device`, `users.mobile_device_*`, tabla `device_change_requests`) + `RoleAndPermissionSeeder` (`company.devices.approve`). Panel web: una pregunta por equipo (cookie `zentra_device`). APK/PWA: celular atado al supervisor; otro celular pide aprobación (10 min). PWA `zentra-sup-v51`. APK v1.9. Pull + `migrate --force` + seeder de roles + `npm run build` + `config:cache` + `route:cache` + `view:cache`. Artisan como `wcodex-zentra`.
 
+GPS limpio + offline correcto (11 oct 2026): ruta nueva `POST /api/supervision/shifts/pings` (lote APK). `recorded_at` de captura en revistas, logs y pings; lo capturado sin red entra al turno cerrado por el sistema (72 h). Cola PWA: rechazados visibles (no se borran). PWA `zentra-sup-v52`. APK v2.0 (GPS primero, ≤ 50 m, cola offline). Pull + `npm run build` + `config:cache` + `route:cache` + `view:cache`. Sin migrate.
+
 Revista 80 m + historial limpio (11 oct 2026): radio de revista `SupervisorReviewGeofence::RADIUS_METERS` = 80. Historial con turno elegido solo pinta ruta, revistas y eventos del turno. Pull + `npm run build` + `view:cache`. Sin migrate ni APK.
 
 Paradas en historial + km GPS (11 oct 2026): `/company/supervision/turnos/{shift}/ruta` devuelve `stops`, `start`, `end`, `km`; el historial pinta paradas (≥ 2 min en 75 m). Cierre por el sistema guarda `km_traveled` por GPS si no hay km de odómetro. Turnos viejos: `php artisan supervision:backfill-gps-km`. Pull + `npm run build` + `view:cache` + `config:cache` + `route:cache` + backfill. Sin migrate ni APK.

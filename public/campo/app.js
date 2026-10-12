@@ -244,7 +244,46 @@ async function clearOwnCloseLock() {
     }
 }
 
+const OUTBOX_LABELS = { review: 'Revista', log: 'Registro', observatory: 'Observatorio', close: 'Cierre de turno' };
+
+function esc(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+async function renderRejected() {
+    const box = document.getElementById('sync-rejected');
+    if (!box) return;
+    const jobs = await ZentraOffline.rejectedJobs();
+    if (!jobs.length) {
+        box.classList.add('hidden');
+        box.innerHTML = '';
+        return;
+    }
+    box.classList.remove('hidden');
+    const items = jobs.map((job) => {
+        const label = OUTBOX_LABELS[job.row.type] || 'Registro';
+        return `<li><strong>${esc(label)}</strong>: ${esc(job.row.rejected.message)}</li>`;
+    }).join('');
+    box.innerHTML = `<p><strong>${jobs.length} registro(s) no aceptado(s) por el servidor.</strong> Siguen guardados en el teléfono.</p>`
+        + `<ul>${items}</ul>`
+        + '<div class="row"><button type="button" class="secondary" id="btn-rejected-retry">Reintentar</button>'
+        + '<button type="button" class="ghost" id="btn-rejected-discard">Descartar</button></div>';
+    document.getElementById('btn-rejected-retry').onclick = async () => {
+        await ZentraOffline.retryRejected();
+        await updateSyncBar();
+        flushOutbox();
+    };
+    document.getElementById('btn-rejected-discard').onclick = async () => {
+        if (!window.confirm('¿Descartar estos registros? Se borran del teléfono y no se podrán recuperar.')) return;
+        const hadClose = jobs.some((job) => job.row.type === 'close');
+        await ZentraOffline.discardRejected();
+        if (hadClose) await clearOwnCloseLock();
+        await updateSyncBar();
+    };
+}
+
 async function updateSyncBar() {
+    await renderRejected();
     const bar = document.getElementById('sync-bar');
     if (!bar) return;
     const stats = await ZentraOffline.outboxStats();
@@ -283,7 +322,7 @@ async function flushOutbox() {
     try {
         const jobs = await ZentraOffline.allPendingJobs();
         for (const job of jobs) {
-            if (job.row?.type === 'close-meta') continue;
+            if (job.row?.type === 'close-meta' || job.row?.rejected) continue;
             const uid = Number(job.userId || job.row?.userId || 0) || 0;
             const sessionTok = token();
             let auth = job.row?.authToken || job.authToken || (uid ? ZentraOffline.tokenForUser(uid) : '');
@@ -318,12 +357,11 @@ async function flushOutbox() {
                 }
             } catch (e) {
                 if (ZentraOffline.isOfflineError(e)) break;
-                const foreign = sessionUser && uid && uid !== Number(sessionUser);
-                if (foreign || !e.status || (e.status >= 400 && e.status < 500)) {
-                    if (job.row.id != null && e.status !== 401) {
-                        await ZentraOffline.removeOutboxIn(job.dbName, job.row.id);
-                    }
-                    continue;
+                if (job.row.id == null || e.status === 401 || !(e.status >= 400 && e.status < 500)) continue;
+                if (job.row.type === 'ping') {
+                    await ZentraOffline.removeOutboxIn(job.dbName, job.row.id);
+                } else {
+                    await ZentraOffline.markRejectedIn(job.dbName, job.row, e.message);
                 }
                 continue;
             }
@@ -437,7 +475,7 @@ async function geo() {
         if (!navigator.geolocation) return resolve(lastGeo);
         navigator.geolocation.getCurrentPosition(
             (pos) => {
-                lastGeo = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy };
+                lastGeo = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy, timestamp: pos.timestamp };
                 resolve(lastGeo);
             },
             () => resolve(lastGeo),
@@ -1274,6 +1312,7 @@ async function persistReview() {
         latitude: String(pos.latitude),
         longitude: String(pos.longitude),
         logs: JSON.stringify(outgoing),
+        recorded_at: new Date().toISOString(),
     };
     const queued = {
         type: 'review',
@@ -1465,7 +1504,7 @@ async function startNativeTracking() {
     const plug = shiftTrackingPlugin();
     if (!plug?.start) return false;
     try {
-        await plug.start({ apiBase: apiBase(), token: token() || '' });
+        await plug.start({ apiBase: apiBase(), token: token() || '', userId: String(ZentraOffline.currentUserId?.() || '') });
         return true;
     } catch (e) {
         setStatus(e?.message || 'GPS nativo no disponible. Sigue el ping de la app.', false);
@@ -1504,6 +1543,7 @@ function startPing() {
                 pending_outbox: Number(stats.mine || 0),
                 screen_on: screenIsOn(),
                 source: 'app',
+                recorded_at: new Date(pos.timestamp && Date.now() - pos.timestamp < 60000 ? pos.timestamp : Date.now()).toISOString(),
             };
             try {
                 await api('/supervision/shifts/ping', { method: 'POST', body: JSON.stringify(body) });
@@ -1535,6 +1575,7 @@ function startPing() {
                         latitude: pos.coords.latitude,
                         longitude: pos.coords.longitude,
                         accuracy: pos.coords.accuracy,
+                        timestamp: pos.timestamp,
                     };
                     if (!nativePing) send();
                 },
@@ -1818,6 +1859,7 @@ document.getElementById('btn-submit').onclick = () => withBusy(
             latitude: pos?.latitude,
             longitude: pos?.longitude,
             client_event_id: logEventId,
+            recorded_at: new Date().toISOString(),
         };
         if (currentModule.requires_client) {
             const clientId = siteId();
@@ -2147,6 +2189,7 @@ document.getElementById('btn-obs-send').onclick = () => withBusy(
             is_anonymous: document.getElementById('obs-anonymous').checked ? 1 : 0,
             latitude: pos?.lat ?? pos?.latitude,
             longitude: pos?.lng ?? pos?.longitude,
+            recorded_at: new Date().toISOString(),
         };
         const fd = new FormData();
         Object.entries(payload).forEach(([key, value]) => {

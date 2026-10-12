@@ -11,6 +11,7 @@ use App\Models\SupervisorPost;
 use App\Models\SupervisorShift;
 use App\Models\SupervisorShiftReview;
 use App\Support\Supervision\RecommendationEvidencePhotos;
+use App\Support\Supervision\SupervisorCaptureTime;
 use App\Support\Supervision\SupervisorFieldSheetIntro;
 use App\Support\Supervision\SupervisorReviewGeofence;
 use App\Support\Supervision\WeaponInspectionPhotos;
@@ -27,11 +28,7 @@ final class RecordSupervisorProReviewService
 
     public function execute(SupervisorShift $shift, RecordSupervisorShiftReviewInput $input): SupervisorShiftReview
     {
-        if (! $shift->isOpen()) {
-            throw ValidationException::withMessages([
-                'shift' => 'El turno está cerrado.',
-            ]);
-        }
+        SupervisorCaptureTime::assertAccepts($shift, $input->recordedAt);
 
         $user = $shift->user;
         if ($user === null) {
@@ -103,7 +100,7 @@ final class RecordSupervisorProReviewService
                 'has_novelty' => $input->hasNovelty,
                 'latitude' => $input->latitude,
                 'longitude' => $input->longitude,
-                'recorded_at' => now(),
+                'recorded_at' => SupervisorCaptureTime::resolve($shift, $input->recordedAt),
                 'client_event_id' => $input->clientEventId,
             ]);
 
@@ -151,6 +148,7 @@ final class RecordSupervisorProReviewService
                     null,
                     $input->latitude,
                     $input->longitude,
+                    recordedAt: $input->recordedAt,
                 );
             }
 

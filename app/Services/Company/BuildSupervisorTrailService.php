@@ -24,7 +24,14 @@ final class BuildSupervisorTrailService
     /** ~130 km/h: una moto de patrulla no cubre más en un ping. */
     private const MAX_SPEED_MPS = 36.0;
 
-    private const MAX_ACCURACY_METERS = 150.0;
+    /** Solo lecturas así de precisas dibujan la ruta (GPS); la red (cell/wifi) suele dar 100-200 m. */
+    private const PATH_ACCURACY_METERS = 50.0;
+
+    /** Si el celular solo da red, se usa este tope para no dejar el mapa vacío. */
+    private const FALLBACK_ACCURACY_METERS = 150.0;
+
+    /** Un punto que se aleja más que esto y el siguiente vuelve cerca del anterior es ruido. */
+    private const BOOMERANG_MIN_METERS = 25.0;
 
     public const OFFLINE_SECONDS = SupervisorPresence::FRESH_SECONDS;
 
@@ -67,7 +74,12 @@ final class BuildSupervisorTrailService
             ];
         }
 
-        $points = collect($this->filterGpsNoise($points->all()))->values();
+        $raw = $points->all();
+        $filtered = $this->filterGpsNoise($raw, self::PATH_ACCURACY_METERS);
+        if (count($filtered) < 2 && count($raw) >= 2) {
+            $filtered = $this->filterGpsNoise($raw, self::FALLBACK_ACCURACY_METERS);
+        }
+        $points = collect($filtered)->values();
         if ($points->isEmpty()) {
             $fallback = $locations->first();
             $points = collect([[
@@ -82,7 +94,10 @@ final class BuildSupervisorTrailService
         $stops = [];
         $cluster = [];
 
-        foreach ($points as $point) {
+        $list = $points->all();
+        $count = count($list);
+        for ($i = 0; $i < $count; $i++) {
+            $point = $list[$i];
             if ($cluster === []) {
                 $cluster[] = $point;
                 $path[] = $this->point($point);
@@ -90,10 +105,19 @@ final class BuildSupervisorTrailService
                 continue;
             }
 
-            $anchor = $cluster[0];
-            if ($this->meters($anchor['lat'], $anchor['lng'], $point['lat'], $point['lng']) <= self::STOP_METERS) {
+            $center = $this->centroid($cluster);
+            if ($this->meters($center['lat'], $center['lng'], $point['lat'], $point['lng']) <= self::STOP_METERS) {
                 $cluster[] = $point;
 
+                continue;
+            }
+
+            // Salir de una parada exige confirmación: el siguiente punto también fuera, o un salto grande al final.
+            $next = $list[$i + 1] ?? null;
+            $confirmed = $next !== null
+                ? $this->meters($center['lat'], $center['lng'], $next['lat'], $next['lng']) > self::STOP_METERS
+                : $this->meters($center['lat'], $center['lng'], $point['lat'], $point['lng']) > self::STOP_METERS * 2;
+            if (! $confirmed) {
                 continue;
             }
 
@@ -119,7 +143,10 @@ final class BuildSupervisorTrailService
         }
 
         $first = $points->first();
-        $last = $points->last();
+        $lastPing = $cluster[array_key_last($cluster)];
+        $last = count($cluster) >= 2
+            ? ['lat' => $this->centroid($cluster)['lat'], 'lng' => $this->centroid($cluster)['lng'], 'at' => $lastPing['at']]
+            : $lastPing;
         $screenOn = $rawLast instanceof SupervisorShiftLocation && $rawLast->screen_on !== null
             ? (bool) $rawLast->screen_on
             : null;
@@ -205,16 +232,17 @@ final class BuildSupervisorTrailService
      * @param  list<array{lat: float, lng: float, at: mixed, accuracy: ?float}>  $points
      * @return list<array{lat: float, lng: float, at: mixed, accuracy: ?float}>
      */
-    private function filterGpsNoise(array $points): array
+    private function filterGpsNoise(array $points, float $maxAccuracy): array
     {
         $kept = [];
+        $points = array_values(array_filter(
+            $points,
+            fn (array $p) => $this->coordsOk($p) && ! $this->tooInaccurate($p, $maxAccuracy),
+        ));
         $n = count($points);
 
         for ($i = 0; $i < $n; $i++) {
             $cur = $points[$i];
-            if (! $this->coordsOk($cur) || $this->tooInaccurate($cur)) {
-                continue;
-            }
             if ($kept === []) {
                 $kept[] = $cur;
 
@@ -224,6 +252,12 @@ final class BuildSupervisorTrailService
             $prev = $kept[array_key_last($kept)];
             $dist = $this->meters($prev['lat'], $prev['lng'], $cur['lat'], $cur['lng']);
             $dt = $this->secondsBetween($prev['at'] ?? null, $cur['at'] ?? null);
+            $next = $points[$i + 1] ?? null;
+
+            if ($dist > self::BOOMERANG_MIN_METERS && $next !== null
+                && $this->meters($prev['lat'], $prev['lng'], $next['lat'], $next['lng']) < $dist * 0.35) {
+                continue;
+            }
 
             if ($dist <= self::SPIKE_METERS) {
                 $kept[] = $cur;
@@ -235,13 +269,9 @@ final class BuildSupervisorTrailService
                 continue;
             }
 
-            $next = $points[$i + 1] ?? null;
             if ($next === null) {
                 $kept[] = $cur;
 
-                continue;
-            }
-            if (! $this->coordsOk($next) || $this->tooInaccurate($next)) {
                 continue;
             }
 
@@ -268,11 +298,23 @@ final class BuildSupervisorTrailService
     }
 
     /** @param  array{accuracy?: ?float}  $point */
-    private function tooInaccurate(array $point): bool
+    private function tooInaccurate(array $point, float $maxAccuracy): bool
     {
         $accuracy = $point['accuracy'] ?? null;
 
-        return $accuracy !== null && $accuracy > self::MAX_ACCURACY_METERS;
+        return $accuracy !== null && $accuracy > 0.0 && $accuracy > $maxAccuracy;
+    }
+
+    /**
+     * @param  list<array{lat: float, lng: float}>  $cluster
+     * @return array{lat: float, lng: float}
+     */
+    private function centroid(array $cluster): array
+    {
+        return [
+            'lat' => array_sum(array_column($cluster, 'lat')) / count($cluster),
+            'lng' => array_sum(array_column($cluster, 'lng')) / count($cluster),
+        ];
     }
 
     private function speedPlausible(float $meters, int $seconds): bool

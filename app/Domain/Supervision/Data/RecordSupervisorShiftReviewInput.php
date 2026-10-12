@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Supervision\Data;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 
 final readonly class RecordSupervisorShiftReviewInput
@@ -22,5 +23,6 @@ final readonly class RecordSupervisorShiftReviewInput
         /** @var array<int, array<string, UploadedFile>> */
         public array $logPhotos = [],
         public ?string $clientEventId = null,
+        public ?CarbonImmutable $recordedAt = null,
     ) {}
 }

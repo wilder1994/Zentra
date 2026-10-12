@@ -48,6 +48,7 @@ final class StoreSupervisorShiftReviewRequest extends FormRequest
             'log_photos' => ['nullable', 'array'],
             'log_photos.*.*' => ['image', 'max:5120'],
             'client_event_id' => ['nullable', 'uuid'],
+            'recorded_at' => ['nullable', 'date'],
         ];
     }
 

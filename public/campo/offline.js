@@ -170,6 +170,41 @@
         });
     }
 
+    async function putOutboxIn(name, row) {
+        await withDb(name, async (db) => {
+            const tx = db.transaction('outbox', 'readwrite');
+            tx.objectStore('outbox').put(row);
+            await txDone(tx);
+        });
+    }
+
+    /** El servidor no lo aceptó: queda guardado y visible hasta que el supervisor reintente o descarte. */
+    async function markRejectedIn(name, row, message) {
+        if (row.id == null) return;
+        await putOutboxIn(name, Object.assign({}, row, {
+            rejected: { message: String(message || 'Rechazado por el servidor.'), at: new Date().toISOString() },
+        }));
+    }
+
+    async function rejectedJobs() {
+        return (await allPendingJobs()).filter((job) => job.row && job.row.rejected
+            && ownerId && Number(job.userId) === Number(ownerId));
+    }
+
+    async function retryRejected() {
+        for (const job of await rejectedJobs()) {
+            const copy = Object.assign({}, job.row);
+            delete copy.rejected;
+            await putOutboxIn(job.dbName, copy);
+        }
+    }
+
+    async function discardRejected() {
+        for (const job of await rejectedJobs()) {
+            await removeOutboxIn(job.dbName, job.row.id);
+        }
+    }
+
     async function metaSetIn(name, key, value) {
         await withDb(name, async (db) => {
             const tx = db.transaction('meta', 'readwrite');
@@ -250,11 +285,17 @@
         const jobs = (await allPendingJobs()).filter((job) => job.row && job.row.type !== 'close-meta');
         let mine = 0;
         let others = 0;
+        let rejected = 0;
         jobs.forEach((job) => {
-            if (ownerId && Number(job.userId) === Number(ownerId)) mine += 1;
+            const own = ownerId && Number(job.userId) === Number(ownerId);
+            if (job.row.rejected) {
+                if (own) rejected += 1;
+                return;
+            }
+            if (own) mine += 1;
             else others += 1;
         });
-        return { mine, others, total: jobs.length };
+        return { mine, others, rejected, total: mine + others };
     }
 
     async function clearStore(db, store) {
@@ -375,6 +416,10 @@
         allPendingJobs,
         removeOutbox,
         removeOutboxIn,
+        markRejectedIn,
+        rejectedJobs,
+        retryRejected,
+        discardRejected,
         outboxCount,
         outboxStats,
         uuid,

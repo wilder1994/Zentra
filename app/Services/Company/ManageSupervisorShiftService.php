@@ -8,6 +8,7 @@ use App\Enums\SupervisorShiftStatus;
 use App\Models\SupervisorShift;
 use App\Models\SupervisorShiftLocation;
 use App\Models\User;
+use App\Support\Supervision\SupervisorCaptureTime;
 use Carbon\CarbonImmutable;
 use Illuminate\Validation\ValidationException;
 
@@ -63,14 +64,11 @@ final class ManageSupervisorShiftService
         ?string $clientEventId = null,
         ?int $pendingOutbox = null,
         ?bool $screenOn = null,
+        ?CarbonImmutable $recordedAt = null,
     ): SupervisorShiftLocation {
-        if (! $shift->isOpen()) {
-            throw ValidationException::withMessages([
-                'shift' => 'El turno está cerrado.',
-            ]);
-        }
+        SupervisorCaptureTime::assertAccepts($shift, $recordedAt);
 
-        if ($pendingOutbox !== null) {
+        if ($pendingOutbox !== null && $shift->isOpen()) {
             $shift->update(['pending_outbox_count' => max(0, $pendingOutbox)]);
         }
 
@@ -85,7 +83,7 @@ final class ManageSupervisorShiftService
         }
 
         return $shift->locations()->create([
-            'recorded_at' => now(),
+            'recorded_at' => SupervisorCaptureTime::resolve($shift, $recordedAt),
             'latitude' => $lat,
             'longitude' => $lng,
             'accuracy' => $accuracy,
@@ -125,5 +123,34 @@ final class ManageSupervisorShiftService
             ->where('user_id', $user->id)
             ->where('status', SupervisorShiftStatus::Open)
             ->first();
+    }
+
+    /**
+     * Turno al que pertenece algo capturado a esa hora: el abierto o, si se subió tarde
+     * (sin red), el cerrado que cubría esa hora.
+     */
+    public function shiftForCapture(User $user, ?CarbonImmutable $capturedAt): ?SupervisorShift
+    {
+        $open = $this->currentFor($user);
+        if ($capturedAt === null) {
+            return $open;
+        }
+
+        $skew = SupervisorCaptureTime::SKEW_SECONDS;
+        if ($open !== null && ($open->started_at === null
+            || $capturedAt->gte(CarbonImmutable::parse($open->started_at)->subSeconds($skew)))) {
+            return $open;
+        }
+
+        $closed = SupervisorShift::query()
+            ->where('user_id', $user->id)
+            ->where('status', SupervisorShiftStatus::Closed)
+            ->where('started_at', '<=', $capturedAt->addSeconds($skew))
+            ->where('ended_at', '>=', $capturedAt->subSeconds($skew))
+            ->where('ended_at', '>=', CarbonImmutable::now()->subHours(SupervisorCaptureTime::LATE_SYNC_HOURS))
+            ->orderByDesc('ended_at')
+            ->first();
+
+        return $closed ?? $open;
     }
 }
