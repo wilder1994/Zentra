@@ -139,6 +139,12 @@
     outline-offset: 2px;
 }
 
+@media (min-width: 1024px) {
+    .panel-sidebar-toggle {
+        display: flex;
+    }
+}
+
 .ops-alert-pulse {
     animation: ops-alert-pulse 1.15s ease-in-out infinite;
 }

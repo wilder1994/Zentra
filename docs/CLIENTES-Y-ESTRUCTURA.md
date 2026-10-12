@@ -59,14 +59,14 @@ Los asignados (`client_user_installation_assignments`) se parten en dos bloques:
 Si `has_access` o `has_supervision`. Abre `/company/clients/{id}?vista=sitio`:
 
 1. Crea **instalaciones** (casilla «La instalación es el mismo cliente» o nombre + mapa). Toda instalación lleva georreferencia.
-2. Crea **puestos** (`supervisor_posts`: modalidad + vigilantes). Una instalación admite **varios** puestos (el alta queda visible; el nombre no se puede repetir). Un puesto admite **varios** empleados. Un empleado solo puede estar en **un** puesto; si ya tiene uno, se reasigna desde su ficha (buscador por cédula/nombre).
+2. Crea **puestos** (`supervisor_posts`: modalidad, días de servicio, festivos y vigilantes). Días de servicio: Lun..Dom (atajos Lun a Vie / Lun a Sáb; por defecto todos). «¿Presta servicio en festivos?» (festivos de Colombia; por defecto Sí). Solo en esos días el puesto espera revista (ver [`SUPERVISION-CAMPO.md`](SUPERVISION-CAMPO.md), cumplimiento por puesto). Una instalación admite **varios** puestos (el alta queda visible; el nombre no se puede repetir). Un puesto admite **varios** empleados. Un empleado solo puede estar en **un** puesto; si ya tiene uno, se reasigna desde su ficha (buscador por cédula/nombre).
 
 Esta tarjeta **no** lista revistas. Las revistas de campo viven en `/company/supervision`.
 
 ```
 Cliente
   └── Instalación (puede ser el propio cliente)
-        └── Puesto (8 / 12 / 24 h + empleados)         ← supervisor_posts
+        └── Puesto (8 / 12 / 24 h + días + empleados)  ← supervisor_posts
 ```
 
 El censo (torres, salones, aptos, personas) se define en la **ficha de la instalación** del panel cliente (`/client/installations/{id}`).
@@ -103,7 +103,7 @@ Create en la migración original de cada dominio; **sin ALTER sueltos**.
 | Acción | Tabla | Rol |
 |--------|--------|-----|
 | **Creada** | `installations` | Sitio físico. `client_id`, nombre, flag mismo-cliente, activo, dirección/ciudad/depto/lat/lng |
-| **Creada** | `supervisor_posts` | Puesto compartido. `client_id`, `installation_id`, nombre, `modality` (horas del catálogo `supervisor_post_modalities`), activo |
+| **Creada** | `supervisor_posts` | Puesto compartido. `client_id`, `installation_id`, nombre, `modality` (horas del catálogo `supervisor_post_modalities`), `service_days` (máscara Lun..Dom), `serves_holidays`, activo |
 | **Creada** | `supervisor_post_employee` | Vigilantes asignados al puesto |
 | **Ajustada** | `locations` | Puerta de portería. `installation_id` obligatorio. No es el puesto |
 | **Ajustada** | `structures` | Censo por instalación (`installation_id`) |
