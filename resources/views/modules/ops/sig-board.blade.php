@@ -229,7 +229,7 @@
     function drawMap() {
         const el = document.getElementById('sig-map');
         if (!el || typeof google === 'undefined' || !google.maps) return;
-        const map = new google.maps.Map(el, { zoom: 11, center, mapTypeId: 'roadmap' });
+        const map = new google.maps.Map(el, { zoom: 11, center, mapTypeId: 'hybrid' });
         const bounds = new google.maps.LatLngBounds();
         (markers || []).forEach((m) => {
             const pos = { lat: m.lat, lng: m.lng };

@@ -106,6 +106,7 @@ window.geoAddressPicker = function geoAddressPicker(config) {
             this.map = new google.maps.Map(el, {
                 center,
                 zoom: hasCoords ? 16 : Number(this.maps.zoom || 6),
+                mapTypeId: google.maps.MapTypeId.HYBRID,
                 mapTypeControl: false,
                 streetViewControl: false,
                 fullscreenControl: false,

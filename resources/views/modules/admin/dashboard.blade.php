@@ -393,14 +393,9 @@
                 mapInstance = new google.maps.Map(mapEl, {
                     center: googleMaps.center,
                     zoom: googleMaps.zoom,
+                    mapTypeId: google.maps.MapTypeId.HYBRID,
                     disableDefaultUI: true,
                     zoomControl: true,
-                    styles: [
-                        { elementType: 'geometry', stylers: [{ color: '#1e293b' }] },
-                        { elementType: 'labels.text.fill', stylers: [{ color: '#94a3b8' }] },
-                        { elementType: 'labels.text.stroke', stylers: [{ color: '#0f172a' }] },
-                        { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0f172a' }] },
-                    ],
                 });
                 renderMarkers('empresa');
             }

@@ -137,7 +137,8 @@ html[data-theme="light"] .bg-slate-950\/60,
 html[data-theme="light"] .bg-slate-950\/70,
 html[data-theme="light"] .bg-slate-950\/75,
 html[data-theme="light"] .bg-slate-950\/80,
-html[data-theme="light"] .bg-slate-950\/90 {
+html[data-theme="light"] .bg-slate-950\/90,
+html[data-theme="light"] .bg-slate-950\/95 {
     background-color: var(--ui-canvas) !important;
 }
 html[data-theme="light"] .bg-slate-900,
@@ -330,4 +331,108 @@ html[data-theme="light"] .company-cc-card-head {
 }
 html[data-theme="light"] .company-alert-tile {
     border-color: var(--ui-border) !important;
+}
+
+/* Tarjetas flotantes sobre mapas (Supervisión) */
+.zmap-card,
+.zmap-tip {
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border-strong);
+    color: var(--ui-text-secondary);
+    box-shadow: 0 10px 28px rgb(0 0 0 / 0.35);
+    font: 12px/1.35 system-ui, sans-serif;
+}
+.zmap-card {
+    border-radius: 10px;
+    overflow: hidden;
+}
+.zmap-tip {
+    border-radius: 8px;
+    padding: 6px 10px;
+    white-space: nowrap;
+}
+.zmap-card-kind {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--ui-muted);
+}
+.zmap-card-close {
+    border: 0;
+    background: transparent;
+    color: var(--ui-faint);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 2px;
+}
+.zmap-card-title {
+    color: var(--ui-text);
+    font-weight: 650;
+}
+.zmap-card-meta { color: var(--ui-muted); }
+.zmap-card-faint { color: var(--ui-faint); }
+.zmap-card-ok { color: #6ee7b7; }
+.zmap-card-bad { color: #fca5a5; }
+.zmap-card-link {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    text-decoration: none;
+    color: #93c5fd;
+}
+html[data-theme="light"] .zmap-card-ok { color: var(--ui-success); }
+html[data-theme="light"] .zmap-card-bad { color: var(--ui-danger); }
+html[data-theme="light"] .zmap-card-link { color: var(--ui-accent); }
+
+/* Burbuja del mapa en Mi empresa */
+html[data-theme="light"] .company-map-bubble,
+html[data-theme="light"] .company-map-bubble::after {
+    background: var(--ui-surface);
+    border-color: var(--ui-border-strong);
+}
+html[data-theme="light"] .company-map-bubble {
+    color: var(--ui-text);
+    box-shadow: 0 12px 28px rgb(0 0 0 / 0.25);
+}
+html[data-theme="light"] .company-map-bubble-close {
+    color: var(--ui-text);
+    background: var(--ui-surface-muted);
+    border-color: var(--ui-border-strong);
+}
+html[data-theme="light"] .company-map-bubble-close:hover {
+    color: var(--ui-text);
+    background: var(--ui-border);
+}
+html[data-theme="light"] .company-iw-title,
+html[data-theme="light"] .company-iw-metric strong {
+    color: var(--ui-text);
+}
+html[data-theme="light"] .company-iw-metric span {
+    color: var(--ui-muted);
+}
+html[data-theme="light"] .company-iw-grid {
+    border-top-color: var(--ui-border);
+}
+html[data-theme="light"] .company-iw-badge {
+    background: var(--ui-caution-bg);
+    color: var(--ui-caution);
+}
+html[data-theme="light"] .company-iw-badge[data-tone="ok"] {
+    background: var(--ui-success-bg);
+    color: var(--ui-success);
+}
+html[data-theme="light"] .company-iw-badge[data-tone="danger"] {
+    background: var(--ui-danger-bg);
+    color: var(--ui-danger);
+}
+html[data-theme="light"] .company-iw-ver {
+    background: color-mix(in srgb, var(--ui-accent) 14%, var(--ui-surface));
+    color: var(--ui-accent);
+}
+html[data-theme="light"] .company-iw-operar {
+    background: var(--ui-success-bg);
+    color: var(--ui-success);
 }

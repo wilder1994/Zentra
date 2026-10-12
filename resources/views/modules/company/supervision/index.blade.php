@@ -575,20 +575,20 @@
                         : row.installations + (row.installations === 1 ? ' instalación · ' : ' instalaciones · '))
                         + row.posts + (row.posts === 1 ? ' puesto' : ' puestos');
                     const list = (row.pending || []).slice(0, 8).map((name) => '<li style="margin:2px 0">' + esc(name) + '</li>').join('');
-                    const more = (row.pending || []).length > 8 ? '<li style="color:#64748b">y ' + ((row.pending || []).length - 8) + ' más</li>' : '';
-                    return '<div style="width:250px;background:#0b1220;border:1px solid #334155;border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.5);overflow:hidden;font:12px/1.35 system-ui,sans-serif">'
+                    const more = (row.pending || []).length > 8 ? '<li class="zmap-card-faint">y ' + ((row.pending || []).length - 8) + ' más</li>' : '';
+                    return '<div class="zmap-card" style="width:250px">'
                         + '<div style="height:3px;background:' + coverageColor(row) + '"></div>'
                         + '<div style="padding:8px 10px 10px">'
                         + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">'
-                        + '<span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8;font-weight:700">' + kind + '</span>'
-                        + '<button type="button" class="sup-card-close" style="border:0;background:transparent;color:#64748b;cursor:pointer;font-size:16px;line-height:1;padding:0 2px">×</button>'
+                        + '<span class="zmap-card-kind">' + kind + '</span>'
+                        + '<button type="button" class="sup-card-close zmap-card-close">×</button>'
                         + '</div>'
-                        + '<p style="margin:6px 0 0;color:#f8fafc;font-weight:650">' + esc(row.name) + '</p>'
-                        + '<p style="margin:3px 0 0;color:#94a3b8">' + esc(meta) + '</p>'
-                        + '<p style="margin:6px 0 0"><span style="color:#6ee7b7">' + row.done + ' revisados</span>'
-                        + '<span style="color:#64748b"> · </span><span style="color:' + (pending > 0 ? '#fca5a5' : '#6ee7b7') + '">' + pending + ' pendientes</span></p>'
-                        + (list ? '<p style="margin:8px 0 2px;color:#94a3b8;font-size:11px">Puestos sin revista hoy:</p><ul style="margin:0;padding-left:16px;color:#e2e8f0">' + list + more + '</ul>' : '')
-                        + '<a href="' + esc(row.url) + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;color:#93c5fd;font-weight:600;font-size:11px;text-decoration:none">Abrir ' + kind.toLowerCase() + '</a>'
+                        + '<p class="zmap-card-title" style="margin:6px 0 0">' + esc(row.name) + '</p>'
+                        + '<p class="zmap-card-meta" style="margin:3px 0 0">' + esc(meta) + '</p>'
+                        + '<p style="margin:6px 0 0"><span class="zmap-card-ok">' + row.done + ' revisados</span>'
+                        + '<span class="zmap-card-faint"> · </span><span class="' + (pending > 0 ? 'zmap-card-bad' : 'zmap-card-ok') + '">' + pending + ' pendientes</span></p>'
+                        + (list ? '<p class="zmap-card-meta" style="margin:8px 0 2px;font-size:11px">Puestos sin revista hoy:</p><ul style="margin:0;padding-left:16px">' + list + more + '</ul>' : '')
+                        + '<a href="' + esc(row.url) + '" target="_blank" rel="noopener" class="zmap-card-link">Abrir ' + kind.toLowerCase() + '</a>'
                         + '</div></div>';
                 }
 
@@ -674,9 +674,9 @@
                     let extra = '';
                     if (pin.kind === 'review') {
                         extra = row.novelty
-                            ? '<span style="color:#fca5a5">Con novedad</span>'
-                            : '<span style="color:#6ee7b7">Sin novedad</span>';
-                        if (row.post) extra += '<span style="color:#64748b"> · ' + esc(row.post) + '</span>';
+                            ? '<span class="zmap-card-bad">Con novedad</span>'
+                            : '<span class="zmap-card-ok">Sin novedad</span>';
+                        if (row.post) extra += '<span class="zmap-card-faint"> · ' + esc(row.post) + '</span>';
                     }
                     if (pin.kind === 'alarm' || pin.kind === 'support') {
                         extra = esc(row.subtitle || row.outcome_label || '');
@@ -693,19 +693,19 @@
                         headline = pin.title || kind;
                         meta = row.client || '';
                     }
-                    const notes = row.notes ? '<p style="margin:6px 0 0;color:#94a3b8">' + esc(row.notes) + '</p>' : '';
+                    const notes = row.notes ? '<p class="zmap-card-meta" style="margin:6px 0 0">' + esc(row.notes) + '</p>' : '';
                     const link = row.sheet_url
-                        ? '<a href="' + esc(row.sheet_url) + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;color:#93c5fd;font-weight:600;font-size:11px;text-decoration:none">Ver ficha' + (row.folio ? ' ' + esc(row.folio) : '') + '</a>'
+                        ? '<a href="' + esc(row.sheet_url) + '" target="_blank" rel="noopener" class="zmap-card-link">Ver ficha' + (row.folio ? ' ' + esc(row.folio) : '') + '</a>'
                         : '';
-                    return '<div style="width:236px;background:#0b1220;border:1px solid #334155;border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.5);overflow:hidden;font:12px/1.35 system-ui,sans-serif">'
+                    return '<div class="zmap-card" style="width:236px">'
                         + '<div style="height:3px;background:' + pinAccent(pin) + '"></div>'
                         + '<div style="padding:8px 10px 10px">'
                         + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">'
-                        + '<span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8;font-weight:700">' + esc(kind) + '</span>'
-                        + '<button type="button" class="sup-card-close" style="border:0;background:transparent;color:#64748b;cursor:pointer;font-size:16px;line-height:1;padding:0 2px">×</button>'
+                        + '<span class="zmap-card-kind">' + esc(kind) + '</span>'
+                        + '<button type="button" class="sup-card-close zmap-card-close">×</button>'
                         + '</div>'
-                        + '<p style="margin:6px 0 0;color:#f8fafc;font-weight:650">' + esc(headline) + '</p>'
-                        + (meta ? '<p style="margin:3px 0 0;color:#94a3b8">' + esc(meta) + '</p>' : '')
+                        + '<p class="zmap-card-title" style="margin:6px 0 0">' + esc(headline) + '</p>'
+                        + (meta ? '<p class="zmap-card-meta" style="margin:3px 0 0">' + esc(meta) + '</p>' : '')
                         + (extra ? '<p style="margin:6px 0 0">' + extra + '</p>' : '')
                         + notes
                         + link
@@ -829,9 +829,9 @@
                     hideMotoTip();
                     const name = pin.user || 'Supervisor';
                     const status = pin.online_label || 'En turno';
-                    const html = '<div style="background:#0b1220;border:1px solid #334155;border-radius:8px;padding:6px 10px;box-shadow:0 8px 20px rgba(0,0,0,.45);white-space:nowrap;font:12px/1.3 system-ui,sans-serif">'
-                        + '<span style="color:#f8fafc;font-weight:650">' + esc(name) + '</span>'
-                        + '<span style="color:#94a3b8"> · ' + esc(status) + '</span></div>';
+                    const html = '<div class="zmap-tip">'
+                        + '<span class="zmap-card-title">' + esc(name) + '</span>'
+                        + '<span class="zmap-card-meta"> · ' + esc(status) + '</span></div>';
                     motoTip = mountFloat(html, marker, { place: 'above', pointer: false });
                     motoTip.setMap(googleMap);
                 }
