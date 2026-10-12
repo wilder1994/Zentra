@@ -33,7 +33,7 @@ final class CreateCompanyTest extends TestCase
             'department' => 'Antioquia',
             'latitude' => 4.71,
             'longitude' => -74.07,
-            'package_sku' => 'pack_1_manual',
+            'manual_seats' => 1,
             'billing_cycle' => 'monthly',
         ]);
 
@@ -68,10 +68,10 @@ final class CreateCompanyTest extends TestCase
                 'billing_cycle' => 'monthly',
             ])
             ->assertRedirect(route('admin.companies.create'))
-            ->assertSessionHasErrors('package_sku');
+            ->assertSessionHasErrors('manual_seats');
     }
 
-    public function test_access_from_five_clients_requires_supervision_package(): void
+    public function test_supervision_only_company_can_be_created(): void
     {
         $this->seed();
 
@@ -91,11 +91,14 @@ final class CreateCompanyTest extends TestCase
                 'department' => 'Antioquia',
                 'latitude' => 4.71,
                 'longitude' => -74.07,
-                'package_sku' => 'pack_10_manual',
+                'supervision_seats' => 3,
                 'billing_cycle' => 'monthly',
             ])
-            ->assertRedirect(route('admin.companies.create'))
-            ->assertSessionHasErrors('supervision_package_sku');
+            ->assertSessionHasNoErrors();
+
+        $company = SecurityCompany::query()->where('tax_id', '901888777-2')->firstOrFail();
+        $this->assertFalse($company->hasAccessPackage());
+        $this->assertSame('sup_3', $company->supervision_package_sku?->value);
     }
 
     public function test_super_admin_creates_company_with_access_and_supervision(): void
@@ -116,9 +119,9 @@ final class CreateCompanyTest extends TestCase
             'department' => 'Antioquia',
             'latitude' => 4.71,
             'longitude' => -74.07,
-            'package_sku' => 'pack_10_manual',
+            'manual_seats' => 10,
             'billing_cycle' => 'monthly',
-            'supervision_package_sku' => 'sup_10',
+            'supervision_seats' => 10,
         ]);
 
         $company = SecurityCompany::query()->where('tax_id', '901888777-3')->firstOrFail();

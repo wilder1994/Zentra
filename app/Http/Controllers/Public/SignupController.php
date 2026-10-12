@@ -32,25 +32,27 @@ final class SignupController extends Controller
 
     public function create(Request $request): RedirectResponse
     {
-        $sku = CompanyPackageSku::tryFrom((string) $request->query('sku'));
         $cycle = BillingCycle::tryFrom((string) $request->query('cycle', 'monthly')) ?? BillingCycle::Monthly;
-        $sup = SupervisionPackageSku::tryFrom((string) $request->query('sup', ''));
-
-        if ($sku === null) {
-            return redirect()
-                ->route('planes.index')
-                ->with('warning', 'Selecciona un plan para continuar.');
-        }
+        $legacySku = CompanyPackageSku::tryFrom((string) $request->query('sku', ''));
+        $supSeats = (int) $request->query('supervision', 0);
+        $sup = $supSeats > 0
+            ? SupervisionPackageSku::fromSize(min($supSeats, SupervisionPackageSku::MAX_SEATS))
+            : SupervisionPackageSku::tryFrom((string) $request->query('sup', ''));
 
         try {
-            $manual = $request->query('manual');
+            $manual = $request->query('access', $request->query('manual'));
             $hardware = $request->query('hardware');
-            $seats = AccessSeatSplit::resolve(
-                $sku,
-                $manual !== null ? (int) $manual : null,
-                $hardware !== null ? (int) $hardware : null,
-            );
-            $intent = $this->startSignupIntentService->execute($sku, $cycle, $sup, $seats);
+            $seats = $legacySku !== null
+                ? AccessSeatSplit::resolve($legacySku, $manual !== null ? (int) $manual : null, $hardware !== null ? (int) $hardware : null)
+                : new AccessSeatSplit(max(0, (int) $manual), max(0, (int) $hardware));
+
+            if ($seats->isEmpty() && $sup === null) {
+                return redirect()
+                    ->route('planes.index')
+                    ->with('warning', 'Selecciona un plan para continuar.');
+            }
+
+            $intent = $this->startSignupIntentService->execute($seats, $cycle, $sup);
         } catch (\InvalidArgumentException $e) {
             return redirect()->route('planes.index')->with('warning', $e->getMessage());
         }

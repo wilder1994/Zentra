@@ -26,8 +26,8 @@
         @if ($company->hasScheduledPackageChange())
             <div class="rounded-lg border border-violet-800/50 bg-violet-950/30 px-4 py-3 text-sm text-violet-100">
                 Cambio de plan programado a
-                <strong>{{ $company->scheduled_package_sku }}</strong>
-                ({{ $company->scheduled_billing_cycle }})
+                <strong>{{ $company->scheduled_package_sku ? (\App\Enums\CompanyPackageSku::tryFrom((string) $company->scheduled_package_sku)?->label() ?? $company->scheduled_package_sku) : 'plan actual' }}</strong>
+                ({{ \App\Enums\BillingCycle::tryFrom((string) $company->scheduled_billing_cycle)?->label() ?? $company->scheduled_billing_cycle }})
                 @if ($company->scheduled_change_at)
                     · aplica el {{ $company->scheduled_change_at->format('d/m/Y') }}
                 @endif

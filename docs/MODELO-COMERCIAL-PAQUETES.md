@@ -1,40 +1,69 @@
-# Modelo comercial — Paquetes empresa (Zentra)
+# Modelo comercial — Planes empresa (Zentra)
 
-Documentación de la implementación de pricing B2B para empresas de seguridad (julio 2026).
+Pricing B2B para empresas de seguridad. Vigente desde el 12 oct 2026.
 
 ---
 
-**Catálogo 29 sep 2026:** metales Bronce (1–5) · Plata (6–15) · Oro (16–40) · Platino (41–100). Unidad = 100%. Pack = unidad × cupo × (1 − %). Extra = unidades al 100%. Empleados 3k/6k/9k/12k. Indexación add-on más barata si ya hay Accesos/Supervisión. Observatorio: un precio según metal de Accesos. Módulos por producto en `/admin/pricing`. `config/catalog.php` + `pricing_settings.catalog`.
-
-## Resumen ejecutivo
+## Resumen
 
 | Quién compra | Qué compra | Qué limita |
 |--------------|------------|------------|
-| Empresa de seguridad | Metales + productos (Accesos, Supervisión, Indexación, Observatorio) | Instalaciones activas (`max_clients`) y empleados (3k–12k) |
+| Empresa de seguridad | Accesos y/o Supervisión (independientes), Indexación, Observatorio | Instalaciones activas (`max_clients`), clientes supervisados (`max_supervision_clients`) y empleados (3k–12k) |
 
-Unidad comercial = **instalación activa**. Personas/nodos/puertas de la sede no se venden por cupo.
+Unidad comercial = **instalación activa** (Accesos) o **cliente supervisado** (Supervisión). Se compra cualquier cantidad (1 … 10.000); no hay packs fijos.
 
 ---
 
-## Metales y fórmula
+## Planes y fórmula
 
-| Plan | Rango / pack | Empleados |
-|------|--------------|-----------|
-| Bronce | 1–5 / pack 5 | 3.000 |
-| Plata | 6–15 / pack 15 | 6.000 |
-| Oro | 16–40 / pack 40 | 9.000 |
-| Platino | 41–100 / pack 100 | 12.000 |
+| Plan | Cantidad | Empleados | Dto. por defecto |
+|------|----------|-----------|------------------|
+| Bronce | 1–5 | 3.000 | 5% |
+| Plata | 6–15 | 6.000 | 8% |
+| Oro | 16–40 | 9.000 | 10% |
+| Platino | 41–100 (más de 100 a precio Platino) | 12.000 | 12% |
 
 ```
-precio_pack = unidad × cupo_pack × (1 − % descuento del metal)
-N sedes     = mayor pack que quepa + extras × unidad (100%)
+plan             = rango que contiene la cantidad total
+precio_unidad    = unidad × (1 − descuento del plan)
+mensual          = cantidad × precio_unidad
+anual            = mensual × 12 × (1 − tenancy.pricing.annual_discount)
 ```
 
-Ciclo anual: ×12 × (1 − `tenancy.pricing.annual_discount`, ~17%).
+- Al cruzar un rango **todas** las instalaciones toman el nuevo precio (no solo las nuevas).
+- Ejemplo (unidad 80.000): 5 → Bronce 76.000 c/u = 380.000; 8 → Plata 73.600 c/u = 588.800.
+- Hardware: unidad propia (`units.access_hardware`, 150.000 por defecto) con el mismo descuento del plan de Accesos.
+- Supervisión e Indexación usan la misma lógica con su unidad. Observatorio: un precio según el plan de Accesos.
+- Accesos y Supervisión son **independientes**: se puede contratar solo Supervisión.
+
+Motor: `App\Support\Catalog\CatalogPricer` (matrices) y `App\Services\Pricing\PriceCalculator` (cotizaciones). Selector en vistas: `resources/js/plan-picker.js` + `<x-plans.seat-fields>` (misma fórmula en JS).
+
+SKU almacenado: `pack_{n}_{manual|hardware|mixed}` (`CompanyPackageSku`) y `sup_{n}` (`SupervisionPackageSku`), ambos objetos valor con tamaño libre. Supervisión ilimitada ya no existe (se migró a `sup_100`).
+
+## Disponibilidad
+
+Cada plan y la modalidad Hardware tienen chip **Disponible / No disponible** (`pricing_settings.catalog.availability`). Hardware arranca no disponible.
+
+- Lo no disponible se oculta en `/`, `/planes`, registro público y facturación de empresa.
+- El súper admin lo sigue viendo y puede asignarlo.
+- Una empresa que ya tiene un plan no disponible lo conserva hasta que cambie.
+
+## Precios de empresas actuales
+
+Cada empresa guarda el precio contratado (`package_price_monthly`, `unit_price_snapshot`, equivalentes de Supervisión). Cambiar el catálogo no lo toca salvo que se ordene:
+
+| Herramienta | Dónde | Efecto |
+|-------------|-------|--------|
+| Guardar planes · «Solo para nuevas» (defecto) | `/admin/pricing` | Solo nuevas empresas |
+| Guardar planes · «Aplicar a las actuales» | `/admin/pricing` | `pending_reprice_at` = próxima facturación; aviso en Facturación de la empresa |
+| Incremento anual (% + fecha, con vista previa) | `/admin/pricing` | Sube el catálogo y programa a las actuales desde su primera facturación tras la fecha |
+| Precio pactado (fecha fin y nota opcionales) | Ficha empresa | Excluye a la empresa de cambios e incrementos |
+
+El recálculo se aplica en `ProcessSubscriptionLifecycleService` (diario) y antes de calcular un cobro (`RegisterCommercialPaymentService`). Cada cambio queda en `company_price_changes` (historial en la ficha). Servicio: `CompanyRepricingService`.
 
 ## Productos y menús
 
-Defaults en `config/catalog.php`. Editables en `/admin/pricing` (un modal, 4 bloques).
+Defaults en `config/catalog.php`. Editables en `/admin/pricing`.
 
 | Producto | Menú por defecto |
 |----------|------------------|
@@ -43,25 +72,25 @@ Defaults en `config/catalog.php`. Editables en `/admin/pricing` (un modal, 4 blo
 | Indexación | Facturación, Empleados, Documentos, Usuarios, Mis datos, Ajustes |
 | Observatorio | Observatorio (solo si hay Accesos) |
 
-Indexación **sola** = unidad lista (más cara) + cupo del metal. **Add-on** (ya hay Accesos o Supervisión) = `indexing_addon`, solo carpetas. Observatorio: un precio por metal de Accesos (Platino más barato).
-
-El panel recorta el sidebar con `CompanyEntitlements` + `$canMod`. Alta de empleado respeta el tope.
-
 ## Dónde se ve
 
-- `/admin/pricing` — 4 tablas + Editar catálogo  
-- `/` y `/planes` — agrupa qué lleva cada metal  
-- Ficha empresa — etiqueta Bronce/Plata… + extras  
+- `/admin/pricing` — menú **Planes**: tablas por producto, chips, ayuda «?», Editar planes, Incremento anual.
+- Ficha empresa — plan, valor por instalación, precio pactado, historial, cambio con selector por cantidad.
+- Alta de empresa, cambio programado y reactivación — selector por cantidad con plan y precio en vivo.
+- Dashboard — «Empresas por plan» (Accesos y Supervisión).
+- Empresa `/company/billing` — plan, instalaciones, valor por instalación, total, próxima facturación, nuevo valor programado; «Cambiar plan» aplica al corte.
+- Público `/` y `/planes` — precio por instalación, calculadora y enlace al registro (`/contratar?access=&hardware=&supervision=&cycle=`).
 
-Flags en `security_companies`: `has_indexing`, `has_observatory` (existentes quedan en true). JSON `pricing_settings.catalog`.
-
-Motor: `App\Support\Catalog\CatalogPricer`. Signup público aún usa SKU legacy (`pack_5/10/50/100_manual`). `PriceCalculator` (volumen 1–500) queda para ese checkout.
+Contratos: uno por plan y modalidad (`legal_corpus_versions.package_sku` = `{metal}_{modalidad}`).
 
 ## Rutas
 
 | Método | Ruta | Permiso |
 |--------|------|---------|
 | GET/PUT | `/admin/pricing` | `platform.companies.view` / `manage` |
+| POST | `/admin/pricing/increase/preview` | `manage` |
+| POST | `/admin/pricing/increase` | `manage` |
+| PUT | `/admin/companies/{company}/price-lock` | `manage` |
 | GET | `/planes` | público |
 
 ## Tests (BD `zentra_test`)
@@ -69,6 +98,7 @@ Motor: `App\Support\Catalog\CatalogPricer`. Signup público aún usa SKU legacy 
 ```bash
 php artisan test --filter=CatalogPricerTest
 php artisan test --filter=PriceCalculatorTest
+php artisan test --filter=PlansPagesTest
 ```
 
 ## Deploy
@@ -76,14 +106,15 @@ php artisan test --filter=PriceCalculatorTest
 ```bash
 php artisan migrate --force
 npm run build
-php artisan view:cache && php artisan route:cache
+php artisan config:cache && php artisan route:cache && php artisan view:cache
 ```
 
-Sin `migrate:fresh`. Ver [`HOSTING-VPS.md`](HOSTING-VPS.md).
+Sin `migrate:fresh`. La migración `2026_10_12_120000_align_commercial_plans` agrega columnas e historial, convierte Supervisión ilimitada y re-indexa contratos; **no** cambia precios de empresas actuales. Ver [`HOSTING-VPS.md`](HOSTING-VPS.md).
 
 ## Changelog
 
 | Fecha | Cambio |
 |-------|--------|
+| 2026-10-12 | Planes por cantidad libre, Accesos/Supervisión independientes, disponibilidad, precio pactado, incremento anual, historial |
 | 2026-09-29 | Metales, 4 productos, módulos por plan, indexación add-on, observatorio por metal de Accesos |
 | 2026-07-20 | Modelo inicial cupo + unitarios |

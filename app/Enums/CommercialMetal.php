@@ -56,6 +56,11 @@ enum CommercialMetal: string
         return $this->rangeMin().'–'.$this->packSize().' instalaciones';
     }
 
+    public static function forSeats(int $seats): ?self
+    {
+        return $seats > 0 ? self::fromSeats($seats) : null;
+    }
+
     public static function fromSeats(int $seats): self
     {
         return match (true) {

@@ -6,15 +6,6 @@
         ? '$'.number_format($n / 1_000_000, 1, ',', '.').'M'
         : $fmtMoney($n);
 
-    $modality = $a['package_modality'];
-    $modalityTotal = max(1, collect($modality)->sum('value'));
-    $manual = collect($modality)->firstWhere('key', 'manual')['value'] ?? 0;
-    $hardware = collect($modality)->firstWhere('key', 'hardware')['value'] ?? 0;
-    $manualPct = round(($manual / $modalityTotal) * 100);
-    $hardwarePct = 100 - $manualPct;
-    $manualLen = ($manual / $modalityTotal) * 226;
-    $hardwareLen = ($hardware / $modalityTotal) * 226;
-
     $portfolioColors = ['#34d399', '#fbbf24', '#f87171', '#f59e0b', '#64748b', '#334155'];
     $portfolioTotal = max(1, collect($a['portfolio_status'])->sum('value'));
     $mapMarkersJson = json_encode($a['map_markers'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
@@ -100,42 +91,16 @@
             </div>
         </div>
 
-        {{-- Paquetes: modalidad, cupo, ciclo --}}
+        {{-- Planes y ciclo --}}
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <section class="rounded-lg border border-slate-800 bg-slate-900/80">
-                <div class="px-4 py-3 border-b border-slate-800">
-                    <h3 class="text-sm font-semibold text-white">Modalidad de paquete</h3>
-                </div>
-                <div class="p-4 flex items-center justify-between gap-3 min-h-[118px]">
-                    <div class="space-y-2 text-sm">
-                        @foreach ($modality as $item)
-                            <div class="flex items-center gap-2">
-                                <span class="w-2 h-2 rounded-full {{ $item['key'] === 'manual' ? 'bg-violet-500' : 'bg-sky-400' }}"></span>
-                                <span class="text-slate-300">{{ $item['label'] }} · <strong class="text-white">{{ $item['key'] === 'manual' ? $manualPct : $hardwarePct }}%</strong></span>
-                            </div>
-                        @endforeach
-                    </div>
-                    <svg width="88" height="88" viewBox="0 0 88 88" aria-hidden="true" class="shrink-0">
-                        <g transform="rotate(-90 44 44)">
-                            <circle cx="44" cy="44" r="38" fill="none" stroke="#8b5cf6" stroke-width="12"
-                                    stroke-dasharray="{{ $manualLen }} {{ 226 - $manualLen }}" />
-                            <circle cx="44" cy="44" r="38" fill="none" stroke="#38bdf8" stroke-width="12"
-                                    stroke-dasharray="{{ $hardwareLen }} {{ 226 - $hardwareLen }}"
-                                    stroke-dashoffset="{{ -$manualLen }}" />
-                        </g>
-                        <text x="44" y="40" text-anchor="middle" fill="#f8fafc" font-size="15" font-weight="600">{{ $manual + $hardware }}</text>
-                        <text x="44" y="54" text-anchor="middle" fill="#64748b" font-size="9">Total</text>
-                    </svg>
-                </div>
-            </section>
-
-            <section class="rounded-lg border border-slate-800 bg-slate-900/80">
-                <div class="px-4 py-3 border-b border-slate-800">
-                    <h3 class="text-sm font-semibold text-white">Cupo contratado</h3>
+            <section class="rounded-lg border border-slate-800 bg-slate-900/80 md:col-span-2">
+                <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between gap-2">
+                    <h3 class="text-sm font-semibold text-white">Empresas por plan</h3>
+                    <a href="{{ route('admin.pricing.edit') }}" class="text-[11px] text-violet-300 hover:text-violet-200">Planes</a>
                 </div>
                 <div class="p-4">
                     <div class="relative h-[100px] w-full min-w-0">
-                        <canvas id="packageSizeChart"></canvas>
+                        <canvas id="plansChart"></canvas>
                     </div>
                 </div>
             </section>
@@ -272,19 +237,18 @@
                 },
             });
 
-            const sizes = @json($a['package_sizes']);
-            new Chart(document.getElementById('packageSizeChart'), {
+            const plansAccess = @json($a['plans_access']);
+            const plansSupervision = @json($a['plans_supervision']);
+            new Chart(document.getElementById('plansChart'), {
                 type: 'bar',
                 data: {
-                    labels: sizes.map(s => s.label),
-                    datasets: [{
-                        label: 'Empresas',
-                        data: sizes.map(s => s.value),
-                        backgroundColor: '#6366f1',
-                        borderRadius: 4,
-                    }],
+                    labels: plansAccess.map(s => s.label),
+                    datasets: [
+                        { label: 'Accesos', data: plansAccess.map(s => s.value), backgroundColor: '#6366f1', borderRadius: 4 },
+                        { label: 'Supervisión', data: plansSupervision.map(s => s.value), backgroundColor: '#f59e0b', borderRadius: 4 },
+                    ],
                 },
-                options: { ...chartDefaults, plugins: { legend: { display: false } } },
+                options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, precision: 0 } } } },
             });
 
             const cycles = @json($a['billing_cycles']);

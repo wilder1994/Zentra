@@ -24,7 +24,7 @@ final class MinorDataPolicyCorpusTest extends TestCase
 
         $this->assertContains(
             LegalCorpusType::MinorsDataPolicy->value,
-            CorpusAcceptanceRules::requiredTypeValues(CompanyPackageSku::Pack1Manual),
+            CorpusAcceptanceRules::requiredTypeValues(CompanyPackageSku::from('pack_1_manual')),
         );
 
         $admin = User::query()->where('email', 'admin@control-acceso.test')->firstOrFail();
@@ -41,7 +41,7 @@ final class MinorDataPolicyCorpusTest extends TestCase
         $this->seed();
 
         $this->get(route('signup.create', [
-            'sku' => CompanyPackageSku::Pack1Manual->value,
+            'sku' => 'pack_1_manual',
             'cycle' => 'monthly',
         ]))->assertRedirect();
 

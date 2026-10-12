@@ -10,9 +10,7 @@ use App\Models\SecurityCompany;
 
 final class CompanyEntitlements
 {
-    public function __construct(private readonly SecurityCompany $company)
-    {
-    }
+    public function __construct(private readonly SecurityCompany $company) {}
 
     public static function for(?SecurityCompany $company): self
     {
@@ -21,8 +19,7 @@ final class CompanyEntitlements
 
     public function hasAccess(): bool
     {
-        return (int) ($this->company->max_clients ?? 0) > 0
-            || $this->company->package_sku !== null;
+        return (int) ($this->company->max_clients ?? 0) > 0;
     }
 
     public function hasSupervision(): bool

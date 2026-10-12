@@ -5,15 +5,17 @@ declare(strict_types=1);
 namespace App\Http\Requests\Platform;
 
 use App\Enums\BillingCycle;
-use App\Enums\CompanyPackageSku;
 use App\Enums\PartyType;
-use App\Enums\SupervisionPackageSku;
+use App\Http\Requests\Concerns\ValidatesPlanSeats;
 use App\Support\Geo\GeoAddressRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 final class StoreCompanyRequest extends FormRequest
 {
+    use ValidatesPlanSeats;
+
     public function authorize(): bool
     {
         return $this->user()?->can('platform.companies.manage') ?? false;
@@ -22,9 +24,6 @@ final class StoreCompanyRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        $access = CompanyPackageSku::tryFrom((string) $this->input('package_sku', ''));
-        $allowsSupervision = $access?->allowsSupervision() ?? false;
-
         return [
             'legal_name' => ['required', 'string', 'max:160'],
             'trade_name' => ['required', 'string', 'max:160'],
@@ -32,16 +31,15 @@ final class StoreCompanyRequest extends FormRequest
             'party_type' => ['required', Rule::enum(PartyType::class)],
             'email' => ['required', 'email', 'max:255'],
             'phone' => ['required', 'string', 'max:40'],
-            'package_sku' => ['required', Rule::enum(CompanyPackageSku::class)],
             'billing_cycle' => ['required', Rule::enum(BillingCycle::class)],
-            'supervision_package_sku' => [
-                Rule::requiredIf($allowsSupervision),
-                Rule::prohibitedIf(! $allowsSupervision),
-                'nullable',
-                Rule::enum(SupervisionPackageSku::class),
-            ],
+            ...$this->planSeatRules(),
             ...GeoAddressRules::required(),
         ];
+    }
+
+    public function after(): array
+    {
+        return [fn (Validator $validator) => $this->validatePlanSeats($validator, false)];
     }
 
     /** @return array<string, string> */
@@ -54,9 +52,8 @@ final class StoreCompanyRequest extends FormRequest
             'party_type' => 'tipo de suscriptor',
             'email' => 'email comercial',
             'phone' => 'teléfono',
-            'package_sku' => 'paquete de Accesos',
             'billing_cycle' => 'ciclo',
-            'supervision_package_sku' => 'paquete de Supervisión',
+            ...$this->planSeatAttributes(),
             'address' => 'dirección',
             'city' => 'ciudad',
             'department' => 'departamento',

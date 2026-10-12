@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Services\Company;
 
 use App\Enums\BillingCycle;
+use App\Enums\CommercialMetal;
 use App\Enums\CompanyPackageSku;
 use App\Enums\PackageModality;
 use App\Models\SecurityCompany;
 use App\Repositories\ClientRepository;
 use App\Services\Pricing\PriceCalculator;
+use App\Support\Catalog\CatalogSettings;
 
 final class CompanyDashboardService
 {
@@ -30,8 +32,10 @@ final class CompanyDashboardService
         $modality = PackageModality::tryFrom((string) $metrics['package_modality'])
             ?? PackageModality::Manual;
         $currentSize = (int) $metrics['max_clients'];
-        $upgradeSizes = collect(config('tenancy.package_sizes', [1, 5, 10, 50, 100]))
-            ->map(static fn ($size) => (int) $size)
+        $catalog = CatalogSettings::current();
+        $upgradeSizes = collect(CommercialMetal::cases())
+            ->filter(static fn (CommercialMetal $metal) => $catalog->isMetalAvailable($metal))
+            ->map(static fn (CommercialMetal $metal) => $metal->rangeMin())
             ->filter(static fn (int $size) => $size > $currentSize)
             ->values()
             ->all();

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Database\Seeders\Support;
 
-use App\Enums\CompanyPackageSku;
+use App\Enums\CommercialMetal;
+use App\Enums\PackageModality;
+use App\Support\Privacy\MinorPersonalData;
 
 /**
  * Borradores de texto legal para desarrollo/QA.
@@ -43,7 +45,7 @@ TXT;
 
     public static function minorsDataPolicy(): string
     {
-        return \App\Support\Privacy\MinorPersonalData::NOTICE;
+        return MinorPersonalData::NOTICE;
     }
 
     public static function privacy(): string
@@ -98,20 +100,19 @@ Versión inicial para desarrollo y pruebas. Revisión legal pendiente antes del 
 TXT;
     }
 
-    public static function contractForSku(CompanyPackageSku $sku): string
+    public static function contractForPlan(CommercialMetal $metal, PackageModality $modality): string
     {
-        $label = $sku->label();
-        $skuValue = $sku->value;
-        $size = (string) $sku->size();
-        $modality = $sku->modality()->label();
+        $label = 'Plan '.$metal->label().' · '.$modality->label();
+        $range = $metal->rangeLabel();
+        $modalityLabel = $modality->label();
 
         return <<<TXT
 CONTRATO DE LICENCIA DE USO SaaS — ZENTRA (borrador)
-Paquete: {$label} (SKU: {$skuValue})
+{$label}
 
 CLÁUSULA PRIMERA — PARTES. El prestador (Zentra) y el suscriptor (persona natural o jurídica identificada en el proceso de contratación), quien declara capacidad y, si actúa por representante, facultades suficientes.
 
-CLÁUSULA SEGUNDA — OBJETO. Licencia de uso no exclusiva e intransferible de la plataforma Zentra para hasta {$size} cliente(s) en modalidad {$modality}, conforme a las funcionalidades del plan publicado al momento de la aceptación.
+CLÁUSULA SEGUNDA — OBJETO. Licencia de uso no exclusiva e intransferible de la plataforma Zentra para el número de instalaciones contratado dentro del plan {$metal->label()} ({$range}) en modalidad {$modalityLabel}, conforme a las funcionalidades del plan publicado al momento de la aceptación.
 
 CLÁUSULA TERCERA — PRECIO Y CICLO. El precio y el ciclo de facturación (mensual o anual) son los aceptados en la oferta / checkout. Impuestos aplicables según normativa tributaria vigente.
 

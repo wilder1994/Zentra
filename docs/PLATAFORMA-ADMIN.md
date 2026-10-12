@@ -29,7 +29,7 @@ Tests: `EnterCompanyAsSupportTest`.
 
 **Cartera de clientes** (no conjuntos): mismo alto que Paquete y ciclo; la lista hace scroll interno. En móvil, tope de altura para no empujar el formulario. No pagina.
 
-**Paquete y ciclo:** Accesos (cupo, mixto) + Supervisión en un solo formulario. Cuándo aplica: **Ya** (cupo al instante), **el día X**, **al corte**. Si la fecha es hoy o anterior, aplica igual que Ya. Pago en **Pagar factura** (no pide comprobante en este formulario).
+**Plan y ciclo:** instalaciones de Accesos (con/sin hardware) + clientes de Supervisión por cantidad; el plan Bronce–Platino y el precio se ven en vivo. **Precio pactado** (chip, fecha fin y nota opcionales) excluye a la empresa de cambios de catálogo e incrementos. **Historial de precios** al pie de la ficha. Cuándo aplica: **Ya** (cupo al instante), **el día X**, **al corte**. Si la fecha es hoy o anterior, aplica igual que Ya. Pago en **Pagar factura** (no pide comprobante en este formulario).
 
 - `POST /admin/companies/{company}/plan` (`admin.companies.plan.apply`), permiso `platform.companies.manage`.
 - Servicio `ApplyAdminPlanChangeService`. Si no es inmediato, escribe `scheduled_*`; el cron de ciclo (`applyDueChanges`) lo aplica al vencer.
@@ -72,7 +72,7 @@ Pantalla analítica de la plataforma. Métricas comerciales, distribución geogr
 | Bloque | Contenido |
 |--------|-----------|
 | **Fila superior** | Mapa (Google Maps) + 4 KPIs + donut estado de cartera |
-| **Paquetes** | Modalidad (manual/hardware), cupo contratado (1/5/10/50/100), ciclo (mensual/anual) |
+| **Empresas por plan** | Bronce/Plata/Oro/Platino de Accesos y de Supervisión |
 | **Facturación** | TOP 5 empresas por MRR, KPIs comerciales, nuevos vs retenidos |
 | **Tendencia** | Línea MRR (12 meses) + conjuntos activos (eje dual) |
 
@@ -294,10 +294,13 @@ Servicios:
 | GET | `/admin/descargas` | App de Supervisión (APK + web de respaldo) |
 | POST | `/admin/companies/{company}/archive` | Archivar empresa |
 | POST | `/admin/companies/{company}/clients/{client}/release` | Retirar conjunto |
-| GET | `/admin/pricing` | Tabla de precios |
-| PUT | `/admin/pricing` | Guardar unitarios |
+| GET | `/admin/pricing` | Planes |
+| PUT | `/admin/pricing` | Guardar planes (alcance: solo nuevas / actuales desde próxima facturación) |
+| POST | `/admin/pricing/increase/preview` | Vista previa incremento anual |
+| POST | `/admin/pricing/increase` | Aplicar incremento anual |
+| PUT | `/admin/companies/{company}/price-lock` | Precio pactado |
 | GET | `/admin/companies` | Listado empresas |
-| GET/POST | `/admin/companies/create` | Alta empresa (paquete + geo) |
+| GET/POST | `/admin/companies/create` | Alta empresa (plan por cantidad + geo) |
 | GET | `/admin/companies/{company}` | Detalle y cambio de paquete |
 | PUT | `/admin/companies/{company}/package` | Asignar SKU y ciclo |
 | GET | `/admin/documents` | Hub documental (KPIs) |

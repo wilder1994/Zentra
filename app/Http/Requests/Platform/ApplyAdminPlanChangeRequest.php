@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace App\Http\Requests\Platform;
 
 use App\Enums\BillingCycle;
-use App\Enums\CompanyPackageSku;
-use App\Enums\SupervisionPackageSku;
+use App\Http\Requests\Concerns\ValidatesPlanSeats;
 use App\Services\Platform\ApplyAdminPlanChangeService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 final class ApplyAdminPlanChangeRequest extends FormRequest
 {
+    use ValidatesPlanSeats;
+
     public function authorize(): bool
     {
         return $this->user()?->can('platform.companies.manage') ?? false;
@@ -22,11 +24,8 @@ final class ApplyAdminPlanChangeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'package_sku' => ['required', Rule::enum(CompanyPackageSku::class)],
             'billing_cycle' => ['required', Rule::enum(BillingCycle::class)],
-            'manual_seats' => ['nullable', 'integer', 'min:0'],
-            'hardware_seats' => ['nullable', 'integer', 'min:0'],
-            'supervision_package_sku' => ['nullable', 'string', Rule::enum(SupervisionPackageSku::class)],
+            ...$this->planSeatRules(),
             'apply_when' => ['required', Rule::in([
                 ApplyAdminPlanChangeService::WHEN_NOW,
                 ApplyAdminPlanChangeService::WHEN_ON_DATE,
@@ -39,5 +38,16 @@ final class ApplyAdminPlanChangeRequest extends FormRequest
                 Rule::requiredIf($this->input('apply_when') === ApplyAdminPlanChangeService::WHEN_ON_DATE),
             ],
         ];
+    }
+
+    public function after(): array
+    {
+        return [fn (Validator $validator) => $this->validatePlanSeats($validator, false)];
+    }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return $this->planSeatAttributes();
     }
 }

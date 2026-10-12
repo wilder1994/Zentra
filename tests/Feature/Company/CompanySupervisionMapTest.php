@@ -13,6 +13,7 @@ use App\Models\SupervisorFieldLog;
 use App\Models\SupervisorShift;
 use App\Models\SupervisorZone;
 use App\Models\User;
+use App\Services\Company\BuildSupervisorShiftSheetService;
 use App\Services\Tenant\AssignCompanySupervisionPackageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -30,7 +31,7 @@ final class CompanySupervisionMapTest extends TestCase
         $supervisor = $this->companySupervisor();
         app(AssignCompanySupervisionPackageService::class)->execute(
             $user->securityCompany,
-            SupervisionPackageSku::Sit1,
+            SupervisionPackageSku::fromSize(1),
         );
 
         $response = $this->actingAs($user)->get(route('company.supervision.index'));
@@ -106,7 +107,7 @@ final class CompanySupervisionMapTest extends TestCase
         $admin = User::query()->where('email', 'empresa@sj-seguridad.test')->firstOrFail();
         app(AssignCompanySupervisionPackageService::class)->execute(
             $admin->securityCompany,
-            SupervisionPackageSku::Sit1,
+            SupervisionPackageSku::fromSize(1),
         );
 
         $supervisor = $this->companySupervisor();
@@ -178,7 +179,7 @@ final class CompanySupervisionMapTest extends TestCase
         $admin = User::query()->where('email', 'empresa@sj-seguridad.test')->firstOrFail();
         app(AssignCompanySupervisionPackageService::class)->execute(
             $admin->securityCompany,
-            SupervisionPackageSku::Sit1,
+            SupervisionPackageSku::fromSize(1),
         );
 
         $supervisor = $this->companySupervisor();
@@ -216,7 +217,7 @@ final class CompanySupervisionMapTest extends TestCase
         $admin = User::query()->where('email', 'empresa@sj-seguridad.test')->firstOrFail();
         app(AssignCompanySupervisionPackageService::class)->execute(
             $admin->securityCompany,
-            SupervisionPackageSku::Sit1,
+            SupervisionPackageSku::fromSize(1),
         );
 
         $supervisor = $this->companySupervisor();
@@ -292,7 +293,7 @@ final class CompanySupervisionMapTest extends TestCase
         $admin = User::query()->where('email', 'empresa@sj-seguridad.test')->firstOrFail();
         app(AssignCompanySupervisionPackageService::class)->execute(
             $admin->securityCompany,
-            SupervisionPackageSku::Sit1,
+            SupervisionPackageSku::fromSize(1),
         );
         $supervisor = $this->companySupervisor();
         SupervisorShift::query()->create([
@@ -315,7 +316,7 @@ final class CompanySupervisionMapTest extends TestCase
         $admin = User::query()->where('email', 'empresa@sj-seguridad.test')->firstOrFail();
         app(AssignCompanySupervisionPackageService::class)->execute(
             $admin->securityCompany,
-            SupervisionPackageSku::Sit1,
+            SupervisionPackageSku::fromSize(1),
         );
         $supervisor = $this->companySupervisor();
         $client = Client::query()
@@ -367,7 +368,7 @@ final class CompanySupervisionMapTest extends TestCase
         $admin = User::query()->where('email', 'empresa@sj-seguridad.test')->firstOrFail();
         app(AssignCompanySupervisionPackageService::class)->execute(
             $admin->securityCompany,
-            SupervisionPackageSku::Sit1,
+            SupervisionPackageSku::fromSize(1),
         );
         $supervisor = $this->companySupervisor();
         $shift = SupervisorShift::query()->create([
@@ -420,7 +421,7 @@ final class CompanySupervisionMapTest extends TestCase
         $admin = User::query()->where('email', 'empresa@sj-seguridad.test')->firstOrFail();
         app(AssignCompanySupervisionPackageService::class)->execute(
             $admin->securityCompany,
-            SupervisionPackageSku::Sit1,
+            SupervisionPackageSku::fromSize(1),
         );
         $supervisor = $this->companySupervisor();
         SupervisorShift::query()->create([
@@ -459,7 +460,7 @@ final class CompanySupervisionMapTest extends TestCase
         $admin = User::query()->where('email', 'empresa@sj-seguridad.test')->firstOrFail();
         app(AssignCompanySupervisionPackageService::class)->execute(
             $admin->securityCompany,
-            SupervisionPackageSku::Sit1,
+            SupervisionPackageSku::fromSize(1),
         );
         $supervisor = $this->companySupervisor();
         $shift = SupervisorShift::query()->create([
@@ -491,7 +492,7 @@ final class CompanySupervisionMapTest extends TestCase
             'ended_at' => now(),
             'km_end' => 120,
         ]);
-        app(\App\Services\Company\BuildSupervisorShiftSheetService::class)->freeze($shift->fresh());
+        app(BuildSupervisorShiftSheetService::class)->freeze($shift->fresh());
 
         $closed = $this->actingAs($admin)->get(route('company.supervision.sheets.show', [
             'kind' => 'shift',

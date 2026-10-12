@@ -52,6 +52,14 @@ Route::middleware(['auth', 'password.changed', 'active', 'platform.admin', 'tena
             ->middleware('permission:platform.companies.manage')
             ->name('pricing.update');
 
+        Route::post('/pricing/increase/preview', [PricingController::class, 'previewIncrease'])
+            ->middleware('permission:platform.companies.manage')
+            ->name('pricing.increase.preview');
+
+        Route::post('/pricing/increase', [PricingController::class, 'applyIncrease'])
+            ->middleware('permission:platform.companies.manage')
+            ->name('pricing.increase.apply');
+
         Route::get('/companies', [CompanyController::class, 'index'])
             ->middleware('permission:platform.companies.view')
             ->name('companies.index');
@@ -123,6 +131,10 @@ Route::middleware(['auth', 'password.changed', 'active', 'platform.admin', 'tena
         Route::put('/companies/{company}/supervision-package', [CompanyController::class, 'updateSupervisionPackage'])
             ->middleware('permission:platform.companies.manage')
             ->name('companies.supervision-package.update');
+
+        Route::put('/companies/{company}/price-lock', [CompanyController::class, 'updatePriceLock'])
+            ->middleware('permission:platform.companies.manage')
+            ->name('companies.price-lock.update');
 
         Route::get('/companies/{company}/profile', [CompanyController::class, 'editProfile'])
             ->middleware('permission:platform.companies.manage')

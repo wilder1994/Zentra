@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace App\Http\Requests\Platform;
 
 use App\Enums\BillingCycle;
-use App\Enums\CompanyPackageSku;
+use App\Http\Requests\Concerns\ValidatesPlanSeats;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 final class UpdateCompanyPackageRequest extends FormRequest
 {
+    use ValidatesPlanSeats;
+
     public function authorize(): bool
     {
         return $this->user()?->can('platform.companies.manage') ?? false;
@@ -20,10 +23,13 @@ final class UpdateCompanyPackageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'package_sku' => ['required', Rule::enum(CompanyPackageSku::class)],
             'billing_cycle' => ['required', Rule::enum(BillingCycle::class)],
-            'manual_seats' => ['nullable', 'integer', 'min:0'],
-            'hardware_seats' => ['nullable', 'integer', 'min:0'],
+            ...$this->planSeatRules(),
         ];
+    }
+
+    public function after(): array
+    {
+        return [fn (Validator $validator) => $this->validatePlanSeats($validator, false)];
     }
 }

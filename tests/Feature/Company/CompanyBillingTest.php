@@ -85,7 +85,7 @@ final class CompanyBillingTest extends TestCase
         )->assertRedirect();
 
         $checkout = $this->actingAs($companyUser)->post(route('company.billing.supervision.update'), [
-            'supervision_package_sku' => 'sup_5',
+            'supervision_seats' => 5,
         ]);
         $checkout->assertRedirect();
         $this->assertSame('sup_10', $company->fresh()->supervision_package_sku?->value);
@@ -119,16 +119,16 @@ final class CompanyBillingTest extends TestCase
         $companyUser = User::query()->where('email', 'empresa@sj-seguridad.test')->firstOrFail();
         $company = SecurityCompany::query()->where('tax_id', '900123456-1')->firstOrFail();
         app(AssignCompanySupervisionPackageService::class)
-            ->execute($company, SupervisionPackageSku::Sit1);
+            ->execute($company, SupervisionPackageSku::fromSize(1));
 
         $this->actingAs($companyUser)
             ->post(route('company.billing.supervision.update'), [
-                'supervision_package_sku' => '',
+                'supervision_seats' => 0,
             ])
             ->assertRedirect(route('company.billing.index'));
 
         $company->refresh();
-        $this->assertSame(SupervisionPackageSku::Sit1, $company->supervision_package_sku);
+        $this->assertSame(SupervisionPackageSku::fromSize(1), $company->supervision_package_sku);
         $this->assertSame('none', $company->scheduled_supervision_package_sku);
     }
 }

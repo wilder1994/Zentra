@@ -10,7 +10,6 @@ use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\PlatformDocumentType;
 use App\Enums\SignupIntentStatus;
-use App\Enums\SupervisionPackageSku;
 use App\Models\CommercialPayment;
 use App\Models\CommercialSignupIntent;
 use App\Models\PlatformDocument;
@@ -19,7 +18,7 @@ use App\Models\SubscriptionAcceptance;
 use App\Models\User;
 use App\Services\Platform\IssueDemoInvoiceService;
 use App\Services\Platform\RecordLifecycleEvidenceService;
-use App\Services\Pricing\PriceCalculator;
+use App\Services\Pricing\CompanyPriceHistory;
 use App\Services\Tenant\AssignCompanyPackageService;
 use App\Services\Tenant\AssignCompanySupervisionPackageService;
 use App\Services\User\EnsureCompanyAdminCatalog;
@@ -34,7 +33,7 @@ final class CompletePublicSignupService
         private readonly AssignCompanySupervisionPackageService $assignSupervisionPackageService,
         private readonly RecordLifecycleEvidenceService $evidenceService,
         private readonly IssueDemoInvoiceService $issueDemoInvoiceService,
-        private readonly PriceCalculator $priceCalculator,
+        private readonly CompanyPriceHistory $priceHistory,
     ) {}
 
     public function execute(CommercialSignupIntent $intent): User
@@ -81,16 +80,13 @@ final class CompletePublicSignupService
             );
 
             if ($intent->supervision_package_sku !== null) {
-                $offer = SupervisionPackageSku::offerForAccessSize($intent->package_sku->size());
-                $discount = $intent->supervision_package_sku === $offer
-                    ? $this->priceCalculator->volumeDiscountFor($intent->package_sku->size())
-                    : null;
                 $this->assignSupervisionPackageService->execute(
                     $company->fresh(),
                     $intent->supervision_package_sku,
-                    $discount,
                 );
             }
+
+            $this->priceHistory->record($company, ['amount' => 0.0, 'plan' => ''], 'signup');
 
             $user = User::query()->create([
                 'name' => $intent->admin_name ?? $intent->legal_name,

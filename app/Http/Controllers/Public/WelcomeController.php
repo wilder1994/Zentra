@@ -21,8 +21,8 @@ final class WelcomeController extends Controller
         }
 
         $pricer = CatalogPricer::make();
-        $accessMatrix = $pricer->matrix(CommercialProduct::Access, BillingCycle::Monthly);
-        $minMonthlyAmount = $pricer->seatsMonthly(CommercialProduct::Access, 1);
+        $accessMatrix = $pricer->matrix(CommercialProduct::Access, BillingCycle::Monthly, false, true);
+        $minMonthlyAmount = (float) ($accessMatrix[0]['from_monthly'] ?? $pricer->seatsMonthly(CommercialProduct::Access, 1));
         $annualDiscount = (float) config('tenancy.pricing.annual_discount', 0.17);
 
         return view('welcome', compact('accessMatrix', 'minMonthlyAmount', 'annualDiscount'));

@@ -6,8 +6,8 @@ namespace App\Services\Platform;
 
 use App\Enums\BillingCycle;
 use App\Enums\ClientLifecycle;
+use App\Enums\CommercialMetal;
 use App\Enums\CompanyAlertBucket;
-use App\Enums\PackageModality;
 use App\Models\Client;
 use App\Models\SecurityCompany;
 use App\Support\Tenancy\CompanySubscriptionState;
@@ -40,8 +40,8 @@ final class PlatformDashboardAnalytics
                 'retention_rate' => $this->retentionRate($companies),
             ],
             'portfolio_status' => $this->portfolioStatus($companies),
-            'package_modality' => $this->packageModalityBreakdown($activeCompanies),
-            'package_sizes' => $this->packageSizeBreakdown($activeCompanies),
+            'plans_access' => $this->plansBreakdown($activeCompanies, 'access'),
+            'plans_supervision' => $this->plansBreakdown($activeCompanies, 'supervision'),
             'billing_cycles' => $this->billingCycleBreakdown($activeCompanies),
             'top_billing' => $this->topBillingCompanies($activeCompanies),
             'growth_monthly' => $this->monthlyGrowthSeries($companies),
@@ -76,10 +76,10 @@ final class PlatformDashboardAnalytics
     private function monthlyRevenue(SecurityCompany $company): float
     {
         if ($company->billing_cycle === BillingCycle::Annual) {
-            return (float) ($company->package_price_annual ?? 0) / 12;
+            return $company->contractedAmount() / 12;
         }
 
-        return (float) ($company->package_price_monthly ?? 0);
+        return $company->contractedAmount();
     }
 
     /** @param  Collection<int, SecurityCompany>  $companies */
@@ -130,31 +130,20 @@ final class PlatformDashboardAnalytics
      * @param  Collection<int, SecurityCompany>  $companies
      * @return list<array{label: string, value: int, key: string}>
      */
-    private function packageModalityBreakdown(Collection $companies): array
+    private function plansBreakdown(Collection $companies, string $product): array
     {
-        $manual = $companies->where('package_modality', PackageModality::Manual)->count();
-        $hardware = $companies->where('package_modality', PackageModality::Hardware)->count();
+        $rows = [];
+        foreach (CommercialMetal::cases() as $metal) {
+            $rows[] = [
+                'key' => $metal->value,
+                'label' => $metal->label(),
+                'value' => $companies->filter(
+                    fn (SecurityCompany $company) => ($product === 'access' ? $company->accessMetal() : $company->supervisionMetal()) === $metal
+                )->count(),
+            ];
+        }
 
-        return [
-            ['key' => 'manual', 'label' => PackageModality::Manual->label(), 'value' => $manual],
-            ['key' => 'hardware', 'label' => PackageModality::Hardware->label(), 'value' => $hardware],
-        ];
-    }
-
-    /**
-     * @param  Collection<int, SecurityCompany>  $companies
-     * @return list<array{label: string, value: int}>
-     */
-    private function packageSizeBreakdown(Collection $companies): array
-    {
-        $sizes = [1, 5, 10, 50, 100];
-
-        return collect($sizes)
-            ->map(fn (int $size) => [
-                'label' => (string) $size,
-                'value' => $companies->where('package_size', $size)->count(),
-            ])
-            ->all();
+        return $rows;
     }
 
     /**

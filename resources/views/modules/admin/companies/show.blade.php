@@ -28,19 +28,7 @@
             cutOpen: false,
             reactivateServiceOpen: false,
             applyWhen: @js(old('apply_when', 'now')),
-            syncPlanSeats() {
-                const sku = this.$refs.planSku?.value ?? ''
-                const parts = sku.split('_')
-                const size = Number(parts[1] || 0)
-                if (! size) return
-                if (parts[2] === 'hardware') {
-                    this.$refs.planManual.value = 0
-                    this.$refs.planHardware.value = size
-                } else {
-                    this.$refs.planManual.value = size
-                    this.$refs.planHardware.value = 0
-                }
-            }
+            lockOpen: {{ $errors->hasAny(['price_locked_until', 'price_lock_note']) ? 'true' : 'false' }},
         }"
     >
         @if ($company->archived_at !== null)
@@ -67,6 +55,17 @@
             </div>
         @endif
 
+        @if ($pendingRepriceAmount !== null)
+            <div class="rounded-lg border border-sky-800/50 bg-sky-950/30 px-4 py-3 text-sm text-sky-100">
+                Nuevo valor desde el {{ $company->pending_reprice_at->format('d/m/Y') }}:
+                <strong class="tabular-nums">{{ $fmt($pendingRepriceAmount) }}</strong>
+                (hoy {{ $fmt($company->contractedAmount()) }})
+                @if ($company->pending_reprice_note)
+                    · {{ $company->pending_reprice_note }}
+                @endif
+            </div>
+        @endif
+
         @if ($company->hasScheduledPackageChange())
             <div class="rounded-lg border border-violet-800/50 bg-violet-950/30 px-4 py-3 text-sm text-violet-100">
                 Cambio de plan programado
@@ -87,7 +86,7 @@
         <div class="rounded-lg border border-slate-800 bg-slate-900/80 p-4 sm:p-5 space-y-4">
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                 <div class="rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3">
-                    <p class="text-xs text-slate-500">Cupo operativo</p>
+                    <p class="text-xs text-slate-500">Instalaciones en uso</p>
                     <p class="mt-1 text-lg font-semibold text-white tabular-nums">
                         {{ $company->operational_clients_count ?? 0 }} / {{ $company->max_clients }}
                     </p>
@@ -115,9 +114,17 @@
             </div>
 
             <div class="flex flex-wrap gap-2">
-                <span class="ui-chip">
-                    Modalidad · {{ $company->package_modality?->label() ?? '—' }}
-                </span>
+                @if ($company->hasAccessPackage())
+                    <span class="ui-chip ui-chip-accent">Accesos · {{ $company->accessMetal()?->label() }}</span>
+                @endif
+                @if ($company->supervision_package_sku)
+                    <span class="ui-chip ui-chip-warning">Supervisión · {{ $company->supervisionMetal()?->label() }}</span>
+                @endif
+                @if ($company->isPriceLocked())
+                    <span class="ui-chip ui-chip-success" title="{{ $company->price_lock_note }}">
+                        Precio pactado{{ $company->price_locked_until ? ' · hasta '.$company->price_locked_until->format('d/m/Y') : '' }}
+                    </span>
+                @endif
                 <span class="ui-chip {{ $company->billing_cycle?->value === 'annual' ? 'ui-chip-success' : '' }}">
                     Ciclo · {{ $company->billingPeriodLabel() }}
                 </span>
@@ -192,16 +199,19 @@
 
             <section class="rounded-lg border border-slate-800 bg-slate-900/80 p-4 space-y-4 min-w-0 h-full">
                 <div>
-                    <h3 class="text-sm font-semibold text-white">Paquete y ciclo</h3>
+                    <h3 class="text-sm font-semibold text-white">Plan y ciclo</h3>
                     <p class="text-xs text-slate-500 mt-1">
-                        Accesos y Supervisión. El súper admin elige el plan y desde cuándo rige. El cobro va en Pagar factura.
+                        Accesos y Supervisión por cantidad. El plan sale del total. El cobro va en Pagar factura.
                     </p>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <p class="text-xs text-slate-500">Paquete (cupo × modalidad)</p>
+                        <p class="text-xs text-slate-500">Plan actual</p>
                         <p class="mt-1 text-sm font-medium text-white">{{ $company->packageLabel() }}</p>
+                        @if ($company->supervision_package_sku)
+                            <p class="text-sm font-medium text-amber-200">{{ $company->supervision_package_sku->label() }}</p>
+                        @endif
                     </div>
                     <div>
                         <p class="text-xs text-slate-500">Ciclo de facturación</p>
@@ -211,62 +221,66 @@
 
                 <div class="rounded-lg border border-violet-800/40 bg-violet-950/20 p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                     <div>
-                        <p class="text-xs text-slate-500 uppercase">Mensual (ref.)</p>
-                        <p class="text-base font-semibold text-white tabular-nums">{{ $fmt($quote->priceMonthly) }}</p>
+                        <p class="text-xs text-slate-500 uppercase">Valor por instalación</p>
+                        <p class="text-base font-semibold text-white tabular-nums">{{ $fmt((float) $company->package_price_monthly / max(1, $company->accessSeats()->size())) }}</p>
+                        <p class="text-xs text-slate-500">Lista {{ $fmt((float) $company->unit_price_snapshot) }} · −{{ number_format((float) $company->volume_discount_pct * 100, 0) }}%</p>
                     </div>
                     <div>
-                        <p class="text-xs text-emerald-400/80 uppercase">Anual (recomendado)</p>
-                        <p class="text-base font-semibold text-emerald-300 tabular-nums">{{ $fmt($quoteAnnual->priceAnnual) }}</p>
-                        <p class="text-xs text-emerald-400/70">Ahorras {{ $fmt($quoteAnnual->annualSavings) }}</p>
+                        <p class="text-xs text-slate-500 uppercase">Total contratado</p>
+                        <p class="text-base font-semibold text-white tabular-nums">{{ $fmt($company->contractedAmount()) }}</p>
+                        <p class="text-xs text-slate-500">{{ $company->billing_cycle?->value === 'annual' ? 'por año' : 'por mes' }}</p>
                     </div>
                     <div>
-                        <p class="text-xs text-slate-500 uppercase">Desc. volumen</p>
-                        <p class="text-base font-semibold text-white">−{{ $quote->volumeDiscountLabel() }}</p>
-                        <p class="text-xs text-slate-500 tabular-nums">{{ $fmt($quote->effectiveUnitMonthly) }}/cliente eff.</p>
+                        <p class="text-xs text-slate-500 uppercase">Con catálogo de hoy</p>
+                        <p class="text-base font-semibold text-emerald-300 tabular-nums">{{ $fmt($catalogAmount) }}</p>
+                        <p class="text-xs text-slate-500">Referencia si se recalcula</p>
                     </div>
                 </div>
 
                 @can('platform.companies.manage')
-                    <form method="POST" action="{{ route('admin.companies.plan.apply', $company) }}" class="rounded-lg border border-amber-800/40 bg-amber-950/10 p-4 space-y-3">
-                        @csrf
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="rounded-lg border border-sky-900/50 bg-sky-950/15 p-3 space-y-2">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
                             <div>
-                                <x-ui.label for="plan_sku">Accesos</x-ui.label>
-                                <select id="plan_sku" name="package_sku" x-ref="planSku" required class="w-full h-9 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white" @change="syncPlanSeats()">
-                                    @foreach ($packageOptions as $value => $label)
-                                        <option value="{{ $value }}" @selected(old('package_sku', $company->package_sku?->value) === $value)>{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                                <x-ui.field-error name="package_sku" />
+                                <p class="text-sm font-medium text-white">Precio pactado</p>
+                                <p class="text-xs text-slate-400">Si está activo, los cambios de catálogo y el incremento anual no tocan a esta empresa.</p>
                             </div>
-                            <div>
-                                <x-ui.label for="plan_cycle">Ciclo</x-ui.label>
-                                <select id="plan_cycle" name="billing_cycle" required class="w-full h-9 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                                    @foreach ($cycleOptions as $value => $label)
-                                        <option value="{{ $value }}" @selected(old('billing_cycle', $company->billing_cycle?->value) === $value)>{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                                <x-ui.field-error name="billing_cycle" />
-                            </div>
-                            <div>
-                                <x-ui.label for="plan_manual">Asientos sin hardware</x-ui.label>
-                                <input type="number" min="0" name="manual_seats" id="plan_manual" x-ref="planManual" value="{{ old('manual_seats', $company->package_manual_seats) }}" class="w-full h-9 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                            </div>
-                            <div>
-                                <x-ui.label for="plan_hardware">Asientos con hardware</x-ui.label>
-                                <input type="number" min="0" name="hardware_seats" id="plan_hardware" x-ref="planHardware" value="{{ old('hardware_seats', $company->package_hardware_seats) }}" class="w-full h-9 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                            </div>
-                            <div class="sm:col-span-2">
-                                <x-ui.label for="plan_supervision">Supervisión</x-ui.label>
-                                <select id="plan_supervision" name="supervision_package_sku" class="w-full h-9 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                                    <option value="">Sin Supervisión</option>
-                                    @foreach ($supervisionOptions as $value => $label)
-                                        <option value="{{ $value }}" @selected(old('supervision_package_sku', $company->supervision_package_sku?->value) === $value)>{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                                <x-ui.field-error name="supervision_package_sku" />
-                            </div>
+                            <button type="button" class="ui-chip-link" @click="lockOpen = ! lockOpen">{{ $company->price_locked ? 'Editar' : 'Activar' }}</button>
                         </div>
+                        <form method="POST" action="{{ route('admin.companies.price-lock.update', $company) }}" class="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end" x-show="lockOpen" x-cloak>
+                            @csrf
+                            @method('PUT')
+                            <label class="flex items-center gap-2 text-sm text-slate-200">
+                                <input type="hidden" name="price_locked" value="0">
+                                <input type="checkbox" name="price_locked" value="1" @checked(old('price_locked', $company->price_locked))>
+                                Pactado
+                            </label>
+                            <div>
+                                <x-ui.label for="price_locked_until">Hasta (opcional)</x-ui.label>
+                                <input type="date" id="price_locked_until" name="price_locked_until" value="{{ old('price_locked_until', $company->price_locked_until?->format('Y-m-d')) }}" class="w-full h-9 px-2 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
+                                <x-ui.field-error name="price_locked_until" />
+                            </div>
+                            <div>
+                                <x-ui.label for="price_lock_note">Nota del acuerdo</x-ui.label>
+                                <input type="text" id="price_lock_note" name="price_lock_note" maxlength="255" value="{{ old('price_lock_note', $company->price_lock_note) }}" class="w-full h-9 px-2 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
+                                <x-ui.field-error name="price_lock_note" />
+                            </div>
+                            <div class="sm:col-span-3 flex justify-end">
+                                <x-ui.button type="submit" variant="secondary" size="sm">Guardar</x-ui.button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <form method="POST" action="{{ route('admin.companies.plan.apply', $company) }}" class="rounded-lg border border-amber-800/40 bg-amber-950/10 p-4 space-y-3"
+                        x-data="planPicker(@js([
+                            'catalog' => $planCatalog,
+                            'manual' => (int) old('manual_seats', $company->accessSeats()->manual),
+                            'hardware' => (int) old('hardware_seats', $company->accessSeats()->hardware),
+                            'supervision' => (int) old('supervision_seats', $company->supervision_package_sku?->size() ?? 0),
+                            'cycle' => old('billing_cycle', $company->billing_cycle?->value ?? 'monthly'),
+                            'enforceAvailability' => false,
+                        ]))">
+                        @csrf
+                        <x-plans.seat-fields :cycle-options="$cycleOptions" id-prefix="plan" />
                         <fieldset class="space-y-2">
                             <legend class="text-xs text-slate-400">Cuándo aplica</legend>
                             <label class="flex items-center gap-2 text-sm text-slate-200">
@@ -285,7 +299,7 @@
                             <x-ui.field-error name="apply_when" />
                             <x-ui.field-error name="effective_on" />
                         </fieldset>
-                        <x-ui.button type="submit" variant="secondary" size="sm">Aplicar plan</x-ui.button>
+                        <x-ui.button type="submit" variant="secondary" size="sm" x-bind:disabled="isEmpty">Aplicar plan</x-ui.button>
                     </form>
                 @endcan
 
@@ -367,15 +381,46 @@
                     <p class="text-xs text-slate-500">No tienes permiso para gestionar la membresía.</p>
                 @endcan
 
-                @if ($company->package_modality)
-                    <ul class="flex flex-wrap gap-2">
-                        @foreach ($company->package_modality->features() as $feature)
-                            <li class="rounded-full bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400">{{ str_replace('_', ' ', $feature) }}</li>
-                        @endforeach
-                    </ul>
-                @endif
             </section>
         </div>
+
+        <section class="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
+            <div class="flex items-center justify-between gap-2 mb-3">
+                <h3 class="text-sm font-semibold text-white">Historial de precios</h3>
+                <span class="text-xs text-slate-500">Últimos {{ $priceChanges->count() }}</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="text-xs uppercase tracking-wide text-slate-500">
+                        <tr>
+                            <th class="pb-2 text-left font-medium">Fecha</th>
+                            <th class="pb-2 text-left font-medium">Motivo</th>
+                            <th class="pb-2 text-left font-medium">Plan</th>
+                            <th class="pb-2 text-right font-medium">Antes</th>
+                            <th class="pb-2 text-right font-medium">Después</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        @forelse ($priceChanges as $change)
+                            <tr>
+                                <td class="py-2 text-xs text-slate-400 whitespace-nowrap">{{ $change->effective_at->format('d/m/Y') }}</td>
+                                <td class="py-2 text-slate-300">
+                                    {{ $change->reasonLabel() }}
+                                    @if ($change->note)
+                                        <span class="block text-[11px] text-slate-500">{{ $change->note }}</span>
+                                    @endif
+                                </td>
+                                <td class="py-2 text-xs text-slate-400">{{ $change->new_plan }}</td>
+                                <td class="py-2 text-right text-slate-500 tabular-nums">{{ $fmt((float) $change->previous_amount) }}</td>
+                                <td class="py-2 text-right text-white tabular-nums">{{ $fmt((float) $change->new_amount) }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="5" class="py-4 text-center text-slate-500">Sin cambios de precio registrados.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </section>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <section class="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
@@ -431,7 +476,7 @@
         @include('modules.admin.companies.partials.reactivate-membership-modal', ['company' => $company])
         @include('modules.admin.companies.partials.schedule-package-modal', [
             'company' => $company,
-            'packageOptions' => $packageOptions,
+            'planCatalog' => $planCatalog,
             'cycleOptions' => $cycleOptions,
         ])
         @include('modules.admin.companies.partials.archive-company-modal', ['company' => $company])

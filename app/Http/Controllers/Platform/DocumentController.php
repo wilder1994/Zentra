@@ -56,7 +56,8 @@ final class DocumentController extends Controller
 
         $contracts = $all
             ->filter(static fn (LegalCorpusVersion $v): bool => $v->type === LegalCorpusType::Contract)
-            ->groupBy(fn (LegalCorpusVersion $v) => (string) $v->package_sku);
+            ->groupBy(fn (LegalCorpusVersion $v) => (string) $v->package_sku)
+            ->filter(static fn ($versions): bool => $versions->contains(static fn (LegalCorpusVersion $v): bool => $v->isCurrent()));
 
         return view('modules.admin.documents.normativa', compact('globals', 'contracts'));
     }

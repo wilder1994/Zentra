@@ -20,7 +20,7 @@ Plataforma SaaS B2B de **control de accesos y vigilancia** para empresas de segu
 | **2** | Operación portería (MVP) — Hub operaciones, lista bloqueo, salida masiva | ✅ Implementada |
 | **3** | BI + vigilancia — Reportes mejorados con exportación | ✅ Implementada |
 | **4** | API REST (Sanctum) + Portal Residente web | ✅ Implementada |
-| **Comercial** | Paquetes empresa + tabla de precios + facturación mensual/anual | ✅ Implementada |
+| **Comercial** | Planes Bronce/Plata/Oro/Platino por cantidad + facturación mensual/anual | ✅ Implementada |
 | **UI Empresa** | Design system `x-ui.*`, Command Center, header tabs colgantes, toasts flash | ✅ Implementada (v4) |
 | **Ops empresa** | Turnos (`guard_shifts`), revistas (`supervisor_reviews`), KPIs pánico/bloqueo/revista | ✅ Implementada (v1) |
 | **Ops portería+** | Minuta supervisión + evidencias, turnos, zonas comunes, auditoría, reportes imprimibles | ✅ Implementada (v1) |
@@ -247,7 +247,7 @@ Vista `resources/views/welcome.blade.php` · `WelcomeController` redirige autent
 
 | Ruta | Función |
 |------|---------|
-| `GET /planes` | Matriz de precios |
+| `GET /planes` | Planes y calculadora por cantidad |
 | `GET /contratar?sku=&cycle=` | Inicia intent de contratación |
 | `GET/POST /contratar/datos/{token}` | Datos empresa + contraseña + dirección/ciudad/depto/geo |
 | `GET/POST /contratar/legal/{token}` | Clickwrap: contrato del SKU + T&C + privacidad (texto completo) |
@@ -304,9 +304,9 @@ Otras rutas auth (recuperar contraseña, etc.) siguen usando `GuestLayout` de Br
 
 ### Paquetes comerciales (empresa)
 
-Metales **Bronce / Plata / Oro / Platino** (instalaciones + empleados 3k–12k). Productos: Accesos, Supervisión, Indexación (lista o add-on) y Observatorio (precio según Accesos). Unidad = 100%; pack con %; extras al precio lleno. Tabla y modal en `/admin/pricing`. [`docs/MODELO-COMERCIAL-PAQUETES.md`](docs/MODELO-COMERCIAL-PAQUETES.md) · [`docs/PAQUETES-ACCESOS-Y-SUPERVISION.md`](docs/PAQUETES-ACCESOS-Y-SUPERVISION.md).
+Planes **Bronce 1–5 / Plata 6–15 / Oro 16–40 / Platino 41+** por cantidad libre. Cada instalación = unidad × (1 − % del plan del total); al cruzar un rango todas cambian de precio. Accesos y Supervisión independientes; Indexación y Observatorio (precio según Accesos). Disponibilidad por plan y Hardware, precio pactado, incremento anual e historial. Menú **Planes** en `/admin/pricing`. [`docs/MODELO-COMERCIAL-PAQUETES.md`](docs/MODELO-COMERCIAL-PAQUETES.md) · [`docs/PAQUETES-ACCESOS-Y-SUPERVISION.md`](docs/PAQUETES-ACCESOS-Y-SUPERVISION.md).
 
-Motor de lista: `App\Support\Catalog\CatalogPricer` (`config/catalog.php`, `pricing_settings.catalog`). Checkout público aún usa SKU legacy + `PriceCalculator`. Anual: ×12 × (1 − 17%).
+Motor: `App\Support\Catalog\CatalogPricer` + `PriceCalculator` (`config/catalog.php`, `pricing_settings.catalog`); selector `resources/js/plan-picker.js`. Recálculo diferido: `CompanyRepricingService`. Anual: ×12 × (1 − 17%).
 
 ### Arquitectura
 
@@ -328,8 +328,8 @@ Documentación completa: [`docs/PLATAFORMA-ADMIN.md`](docs/PLATAFORMA-ADMIN.md)
 | `GET/POST /admin/companies/create` | Alta empresa (datos fiscales, paquete, ubicación geo) |
 | `POST /admin/companies/{id}/archive` | Archivar empresa (cascada a clientes) |
 | `POST /admin/companies/{id}/clients/{client}/release` | Retirar conjunto y liberar cupo |
-| `GET /admin/pricing` | Catálogo Bronce–Platino (4 tablas + modal) |
-| `PUT /admin/pricing` | Guardar unidades, % y módulos |
+| `GET /admin/pricing` | Planes Bronce–Platino (tablas, chips, ayuda, incremento anual) |
+| `PUT /admin/pricing` | Guardar unidades, %, módulos, disponibilidad y alcance (nuevas / actuales) |
 | `GET /admin/companies/{id}` | **Resumen** empresa: KPIs, cartera de clientes, aplicar plan Accesos+Supervisión (ya / fecha / al corte), Pagar / Cancelar / Cobrar y programar al corte / Reactivar |
 | `GET /admin/companies/{id}/historial` | Historial comercial (solo lectura): pagos, facturas, timeline |
 | `POST /admin/companies/{id}/payments/manual` | Pago manual (ref + soporte PDF/imagen + intent) |

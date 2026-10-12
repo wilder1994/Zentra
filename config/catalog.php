@@ -28,6 +28,7 @@ return [
 
     'default_units' => [
         'access' => 80_000,
+        'access_hardware' => 150_000,
         'supervision' => 80_000,
         'indexing' => 40_000,
         'indexing_addon' => 15_000,
@@ -37,6 +38,15 @@ return [
         'access' => ['bronce' => 0.05, 'plata' => 0.08, 'oro' => 0.10, 'platino' => 0.12],
         'supervision' => ['bronce' => 0.05, 'plata' => 0.08, 'oro' => 0.10, 'platino' => 0.12],
         'indexing' => ['bronce' => 0.05, 'plata' => 0.08, 'oro' => 0.10, 'platino' => 0.12],
+    ],
+
+    // Planes y modalidad Hardware visibles para venta (público, registro, facturación empresa).
+    'default_availability' => [
+        'bronce' => true,
+        'plata' => true,
+        'oro' => true,
+        'platino' => true,
+        'hardware' => false,
     ],
 
     'default_observatory' => [

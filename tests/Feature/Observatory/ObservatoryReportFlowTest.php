@@ -807,7 +807,7 @@ final class ObservatoryReportFlowTest extends TestCase
         $user = $this->companySupervisor();
         app(AssignCompanySupervisionPackageService::class)->execute(
             $user->securityCompany,
-            SupervisionPackageSku::Sit1,
+            SupervisionPackageSku::fromSize(1),
         );
         $token = $this->loginCompanySupervisor();
         $this->withToken($token)->post('/api/supervision/shifts/open', $this->supervisorShiftOpenPayload())->assertCreated();
@@ -849,7 +849,7 @@ final class ObservatoryReportFlowTest extends TestCase
         $user = $this->companySupervisor();
         app(AssignCompanySupervisionPackageService::class)->execute(
             $user->securityCompany,
-            SupervisionPackageSku::Sit1,
+            SupervisionPackageSku::fromSize(1),
         );
         $token = $this->loginCompanySupervisor();
         $this->withToken($token)->post('/api/supervision/shifts/open', $this->supervisorShiftOpenPayload())->assertCreated();

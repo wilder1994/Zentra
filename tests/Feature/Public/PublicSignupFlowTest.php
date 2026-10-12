@@ -37,7 +37,7 @@ final class PublicSignupFlowTest extends TestCase
         $this->seed();
 
         $create = $this->get(route('signup.create', [
-            'sku' => CompanyPackageSku::Pack1Manual->value,
+            'sku' => 'pack_1_manual',
             'cycle' => 'monthly',
         ]));
         $create->assertRedirect();
@@ -61,7 +61,7 @@ final class PublicSignupFlowTest extends TestCase
             'representative_role' => 'Gerente',
             'representative_document_type' => 'CC',
             'representative_document_number' => '52123456',
-            ...$this->acceptAllCorpusDocs(CompanyPackageSku::Pack1Manual),
+            ...$this->acceptAllCorpusDocs(CompanyPackageSku::from('pack_1_manual')),
         ])->assertRedirect(route('signup.summary', $intent));
 
         $this->post(route('signup.pay', $intent))
@@ -79,7 +79,7 @@ final class PublicSignupFlowTest extends TestCase
         $this->seed();
 
         $this->get(route('signup.create', [
-            'sku' => CompanyPackageSku::Pack1Manual->value,
+            'sku' => 'pack_1_manual',
             'cycle' => 'monthly',
         ]));
 
@@ -101,7 +101,7 @@ final class PublicSignupFlowTest extends TestCase
             'representative_role' => 'Rep. Legal',
             'representative_document_type' => 'CC',
             'representative_document_number' => '80123456',
-            ...$this->acceptAllCorpusDocs(CompanyPackageSku::Pack1Manual),
+            ...$this->acceptAllCorpusDocs(CompanyPackageSku::from('pack_1_manual')),
         ]);
 
         $this->post(route('signup.pay', $intent));
@@ -118,15 +118,49 @@ final class PublicSignupFlowTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
-    public function test_public_signup_rejects_supervision_on_single_access_plan(): void
+    public function test_public_signup_allows_supervision_with_single_access(): void
     {
         $this->seed();
 
         $this->get(route('signup.create', [
-            'sku' => CompanyPackageSku::Pack1Manual->value,
-            'sup' => SupervisionPackageSku::Sit5->value,
+            'access' => 1,
+            'supervision' => 5,
             'cycle' => 'monthly',
-        ]))->assertRedirect(route('planes.index'));
+        ]))->assertRedirect();
+
+        $intent = CommercialSignupIntent::query()->firstOrFail();
+        $this->assertSame(1, (int) $intent->package_manual_seats);
+        $this->assertSame(SupervisionPackageSku::fromSize(5), $intent->supervision_package_sku);
+    }
+
+    public function test_public_signup_supervision_only(): void
+    {
+        $this->seed();
+
+        $this->get(route('signup.create', ['supervision' => 7, 'cycle' => 'monthly']))
+            ->assertRedirect();
+
+        $intent = CommercialSignupIntent::query()->firstOrFail();
+        $this->assertSame(SupervisionPackageSku::fromSize(7), $intent->supervision_package_sku);
+        $this->assertSame(0, (int) $intent->package_manual_seats + (int) $intent->package_hardware_seats);
+    }
+
+    public function test_public_signup_rejects_unavailable_hardware_and_plan(): void
+    {
+        $this->seed();
+
+        $this->get(route('signup.create', ['access' => 2, 'hardware' => 2, 'cycle' => 'monthly']))
+            ->assertRedirect(route('planes.index'))
+            ->assertSessionHas('warning');
+
+        $settings = PricingSettings::current();
+        $settings->update(['catalog' => array_merge($settings->catalog ?? [], ['availability' => ['oro' => false, 'hardware' => false]])]);
+
+        $this->get(route('signup.create', ['access' => 20, 'cycle' => 'monthly']))
+            ->assertRedirect(route('planes.index'))
+            ->assertSessionHas('warning');
+
+        $this->assertSame(0, CommercialSignupIntent::query()->count());
     }
 
     public function test_public_signup_with_supervision_assigns_offer_package(): void
@@ -138,15 +172,15 @@ final class PublicSignupFlowTest extends TestCase
         ]);
 
         $this->get(route('signup.create', [
-            'sku' => CompanyPackageSku::Pack5Manual->value,
-            'sup' => SupervisionPackageSku::Sit10->value,
+            'sku' => 'pack_5_manual',
+            'sup' => 'sup_10',
             'cycle' => 'monthly',
             'manual' => 5,
             'hardware' => 0,
         ]));
 
         $intent = CommercialSignupIntent::query()->firstOrFail();
-        $this->assertSame(SupervisionPackageSku::Sit10, $intent->supervision_package_sku);
+        $this->assertSame(SupervisionPackageSku::fromSize(10), $intent->supervision_package_sku);
         $this->assertGreaterThan(80_000, (float) $intent->amount);
 
         $this->post(route('signup.data.store', $intent), [
@@ -165,7 +199,7 @@ final class PublicSignupFlowTest extends TestCase
             'representative_role' => 'Gerente',
             'representative_document_type' => 'CC',
             'representative_document_number' => '52111000',
-            ...$this->acceptAllCorpusDocs(CompanyPackageSku::Pack5Manual),
+            ...$this->acceptAllCorpusDocs(CompanyPackageSku::from('pack_5_manual')),
         ]);
 
         $this->post(route('signup.pay', $intent));
@@ -173,7 +207,7 @@ final class PublicSignupFlowTest extends TestCase
             ->assertRedirect(route('company.dashboard'));
 
         $company = SecurityCompany::query()->where('tax_id', '901777666-3')->firstOrFail();
-        $this->assertSame(SupervisionPackageSku::Sit10, $company->supervision_package_sku);
+        $this->assertSame(SupervisionPackageSku::fromSize(10), $company->supervision_package_sku);
         $this->assertSame(10, (int) $company->max_supervision_clients);
     }
 
@@ -182,16 +216,16 @@ final class PublicSignupFlowTest extends TestCase
         $this->seed();
 
         $this->get(route('signup.create', [
-            'sku' => CompanyPackageSku::Pack5Manual->value,
-            'sup' => SupervisionPackageSku::Sit5->value,
+            'sku' => 'pack_5_manual',
+            'sup' => 'sup_5',
             'cycle' => 'monthly',
             'manual' => 5,
             'hardware' => 0,
         ]));
 
         $intent = CommercialSignupIntent::query()->firstOrFail();
-        $this->assertSame(SupervisionPackageSku::Sit5, $intent->supervision_package_sku);
-        $this->assertNotSame(SupervisionPackageSku::Sit10, $intent->supervision_package_sku);
+        $this->assertSame(SupervisionPackageSku::fromSize(5), $intent->supervision_package_sku);
+        $this->assertNotSame(SupervisionPackageSku::fromSize(10), $intent->supervision_package_sku);
 
         $this->post(route('signup.data.store', $intent), [
             'party_type' => 'legal_entity',
@@ -209,7 +243,7 @@ final class PublicSignupFlowTest extends TestCase
             'representative_role' => 'Gerente',
             'representative_document_type' => 'CC',
             'representative_document_number' => '52222000',
-            ...$this->acceptAllCorpusDocs(CompanyPackageSku::Pack5Manual),
+            ...$this->acceptAllCorpusDocs(CompanyPackageSku::from('pack_5_manual')),
         ]);
 
         $this->post(route('signup.pay', $intent));
@@ -217,26 +251,27 @@ final class PublicSignupFlowTest extends TestCase
             ->assertRedirect(route('company.dashboard'));
 
         $company = SecurityCompany::query()->where('tax_id', '901555444-5')->firstOrFail();
-        $this->assertSame(SupervisionPackageSku::Sit5, $company->supervision_package_sku);
+        $this->assertSame(SupervisionPackageSku::fromSize(5), $company->supervision_package_sku);
         $this->assertSame(5, (int) $company->max_supervision_clients);
     }
 
-    public function test_public_signup_mixed_seats_and_unlimited_offer(): void
+    public function test_public_signup_mixed_seats_when_hardware_available(): void
     {
         $this->seed();
+        $settings = PricingSettings::current();
+        $settings->update(['catalog' => array_merge($settings->catalog ?? [], ['availability' => ['hardware' => true]])]);
 
         $this->get(route('signup.create', [
-            'sku' => CompanyPackageSku::Pack50Manual->value,
-            'sup' => SupervisionPackageSku::Unlimited->value,
-            'cycle' => 'monthly',
-            'manual' => 30,
+            'access' => 30,
             'hardware' => 20,
+            'supervision' => 100,
+            'cycle' => 'monthly',
         ]));
 
         $intent = CommercialSignupIntent::query()->firstOrFail();
         $this->assertSame(30, (int) $intent->package_manual_seats);
         $this->assertSame(20, (int) $intent->package_hardware_seats);
-        $this->assertSame(SupervisionPackageSku::Unlimited, $intent->supervision_package_sku);
+        $this->assertSame(SupervisionPackageSku::fromSize(100), $intent->supervision_package_sku);
 
         $this->post(route('signup.data.store', $intent), [
             'party_type' => 'legal_entity',
@@ -254,7 +289,7 @@ final class PublicSignupFlowTest extends TestCase
             'representative_role' => 'Gerente',
             'representative_document_type' => 'CC',
             'representative_document_number' => '10990011',
-            ...$this->acceptAllCorpusDocs(CompanyPackageSku::Pack50Manual),
+            ...$this->acceptAllCorpusDocs(CompanyPackageSku::from('pack_50_manual')),
         ]);
 
         $this->post(route('signup.pay', $intent));
@@ -264,7 +299,6 @@ final class PublicSignupFlowTest extends TestCase
         $company = SecurityCompany::query()->where('tax_id', '901666555-4')->firstOrFail();
         $this->assertSame(30, (int) $company->package_manual_seats);
         $this->assertSame(20, (int) $company->package_hardware_seats);
-        $this->assertTrue($company->hasUnlimitedSupervision());
-        $this->assertNull($company->max_supervision_clients);
+        $this->assertSame(100, (int) $company->max_supervision_clients);
     }
 }

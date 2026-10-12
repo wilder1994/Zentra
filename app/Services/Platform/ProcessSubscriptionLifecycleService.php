@@ -7,6 +7,7 @@ namespace App\Services\Platform;
 use App\Enums\ArchiveReason;
 use App\Enums\SubscriptionStatus;
 use App\Models\SecurityCompany;
+use App\Services\Pricing\CompanyRepricingService;
 use Carbon\CarbonImmutable;
 
 /**
@@ -22,6 +23,7 @@ final class ProcessSubscriptionLifecycleService
         $processed = 0;
 
         $processed += app(ScheduleCompanyPackageChangeService::class)->applyDueChanges($now);
+        $processed += app(CompanyRepricingService::class)->applyDue($now);
 
         SecurityCompany::query()
             ->whereNull('archived_at')

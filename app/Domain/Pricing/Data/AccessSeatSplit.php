@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Pricing\Data;
 
+use App\Enums\CommercialMetal;
 use App\Enums\CompanyPackageSku;
 use App\Enums\PackageModality;
 use InvalidArgumentException;
@@ -15,17 +16,32 @@ final readonly class AccessSeatSplit
         public int $hardware,
     ) {
         if ($this->manual < 0 || $this->hardware < 0) {
-            throw new InvalidArgumentException('Los asientos no pueden ser negativos.');
+            throw new InvalidArgumentException('Las instalaciones no pueden ser negativas.');
         }
 
-        if ($this->size() < 1) {
-            throw new InvalidArgumentException('El cupo de Accesos debe ser al menos 1.');
+        if ($this->size() > CompanyPackageSku::MAX_SEATS) {
+            throw new InvalidArgumentException('El cupo de Accesos supera el máximo permitido.');
         }
+    }
+
+    public static function none(): self
+    {
+        return new self(0, 0);
     }
 
     public function size(): int
     {
         return $this->manual + $this->hardware;
+    }
+
+    public function isEmpty(): bool
+    {
+        return $this->size() === 0;
+    }
+
+    public function metal(): ?CommercialMetal
+    {
+        return CommercialMetal::forSeats($this->size());
     }
 
     public function modality(): PackageModality
@@ -49,13 +65,18 @@ final readonly class AccessSeatSplit
     public function label(): string
     {
         $size = $this->size();
-        $clients = $size === 1 ? '1 instalación' : "{$size} instalaciones";
-
-        if ($this->modality() !== PackageModality::Mixed) {
-            return "{$clients} · {$this->modality()->label()}";
+        if ($size === 0) {
+            return 'Sin Accesos';
         }
 
-        return "{$clients} · {$this->manual} sin hardware + {$this->hardware} con hardware";
+        $clients = $size === 1 ? '1 instalación' : "{$size} instalaciones";
+        $metal = $this->metal()?->label();
+
+        if ($this->modality() !== PackageModality::Mixed) {
+            return "{$metal} · {$clients} · {$this->modality()->label()}";
+        }
+
+        return "{$metal} · {$clients} · {$this->manual} sin hardware + {$this->hardware} con hardware";
     }
 
     public static function fromSku(CompanyPackageSku $sku): self
@@ -65,26 +86,13 @@ final readonly class AccessSeatSplit
             : new self($sku->size(), 0);
     }
 
+    /** Con asientos explícitos manda la cantidad; el SKU solo aporta el valor por defecto. */
     public static function resolve(CompanyPackageSku $sku, ?int $manual, ?int $hardware): self
     {
         if ($manual === null && $hardware === null) {
             return self::fromSku($sku);
         }
 
-        $manual ??= 0;
-        $hardware ??= 0;
-        $split = new self($manual, $hardware);
-
-        if ($split->size() !== $sku->size()) {
-            throw new InvalidArgumentException(
-                'La suma de asientos debe coincidir con el cupo del paquete ('.$sku->size().').',
-            );
-        }
-
-        if ($sku->size() === 1 && $split->modality() === PackageModality::Mixed) {
-            throw new InvalidArgumentException('El paquete de 1 cliente no admite mixto.');
-        }
-
-        return $split;
+        return new self($manual ?? 0, $hardware ?? 0);
     }
 }

@@ -5,24 +5,22 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Platform;
 
 use App\Domain\Geo\GeoAddressData;
-use App\Domain\Pricing\Data\AccessSeatSplit;
 use App\Enums\ArchiveReason;
 use App\Enums\BillingCycle;
 use App\Enums\ClientLifecycle;
-use App\Enums\CompanyPackageSku;
 use App\Enums\ManualPaymentIntent;
 use App\Enums\PaymentStatus;
 use App\Enums\PlatformDocumentType;
-use App\Enums\SupervisionPackageSku;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Platform\ArchiveCompanyRequest;
 use App\Http\Requests\Platform\ApplyAdminPlanChangeRequest;
+use App\Http\Requests\Platform\ArchiveCompanyRequest;
 use App\Http\Requests\Platform\CancelCompanyMembershipRequest;
 use App\Http\Requests\Platform\SchedulePackageChangeRequest;
 use App\Http\Requests\Platform\StoreCompanyFirstAdminRequest;
 use App\Http\Requests\Platform\StoreCompanyRequest;
 use App\Http\Requests\Platform\StoreManualPaymentRequest;
 use App\Http\Requests\Platform\UpdateCompanyPackageRequest;
+use App\Http\Requests\Platform\UpdateCompanyPriceLockRequest;
 use App\Http\Requests\Platform\UpdateCompanyProfileRequest;
 use App\Http\Requests\Platform\UpdateCompanySupervisionPackageRequest;
 use App\Models\CommercialPayment;
@@ -30,23 +28,26 @@ use App\Models\PlatformDocument;
 use App\Models\SecurityCompany;
 use App\Models\User;
 use App\Repositories\SecurityCompanyRepository;
+use App\Services\Company\CreateEmployeeCatalogItemsService;
+use App\Services\Company\StoreEmployeePhotoService;
 use App\Services\Platform\ApplyAdminPlanChangeService;
 use App\Services\Platform\ArchiveCompanyService;
-use App\Services\Platform\ReactivateCompanyService;
-use App\Services\Platform\SuspendCompanyService;
 use App\Services\Platform\CancelCompanyMembershipService;
 use App\Services\Platform\EnterCompanyAsSupportService;
+use App\Services\Platform\ReactivateCompanyService;
 use App\Services\Platform\RegisterCommercialPaymentService;
 use App\Services\Platform\ScheduleCompanyPackageChangeService;
+use App\Services\Platform\SuspendCompanyService;
 use App\Services\Platform\UndoCompanyMembershipCancellationService;
+use App\Services\Pricing\CompanyPriceHistory;
+use App\Services\Pricing\CompanyRepricingService;
 use App\Services\Pricing\PriceCalculator;
 use App\Services\Tenant\AssignCompanyPackageService;
 use App\Services\Tenant\AssignCompanySupervisionPackageService;
-use App\Services\Company\CreateEmployeeCatalogItemsService;
-use App\Services\Company\StoreEmployeePhotoService;
 use App\Services\Tenant\CreateCompanyFirstAdminService;
 use App\Services\Tenant\CreateCompanyService;
 use App\Services\Tenant\UpdateCompanyProfileService;
+use App\Support\Catalog\CatalogSettings;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -75,6 +76,7 @@ final class CompanyController extends Controller
         private readonly SuspendCompanyService $suspendCompanyService,
         private readonly ReactivateCompanyService $reactivateCompanyService,
         private readonly ArchiveCompanyService $archiveCompanyService,
+        private readonly CompanyPriceHistory $priceHistory,
     ) {}
 
     public function index(): View
@@ -193,13 +195,9 @@ final class CompanyController extends Controller
                 'clients as operational_clients_count' => fn ($q) => $q->where('lifecycle', ClientLifecycle::Active),
             ]);
 
-        $packageOptions = CompanyPackageSku::options();
         $cycleOptions = BillingCycle::options();
 
-        $previewCycle = BillingCycle::tryFrom((string) $request->old('billing_cycle', $company->billing_cycle?->value ?? 'monthly'))
-            ?? BillingCycle::Monthly;
-        $quote = $this->priceCalculator->quoteAccess($company->accessSeats(), $previewCycle);
-        $quoteAnnual = $this->priceCalculator->quoteAccess($company->accessSeats(), BillingCycle::Annual);
+        $catalogQuote = app(CompanyRepricingService::class)->quote($company);
 
         $clients = $company->clients()
             ->orderBy('name')
@@ -241,11 +239,11 @@ final class CompanyController extends Controller
 
         return view('modules.admin.companies.show', [
             'company' => $company,
-            'packageOptions' => $packageOptions,
             'cycleOptions' => $cycleOptions,
-            'supervisionOptions' => SupervisionPackageSku::selectableOptions((int) ($company->package_size ?: 0)),
-            'quote' => $quote,
-            'quoteAnnual' => $quoteAnnual,
+            'planCatalog' => CatalogSettings::current()->forClient(true),
+            'priceChanges' => $company->priceChanges()->with('user:id,name')->latest('effective_at')->latest('id')->limit(30)->get(),
+            'pendingRepriceAmount' => $company->hasPendingReprice() ? $catalogQuote['amount'] : null,
+            'catalogAmount' => $catalogQuote['amount'],
             'portfolioClients' => $clients,
             'paidInvoicesCount' => $paidInvoicesCount,
             'pendingPaymentsCount' => $pendingPaymentsCount,
@@ -403,17 +401,10 @@ final class CompanyController extends Controller
     public function applyPlan(ApplyAdminPlanChangeRequest $request, SecurityCompany $company): RedirectResponse
     {
         try {
-            $sku = CompanyPackageSku::from($request->validated('package_sku'));
             $cycle = BillingCycle::from($request->validated('billing_cycle'));
-            $seats = AccessSeatSplit::resolve(
-                $sku,
-                isset($request->validated()['manual_seats']) ? (int) $request->validated('manual_seats') : null,
-                isset($request->validated()['hardware_seats']) ? (int) $request->validated('hardware_seats') : null,
-            );
-            $supValue = $request->validated('supervision_package_sku');
-            $supervision = is_string($supValue) && $supValue !== ''
-                ? SupervisionPackageSku::from($supValue)
-                : null;
+            $seats = $request->accessSeats();
+            $sku = $seats->sku();
+            $supervision = $request->supervisionSku();
             $onDate = $request->filled('effective_on')
                 ? CarbonImmutable::parse($request->validated('effective_on'))
                 : null;
@@ -451,18 +442,17 @@ final class CompanyController extends Controller
         SecurityCompany $company,
     ): RedirectResponse {
         try {
+            $seats = $request->accessSeats();
             $this->scheduleCompanyPackageChangeService->scheduleWithManualPayment(
                 $company,
                 $request->user(),
-                CompanyPackageSku::from($request->validated('package_sku')),
+                $seats->sku(),
                 BillingCycle::from($request->validated('billing_cycle')),
                 $request->validated('reference'),
                 $request->file('proof'),
-                AccessSeatSplit::resolve(
-                    CompanyPackageSku::from($request->validated('package_sku')),
-                    isset($request->validated()['manual_seats']) ? (int) $request->validated('manual_seats') : null,
-                    isset($request->validated()['hardware_seats']) ? (int) $request->validated('hardware_seats') : null,
-                ),
+                $seats,
+                $request->supervisionSku(),
+                true,
             );
         } catch (\InvalidArgumentException $e) {
             return redirect()
@@ -478,14 +468,11 @@ final class CompanyController extends Controller
 
     public function updatePackage(UpdateCompanyPackageRequest $request, SecurityCompany $company): RedirectResponse
     {
-        $sku = CompanyPackageSku::from($request->validated('package_sku'));
         $cycle = BillingCycle::from($request->validated('billing_cycle'));
-        $seats = AccessSeatSplit::resolve(
-            $sku,
-            isset($request->validated()['manual_seats']) ? (int) $request->validated('manual_seats') : null,
-            isset($request->validated()['hardware_seats']) ? (int) $request->validated('hardware_seats') : null,
-        );
-        $this->assignCompanyPackageService->execute($company, $sku, $cycle, null, $seats);
+        $seats = $request->accessSeats();
+        $before = $this->priceHistory->snapshot($company);
+        $this->assignCompanyPackageService->execute($company, $seats->sku(), $cycle, null, $seats);
+        $this->priceHistory->record($company, $before, 'admin');
 
         return redirect()
             ->route('admin.companies.show', $company)
@@ -496,15 +483,40 @@ final class CompanyController extends Controller
         UpdateCompanySupervisionPackageRequest $request,
         SecurityCompany $company,
     ): RedirectResponse {
-        $skuValue = $request->validated('supervision_package_sku');
-        $sku = $skuValue ? SupervisionPackageSku::from($skuValue) : null;
+        $sku = $request->supervisionSku();
+        $before = $this->priceHistory->snapshot($company);
         $this->assignCompanySupervisionPackageService->execute($company, $sku);
+        $this->priceHistory->record($company, $before, 'admin');
 
         $label = $sku?->label() ?? 'sin Supervisión';
 
         return redirect()
             ->route('admin.companies.show', $company)
             ->with('success', "Paquete de Supervisión actualizado: {$label}.");
+    }
+
+    public function updatePriceLock(UpdateCompanyPriceLockRequest $request, SecurityCompany $company): RedirectResponse
+    {
+        $locked = $request->boolean('price_locked');
+        $company->update([
+            'price_locked' => $locked,
+            'price_locked_until' => $locked ? $request->validated('price_locked_until') : null,
+            'price_lock_note' => $locked ? $request->validated('price_lock_note') : null,
+        ]);
+
+        if ($locked && $company->pending_reprice_at !== null) {
+            $company->update([
+                'pending_reprice_at' => null,
+                'pending_reprice_reason' => null,
+                'pending_reprice_note' => null,
+            ]);
+        }
+
+        return redirect()
+            ->route('admin.companies.show', $company)
+            ->with('success', $locked
+                ? 'Precio pactado activo: la empresa queda fuera de cambios de catálogo e incrementos.'
+                : 'Precio pactado retirado.');
     }
 
     public function cutService(SecurityCompany $company): RedirectResponse

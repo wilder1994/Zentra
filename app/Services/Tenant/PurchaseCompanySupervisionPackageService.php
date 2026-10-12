@@ -33,18 +33,8 @@ final class PurchaseCompanySupervisionPackageService
             );
         }
 
-        $accessSize = (int) ($company->package_size ?: 0);
-        if ($sku !== null && $accessSize < 5) {
-            throw new \InvalidArgumentException('El paquete de 1 cliente de Accesos no puede contratar Supervisión.');
-        }
-
         if ($sku === null) {
             return $this->scheduleCompanyPackageChangeService->scheduleSupervisionRemoval($company);
-        }
-
-        $skuEnum = $company->package_sku;
-        if ($skuEnum === null) {
-            throw new \InvalidArgumentException('La empresa no tiene paquete de Accesos.');
         }
 
         $seats = $company->accessSeats();
@@ -52,7 +42,7 @@ final class PurchaseCompanySupervisionPackageService
         return $this->scheduleCompanyPackageChangeService->scheduleWithLocalCheckout(
             $company,
             $actor,
-            $skuEnum,
+            $seats->sku(),
             $company->billing_cycle ?? BillingCycle::Monthly,
             $seats,
             true,

@@ -18,19 +18,13 @@ final class PlansController extends Controller
         $cycle = BillingCycle::tryFrom((string) $request->query('cycle', 'monthly'))
             ?? BillingCycle::Monthly;
         $pricer = CatalogPricer::make();
-        $accessMatrix = $pricer->matrix(CommercialProduct::Access, $cycle);
-        $supervisionMatrix = $pricer->matrix(CommercialProduct::Supervision, $cycle);
-        $indexingMatrix = $pricer->matrix(CommercialProduct::Indexing, $cycle);
-        $indexingAddonMatrix = $pricer->matrix(CommercialProduct::Indexing, $cycle, true);
-        $observatoryMatrix = $pricer->observatoryMatrix($cycle);
+        $accessMatrix = $pricer->matrix(CommercialProduct::Access, $cycle, false, true);
+        $supervisionMatrix = $pricer->matrix(CommercialProduct::Supervision, $cycle, false, true);
+        $indexingMatrix = $pricer->matrix(CommercialProduct::Indexing, $cycle, false, true);
+        $indexingAddonMatrix = $pricer->matrix(CommercialProduct::Indexing, $cycle, true, true);
+        $observatoryMatrix = $pricer->observatoryMatrix($cycle, true);
         $annualDiscount = (float) config('tenancy.pricing.annual_discount', 0.17);
-        $minMonthly = $accessMatrix[0]['price_monthly'] ?? 0;
-        $signupSku = [
-            'bronce' => 'pack_5_manual',
-            'plata' => 'pack_10_manual',
-            'oro' => 'pack_50_manual',
-            'platino' => 'pack_100_manual',
-        ];
+        $planCatalog = $pricer->catalog()->forClient();
 
         return view('modules.public.plans.index', compact(
             'cycle',
@@ -40,8 +34,7 @@ final class PlansController extends Controller
             'indexingAddonMatrix',
             'observatoryMatrix',
             'annualDiscount',
-            'minMonthly',
-            'signupSku',
+            'planCatalog',
         ));
     }
 }

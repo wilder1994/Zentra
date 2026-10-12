@@ -1,3 +1,5 @@
+import { planPicker } from './plan-picker';
+
 const fieldLabels = [
     ['party_type', 'tipo de suscriptor'],
     ['legal_name', 'razón social'],
@@ -10,27 +12,13 @@ const fieldLabels = [
     ['department', 'departamento'],
     ['latitude', 'coordenadas (mapa)'],
     ['longitude', 'coordenadas (mapa)'],
-    ['package_sku', 'paquete de Accesos'],
     ['billing_cycle', 'ciclo'],
-    ['supervision_package_sku', 'paquete de Supervisión'],
 ];
 
 export function createCompanyForm(config) {
-    return {
-        packageSku: config.packageSku || '',
-        supervisionSku: config.supervisionSku || '',
+    const form = {
         toast: '',
         toastTimer: null,
-
-        get accessSize() {
-            const match = String(this.packageSku).match(/pack_(\d+)_/);
-
-            return match ? Number(match[1]) : 0;
-        },
-
-        get allowsSupervision() {
-            return this.accessSize >= 5;
-        },
 
         showToast(message) {
             this.toast = message;
@@ -42,30 +30,27 @@ export function createCompanyForm(config) {
             }, 2800);
         },
 
-        onPackageChange() {
-            if (!this.allowsSupervision) {
-                this.supervisionSku = '';
-            }
-        },
-
         validate(event) {
-            const form = event.target;
+            const el = event.target;
             for (const [name, label] of fieldLabels) {
-                if (name === 'supervision_package_sku' && !this.allowsSupervision) {
-                    continue;
-                }
-                const el = form.elements.namedItem(name);
-                const value = el ? String(el.value ?? '').trim() : '';
+                const field = el.elements.namedItem(name);
+                const value = field ? String(field.value ?? '').trim() : '';
                 if (value === '') {
                     event.preventDefault();
                     this.showToast(`Falta ${label} por llenar`);
-                    if (el && typeof el.focus === 'function') {
-                        el.focus();
+                    if (field && typeof field.focus === 'function') {
+                        field.focus();
                     }
 
                     return;
                 }
             }
+            if (this.isEmpty) {
+                event.preventDefault();
+                this.showToast('Indica instalaciones de Accesos o clientes de Supervisión');
+            }
         },
     };
+
+    return Object.defineProperties(form, Object.getOwnPropertyDescriptors(planPicker(config)));
 }

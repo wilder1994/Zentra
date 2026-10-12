@@ -57,7 +57,19 @@ final class AssignCompanyPackageService
             'archive_reason' => null,
             'subscription_status' => SubscriptionStatus::Active,
             'is_active' => true,
+            'pending_reprice_at' => null,
+            'pending_reprice_reason' => null,
+            'pending_reprice_note' => null,
         ]);
+
+        if ($company->supervision_package_sku !== null) {
+            $sup = $this->priceCalculator->quoteSupervisionSku($company->supervision_package_sku, $cycle);
+            $company->update([
+                'supervision_unit_price_snapshot' => $sup->unitPrice,
+                'supervision_package_price_monthly' => $sup->priceMonthly,
+                'supervision_package_price_annual' => $sup->priceAnnual,
+            ]);
+        }
 
         return $company->fresh();
     }

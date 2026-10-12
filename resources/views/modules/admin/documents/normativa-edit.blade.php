@@ -7,7 +7,7 @@
                 <p class="text-xs text-slate-500 mt-0.5">
                     Versión actual {{ $document->version }}
                     @if ($document->package_sku)
-                        · SKU {{ $document->package_sku }}
+                        · {{ $document->planLabel() }}
                     @else
                         · documento global
                     @endif

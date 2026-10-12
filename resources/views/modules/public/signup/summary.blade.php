@@ -9,9 +9,11 @@
 
     <div class="max-w-xl space-y-4">
         <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-4 space-y-2 text-sm">
-            <div class="flex justify-between"><span class="text-slate-500">Plan</span><span class="text-white">{{ $intent->packageLabel() }}</span></div>
+            @if ((int) $intent->package_manual_seats + (int) $intent->package_hardware_seats > 0)
+                <div class="flex justify-between gap-3"><span class="text-slate-500">Accesos</span><span class="text-white text-right">{{ (new \App\Domain\Pricing\Data\AccessSeatSplit((int) $intent->package_manual_seats, (int) $intent->package_hardware_seats))->label() }}</span></div>
+            @endif
             @if ($intent->supervision_package_sku)
-                <div class="flex justify-between"><span class="text-slate-500">Supervisión</span><span class="text-amber-200">{{ $intent->supervision_package_sku->label() }}</span></div>
+                <div class="flex justify-between gap-3"><span class="text-slate-500">Supervisión</span><span class="text-amber-200 text-right">{{ $intent->supervision_package_sku->label() }}</span></div>
             @endif
             <div class="flex justify-between"><span class="text-slate-500">Ciclo</span><span>{{ $intent->billing_cycle->label() }}</span></div>
             <div class="flex justify-between"><span class="text-slate-500">Empresa</span><span>{{ $intent->legal_name }}</span></div>

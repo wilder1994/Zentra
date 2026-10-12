@@ -8,6 +8,7 @@ use App\Enums\CommercialMetal;
 use App\Enums\CommercialProduct;
 use App\Models\PricingSettings;
 use App\Models\User;
+use App\Support\Catalog\CatalogSettings;
 
 final class UpdatePlatformPricingService
 {
@@ -16,6 +17,7 @@ final class UpdatePlatformPricingService
     {
         $settings = PricingSettings::current();
         $units = $payload['units'] ?? [];
+        $defaults = CatalogSettings::defaults()['default_units'] ?? [];
 
         $discounts = [];
         foreach ([CommercialProduct::Access, CommercialProduct::Supervision, CommercialProduct::Indexing] as $product) {
@@ -36,21 +38,50 @@ final class UpdatePlatformPricingService
             $observatory[$metal->value] = (float) data_get($payload, "observatory.{$metal->value}", 0);
         }
 
+        $availability = [];
+        foreach ([...array_column(CommercialMetal::cases(), 'value'), 'hardware'] as $key) {
+            $availability[$key] = (bool) data_get($payload, "availability.{$key}", false);
+        }
+
+        $unitValues = [];
+        foreach (array_keys($defaults) as $key) {
+            $unitValues[$key] = (float) ($units[$key] ?? $defaults[$key]);
+        }
+
         $settings->update([
-            'unit_price_manual' => (float) ($units['access'] ?? $settings->unit_price_manual),
-            'unit_price_hardware' => (float) ($settings->unit_price_hardware ?: 150_000),
-            'unit_price_supervision' => (float) ($units['supervision'] ?? $settings->unit_price_supervision),
+            'unit_price_manual' => $unitValues['access'],
+            'unit_price_hardware' => $unitValues['access_hardware'] ?? $settings->unit_price_hardware,
+            'unit_price_supervision' => $unitValues['supervision'],
             'catalog' => [
-                'units' => [
-                    'access' => (float) ($units['access'] ?? 80_000),
-                    'supervision' => (float) ($units['supervision'] ?? 80_000),
-                    'indexing' => (float) ($units['indexing'] ?? 40_000),
-                    'indexing_addon' => (float) ($units['indexing_addon'] ?? 15_000),
-                ],
+                'units' => $unitValues,
                 'discounts' => $discounts,
                 'observatory' => $observatory,
                 'modules' => $modules,
+                'availability' => $availability,
             ],
+            'updated_by' => $actor?->id,
+        ]);
+
+        return $settings->fresh();
+    }
+
+    /** Sube unidades y Observatorio un % para nuevas empresas (descuentos y disponibilidad iguales). */
+    public function increase(float $pct, ?User $actor = null): PricingSettings
+    {
+        $settings = PricingSettings::current();
+        $raised = CatalogSettings::current()->withIncrease($pct)->toForm();
+
+        $settings->update([
+            'unit_price_manual' => $raised['units']['access'],
+            'unit_price_hardware' => $raised['units']['access_hardware'] ?? $settings->unit_price_hardware,
+            'unit_price_supervision' => $raised['units']['supervision'],
+            'catalog' => array_merge(is_array($settings->catalog) ? $settings->catalog : [], [
+                'units' => $raised['units'],
+                'observatory' => $raised['observatory'],
+                'discounts' => $raised['discounts'],
+                'availability' => $raised['availability'],
+                'modules' => $raised['modules'],
+            ]),
             'updated_by' => $actor?->id,
         ]);
 

@@ -8,6 +8,7 @@ use App\Enums\SupervisionPackageSku;
 use App\Models\Client;
 use App\Models\User;
 use App\Services\Tenant\AssignCompanySupervisionPackageService;
+use App\Support\Supervision\SupervisorFieldSheetIntro;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -22,7 +23,7 @@ final class CompanySupervisionFieldSheetTest extends TestCase
         $admin = User::query()->where('email', 'empresa@sj-seguridad.test')->firstOrFail();
         app(AssignCompanySupervisionPackageService::class)->execute(
             $admin->securityCompany,
-            SupervisionPackageSku::Sit1,
+            SupervisionPackageSku::fromSize(1),
         );
 
         $token = $this->loginCompanySupervisor();
@@ -65,7 +66,7 @@ final class CompanySupervisionFieldSheetTest extends TestCase
 
         $this->assertDatabaseHas('supervisor_shift_reviews', [
             'id' => $reviewId,
-            'sheet_intro' => \App\Support\Supervision\SupervisorFieldSheetIntro::DEFAULT,
+            'sheet_intro' => SupervisorFieldSheetIntro::DEFAULT,
         ]);
 
         $admin->securityCompany->update(['field_sheet_intro' => 'Texto nuevo de empresa.']);

@@ -89,13 +89,14 @@ class CommercialSignupIntent extends Model
 
     public function packageLabel(): string
     {
-        $manual = (int) ($this->package_manual_seats ?? 0);
-        $hardware = (int) ($this->package_hardware_seats ?? 0);
-        $access = ($manual + $hardware) > 0
-            ? (new AccessSeatSplit($manual, $hardware))->label()
-            : ($this->package_sku?->label() ?? '');
+        $manual = $this->package_manual_seats;
+        $hardware = $this->package_hardware_seats;
+        $seats = $manual === null && $hardware === null && $this->package_sku !== null
+            ? AccessSeatSplit::fromSku($this->package_sku)
+            : new AccessSeatSplit((int) $manual, (int) $hardware);
+        $access = $seats->isEmpty() ? null : 'Accesos '.$seats->label();
         $sup = $this->supervision_package_sku?->label();
 
-        return $sup ? $access.' + '.$sup : $access;
+        return implode(' + ', array_filter([$access, $sup])) ?: 'Sin plan';
     }
 }

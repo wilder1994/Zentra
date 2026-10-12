@@ -15,11 +15,8 @@ final class AssignCompanySupervisionPackageService
         private readonly PriceCalculator $priceCalculator,
     ) {}
 
-    public function execute(
-        SecurityCompany $company,
-        ?SupervisionPackageSku $sku,
-        ?float $volumeDiscountOverride = null,
-    ): SecurityCompany {
+    public function execute(SecurityCompany $company, ?SupervisionPackageSku $sku): SecurityCompany
+    {
         if ($sku === null) {
             $company->update([
                 'supervision_package_sku' => null,
@@ -35,19 +32,12 @@ final class AssignCompanySupervisionPackageService
         }
 
         $cycle = $company->billing_cycle ?? BillingCycle::Monthly;
-        $accessSize = (int) ($company->package_size ?: 0);
-        $offer = SupervisionPackageSku::offerForAccessSize($accessSize);
-        $discount = $volumeDiscountOverride
-            ?? ($offer === $sku
-                ? $this->priceCalculator->volumeDiscountFor($accessSize)
-                : $this->priceCalculator->volumeDiscountFor($sku->isUnlimited() ? 100 : $sku->size()));
-
-        $quote = $this->priceCalculator->quoteSupervisionSku($sku, $cycle, null, $discount);
+        $quote = $this->priceCalculator->quoteSupervisionSku($sku, $cycle);
 
         $company->update([
             'supervision_package_sku' => $sku,
-            'supervision_package_size' => $sku->isUnlimited() ? 0 : $sku->size(),
-            'supervision_unlimited' => $sku->isUnlimited(),
+            'supervision_package_size' => $sku->size(),
+            'supervision_unlimited' => false,
             'max_supervision_clients' => $sku->seatCap(),
             'supervision_unit_price_snapshot' => $quote->unitPrice,
             'supervision_package_price_monthly' => $quote->priceMonthly,

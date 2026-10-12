@@ -247,7 +247,7 @@ return [
             'items' => [
                 ['label' => 'Resumen', 'route' => 'admin.dashboard', 'permission' => 'platform.dashboard'],
                 ['label' => 'Descargas', 'route' => 'admin.downloads.index', 'permission' => 'platform.dashboard'],
-                ['label' => 'Tabla de precios', 'route' => 'admin.pricing.edit', 'permission' => 'platform.companies.view'],
+                ['label' => 'Planes', 'route' => 'admin.pricing.edit', 'permission' => 'platform.companies.view'],
                 ['label' => 'Empresas', 'route' => 'admin.companies.index', 'permission' => 'platform.companies.view'],
                 ['label' => 'Usuarios', 'route' => 'admin.users.index', 'permission' => 'platform.users.view'],
                 ['label' => 'Documentos', 'route' => 'admin.documents.index', 'permission' => 'platform.documents.view'],

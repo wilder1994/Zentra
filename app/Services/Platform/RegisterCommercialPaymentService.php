@@ -16,6 +16,7 @@ use App\Models\Client;
 use App\Models\CommercialPayment;
 use App\Models\SecurityCompany;
 use App\Models\User;
+use App\Services\Pricing\CompanyRepricingService;
 use App\Services\Tenant\AssignCompanySupervisionPackageService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
@@ -62,6 +63,10 @@ final class RegisterCommercialPaymentService
             throw new \InvalidArgumentException(
                 'Sin periodo Accesos vigente no se puede contratar Supervisión.'
             );
+        }
+
+        if ($amountOverride === null) {
+            $company = $this->applyPendingReprice($company, $intent);
         }
 
         return DB::transaction(function () use ($company, $recordedBy, $reference, $proof, $intent, $amountOverride, $cycleOverride) {
@@ -138,6 +143,10 @@ final class RegisterCommercialPaymentService
             throw new \InvalidArgumentException(
                 'Sin periodo Accesos vigente no se puede contratar Supervisión.'
             );
+        }
+
+        if ($amountOverride === null) {
+            $company = $this->applyPendingReprice($company, $intent);
         }
 
         $cycle = $cycleOverride ?? $company->billing_cycle;
@@ -328,6 +337,16 @@ final class RegisterCommercialPaymentService
         );
 
         $this->issueDemoInvoiceService->execute($company->fresh(), $recordedBy, $payment);
+    }
+
+    /** Si hay nuevo valor programado para el periodo que se paga, se aplica antes de cobrar. */
+    private function applyPendingReprice(SecurityCompany $company, ManualPaymentIntent $intent): SecurityCompany
+    {
+        $at = $intent === ManualPaymentIntent::Anticipate && $company->package_ends_at !== null
+            ? CarbonImmutable::parse($company->package_ends_at)
+            : CarbonImmutable::now();
+
+        return app(CompanyRepricingService::class)->applyIfDue($company, $at);
     }
 
     private function assertAcceptanceCompleted(SecurityCompany $company): void

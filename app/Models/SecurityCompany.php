@@ -8,6 +8,7 @@ use App\Domain\Pricing\Data\AccessSeatSplit;
 use App\Enums\ArchiveReason;
 use App\Enums\BillingCycle;
 use App\Enums\ClientLifecycle;
+use App\Enums\CommercialMetal;
 use App\Enums\CompanyPackageSku;
 use App\Enums\PackageModality;
 use App\Enums\PartyType;
@@ -80,6 +81,12 @@ class SecurityCompany extends Model
         'scheduled_billing_cycle',
         'scheduled_change_at',
         'scheduled_change_payment_id',
+        'price_locked',
+        'price_locked_until',
+        'price_lock_note',
+        'pending_reprice_at',
+        'pending_reprice_reason',
+        'pending_reprice_note',
     ];
 
     protected function casts(): array
@@ -122,7 +129,40 @@ class SecurityCompany extends Model
             'cancel_at_period_end' => 'boolean',
             'cancelled_at' => 'datetime',
             'scheduled_change_at' => 'datetime',
+            'price_locked' => 'boolean',
+            'price_locked_until' => 'date',
+            'pending_reprice_at' => 'datetime',
         ];
+    }
+
+    /** Precio pactado vigente: queda fuera de cambios de catálogo e incrementos. */
+    public function isPriceLocked(?CarbonImmutable $now = null): bool
+    {
+        if (! $this->price_locked) {
+            return false;
+        }
+
+        $now ??= CarbonImmutable::now();
+
+        return $this->price_locked_until === null
+            || $this->price_locked_until->endOfDay()->greaterThanOrEqualTo($now);
+    }
+
+    public function hasPendingReprice(): bool
+    {
+        return $this->pending_reprice_at !== null && ! $this->isPriceLocked();
+    }
+
+    public function isRepriceDue(?CarbonImmutable $now = null): bool
+    {
+        $now ??= CarbonImmutable::now();
+
+        return $this->hasPendingReprice() && $this->pending_reprice_at->lessThanOrEqualTo($now);
+    }
+
+    public function priceChanges(): HasMany
+    {
+        return $this->hasMany(CompanyPriceChange::class);
     }
 
     public function isUpToDate(?CarbonImmutable $now = null): bool
@@ -161,32 +201,40 @@ class SecurityCompany extends Model
 
     public function accessSeats(): AccessSeatSplit
     {
-        $sku = $this->package_sku ?? CompanyPackageSku::Pack10Manual;
+        $sku = CompanyPackage::skuOf($this);
+        $manual = $this->package_manual_seats;
+        $hardware = $this->package_hardware_seats;
 
-        return new AccessSeatSplit(
-            (int) ($this->package_manual_seats ?? $sku->size()),
-            (int) ($this->package_hardware_seats ?? 0),
-        );
+        if ($manual === null && $hardware === null) {
+            return $sku !== null ? AccessSeatSplit::fromSku($sku) : AccessSeatSplit::none();
+        }
+
+        return new AccessSeatSplit((int) ($manual ?? 0), (int) ($hardware ?? 0));
     }
 
     public function packageLabel(): string
     {
-        $seats = (int) ($this->max_clients ?: $this->package_size ?: 0);
-        if ($seats > 0) {
-            $metal = \App\Enums\CommercialMetal::fromSeats($seats);
-            $parts = \App\Enums\CommercialMetal::decompose($seats);
-            $extra = $parts['extras'] > 0 ? ' + '.$parts['extras'].' und.' : '';
-
-            return $metal->label().' · '.$seats.' instalaciones'.$extra;
+        $seats = $this->accessSeats();
+        if (! $seats->isEmpty()) {
+            return $seats->label();
         }
 
-        try {
-            return $this->accessSeats()->label();
-        } catch (\InvalidArgumentException) {
-            $sku = CompanyPackage::skuOf($this);
+        return $this->package_sku !== null ? 'Sin Accesos' : 'Sin paquete asignado';
+    }
 
-            return $sku?->label() ?? 'Sin paquete asignado';
-        }
+    public function accessMetal(): ?CommercialMetal
+    {
+        return $this->accessSeats()->metal();
+    }
+
+    public function supervisionMetal(): ?CommercialMetal
+    {
+        return $this->supervision_package_sku?->metal();
+    }
+
+    public function hasAccessPackage(): bool
+    {
+        return ! $this->accessSeats()->isEmpty();
     }
 
     public function sameAccessAs(AccessSeatSplit $seats, BillingCycle $cycle): bool
@@ -199,8 +247,7 @@ class SecurityCompany extends Model
 
     public function hasUnlimitedSupervision(): bool
     {
-        return (bool) $this->supervision_unlimited
-            || $this->supervision_package_sku === SupervisionPackageSku::Unlimited;
+        return (bool) $this->supervision_unlimited;
     }
 
     public function hasSupervisionPackage(): bool

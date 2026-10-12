@@ -1,17 +1,20 @@
 @php
     use App\Enums\BillingCycle;
-    use App\Enums\CompanyPackageSku;
     use App\Enums\PartyType;
-    use App\Enums\SupervisionPackageSku;
+    use App\Support\Catalog\CatalogSettings;
 @endphp
 
 <x-admin-layout title="Crear empresa">
     <div
         class="max-w-2xl space-y-4"
-        x-data="createCompanyForm({
-            packageSku: @js(old('package_sku', '')),
-            supervisionSku: @js(old('supervision_package_sku', '')),
-        })"
+        x-data="createCompanyForm(@js([
+            'catalog' => CatalogSettings::current()->forClient(true),
+            'manual' => (int) old('manual_seats', 0),
+            'hardware' => (int) old('hardware_seats', 0),
+            'supervision' => (int) old('supervision_seats', 0),
+            'cycle' => old('billing_cycle', 'monthly'),
+            'enforceAvailability' => false,
+        ]))"
     >
         <x-ui.button variant="secondary" :href="route('admin.companies.index')" size="sm">← Empresas</x-ui.button>
 
@@ -77,53 +80,12 @@
                 accent="platform"
             />
 
-            <div class="border-t border-slate-800 pt-4 space-y-4">
-                <p class="text-xs text-slate-400">Paquetes iniciales. Accesos es obligatorio. Supervisión es obligatoria desde 5 clientes Accesos.</p>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <x-ui.label for="package_sku">Paquete Accesos</x-ui.label>
-                        <select
-                            name="package_sku"
-                            id="package_sku"
-                            x-model="packageSku"
-                            @change="onPackageChange()"
-                            class="w-full h-9 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500/30"
-                        >
-                            <option value="">Seleccione…</option>
-                            @foreach (CompanyPackageSku::options() as $value => $label)
-                                <option value="{{ $value }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        <x-ui.field-error :messages="$errors->get('package_sku')" />
-                    </div>
-                    <div>
-                        <x-ui.label for="billing_cycle">Ciclo</x-ui.label>
-                        <select name="billing_cycle" id="billing_cycle" class="w-full h-9 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500/30">
-                            <option value="">Seleccione…</option>
-                            @foreach (BillingCycle::options() as $value => $label)
-                                <option value="{{ $value }}" @selected(old('billing_cycle') === $value)>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        <x-ui.field-error :messages="$errors->get('billing_cycle')" />
-                    </div>
-                </div>
-                <div>
-                    <x-ui.label for="supervision_package_sku">Paquete Supervisión</x-ui.label>
-                    <select
-                        name="supervision_package_sku"
-                        id="supervision_package_sku"
-                        x-model="supervisionSku"
-                        :disabled="!allowsSupervision"
-                        class="w-full h-9 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500/30 disabled:opacity-50"
-                    >
-                        <option value="">Seleccione…</option>
-                        @foreach (SupervisionPackageSku::selectableOptions() as $value => $label)
-                            <option value="{{ $value }}">{{ $label }}</option>
-                        @endforeach
-                    </select>
-                    <p x-show="!allowsSupervision" class="mt-1 text-[11px] text-slate-500">Disponible cuando Accesos es de 5 clientes o más.</p>
-                    <x-ui.field-error :messages="$errors->get('supervision_package_sku')" />
-                </div>
+            <div class="border-t border-slate-800 pt-4 space-y-3">
+                <p class="text-xs text-slate-400">
+                    Plan inicial. Accesos y Supervisión son independientes: puede contratar uno o ambos.
+                    El plan (Bronce 1–5, Plata 6–15, Oro 16–40, Platino 41+) sale de la cantidad.
+                </p>
+                <x-plans.seat-fields :cycle-options="BillingCycle::options()" id-prefix="create" />
             </div>
 
             <div class="flex items-center gap-3 pt-2">

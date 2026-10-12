@@ -63,7 +63,7 @@ final class SupervisorReviewGeofenceTest extends TestCase
         $user = $this->companySupervisor();
         app(AssignCompanySupervisionPackageService::class)->execute(
             $user->securityCompany,
-            SupervisionPackageSku::Sit1,
+            SupervisionPackageSku::fromSize(1),
         );
     }
 }

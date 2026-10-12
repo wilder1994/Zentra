@@ -14,7 +14,7 @@
         class="w-full space-y-4"
         x-data="{
             cancelOpen: {{ $errors->has('reason') ? 'true' : 'false' }},
-            changeOpen: {{ $errors->has('package_sku') || $errors->has('billing_cycle') ? 'true' : 'false' }},
+            changeOpen: {{ $errors->hasAny(['manual_seats', 'hardware_seats', 'supervision_seats', 'billing_cycle']) ? 'true' : 'false' }},
             reactivateOpen: false
         }"
     >
@@ -26,6 +26,18 @@
                 @endif
                 @if ($company->cancellation_reason)
                     <span class="block text-xs text-amber-200/80 mt-1">Motivo: {{ $company->cancellation_reason }}</span>
+                @endif
+            </div>
+        @endif
+
+        @if ($pendingRepriceAmount !== null)
+            <div class="rounded-lg border border-sky-800/50 bg-sky-950/30 px-4 py-3 text-sm text-sky-100">
+                Nuevo valor del plan desde el {{ $company->pending_reprice_at->format('d/m/Y') }}:
+                <strong class="tabular-nums">{{ $fmt($pendingRepriceAmount) }}</strong>
+                {{ $company->billing_cycle?->value === 'annual' ? '/año' : '/mes' }}
+                (hoy {{ $fmt($company->contractedAmount()) }}).
+                @if ($company->pending_reprice_note)
+                    <span class="block text-xs text-sky-200/80 mt-1">{{ $company->pending_reprice_note }}</span>
                 @endif
             </div>
         @endif
@@ -56,16 +68,17 @@
                 <div>
                     <p class="text-xs text-slate-500 uppercase tracking-wide">Membresía</p>
                     <h2 class="text-base font-semibold text-white mt-0.5">{{ $company->displayName() }}</h2>
-                    <p class="text-xs text-slate-500 mt-1">
-                        {{ $company->packageLabel() }}
-                        @if ($company->supervision_package_sku)
-                            · {{ $company->supervision_package_sku->label() }}
-                        @else
-                            · Sin Supervisión
+                    <div class="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+                        @if ($company->hasAccessPackage())
+                            <span class="ui-chip ui-chip-accent">Accesos {{ $company->accessMetal()?->label() }}</span>
+                            <span class="text-slate-400">{{ $company->accessSeats()->size() }} instalaciones</span>
                         @endif
-                        · {{ $company->billing_cycle?->label() ?? '—' }}
-                        · {{ $statusLabel }}
-                    </p>
+                        @if ($company->supervision_package_sku)
+                            <span class="ui-chip ui-chip-warning">Supervisión {{ $company->supervisionMetal()?->label() }}</span>
+                            <span class="text-slate-400">{{ $company->supervision_package_sku->size() }} clientes</span>
+                        @endif
+                        <span class="text-slate-500">· {{ $company->billing_cycle?->label() ?? '—' }} · {{ $statusLabel }}</span>
+                    </div>
                 </div>
                 <div class="text-sm sm:text-right">
                     <p class="text-xs text-slate-500">Monto contratado</p>
@@ -83,38 +96,34 @@
                 </div>
             </div>
 
+            @php
+                $sizeAccess = $company->accessSeats()->size();
+                $sizeSup = (int) ($company->supervision_package_sku?->size() ?? 0);
+            @endphp
             <div class="rounded-lg border border-indigo-800/40 bg-indigo-950/20 p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                 <div>
-                    <p class="text-xs text-slate-500 uppercase">Mensual (ref.)</p>
-                    <p class="text-base font-semibold text-white tabular-nums">{{ $fmt($quote->priceMonthly) }}</p>
+                    <p class="text-xs text-slate-500 uppercase">Valor por instalación</p>
+                    @if ($sizeAccess > 0)
+                        <p class="text-base font-semibold text-white tabular-nums">{{ $fmt($quote->effectiveUnitMonthly) }}<span class="text-xs font-normal text-slate-500">/mes Accesos</span></p>
+                        <p class="text-xs text-emerald-400/80">−{{ $quote->volumeDiscountLabel() }} por plan {{ $company->accessMetal()?->label() }}</p>
+                    @endif
+                    @if ($sizeSup > 0)
+                        <p class="text-xs text-slate-400 tabular-nums mt-1">Supervisión {{ $fmt((float) $company->supervision_package_price_monthly / max(1, $sizeSup)) }}/mes por cliente</p>
+                    @endif
                 </div>
                 <div>
-                    <p class="text-xs text-emerald-400/80 uppercase">Anual (recomendado)</p>
-                    <p class="text-base font-semibold text-emerald-300 tabular-nums">{{ $fmt($quoteAnnual->priceAnnual) }}</p>
-                    <p class="text-xs text-emerald-400/70">Ahorras {{ $fmt($quoteAnnual->annualSavings) }}</p>
+                    <p class="text-xs text-slate-500 uppercase">Total {{ $company->billing_cycle?->value === 'annual' ? 'anual' : 'mensual' }}</p>
+                    <p class="text-base font-semibold text-white tabular-nums">{{ $fmt($company->contractedAmount()) }}</p>
+                    @if ($company->isPriceLocked())
+                        <p class="text-xs text-sky-300">Precio pactado{{ $company->price_locked_until ? ' hasta '.$company->price_locked_until->format('d/m/Y') : '' }}</p>
+                    @endif
                 </div>
                 <div>
-                    <p class="text-xs text-slate-500 uppercase">Desc. volumen</p>
-                    <p class="text-base font-semibold text-white">−{{ $quote->volumeDiscountLabel() }}</p>
+                    <p class="text-xs text-emerald-400/80 uppercase">Pagando anual</p>
+                    <p class="text-base font-semibold text-emerald-300 tabular-nums">{{ $fmt($quoteAnnual->priceAnnual + (float) ($company->supervision_package_price_annual ?? 0)) }}</p>
+                    <p class="text-xs text-emerald-400/70">−{{ $quoteAnnual->annualDiscountLabel() }} vs 12 meses</p>
                 </div>
             </div>
-
-            <form method="POST" action="{{ route('company.billing.supervision.update') }}" class="rounded-lg border border-amber-800/40 bg-amber-950/10 p-4 space-y-3">
-                @csrf
-                <div class="flex flex-col sm:flex-row sm:items-end gap-3">
-                    <div class="flex-1">
-                        <x-ui.label for="supervision_package_sku">Supervisión</x-ui.label>
-                        <select id="supervision_package_sku" name="supervision_package_sku" class="w-full h-9 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                            <option value="">Sin Supervisión</option>
-                            @foreach ($supervisionOptions as $value => $label)
-                                <option value="{{ $value }}" @selected(old('supervision_package_sku', $company->supervision_package_sku?->value) === $value)>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        <p class="mt-1 text-xs text-slate-500">Se programa al corte. El paquete de 1 Accesos no admite Supervisión. Quitar no cobra.</p>
-                    </div>
-                    <x-ui.button type="submit" variant="secondary" size="sm">Programar Supervisión</x-ui.button>
-                </div>
-            </form>
 
             @if (! $hasAcceptance)
                 <p class="text-sm text-amber-300 rounded-lg border border-amber-800/50 bg-amber-900/20 px-3 py-2">
@@ -160,7 +169,7 @@
 
                 @if ($isUpToDate && $hasAcceptance)
                     <x-ui.button type="button" variant="secondary" size="md" @click="changeOpen = true">
-                        Programar cambio
+                        Cambiar plan
                     </x-ui.button>
                 @endif
 
@@ -356,7 +365,7 @@
                     </p>
                     <p class="text-xs text-slate-500 mt-3 leading-relaxed">
                         Después de la fecha de corte deberán pagar nuevamente el plan vigente
-                        ({{ $company->package_sku?->label() ?? 'paquete actual' }}
+                        ({{ $company->packageLabel() }}
                         · {{ $company->billing_cycle?->label() ?? 'ciclo' }}
                         · {{ $fmt($company->contractedAmount()) }}).
                     </p>
@@ -382,45 +391,26 @@
             <div class="flex items-center justify-center min-h-screen px-4 py-8">
                 <div class="fixed inset-0 bg-black/60" @click="changeOpen = false"></div>
                 <div class="relative w-full max-w-lg rounded-xl border border-slate-700 bg-slate-900 p-5" @click.stop>
-                    <h3 class="text-sm font-semibold text-white">Programar cambio de plan</h3>
+                    <h3 class="text-sm font-semibold text-white">Cambiar plan</h3>
                     <p class="text-xs text-slate-500 mt-1">
-                        Se cobra el nuevo plan online ahora; el cambio aplica el
-                        {{ $company->package_ends_at?->format('d/m/Y') ?? 'fin del periodo' }}.
+                        Agrega o quita instalaciones. El plan (Bronce, Plata, Oro o Platino) sale del total y todas las instalaciones toman ese precio.
+                        Se paga online ahora y aplica el {{ $company->package_ends_at?->format('d/m/Y') ?? 'fin del periodo' }}.
                     </p>
-                    <form method="POST" action="{{ route('company.billing.package.schedule') }}" class="mt-4 space-y-3">
+                    <form method="POST" action="{{ route('company.billing.package.schedule') }}" class="mt-4 space-y-3"
+                        x-data="planPicker(@js([
+                            'catalog' => $planCatalog,
+                            'manual' => (int) old('manual_seats', $company->accessSeats()->manual),
+                            'hardware' => (int) old('hardware_seats', $company->accessSeats()->hardware),
+                            'supervision' => (int) old('supervision_seats', $company->supervision_package_sku?->size() ?? 0),
+                            'cycle' => old('billing_cycle', $company->billing_cycle?->value ?? 'monthly'),
+                            'initialCycle' => $company->billing_cycle?->value ?? 'monthly',
+                            'blockUnchanged' => true,
+                        ]))">
                         @csrf
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                                <x-ui.label for="schedule_sku">Nuevo paquete Accesos</x-ui.label>
-                                <select id="schedule_sku" name="package_sku" required class="w-full h-9 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                                    @foreach ($packageOptions as $value => $label)
-                                        <option value="{{ $value }}" @selected(old('package_sku') === $value)>{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                                <x-ui.field-error name="package_sku" />
-                            </div>
-                            <div>
-                                <x-ui.label for="schedule_cycle">Ciclo</x-ui.label>
-                                <select id="schedule_cycle" name="billing_cycle" required class="w-full h-9 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                                    @foreach ($cycleOptions as $value => $label)
-                                        <option value="{{ $value }}" @selected(old('billing_cycle', $company->billing_cycle?->value) === $value)>{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                                <x-ui.field-error name="billing_cycle" />
-                            </div>
-                            <div>
-                                <x-ui.label for="schedule_manual">Asientos sin hardware</x-ui.label>
-                                <input type="number" min="0" name="manual_seats" id="schedule_manual" value="{{ old('manual_seats', $company->package_manual_seats) }}" class="w-full h-9 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                            </div>
-                            <div>
-                                <x-ui.label for="schedule_hardware">Asientos con hardware</x-ui.label>
-                                <input type="number" min="0" name="hardware_seats" id="schedule_hardware" value="{{ old('hardware_seats', $company->package_hardware_seats) }}" class="w-full h-9 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                            </div>
-                        </div>
-                        <p class="text-xs text-slate-500">La suma de asientos debe igualar el cupo. Desde 5 puedes mezclar.</p>
+                        <x-plans.seat-fields :cycle-options="$cycleOptions" id-prefix="schedule" />
                         <div class="flex justify-end gap-2">
                             <x-ui.button type="button" variant="secondary" size="sm" @click="changeOpen = false">Volver</x-ui.button>
-                            <x-ui.button type="submit" variant="primary" size="sm">Pagar online y programar</x-ui.button>
+                            <x-ui.button type="submit" variant="primary" size="sm" x-bind:disabled="!canSubmit">Pagar online y programar</x-ui.button>
                         </div>
                     </form>
                 </div>

@@ -6,7 +6,6 @@ namespace App\Http\Requests\Platform;
 
 use App\Enums\SupervisionPackageSku;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 final class UpdateCompanySupervisionPackageRequest extends FormRequest
 {
@@ -19,7 +18,14 @@ final class UpdateCompanySupervisionPackageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'supervision_package_sku' => ['nullable', 'string', Rule::enum(SupervisionPackageSku::class)],
+            'supervision_seats' => ['nullable', 'integer', 'min:0', 'max:'.SupervisionPackageSku::MAX_SEATS],
         ];
+    }
+
+    public function supervisionSku(): ?SupervisionPackageSku
+    {
+        $seats = (int) $this->input('supervision_seats', 0);
+
+        return $seats > 0 ? SupervisionPackageSku::fromSize($seats) : null;
     }
 }

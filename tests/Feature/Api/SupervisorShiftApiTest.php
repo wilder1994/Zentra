@@ -8,16 +8,16 @@ use App\Enums\SupervisionPackageSku;
 use App\Models\Client;
 use App\Models\GuardLog;
 use App\Models\SupervisorFieldLog;
-use App\Models\SupervisorShift;
 use App\Models\SupervisorRecommendation;
 use App\Models\SupervisorRiskType;
+use App\Models\SupervisorShift;
 use App\Models\SupervisorWeaponBrand;
 use App\Models\SupervisorWeaponType;
+use App\Services\Tenant\AssignCompanySupervisionPackageService;
 use App\Support\Supervision\RecommendationEvidencePhotos;
 use App\Support\Supervision\WeaponInspectionPhotos;
-use Illuminate\Http\UploadedFile;
-use App\Services\Tenant\AssignCompanySupervisionPackageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
@@ -54,7 +54,7 @@ final class SupervisorShiftApiTest extends TestCase
         $user = $this->companySupervisor();
         app(AssignCompanySupervisionPackageService::class)->execute(
             $user->securityCompany,
-            SupervisionPackageSku::Sit1,
+            SupervisionPackageSku::fromSize(1),
         );
 
         $token = $this->loginCompanySupervisor();
@@ -100,7 +100,7 @@ final class SupervisorShiftApiTest extends TestCase
         $user = $this->companySupervisor();
         app(AssignCompanySupervisionPackageService::class)->execute(
             $user->securityCompany,
-            SupervisionPackageSku::Sit1,
+            SupervisionPackageSku::fromSize(1),
         );
         $token = $this->loginCompanySupervisor();
         $payload = $this->supervisorShiftOpenPayload();
@@ -169,7 +169,7 @@ final class SupervisorShiftApiTest extends TestCase
         $user = $this->companySupervisor();
         app(AssignCompanySupervisionPackageService::class)->execute(
             $user->securityCompany,
-            SupervisionPackageSku::Sit5,
+            SupervisionPackageSku::fromSize(5),
         );
 
         $client = Client::query()->where('slug', 'palmas-del-ingenio')->firstOrFail();

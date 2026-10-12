@@ -10,7 +10,7 @@ use App\Enums\CompanyPackageSku;
 use App\Enums\EvidenceEventType;
 use App\Enums\SupervisionPackageSku;
 use App\Models\SecurityCompany;
-use App\Services\Pricing\PriceCalculator;
+use App\Services\Pricing\CompanyPriceHistory;
 use App\Services\Tenant\AssignCompanyPackageService;
 use App\Services\Tenant\AssignCompanySupervisionPackageService;
 use Carbon\CarbonImmutable;
@@ -27,8 +27,8 @@ final class ApplyAdminPlanChangeService
     public function __construct(
         private readonly AssignCompanyPackageService $assignAccess,
         private readonly AssignCompanySupervisionPackageService $assignSupervision,
-        private readonly PriceCalculator $priceCalculator,
         private readonly RecordLifecycleEvidenceService $evidenceService,
+        private readonly CompanyPriceHistory $priceHistory,
     ) {}
 
     /**
@@ -43,7 +43,8 @@ final class ApplyAdminPlanChangeService
         string $when,
         ?CarbonImmutable $onDate = null,
     ): array {
-        $this->assertPlan($company, $sku, $cycle, $seats, $supervisionSku);
+        $sku = $seats->sku();
+        $this->assertPlan($company, $cycle, $seats, $supervisionSku);
         $effectiveAt = $this->effectiveAt($company, $when, $onDate);
 
         if ($when === self::WHEN_NOW || $effectiveAt->startOfDay()->lte(CarbonImmutable::now()->startOfDay())) {
@@ -65,15 +66,13 @@ final class ApplyAdminPlanChangeService
         ?SupervisionPackageSku $supervisionSku,
         CarbonImmutable $startsAt,
     ): void {
+        $before = $this->priceHistory->snapshot($company);
+
+        $company = $this->assignSupervision->execute($company, $supervisionSku);
+
         if (! $company->sameAccessAs($seats, $cycle)) {
             $company = $this->assignAccess->execute($company, $sku, $cycle, $startsAt, $seats);
         }
-
-        $offer = SupervisionPackageSku::offerForAccessSize($seats->size());
-        $discount = ($supervisionSku !== null && $supervisionSku === $offer)
-            ? $this->priceCalculator->volumeDiscountFor($seats->size())
-            : null;
-        $company = $this->assignSupervision->execute($company->fresh(), $supervisionSku, $discount);
 
         $company->update([
             'scheduled_package_sku' => null,
@@ -84,6 +83,8 @@ final class ApplyAdminPlanChangeService
             'scheduled_change_at' => null,
             'scheduled_change_payment_id' => null,
         ]);
+
+        $this->priceHistory->record($company, $before, 'plan_change', null, null, $startsAt);
 
         $this->evidenceService->record(
             EvidenceEventType::PackageChangeApplied,
@@ -151,13 +152,12 @@ final class ApplyAdminPlanChangeService
 
     private function assertPlan(
         SecurityCompany $company,
-        CompanyPackageSku $sku,
         BillingCycle $cycle,
         AccessSeatSplit $seats,
         ?SupervisionPackageSku $supervisionSku,
     ): void {
-        if ($supervisionSku !== null && $seats->size() < 5) {
-            throw new InvalidArgumentException('El paquete de 1 cliente de Accesos no incluye Supervisión.');
+        if ($seats->isEmpty() && $supervisionSku === null) {
+            throw new InvalidArgumentException('El plan debe incluir Accesos o Supervisión.');
         }
 
         $sameAccess = $company->sameAccessAs($seats, $cycle);

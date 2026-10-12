@@ -4,41 +4,50 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
-enum SupervisionPackageSku: string
+use Illuminate\Contracts\Database\Eloquent\Castable;
+use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
+use JsonSerializable;
+use Stringable;
+use ValueError;
+
+/**
+ * Cupo de Supervisión: `sup_{clientes}`. El plan (metal) sale de la cantidad.
+ * `sup_unlimited` (legado) se lee como 100. Las instancias se reutilizan, así `===` compara por valor.
+ */
+final class SupervisionPackageSku implements Castable, JsonSerializable, Stringable
 {
-    case Sit1 = 'sup_1';
-    case Sit5 = 'sup_5';
-    case Sit10 = 'sup_10';
-    case Sit20 = 'sup_20';
-    case Sit50 = 'sup_50';
-    case Sit100 = 'sup_100';
-    case Unlimited = 'sup_unlimited';
+    public const MAX_SEATS = 10_000;
 
-    public function isUnlimited(): bool
+    /** @var array<string, self> */
+    private static array $pool = [];
+
+    private function __construct(
+        public readonly string $value,
+        private readonly int $size,
+    ) {}
+
+    public static function from(string $value): self
     {
-        return $this === self::Unlimited;
+        return self::tryFrom($value)
+            ?? throw new ValueError('"'.$value.'" no es un cupo de Supervisión válido.');
     }
 
-    public function size(): int
+    public static function tryFrom(?string $value): ?self
     {
-        return $this->isUnlimited() ? 100 : (int) explode('_', $this->value)[1];
-    }
-
-    public function seatCap(): ?int
-    {
-        return $this->isUnlimited() ? null : $this->size();
-    }
-
-    public function label(): string
-    {
-        if ($this->isUnlimited()) {
-            return 'Ilimitada · Supervisión';
+        if ($value === 'sup_unlimited') {
+            return self::fromSize(100);
         }
 
-        $size = $this->size();
-        $sites = $size === 1 ? '1 cliente' : "{$size} clientes";
+        if ($value === null || ! preg_match('/^sup_(\d{1,5})$/', $value, $m)) {
+            return null;
+        }
 
-        return "{$sites} · Supervisión";
+        $size = (int) $m[1];
+        if ($size < 1 || $size > self::MAX_SEATS) {
+            return null;
+        }
+
+        return self::$pool['sup_'.$size] ??= new self('sup_'.$size, $size);
     }
 
     public static function fromSize(int $size): self
@@ -46,56 +55,55 @@ enum SupervisionPackageSku: string
         return self::from('sup_'.$size);
     }
 
-    /** Catálogo vendible suelto (sin el 20, que solo existe como oferta de Accesos 10). */
-    /** @return list<self> */
-    public static function standaloneCases(): array
+    public function size(): int
     {
-        return [
-            self::Sit1,
-            self::Sit5,
-            self::Sit10,
-            self::Sit50,
-            self::Sit100,
-            self::Unlimited,
-        ];
+        return $this->size;
     }
 
-    /** @return array<string, string> */
-    public static function options(): array
+    public function seatCap(): int
     {
-        return collect(self::cases())
-            ->mapWithKeys(fn (self $case) => [$case->value => $case->label()])
-            ->all();
+        return $this->size;
     }
 
-    /** @return array<string, string> */
-    public static function standaloneOptions(): array
+    public function metal(): CommercialMetal
     {
-        return collect(self::standaloneCases())
-            ->mapWithKeys(fn (self $case) => [$case->value => $case->label()])
-            ->all();
+        return CommercialMetal::fromSeats($this->size);
     }
 
-    /** @return array<string, string> */
-    public static function selectableOptions(?int $accessSize = null): array
+    public function label(): string
     {
-        $options = self::standaloneOptions();
-        $offer = $accessSize !== null ? self::offerForAccessSize($accessSize) : null;
-        if ($offer !== null && ! isset($options[$offer->value])) {
-            $options[$offer->value] = $offer->label().' (oferta Accesos)';
-        }
+        $sites = $this->size === 1 ? '1 cliente' : "{$this->size} clientes";
 
-        return $options;
+        return "{$this->metal()->label()} · {$sites} · Supervisión";
     }
 
-    public static function offerForAccessSize(int $accessSize): ?self
+    public function jsonSerialize(): string
     {
-        return match (true) {
-            $accessSize < 5 => null,
-            $accessSize === 5 => self::Sit10,
-            $accessSize === 10 => self::Sit20,
-            $accessSize >= 50 => self::Unlimited,
-            default => null,
+        return $this->value;
+    }
+
+    public function __toString(): string
+    {
+        return $this->value;
+    }
+
+    public static function castUsing(array $arguments): CastsAttributes
+    {
+        return new class implements CastsAttributes
+        {
+            public function get($model, string $key, mixed $value, array $attributes): ?SupervisionPackageSku
+            {
+                return $value === null || $value === '' ? null : SupervisionPackageSku::tryFrom((string) $value);
+            }
+
+            public function set($model, string $key, mixed $value, array $attributes): ?string
+            {
+                if ($value === null || $value === '') {
+                    return null;
+                }
+
+                return $value instanceof SupervisionPackageSku ? $value->value : SupervisionPackageSku::from((string) $value)->value;
+            }
         };
     }
 }

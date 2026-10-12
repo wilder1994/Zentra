@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Company;
 
+use App\Domain\Supervision\Data\SupervisionQueryFilter;
 use App\Enums\SupervisionPackageSku;
 use App\Enums\SupervisorShiftStatus;
 use App\Models\Client;
@@ -12,10 +13,9 @@ use App\Models\SupervisorPost;
 use App\Models\SupervisorShift;
 use App\Models\SupervisorShiftReview;
 use App\Models\User;
-use App\Services\Tenant\AssignCompanySupervisionPackageService;
-use App\Domain\Supervision\Data\SupervisionQueryFilter;
 use App\Services\Company\BuildPostComplianceService;
 use App\Services\Company\BuildSupervisionSummaryService;
+use App\Services\Tenant\AssignCompanySupervisionPackageService;
 use App\Support\Supervision\ColombiaHolidays;
 use App\Support\Supervision\SupervisionOperationalDay;
 use Carbon\CarbonImmutable;
@@ -193,7 +193,7 @@ final class PostComplianceTest extends TestCase
     {
         $this->seedWithPilot();
         $admin = User::query()->where('email', 'empresa@sj-seguridad.test')->firstOrFail();
-        app(AssignCompanySupervisionPackageService::class)->execute($admin->securityCompany, SupervisionPackageSku::Sit1);
+        app(AssignCompanySupervisionPackageService::class)->execute($admin->securityCompany, SupervisionPackageSku::fromSize(1));
 
         $this->actingAs($admin)
             ->getJson(route('company.supervision.live-feed'))

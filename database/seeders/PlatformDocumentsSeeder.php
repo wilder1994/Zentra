@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
-use App\Enums\CompanyPackageSku;
+use App\Enums\CommercialMetal;
 use App\Enums\LegalCorpusType;
+use App\Enums\PackageModality;
 use App\Models\DocumentRetentionSeries;
 use App\Models\LegalCorpusVersion;
 use Database\Seeders\Support\LegalCorpusDraftContent;
@@ -27,6 +28,13 @@ final class PlatformDocumentsSeeder extends Seeder
             ->whereNull('package_sku')
             ->delete();
 
+        // Contratos por cupo fijo (pack_N_*) → reemplazados por contrato por plan.
+        LegalCorpusVersion::query()
+            ->where('type', LegalCorpusType::Contract->value)
+            ->where('package_sku', 'like', 'pack\_%')
+            ->whereNull('superseded_at')
+            ->update(['superseded_at' => now()]);
+
         $globals = [
             [LegalCorpusType::Terms, LegalCorpusDraftContent::terms()],
             [LegalCorpusType::PrivacyPolicy, LegalCorpusDraftContent::privacy()],
@@ -38,13 +46,15 @@ final class PlatformDocumentsSeeder extends Seeder
             $this->upsertVersion($type, null, $type->label(), $content);
         }
 
-        foreach (CompanyPackageSku::cases() as $sku) {
-            $this->upsertVersion(
-                LegalCorpusType::Contract,
-                $sku->value,
-                LegalCorpusType::Contract->label().' · '.$sku->label(),
-                LegalCorpusDraftContent::contractForSku($sku),
-            );
+        foreach (CommercialMetal::cases() as $metal) {
+            foreach ([PackageModality::Manual, PackageModality::Hardware] as $modality) {
+                $this->upsertVersion(
+                    LegalCorpusType::Contract,
+                    $metal->value.'_'.$modality->value,
+                    LegalCorpusType::Contract->label().' · Plan '.$metal->label().' · '.$modality->label(),
+                    LegalCorpusDraftContent::contractForPlan($metal, $modality),
+                );
+            }
         }
     }
 

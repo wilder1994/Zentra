@@ -17,7 +17,6 @@ use App\Models\CompanyCollaboratorType;
 use App\Models\CompanyJobTitle;
 use App\Models\Correspondence;
 use App\Models\Employee;
-use App\Support\Client\ClientPanelModules;
 use App\Models\GuardLog;
 use App\Models\HousingUnit;
 use App\Models\Installation;
@@ -33,6 +32,7 @@ use App\Models\Visitor;
 use App\Services\Company\SeedSupervisorIntakeDefaultsService;
 use App\Services\Tenant\AssignCompanyPackageService;
 use App\Services\Tenant\AssignCompanySupervisionPackageService;
+use App\Support\Client\ClientPanelModules;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -58,13 +58,13 @@ final class TenantSeeder extends Seeder
 
         app(AssignCompanyPackageService::class)->execute(
             $company,
-            CompanyPackageSku::Pack50Manual,
+            CompanyPackageSku::from('pack_50_manual'),
             BillingCycle::Monthly,
         );
 
         app(AssignCompanySupervisionPackageService::class)->execute(
             $company,
-            SupervisionPackageSku::Sit10,
+            SupervisionPackageSku::fromSize(10),
         );
 
         $company->update([

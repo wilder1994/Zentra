@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\CommercialMetal;
 use App\Enums\CompanyPackageSku;
 use App\Enums\LegalCorpusType;
+use App\Enums\PackageModality;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
@@ -36,13 +38,21 @@ class LegalCorpusVersion extends Model
         return $this->superseded_at === null;
     }
 
-    public function packageSkuEnum(): ?CompanyPackageSku
+    /** Etiqueta del plan del contrato (`bronce_manual` → «Plan Bronce · Sin hardware»). */
+    public function planLabel(): ?string
     {
         if ($this->package_sku === null || $this->package_sku === '') {
             return null;
         }
 
-        return CompanyPackageSku::tryFrom($this->package_sku);
+        [$metal, $modality] = array_pad(explode('_', (string) $this->package_sku, 2), 2, null);
+        $metalEnum = CommercialMetal::tryFrom((string) $metal);
+        $modalityEnum = PackageModality::tryFrom((string) $modality);
+        if ($metalEnum === null || $modalityEnum === null) {
+            return CompanyPackageSku::tryFrom($this->package_sku)?->label() ?? $this->package_sku;
+        }
+
+        return 'Plan '.$metalEnum->label().' · '.$modalityEnum->label();
     }
 
     public function isGlobal(): bool
@@ -84,7 +94,7 @@ class LegalCorpusVersion extends Model
         $contract = self::query()
             ->whereNull('superseded_at')
             ->where('type', LegalCorpusType::Contract->value)
-            ->where('package_sku', $sku->value)
+            ->where('package_sku', $sku->contractKey())
             ->first();
 
         if ($contract === null) {

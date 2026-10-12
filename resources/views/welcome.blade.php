@@ -120,8 +120,8 @@
                                 <li class="rounded-xl border border-white/10 bg-white/5 p-3">
                                     <p class="text-sm font-semibold text-cyan-300">{{ $row['label'] }}</p>
                                     <p class="text-xs text-slate-500">{{ $row['range'] }} · {{ number_format($row['employees']) }} empleados</p>
-                                    <p class="mt-1 text-lg font-bold text-white tabular-nums">{{ '$'.number_format($row['price_monthly'], 0, ',', '.') }}<span class="text-xs font-normal text-slate-500">/mes</span></p>
-                                    <p class="text-[11px] text-emerald-400">−{{ number_format($row['discount'] * 100, 0) }}% vs unidad</p>
+                                    <p class="mt-1 text-lg font-bold text-white tabular-nums">{{ '$'.number_format($row['unit_net'], 0, ',', '.') }}<span class="text-xs font-normal text-slate-500">/mes por instalación</span></p>
+                                    <p class="text-[11px] text-emerald-400">−{{ number_format($row['discount'] * 100, 0) }}% · desde {{ '$'.number_format($row['from_monthly'], 0, ',', '.') }}/mes</p>
                                 </li>
                             @endforeach
                         </ul>

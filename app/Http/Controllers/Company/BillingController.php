@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Company;
 
-use App\Domain\Pricing\Data\AccessSeatSplit;
 use App\Enums\BillingCycle;
 use App\Enums\CompanyPackageSku;
 use App\Enums\ManualPaymentIntent;
 use App\Enums\PaymentStatus;
 use App\Enums\PlatformDocumentType;
-use App\Enums\SupervisionPackageSku;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\CancelMembershipRequest;
 use App\Http\Requests\Company\SchedulePackageChangeRequest;
@@ -21,8 +19,10 @@ use App\Models\SecurityCompany;
 use App\Services\Platform\CancelCompanyMembershipService;
 use App\Services\Platform\ScheduleCompanyPackageChangeService;
 use App\Services\Platform\UndoCompanyMembershipCancellationService;
+use App\Services\Pricing\CompanyRepricingService;
 use App\Services\Pricing\PriceCalculator;
 use App\Services\Tenant\PurchaseCompanySupervisionPackageService;
+use App\Support\Catalog\CatalogSettings;
 use App\Support\Platform\ActingCompanyResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,6 +36,7 @@ final class BillingController extends Controller
         private readonly ScheduleCompanyPackageChangeService $scheduleCompanyPackageChangeService,
         private readonly PurchaseCompanySupervisionPackageService $purchaseCompanySupervisionPackageService,
         private readonly PriceCalculator $priceCalculator,
+        private readonly CompanyRepricingService $repricingService,
     ) {}
 
     public function index(Request $request): View
@@ -94,8 +95,10 @@ final class BillingController extends Controller
             'isUpToDate' => $isUpToDate,
             'quote' => $quote,
             'quoteAnnual' => $quoteAnnual,
-            'packageOptions' => CompanyPackageSku::options(),
-            'supervisionOptions' => SupervisionPackageSku::selectableOptions((int) ($company->package_size ?: 0)),
+            'planCatalog' => $this->companyCatalog($company),
+            'pendingRepriceAmount' => $company->hasPendingReprice()
+                ? $this->repricingService->quote($company)['amount']
+                : null,
             'cycleOptions' => BillingCycle::options(),
             'defaultCheckoutIntent' => $defaultCheckoutIntent,
             'gatewayDriver' => config('billing.gateway.driver'),
@@ -154,25 +157,18 @@ final class BillingController extends Controller
         $company = $this->resolveCompany($request);
 
         try {
-            $sku = CompanyPackageSku::from($request->validated('package_sku'));
             $cycle = BillingCycle::from($request->validated('billing_cycle'));
-            $seats = AccessSeatSplit::resolve(
-                $sku,
-                isset($request->validated()['manual_seats']) ? (int) $request->validated('manual_seats') : null,
-                isset($request->validated()['hardware_seats']) ? (int) $request->validated('hardware_seats') : null,
-            );
-            $supValue = $request->validated('supervision_package_sku') ?? null;
-            $includeSup = $request->has('supervision_package_sku');
-            $sup = ($includeSup && $supValue) ? SupervisionPackageSku::from($supValue) : null;
+            $seats = $request->accessSeats();
+            $includeSup = $request->has('supervision_seats');
 
             $payment = $this->scheduleCompanyPackageChangeService->scheduleWithLocalCheckout(
                 $company,
                 $request->user(),
-                $sku,
+                $seats->sku(),
                 $cycle,
                 $seats,
                 $includeSup,
-                $sup,
+                $includeSup ? $request->supervisionSku() : null,
             );
         } catch (\InvalidArgumentException|\RuntimeException $e) {
             return redirect()
@@ -187,8 +183,7 @@ final class BillingController extends Controller
     public function updateSupervisionPackage(UpdateSupervisionPackageRequest $request): RedirectResponse
     {
         $company = $this->resolveCompany($request);
-        $skuValue = $request->validated('supervision_package_sku');
-        $sku = $skuValue ? SupervisionPackageSku::from($skuValue) : null;
+        $sku = $request->supervisionSku();
 
         try {
             $result = $this->purchaseCompanySupervisionPackageService->execute(
@@ -212,6 +207,32 @@ final class BillingController extends Controller
         return redirect()
             ->route('company.billing.index')
             ->with('success', "Supervisión programada al corte: {$label}.");
+    }
+
+    /** Catálogo visible para la empresa: planes disponibles + el que ya tiene (aunque no esté a la venta). */
+    private function companyCatalog(SecurityCompany $company): array
+    {
+        $data = CatalogSettings::current()->forClient();
+        $keep = array_filter([$company->accessMetal()?->value, $company->supervisionMetal()?->value]);
+
+        foreach ($data['metals'] as $i => $metal) {
+            if (in_array($metal['key'], $keep, true)) {
+                $data['metals'][$i]['available'] = true;
+            }
+        }
+        if ((int) ($company->package_hardware_seats ?? 0) > 0) {
+            $data['hardware'] = true;
+        }
+
+        $max = 0;
+        foreach ($data['metals'] as $metal) {
+            if ($metal['available']) {
+                $max = $metal['key'] === 'platino' ? CompanyPackageSku::MAX_SEATS : $metal['max'];
+            }
+        }
+        $data['max_seats'] = $max;
+
+        return $data;
     }
 
     private function resolveCompany(Request $request): SecurityCompany

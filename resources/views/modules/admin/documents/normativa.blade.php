@@ -62,21 +62,18 @@
             </section>
 
             <section class="space-y-3">
-                <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-400">Contratos por plan (SKU)</h2>
+                <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-400">Contratos por plan</h2>
                 @forelse ($contracts as $sku => $versions)
                     @php
                         $current = $versions->first(fn ($v) => $v->isCurrent()) ?? $versions->first();
-                        $skuEnum = $current->packageSkuEnum();
+                        $planLabel = $current->planLabel();
                     @endphp
                     <section class="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
                         <div class="flex flex-wrap items-start justify-between gap-2">
                             <div>
                                 <h3 class="text-sm font-semibold text-white">{{ $current->title }}</h3>
                                 <p class="text-xs text-slate-500 mt-0.5">
-                                    SKU {{ $sku }}
-                                    @if ($skuEnum)
-                                        · {{ $skuEnum->label() }}
-                                    @endif
+                                    {{ $planLabel ?? $sku }}
                                     · v{{ $current->version }} · desde {{ $current->effective_from->format('d/m/Y') }}
                                 </p>
                             </div>
