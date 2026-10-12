@@ -45,8 +45,8 @@ final class CompanySupervisionMapTest extends TestCase
         $response->assertSee('Inicio de turno');
         $response->assertSee('Apoyo');
         $response->assertSee('Alarma');
-        $response->assertSee('Hover en la moto');
-        $response->assertSee('Se actualiza solo');
+        $response->assertSee('Convenciones');
+        $response->assertSee('se actualizan solos cada 10 s');
         $response->assertSee('Pantalla apagada');
         $response->assertSee('Sin señal');
         $response->assertSee('Satélite');
@@ -60,7 +60,7 @@ final class CompanySupervisionMapTest extends TestCase
         $history->assertOk();
         $history->assertSee('Turnos del periodo');
         $history->assertSee('Inicio de turno');
-        $history->assertSee('Una ruta en calle a la vez');
+        $history->assertSee('una ruta a la vez');
         $history->assertSee('Desde');
         $history->assertSee('Hasta');
         $history->assertSee('Supervisor');

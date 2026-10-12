@@ -1,4 +1,5 @@
 @php($icon = 'h-4 w-4 shrink-0')
+<h3 class="text-sm font-semibold text-white shrink-0">Convenciones</h3>
 <div class="mt-2 grid grid-cols-2 gap-x-2 gap-y-1.5 text-[11px] text-slate-400 leading-tight">
     <span class="inline-flex items-center gap-1.5">@include('modules.company.supervision.partials.pin-icon', ['kind' => 'start', 'class' => $icon])Inicio de turno</span>
     <span class="inline-flex items-center gap-1.5">@include('modules.company.supervision.partials.pin-icon', ['kind' => 'flag', 'class' => $icon])Cierre de turno</span>
@@ -22,4 +23,3 @@
     @endif
 </div>
 <p class="mt-1.5 text-[11px] text-slate-500">Señal: <span class="text-emerald-400">En línea</span> · <span class="text-amber-400">Pantalla apagada</span> · <span class="text-red-400">Sin señal</span> (más de 90 s sin GPS)</p>
-<p class="mt-1 text-[11px] text-slate-600">Hover en la moto: quién está de turno. Clic: lista de eventos si hay varios. Clic otra vez cierra.</p>

@@ -194,22 +194,45 @@
                 </div>
 
                 @if ($activeTab === 'live')
-                    <section class="lg:col-span-5 xl:col-span-4 rounded-lg border border-slate-800 bg-slate-900/80 p-4 min-h-[420px] lg:min-h-0 lg:h-[min(78vh,740px)] flex flex-col">
-                        <h3 class="text-sm font-semibold text-white shrink-0">Supervisores en turno</h3>
+                    <section class="relative lg:col-span-5 xl:col-span-4 rounded-lg border border-slate-800 bg-slate-900/80 p-4 min-h-[420px] lg:min-h-0 lg:h-[min(78vh,740px)] flex flex-col"
+                             x-data="{ help: false }"
+                             x-init="if (! localStorage.getItem('zentra-sup-help-live')) { localStorage.setItem('zentra-sup-help-live', '1'); help = true; setTimeout(() => help = false, 7000); }">
                         @include('modules.company.supervision.partials.pin-legend', ['live' => true])
-                        <p class="text-xs text-slate-500 mt-2 shrink-0">Se actualiza solo. Clic en un supervisor: solo su recorrido en vivo; otro clic o «Ver todos» vuelve a la vista general. Ver: ficha del turno. Día operativo de revistas: 06:00 a 06:00.</p>
-                        <div class="mt-3 overflow-auto flex-1" id="supervision-live-list">
+                        <div class="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between gap-2 shrink-0">
+                            <h3 class="text-sm font-semibold text-white">Supervisores en turno <span id="supervision-live-count" class="font-normal text-slate-500">· {{ count($map['live']) }}</span></h3>
+                            <button type="button" x-ref="helpBtn" @click="help = ! help" title="Ayuda"
+                                    class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-600 text-[11px] font-bold text-slate-300 hover:bg-slate-800 hover:text-white">?</button>
+                        </div>
+                        @include('modules.company.supervision.partials.panel-help', ['tips' => [
+                            'Clic en un supervisor: solo su recorrido en vivo. Otro clic o «Ver todos» vuelve a la vista general.',
+                            'Pasa el cursor por la moto para ver quién es y su señal. Clic en un pin o grupo: sus eventos.',
+                            'Ver: ficha del turno en curso.',
+                            'La lista y el mapa se actualizan solos cada 10 s.',
+                            'Revistas por día operativo: de 06:00 a 06:00.',
+                        ]])
+                        <div class="mt-2 overflow-auto flex-1" id="supervision-live-list">
                             @include('modules.company.supervision.partials.live-roster', ['rows' => $map['live']])
                         </div>
                     </section>
                 @endif
 
                 @if ($activeTab === 'history')
-                    <section class="lg:col-span-5 xl:col-span-4 rounded-lg border border-slate-800 bg-slate-900/80 p-4 min-h-[420px] lg:min-h-0 lg:h-[min(78vh,740px)] flex flex-col">
-                        <h3 class="text-sm font-semibold text-white shrink-0">Turnos del periodo</h3>
+                    <section class="relative lg:col-span-5 xl:col-span-4 rounded-lg border border-slate-800 bg-slate-900/80 p-4 min-h-[420px] lg:min-h-0 lg:h-[min(78vh,740px)] flex flex-col"
+                             x-data="{ help: false }"
+                             x-init="if (! localStorage.getItem('zentra-sup-help-history')) { localStorage.setItem('zentra-sup-help-history', '1'); help = true; setTimeout(() => help = false, 7000); }">
                         @include('modules.company.supervision.partials.pin-legend')
-                        <p class="text-xs text-slate-500 mt-2 shrink-0">Solo turnos cerrados. Una ruta en calle a la vez: clic en la fila. Ver: ficha guardada del turno.</p>
-                        <div class="mt-3 overflow-auto flex-1 space-y-1">
+                        <div class="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between gap-2 shrink-0">
+                            <h3 class="text-sm font-semibold text-white">Turnos del periodo <span class="font-normal text-slate-500">· {{ count($map['history']) }}</span></h3>
+                            <button type="button" x-ref="helpBtn" @click="help = ! help" title="Ayuda"
+                                    class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-600 text-[11px] font-bold text-slate-300 hover:bg-slate-800 hover:text-white">?</button>
+                        </div>
+                        @include('modules.company.supervision.partials.panel-help', ['tips' => [
+                            'Solo turnos cerrados del periodo filtrado.',
+                            'Clic en un turno: su ruta en calle, paradas y eventos (una ruta a la vez).',
+                            'Clic en un pin o grupo: sus eventos.',
+                            'Ver: ficha guardada del turno.',
+                        ]])
+                        <div class="mt-2 overflow-auto flex-1 space-y-1">
                             @forelse ($map['history'] as $row)
                                 <button type="button"
                                         class="supervision-trail-pick w-full text-left rounded-md px-2 py-2 hover:bg-slate-800 border border-transparent"
@@ -478,6 +501,8 @@
                 function renderLiveList(rows) {
                     const list = document.getElementById('supervision-live-list');
                     if (!list) return;
+                    const count = document.getElementById('supervision-live-count');
+                    if (count) count.textContent = '· ' + rows.length;
                     if (!rows.length) {
                         list.innerHTML = '<p class="text-sm text-slate-500">Nadie en turno ahora.</p>';
                         return;
