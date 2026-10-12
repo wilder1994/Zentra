@@ -60,18 +60,7 @@ final class BuildSupervisionSummaryService
             ->get();
 
         $compliance = $this->compliance->range($companyId, $fromAt, $toAt, $filter);
-        $unvisited = collect($compliance['posts'])
-            ->filter(fn (array $row) => $row['done'] < $row['expected'])
-            ->sortByDesc(fn (array $row) => $row['expected'] - $row['done'])
-            ->map(function (array $row): string {
-                $post = $row['post'];
-                $missing = $row['expected'] - $row['done'];
-                $where = trim(($post->client?->name ?? '').' · '.($post->installation?->name ?? ''), ' ·');
-
-                return $where.' · '.$post->name.($row['expected'] > 1 ? ' ('.$missing.' de '.$row['expected'].' días)' : '');
-            })
-            ->values()
-            ->all();
+        $postRows = collect($compliance['posts']);
 
         $sitesContracted = $compliance['expected'];
         $sitesVisited = $compliance['done'];
@@ -88,20 +77,20 @@ final class BuildSupervisionSummaryService
             'extreme' => $recRows->where('risk_level', SupervisorRiskLevel::Extreme)->count(),
         ];
         $modules = $this->moduleRows($reviews->count(), $logs);
-        $alerts = $this->alerts($unvisited, $logs, $recommendations, $shifts);
+        $alerts = $this->alerts($logs, $recommendations, $shifts);
         $charts = $this->charts->execute($fromAt, $toAt, $reviews, $logs, $shifts, $recRows);
 
         $caption = 'Del '.$fromAt->format('d/m/Y').' al '.$toAt->format('d/m/Y');
         if ($filter->zoneId !== null) {
             $zoneName = SupervisorZone::query()->whereKey($filter->zoneId)->value('name');
             if (is_string($zoneName) && $zoneName !== '') {
-                $caption .= ' · '.$zoneName;
+                $caption .= ' Â· '.$zoneName;
             }
         }
         if ($filter->supervisorId !== null) {
             $supervisorName = User::query()->whereKey($filter->supervisorId)->value('name');
             if (is_string($supervisorName) && $supervisorName !== '') {
-                $caption .= ' · '.$supervisorName;
+                $caption .= ' Â· '.$supervisorName;
             }
         }
 
@@ -111,19 +100,21 @@ final class BuildSupervisionSummaryService
             to: $toAt->toDateString(),
             caption: $caption,
             reviews: $reviews->count(),
+            reviewsWithNovelty: $reviews->where('has_novelty', true)->count(),
             sitesContracted: $sitesContracted,
             sitesVisited: $sitesVisited,
+            postsTotal: $postRows->count(),
+            postsDone: $postRows->filter(fn (array $row) => $row['done'] >= $row['expected'])->count(),
             kmTraveled: (int) $shifts->sum(fn (SupervisorShift $shift) => (int) ($shift->km_traveled ?? 0)),
             openShifts: $shifts->where('status', SupervisorShiftStatus::Open)->count(),
             fieldLogs: $logs->count(),
             semaphore: $semaphore,
             coveragePercent: $coverage,
             bySupervisor: $this->bySupervisor($reviews, $logs, $shifts),
-            byClient: $this->byClient($reviews, $logs),
+            byClient: $this->byClient($postRows, $reviews),
             modules: $modules,
             recommendations: $recommendations,
             charts: $charts,
-            unvisitedSites: $unvisited,
             alerts: $alerts,
         );
     }
@@ -188,7 +179,7 @@ final class BuildSupervisionSummaryService
      * @param  Collection<int, SupervisorShiftReview>  $reviews
      * @param  Collection<int, SupervisorFieldLog>  $logs
      * @param  Collection<int, SupervisorShift>  $shifts
-     * @return list<array{name: string, reviews: int, km: int, logs: int}>
+     * @return list<array{name: string, shifts: int, reviews: int, km: int, logs: int, alarms: int, supports: int}>
      */
     private function bySupervisor(Collection $reviews, Collection $logs, Collection $shifts): array
     {
@@ -209,73 +200,111 @@ final class BuildSupervisionSummaryService
             if ($userId < 1) {
                 continue;
             }
+            $ofUser = $logs->where('user_id', $userId);
             $rows[] = [
                 'name' => $name,
+                'shifts' => $shifts->where('user_id', $userId)->count(),
                 'reviews' => $reviews->filter(fn (SupervisorShiftReview $review) => (int) $review->shift?->user_id === $userId)->count(),
                 'km' => (int) $shifts->where('user_id', $userId)->sum(fn (SupervisorShift $shift) => (int) ($shift->km_traveled ?? 0)),
-                'logs' => $logs->where('user_id', $userId)->count(),
+                'logs' => $ofUser->count(),
+                'alarms' => $ofUser->filter(fn (SupervisorFieldLog $log) => $log->module === SupervisorFieldModule::Alarms)->count(),
+                'supports' => $ofUser->filter(fn (SupervisorFieldLog $log) => $log->module === SupervisorFieldModule::Supports)->count(),
             ];
         }
 
-        usort($rows, fn (array $a, array $b) => $b['reviews'] <=> $a['reviews']);
+        usort($rows, fn (array $a, array $b) => [$b['reviews'], $a['name']] <=> [$a['reviews'], $b['name']]);
 
         return $rows;
     }
 
     /**
+     * Un cliente por fila con el cumplimiento de sus puestos. Rojo = ninguna revista esperada hecha,
+     * ámbar = parcial, verde = todos los puestos cumplidos.
+     *
+     * @param  Collection<int, array{post: \App\Models\SupervisorPost, expected: int, done: int}>  $postRows
      * @param  Collection<int, SupervisorShiftReview>  $reviews
-     * @param  Collection<int, SupervisorFieldLog>  $logs
-     * @return list<array{name: string, reviews: int, novelty: int}>
+     * @return list<array<string, mixed>>
      */
-    private function byClient(Collection $reviews, Collection $logs): array
+    private function byClient(Collection $postRows, Collection $reviews): array
     {
-        $names = [];
-        foreach ($reviews as $review) {
-            $names[(int) $review->client_id] = $review->client?->name ?? 'Sitio';
-        }
-        foreach ($logs as $log) {
-            if ($log->client_id === null) {
-                continue;
-            }
-            $names[(int) $log->client_id] = $log->client?->name ?? ($names[(int) $log->client_id] ?? 'Sitio');
-        }
+        $rank = ['red' => 0, 'amber' => 1, 'green' => 2];
 
-        $rows = [];
-        foreach ($names as $clientId => $name) {
-            $ofSite = $reviews->where('client_id', $clientId);
-            $rows[] = [
-                'name' => $name,
-                'reviews' => $ofSite->count(),
-                'novelty' => $ofSite->where('has_novelty', true)->count(),
-            ];
-        }
+        return $postRows
+            ->groupBy(fn (array $row) => (int) $row['post']->client_id)
+            ->map(function (Collection $rows, int $clientId) use ($reviews): array {
+                $expected = (int) $rows->sum('expected');
+                $done = (int) $rows->sum('done');
+                $ofClient = $reviews->where('client_id', $clientId);
+                $pending = $rows
+                    ->filter(fn (array $row) => $row['done'] < $row['expected'])
+                    ->map(fn (array $row) => [
+                        'installation' => (string) ($row['post']->installation?->name ?? ''),
+                        'post' => (string) $row['post']->name,
+                        'missing' => $row['expected'] - $row['done'],
+                        'expected' => $row['expected'],
+                    ])
+                    ->sortBy([['installation', 'asc'], ['post', 'asc']])
+                    ->values()
+                    ->all();
 
-        usort($rows, fn (array $a, array $b) => $b['reviews'] <=> $a['reviews']);
-
-        return $rows;
+                return [
+                    'name' => (string) ($rows->first()['post']->client?->name ?? 'Cliente'),
+                    'status' => match (true) {
+                        $done >= $expected => 'green',
+                        $done === 0 => 'red',
+                        default => 'amber',
+                    },
+                    'installations' => $rows->map(fn (array $row) => (int) $row['post']->installation_id)->unique()->count(),
+                    'posts' => $rows->count(),
+                    'posts_done' => $rows->filter(fn (array $row) => $row['done'] >= $row['expected'])->count(),
+                    'expected' => $expected,
+                    'done' => $done,
+                    'percent' => $expected > 0 ? round(($done / $expected) * 100, 1) : null,
+                    'reviews' => $ofClient->count(),
+                    'novelty' => $ofClient->where('has_novelty', true)->count(),
+                    'pending' => $pending,
+                ];
+            })
+            ->sort(fn (array $a, array $b) => [$rank[$a['status']], mb_strtolower($a['name'])] <=> [$rank[$b['status']], mb_strtolower($b['name'])])
+            ->values()
+            ->all();
     }
 
     /**
-     * @param  list<string>  $unvisited
+     * Solo lo que pide acción y no se ve ya en KPIs o tablas. Vacío si no hay nada.
+     *
      * @param  Collection<int, SupervisorFieldLog>  $logs
      * @param  array{total: int, low: int, medium: int, high: int, extreme: int}  $recommendations
      * @param  Collection<int, SupervisorShift>  $shifts
-     * @return list<string>
+     * @return list<array{level: string, text: string}>
      */
-    private function alerts(array $unvisited, Collection $logs, array $recommendations, Collection $shifts): array
+    private function alerts(Collection $logs, array $recommendations, Collection $shifts): array
     {
         $alerts = [];
+        $alarms = $logs->filter(fn (SupervisorFieldLog $log) => $log->module === SupervisorFieldModule::Alarms);
 
-        if ($unvisited !== []) {
-            $alerts[] = count($unvisited).' puesto(s) con revistas pendientes en el periodo: '.implode(', ', array_slice($unvisited, 0, 8));
+        $real = $alarms->filter(fn (SupervisorFieldLog $log) => ($log->payload['result'] ?? '') === 'real')->count();
+        if ($real > 0) {
+            $alerts[] = ['level' => 'red', 'text' => $real.' '.($real === 1 ? 'alarma real' : 'alarmas reales')];
         }
 
-        $failedAlarms = $logs
-            ->filter(fn (SupervisorFieldLog $log) => $log->module === SupervisorFieldModule::Alarms
-                && in_array((string) ($log->payload['result'] ?? ''), ['fail', 'real'], true))
+        $failed = $alarms->filter(fn (SupervisorFieldLog $log) => ($log->payload['result'] ?? '') === 'fail')->count();
+        if ($failed > 0) {
+            $alerts[] = ['level' => 'red', 'text' => $failed.' '.($failed === 1 ? 'alarma en falla' : 'alarmas en falla')];
+        }
+
+        if ($recommendations['extreme'] > 0) {
+            $n = $recommendations['extreme'];
+            $alerts[] = ['level' => 'red', 'text' => $n.' '.($n === 1 ? 'recomendación extrema' : 'recomendaciones extremas')];
+        }
+
+        $longOpen = $shifts
+            ->filter(fn (SupervisorShift $shift) => $shift->status === SupervisorShiftStatus::Open
+                && $shift->started_at !== null
+                && $shift->started_at->lt(now()->subHours(12)))
             ->count();
-        if ($failedAlarms > 0) {
-            $alerts[] = $failedAlarms.' alarma(s) en falla o reales.';
+        if ($longOpen > 0) {
+            $alerts[] = ['level' => 'amber', 'text' => $longOpen.' '.($longOpen === 1 ? 'turno abierto' : 'turnos abiertos').' > 12 h'];
         }
 
         $pendingDocs = $logs
@@ -285,30 +314,10 @@ final class BuildSupervisionSummaryService
                 ))
             ->count();
         if ($pendingDocs > 0) {
-            $alerts[] = $pendingDocs.' registro(s) de documentos del turno con cantidades pendientes.';
-        }
-
-        if ($recommendations['extreme'] > 0) {
-            $alerts[] = $recommendations['extreme'].' recomendación(es) de riesgo extremo.';
-        }
-
-        if ($recommendations['high'] > 0) {
-            $alerts[] = $recommendations['high'].' recomendación(es) de riesgo alto.';
-        }
-
-        $longOpen = $shifts
-            ->filter(fn (SupervisorShift $shift) => $shift->status === SupervisorShiftStatus::Open
-                && $shift->started_at !== null
-                && $shift->started_at->lt(now()->subHours(12)))
-            ->count();
-        if ($longOpen > 0) {
-            $alerts[] = $longOpen.' turno(s) abierto(s) hace más de 12 h.';
-        }
-
-        if ($alerts === []) {
-            $alerts[] = 'Sin alertas operativas en el periodo.';
+            $alerts[] = ['level' => 'amber', 'text' => $pendingDocs.' '.($pendingDocs === 1 ? 'entrega de documentos pendiente' : 'entregas de documentos pendientes')];
         }
 
         return $alerts;
     }
 }
+

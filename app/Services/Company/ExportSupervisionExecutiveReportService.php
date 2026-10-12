@@ -12,8 +12,10 @@ use PhpOffice\PhpPresentation\PhpPresentation;
 use PhpOffice\PhpPresentation\Shape\Chart\Legend;
 use PhpOffice\PhpPresentation\Shape\Chart\Series;
 use PhpOffice\PhpPresentation\Shape\Chart\Type\Bar;
+use PhpOffice\PhpPresentation\Shape\Table\Row;
 use PhpOffice\PhpPresentation\Slide;
 use PhpOffice\PhpPresentation\Slide\Background\Color as BackgroundColor;
+use PhpOffice\PhpPresentation\Style\Alignment;
 use PhpOffice\PhpPresentation\Style\Color;
 use PhpOffice\PhpPresentation\Style\Fill;
 
@@ -30,6 +32,12 @@ final class ExportSupervisionExecutiveReportService
     private const INK = 'FFF8FAFC';
 
     private const MUTED = 'FF94A3B8';
+
+    private const ROW_RED = 'FF7F1D1D';
+
+    private const ROW_AMBER = 'FF78350F';
+
+    private const ROW_GREEN = 'FF064E3B';
 
     /**
      * @return array{path: string, filename: string}
@@ -60,8 +68,10 @@ final class ExportSupervisionExecutiveReportService
             ),
         );
         $this->alarmsSlide($this->slide($ppt), $snapshot);
-        $this->sitesSlide($this->slide($ppt), $snapshot);
-        $this->alertsSlide($this->slide($ppt), $snapshot->alerts);
+        $this->clientSlides($ppt, $snapshot);
+        if ($snapshot->alerts !== []) {
+            $this->alertsSlide($this->slide($ppt), $snapshot->alerts);
+        }
 
         return [
             'path' => $this->save($ppt),
@@ -107,24 +117,37 @@ final class ExportSupervisionExecutiveReportService
         $ink = $snapshot->semaphore === 'neutral' ? self::INK : self::NAVY;
 
         $boxes = [
-            [$coverage, 'Cumplimiento por puesto', $fill, $ink],
-            [(string) $snapshot->reviews, 'Revistas', self::CARD, self::INK],
-            [(string) $snapshot->kmTraveled, 'Km recorridos', self::CARD, self::GOLD],
-            [(string) $snapshot->recommendations['total'], 'Recomendaciones', self::CARD, self::INK],
+            [$coverage, 'Cumplimiento por puesto', $snapshot->sitesVisited.' de '.$snapshot->sitesContracted.' puesto-día', $fill, $ink],
+            [$snapshot->postsDone.' de '.$snapshot->postsTotal, 'Puestos cumplidos', ($snapshot->postsTotal - $snapshot->postsDone).' con pendientes', self::CARD, self::INK],
+            [(string) $snapshot->reviews, 'Revistas', $snapshot->reviewsWithNovelty.' con novedad', self::CARD, self::INK],
+            [(string) $snapshot->kmTraveled, 'Km recorridos', '', self::CARD, self::GOLD],
+            [
+                (string) $snapshot->recommendations['total'],
+                'Recomendaciones',
+                'B '.$snapshot->recommendations['low'].' · M '.$snapshot->recommendations['medium']
+                    .' · A '.$snapshot->recommendations['high'].' · E '.$snapshot->recommendations['extreme'],
+                self::CARD,
+                self::INK,
+            ],
         ];
 
-        foreach ($boxes as $index => [$value, $label, $boxFill, $boxInk]) {
+        foreach ($boxes as $index => [$value, $label, $detail, $boxFill, $boxInk]) {
             $shape = $slide->createRichTextShape()
-                ->setOffsetX(40 + ($index * 230))
+                ->setOffsetX(40 + ($index * 178))
                 ->setOffsetY(120)
-                ->setWidth(214)
+                ->setWidth(168)
                 ->setHeight(130);
             $shape->setFill($this->solid($boxFill));
             $valueRun = $shape->createTextRun($value);
-            $valueRun->getFont()->setName('Calibri')->setBold(true)->setSize(22)->setColor(new Color($boxInk));
+            $valueRun->getFont()->setName('Calibri')->setBold(true)->setSize(20)->setColor(new Color($boxInk));
             $shape->createBreak();
             $labelRun = $shape->createTextRun(mb_strtoupper($label));
-            $labelRun->getFont()->setName('Calibri')->setSize(10)->setColor(new Color($boxInk));
+            $labelRun->getFont()->setName('Calibri')->setSize(9)->setColor(new Color($boxInk));
+            if ($detail !== '') {
+                $shape->createBreak();
+                $detailRun = $shape->createTextRun($detail);
+                $detailRun->getFont()->setName('Calibri')->setSize(9)->setColor(new Color($boxInk === self::NAVY ? self::NAVY : self::MUTED));
+            }
         }
 
         $detail = $snapshot->sitesContracted > 0
@@ -249,44 +272,74 @@ final class ExportSupervisionExecutiveReportService
         );
     }
 
-    private function sitesSlide(Slide $slide, SupervisionPeriodSnapshot $snapshot): void
+    /** Tabla de clientes con semáforo (rojo → ámbar → verde), 14 filas por diapositiva. */
+    private function clientSlides(PhpPresentation $ppt, SupervisionPeriodSnapshot $snapshot): void
     {
-        $this->heading($slide, 'Sitios y recomendaciones', $snapshot->caption);
+        $rows = $snapshot->byClient;
+        $pages = $rows === [] ? [[]] : array_chunk($rows, 14);
+        $total = count($pages);
 
-        $unvisited = $snapshot->unvisitedSites === []
-            ? 'Todos los puestos tienen revista en cada día de servicio del periodo.'
-            : 'Puestos con revistas pendientes ('.count($snapshot->unvisitedSites).'): '.implode(', ', array_slice($snapshot->unvisitedSites, 0, 12));
-        $this->text($slide, $unvisited, 40, 110, 880, 80, 14, self::INK);
+        foreach ($pages as $page => $chunk) {
+            $slide = $this->slide($ppt);
+            $title = 'Cumplimiento por cliente'.($total > 1 ? ' ('.($page + 1).'/'.$total.')' : '');
+            $this->heading($slide, $title, $snapshot->caption.' · rojo sin revista · ámbar con pendientes · verde cumplido');
 
-        $recs = 'Recomendaciones — '.$snapshot->recommendations['total']
-            .' (bajo '.$snapshot->recommendations['low']
-            .', medio '.$snapshot->recommendations['medium']
-            .', alto '.$snapshot->recommendations['high']
-            .', extremo '.$snapshot->recommendations['extreme'].').';
-        $this->text($slide, $recs, 40, 210, 880, 60, 14, self::CYAN);
+            if ($chunk === []) {
+                $this->text($slide, 'No hay puestos con servicio programado en este periodo.', 40, 110, 880, 40, 14, self::MUTED);
 
-        $clients = [];
-        foreach (array_slice($snapshot->byClient, 0, 8) as $row) {
-            $clients[] = $row['name'].' ('.$row['reviews'].' revistas, '.$row['novelty'].' con novedad)';
+                continue;
+            }
+
+            $widths = [340, 100, 80, 90, 90, 90, 90];
+            $table = $slide->createTableShape(count($widths));
+            $table->setOffsetX(40)->setOffsetY(100)->setWidth(array_sum($widths));
+
+            $this->tableRow($table->createRow(), ['Cliente', 'Instalaciones', 'Puestos', 'Cumplidos', 'Revistas', 'Novedad', '%'], $widths, self::CARD, self::MUTED, true);
+            foreach ($chunk as $row) {
+                $fill = match ($row['status']) {
+                    'red' => self::ROW_RED,
+                    'amber' => self::ROW_AMBER,
+                    default => self::ROW_GREEN,
+                };
+                $this->tableRow($table->createRow(), [
+                    $row['name'],
+                    (string) $row['installations'],
+                    (string) $row['posts'],
+                    (string) $row['posts_done'],
+                    (string) $row['reviews'],
+                    (string) $row['novelty'],
+                    $row['percent'] !== null ? number_format($row['percent'], 0).'%' : '—',
+                ], $widths, $fill, self::INK);
+            }
         }
-        $this->text(
-            $slide,
-            $clients === [] ? 'Sin actividad por sitio.' : implode(' · ', $clients),
-            40,
-            290,
-            880,
-            140,
-            13,
-            self::MUTED,
-        );
     }
 
     /**
-     * @param  list<string>  $alerts
+     * @param  list<string>  $values
+     * @param  list<int>  $widths
+     */
+    private function tableRow(Row $row, array $values, array $widths, string $fill, string $ink, bool $header = false): void
+    {
+        $row->setHeight(24);
+        foreach ($values as $index => $value) {
+            $cell = $row->nextCell();
+            $cell->setWidth($widths[$index]);
+            $cell->setFill($this->solid($fill));
+            $cell->getActiveParagraph()->getAlignment()->setHorizontal($index === 0 ? Alignment::HORIZONTAL_LEFT : Alignment::HORIZONTAL_RIGHT);
+            $run = $cell->createTextRun($value);
+            $run->getFont()->setName('Calibri')->setSize($header ? 9 : 10)->setBold($header)->setColor(new Color($ink));
+            foreach ([$cell->getBorders()->getTop(), $cell->getBorders()->getBottom(), $cell->getBorders()->getLeft(), $cell->getBorders()->getRight()] as $border) {
+                $border->setColor(new Color(self::NAVY));
+            }
+        }
+    }
+
+    /**
+     * @param  list<array{level: string, text: string}>  $alerts
      */
     private function alertsSlide(Slide $slide, array $alerts): void
     {
-        $this->heading($slide, 'Alertas del periodo', 'Cobertura, alarmas, documentos y recomendaciones');
+        $this->heading($slide, 'Atención', 'Alarmas, recomendaciones extremas, turnos largos y documentos pendientes');
 
         $shape = $slide->createRichTextShape()
             ->setOffsetX(40)
@@ -300,8 +353,9 @@ final class ExportSupervisionExecutiveReportService
                 $shape->createBreak();
                 $shape->createBreak();
             }
-            $run = $shape->createTextRun('•  '.$alert);
-            $run->getFont()->setName('Calibri')->setSize(15)->setColor(new Color(self::INK));
+            $run = $shape->createTextRun('•  '.$alert['text']);
+            $run->getFont()->setName('Calibri')->setSize(15)
+                ->setColor(new Color($alert['level'] === 'red' ? 'FFF87171' : self::GOLD));
         }
     }
 

@@ -88,6 +88,10 @@ final class CompanySupervisionMapTest extends TestCase
         $summary->assertOk();
         $summary->assertSee('Cumplimiento por puesto');
         $summary->assertSee('Revistas');
+        $summary->assertSee('Puestos cumplidos');
+        $summary->assertSee('Clientes ·', false);
+        $summary->assertSee('Por supervisor ·', false);
+        $summary->assertDontSee('Sin alertas operativas');
         $summary->assertSee('Descargar PPTX');
         $summary->assertSee('Hoy');
         $summary->assertSee('Zona');

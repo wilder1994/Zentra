@@ -13,7 +13,9 @@ use App\Models\SupervisorShift;
 use App\Models\SupervisorShiftReview;
 use App\Models\User;
 use App\Services\Tenant\AssignCompanySupervisionPackageService;
+use App\Domain\Supervision\Data\SupervisionQueryFilter;
 use App\Services\Company\BuildPostComplianceService;
+use App\Services\Company\BuildSupervisionSummaryService;
 use App\Support\Supervision\ColombiaHolidays;
 use App\Support\Supervision\SupervisionOperationalDay;
 use Carbon\CarbonImmutable;
@@ -124,6 +126,67 @@ final class PostComplianceTest extends TestCase
         $range = $service->range($companyId, CarbonImmutable::parse('2026-10-12', $tz), CarbonImmutable::parse('2026-10-14', $tz));
         $this->assertSame(2, $range['posts'][$post->id]['expected']);
         $this->assertSame(1, $range['posts'][$post->id]['done']);
+    }
+
+    public function test_summary_clients_sorted_by_semaphore_and_reviews_count_once_per_post(): void
+    {
+        $this->seedWithPilot();
+        $tz = (string) config('app.timezone');
+        Carbon::setTestNow(Carbon::parse('2026-10-14 10:00', $tz));
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-14 10:00', $tz));
+
+        $client = Client::query()->where('slug', 'palmas-del-ingenio')->firstOrFail();
+        $installation = $client->installations()->firstOrFail();
+        $companyId = (int) $client->security_company_id;
+        $posts = collect(['Puesto A', 'Puesto B'])->map(fn (string $name) => SupervisorPost::query()->create([
+            'client_id' => $client->id,
+            'installation_id' => $installation->id,
+            'name' => $name,
+            'modality' => 12,
+            'service_days' => SupervisorPost::ALL_DAYS,
+            'serves_holidays' => true,
+            'is_active' => true,
+            'created_at' => now()->subDays(3),
+        ]));
+
+        $shift = SupervisorShift::query()->create([
+            'security_company_id' => $companyId,
+            'user_id' => $this->companySupervisor()->id,
+            'status' => SupervisorShiftStatus::Open,
+            'started_at' => now()->subHours(3),
+        ]);
+        $employee = Employee::query()->where('security_company_id', $companyId)->firstOrFail();
+        foreach ([1, 2] as $i) {
+            SupervisorShiftReview::query()->create([
+                'supervisor_shift_id' => $shift->id,
+                'client_id' => $client->id,
+                'supervisor_post_id' => $posts[0]->id,
+                'employee_id' => $employee->id,
+                'has_novelty' => $i === 2,
+                'latitude' => 3.45,
+                'longitude' => -76.53,
+                'recorded_at' => now()->subHours($i),
+            ]);
+        }
+
+        $snapshot = app(BuildSupervisionSummaryService::class)->execute(
+            $client->securityCompany,
+            new SupervisionQueryFilter(from: '2026-10-14', to: '2026-10-14'),
+        );
+
+        $rank = ['red' => 0, 'amber' => 1, 'green' => 2];
+        $keys = array_map(fn (array $r) => [$rank[$r['status']], mb_strtolower($r['name'])], $snapshot->byClient);
+        $sorted = $keys;
+        sort($sorted);
+        $this->assertSame($sorted, $keys);
+
+        $palmas = collect($snapshot->byClient)->firstWhere('name', $client->name);
+        $this->assertSame('amber', $palmas['status']);
+        $this->assertSame(2, $palmas['reviews']);
+        $this->assertSame(1, $palmas['novelty']);
+        $this->assertGreaterThanOrEqual(1, $palmas['posts_done']);
+        $this->assertContains('Puesto B', array_column($palmas['pending'], 'post'));
+        $this->assertSame(1, $snapshot->reviewsWithNovelty);
     }
 
     public function test_live_feed_includes_post_coverage(): void

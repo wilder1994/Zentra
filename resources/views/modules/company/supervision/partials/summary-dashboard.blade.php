@@ -5,15 +5,21 @@
 @endphp
 
 <section class="space-y-4">
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <div class="rounded-lg border p-3 {{ $semaphoreClass }}">
             <p class="text-[10px] uppercase tracking-wide">Cumplimiento por puesto</p>
             <p class="text-2xl font-semibold tabular-nums">{{ $summary->coveragePercent !== null ? number_format($summary->coveragePercent, 1).'%' : '—' }}</p>
             <p class="text-[11px] opacity-80">{{ $summary->sitesVisited }} de {{ $summary->sitesContracted }} puesto-día con revista</p>
         </div>
         <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+            <p class="text-[10px] uppercase tracking-wide text-slate-500">Puestos cumplidos</p>
+            <p class="text-2xl font-semibold text-white tabular-nums">{{ $summary->postsDone }} <span class="text-sm font-normal text-slate-500">de {{ $summary->postsTotal }}</span></p>
+            <p class="text-[11px] text-slate-500">{{ $summary->postsTotal - $summary->postsDone }} con pendientes</p>
+        </div>
+        <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
             <p class="text-[10px] uppercase tracking-wide text-slate-500">Revistas</p>
             <p class="text-2xl font-semibold text-white tabular-nums">{{ $summary->reviews }}</p>
+            <p class="text-[11px] {{ $summary->reviewsWithNovelty > 0 ? 'text-orange-300' : 'text-slate-500' }}">{{ $summary->reviewsWithNovelty }} con novedad</p>
         </div>
         <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
             <p class="text-[10px] uppercase tracking-wide text-slate-500">Km recorridos</p>
@@ -25,6 +31,19 @@
             <p class="text-[11px] text-slate-500">B {{ $summary->recommendations['low'] }} · M {{ $summary->recommendations['medium'] }} · A {{ $summary->recommendations['high'] }} · E {{ $summary->recommendations['extreme'] }}</p>
         </div>
     </div>
+
+    @if ($summary->alerts !== [])
+        <div class="flex flex-wrap items-center gap-2">
+            <span class="text-[11px] font-medium uppercase tracking-wide text-slate-500">Atención</span>
+            @foreach ($summary->alerts as $alert)
+                <span @class([
+                    'rounded-full border px-2.5 py-0.5 text-[11px] font-medium',
+                    'border-red-500/40 bg-red-500/15 text-red-300' => $alert['level'] === 'red',
+                    'border-amber-500/40 bg-amber-500/15 text-amber-300' => $alert['level'] !== 'red',
+                ])>{{ $alert['text'] }}</span>
+            @endforeach
+        </div>
+    @endif
 
     <div class="grid lg:grid-cols-3 gap-3">
         <div class="rounded-lg border border-slate-800 bg-slate-900/80 p-3">
@@ -102,71 +121,117 @@
         </div>
     </div>
 
-    <div class="grid md:grid-cols-2 gap-4">
-        <div class="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
-            <h3 class="text-sm font-semibold text-white">Por supervisor</h3>
-            <div class="mt-3 max-h-56 overflow-y-auto">
-                <table class="w-full text-sm">
-                    <thead class="text-[11px] uppercase text-slate-500 sticky top-0 bg-slate-900">
-                        <tr>
-                            <th class="text-left font-medium py-1">Supervisor</th>
-                            <th class="text-right font-medium py-1">Rev.</th>
-                            <th class="text-right font-medium py-1">Km</th>
-                            <th class="text-right font-medium py-1">Registros</th>
-                        </tr>
-                    </thead>
-                    <tbody class="text-slate-300">
-                        @forelse ($summary->bySupervisor as $row)
-                            <tr class="border-t border-slate-800">
-                                <td class="py-1.5 pr-2">{{ $row['name'] }}</td>
-                                <td class="py-1.5 text-right tabular-nums">{{ $row['reviews'] }}</td>
-                                <td class="py-1.5 text-right tabular-nums">{{ $row['km'] }}</td>
-                                <td class="py-1.5 text-right tabular-nums text-slate-500">{{ $row['logs'] }}</td>
-                            </tr>
-                        @empty
-                            <tr><td colspan="4" class="py-4 text-slate-500">Sin actividad en el periodo.</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+    @php
+        $statusRow = [
+            'red' => 'bg-red-500/10 hover:bg-red-500/15',
+            'amber' => 'bg-amber-500/10 hover:bg-amber-500/15',
+            'green' => 'bg-emerald-500/10 hover:bg-emerald-500/15',
+        ];
+        $statusDot = ['red' => 'bg-red-500', 'amber' => 'bg-amber-400', 'green' => 'bg-emerald-400'];
+        $statusCount = collect($summary->byClient)->countBy('status');
+    @endphp
+    <div class="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
+        <div class="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 class="text-sm font-semibold text-white">Clientes · {{ count($summary->byClient) }}</h3>
+            <p class="flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
+                <span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-red-500"></span>Sin revista ({{ $statusCount['red'] ?? 0 }})</span>
+                <span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-amber-400"></span>Con pendientes ({{ $statusCount['amber'] ?? 0 }})</span>
+                <span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-emerald-400"></span>Cumplido ({{ $statusCount['green'] ?? 0 }})</span>
+                <span class="text-slate-500">Clic en un cliente: puestos pendientes.</span>
+            </p>
         </div>
-        <div class="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
-            <h3 class="text-sm font-semibold text-white">Sitios</h3>
-            <div class="mt-3 max-h-56 overflow-y-auto">
-                <table class="w-full text-sm">
-                    <thead class="text-[11px] uppercase text-slate-500 sticky top-0 bg-slate-900">
-                        <tr>
-                            <th class="text-left font-medium py-1">Cliente</th>
-                            <th class="text-right font-medium py-1">Rev.</th>
-                            <th class="text-right font-medium py-1">Novedad</th>
+        <div class="mt-3 max-h-[26rem] overflow-y-auto">
+            <table class="w-full text-xs">
+                <thead class="text-[10px] uppercase text-slate-500 sticky top-0 z-10 bg-slate-900">
+                    <tr>
+                        <th class="text-left font-medium py-1.5 pl-2">Cliente</th>
+                        <th class="text-right font-medium py-1.5">Instalaciones</th>
+                        <th class="text-right font-medium py-1.5">Puestos</th>
+                        <th class="text-right font-medium py-1.5">Cumplidos</th>
+                        <th class="text-right font-medium py-1.5">Revistas</th>
+                        <th class="text-right font-medium py-1.5">Novedad</th>
+                        <th class="text-right font-medium py-1.5 pr-2">%</th>
+                    </tr>
+                </thead>
+                @forelse ($summary->byClient as $row)
+                    <tbody x-data="{ open: false }" class="text-slate-300">
+                        <tr class="border-t border-slate-800/80 {{ $statusRow[$row['status']] }} {{ $row['pending'] !== [] ? 'cursor-pointer' : '' }}"
+                            @if ($row['pending'] !== []) @click="open = !open" @endif>
+                            <td class="py-1.5 pl-2 pr-2">
+                                <span class="inline-flex items-center gap-2">
+                                    <span class="h-2 w-2 shrink-0 rounded-full {{ $statusDot[$row['status']] }}"></span>
+                                    <span class="text-slate-100">{{ $row['name'] }}</span>
+                                    @if ($row['pending'] !== [])
+                                        <svg class="h-3 w-3 text-slate-500 transition-transform" :class="open && 'rotate-90'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                                    @endif
+                                </span>
+                            </td>
+                            <td class="py-1.5 text-right tabular-nums">{{ $row['installations'] }}</td>
+                            <td class="py-1.5 text-right tabular-nums">{{ $row['posts'] }}</td>
+                            <td class="py-1.5 text-right tabular-nums">{{ $row['posts_done'] }}</td>
+                            <td class="py-1.5 text-right tabular-nums">{{ $row['reviews'] }}</td>
+                            <td class="py-1.5 text-right tabular-nums {{ $row['novelty'] > 0 ? 'text-orange-300 font-medium' : 'text-slate-500' }}">{{ $row['novelty'] }}</td>
+                            <td class="py-1.5 pr-2 text-right tabular-nums">{{ $row['percent'] !== null ? number_format($row['percent'], 0).'%' : '—' }}</td>
                         </tr>
-                    </thead>
-                    <tbody class="text-slate-300">
-                        @forelse ($summary->byClient as $row)
-                            <tr class="border-t border-slate-800">
-                                <td class="py-1.5 pr-2">{{ $row['name'] }}</td>
-                                <td class="py-1.5 text-right tabular-nums">{{ $row['reviews'] }}</td>
-                                <td class="py-1.5 text-right tabular-nums">{{ $row['novelty'] }}</td>
+                        @if ($row['pending'] !== [])
+                            <tr x-show="open" x-cloak>
+                                <td colspan="7" class="bg-slate-950/60 px-4 py-2">
+                                    <ul class="grid gap-x-6 gap-y-0.5 sm:grid-cols-2 lg:grid-cols-3 text-[11px] text-slate-400">
+                                        @foreach ($row['pending'] as $pending)
+                                            <li>
+                                                <span class="text-slate-500">{{ $pending['installation'] }} ·</span>
+                                                <span class="text-slate-200">{{ $pending['post'] }}</span>
+                                                @if ($pending['expected'] > 1)
+                                                    <span class="text-amber-300/90">· faltan {{ $pending['missing'] }} de {{ $pending['expected'] }} días</span>
+                                                @endif
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </td>
                             </tr>
-                        @empty
-                            <tr><td colspan="3" class="py-4 text-slate-500">Sin actividad por sitio.</td></tr>
-                        @endforelse
+                        @endif
                     </tbody>
-                </table>
-            </div>
-            @if ($summary->unvisitedSites !== [])
-                <p class="mt-3 text-[11px] text-amber-200/80">Puestos con revistas pendientes ({{ count($summary->unvisitedSites) }}): {{ implode(', ', array_slice($summary->unvisitedSites, 0, 8)) }}{{ count($summary->unvisitedSites) > 8 ? '…' : '' }}</p>
-            @endif
+                @empty
+                    <tbody>
+                        <tr><td colspan="7" class="py-4 text-slate-500">Sin puestos con servicio en el periodo.</td></tr>
+                    </tbody>
+                @endforelse
+            </table>
         </div>
     </div>
 
     <div class="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
-        <h3 class="text-sm font-semibold text-white">Alertas</h3>
-        <ul class="mt-3 space-y-2 text-sm text-slate-300 max-h-40 overflow-y-auto">
-            @foreach ($summary->alerts as $alert)
-                <li>{{ $alert }}</li>
-            @endforeach
-        </ul>
+        <h3 class="text-sm font-semibold text-white">Por supervisor · {{ count($summary->bySupervisor) }}</h3>
+        <div class="mt-3 max-h-72 overflow-y-auto">
+            <table class="w-full text-xs">
+                <thead class="text-[10px] uppercase text-slate-500 sticky top-0 bg-slate-900">
+                    <tr>
+                        <th class="text-left font-medium py-1.5">Supervisor</th>
+                        <th class="text-right font-medium py-1.5">Turnos</th>
+                        <th class="text-right font-medium py-1.5">Revistas</th>
+                        <th class="text-right font-medium py-1.5">Km</th>
+                        <th class="text-right font-medium py-1.5">Alarmas</th>
+                        <th class="text-right font-medium py-1.5">Apoyos</th>
+                        <th class="text-right font-medium py-1.5">Registros</th>
+                    </tr>
+                </thead>
+                <tbody class="text-slate-300">
+                    @forelse ($summary->bySupervisor as $row)
+                        <tr class="border-t border-slate-800">
+                            <td class="py-1.5 pr-2 text-slate-100">{{ $row['name'] }}</td>
+                            <td class="py-1.5 text-right tabular-nums">{{ $row['shifts'] }}</td>
+                            <td class="py-1.5 text-right tabular-nums">{{ $row['reviews'] }}</td>
+                            <td class="py-1.5 text-right tabular-nums">{{ $row['km'] }}</td>
+                            <td class="py-1.5 text-right tabular-nums">{{ $row['alarms'] }}</td>
+                            <td class="py-1.5 text-right tabular-nums">{{ $row['supports'] }}</td>
+                            <td class="py-1.5 text-right tabular-nums text-slate-500">{{ $row['logs'] }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="7" class="py-4 text-slate-500">Sin actividad en el periodo.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
     </div>
 </section>
 

@@ -7,13 +7,24 @@ namespace App\Domain\Supervision\Data;
 final readonly class SupervisionPeriodSnapshot
 {
     /**
-     * @param  list<array{name: string, reviews: int, km: int, logs: int}>  $bySupervisor
-     * @param  list<array{name: string, reviews: int, novelty: int}>  $byClient
+     * @param  list<array{name: string, shifts: int, reviews: int, km: int, logs: int, alarms: int, supports: int}>  $bySupervisor
+     * @param  list<array{
+     *     name: string,
+     *     status: string,
+     *     installations: int,
+     *     posts: int,
+     *     posts_done: int,
+     *     expected: int,
+     *     done: int,
+     *     percent: ?float,
+     *     reviews: int,
+     *     novelty: int,
+     *     pending: list<array{installation: string, post: string, missing: int, expected: int}>
+     * }>  $byClient  Ordenado rojo → ámbar → verde y alfabético.
      * @param  array<string, array{label: string, total: int, ok: int, attention: int, critical: int}>  $modules
      * @param  array{total: int, low: int, medium: int, high: int, extreme: int}  $recommendations
      * @param  array<string, mixed>  $charts
-     * @param  list<string>  $unvisitedSites
-     * @param  list<string>  $alerts
+     * @param  list<array{level: string, text: string}>  $alerts  Solo lo que pide acción; vacío si no hay nada.
      */
     public function __construct(
         public string $companyName,
@@ -21,8 +32,11 @@ final readonly class SupervisionPeriodSnapshot
         public string $to,
         public string $caption,
         public int $reviews,
+        public int $reviewsWithNovelty,
         public int $sitesContracted,
         public int $sitesVisited,
+        public int $postsTotal,
+        public int $postsDone,
         public int $kmTraveled,
         public int $openShifts,
         public int $fieldLogs,
@@ -33,7 +47,6 @@ final readonly class SupervisionPeriodSnapshot
         public array $modules,
         public array $recommendations,
         public array $charts,
-        public array $unvisitedSites,
         public array $alerts,
     ) {}
 }
