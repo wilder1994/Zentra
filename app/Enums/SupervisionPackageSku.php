@@ -11,7 +11,7 @@ use Stringable;
 use ValueError;
 
 /**
- * Cupo de Supervisión: `sup_{clientes}`. El plan (metal) sale de la cantidad.
+ * Cupo de Supervisión: `sup_{instalaciones}`. El plan (metal) sale de la cantidad.
  * `sup_unlimited` (legado) se lee como 100. Las instancias se reutilizan, así `===` compara por valor.
  */
 final class SupervisionPackageSku implements Castable, JsonSerializable, Stringable
@@ -72,7 +72,7 @@ final class SupervisionPackageSku implements Castable, JsonSerializable, Stringa
 
     public function label(): string
     {
-        $sites = $this->size === 1 ? '1 cliente' : "{$this->size} clientes";
+        $sites = $this->size === 1 ? '1 instalación' : "{$this->size} instalaciones";
 
         return "{$this->metal()->label()} · {$sites} · Supervisión";
     }
