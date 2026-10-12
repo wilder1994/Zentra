@@ -107,7 +107,7 @@ final class ExportSupervisionExecutiveReportService
         $ink = $snapshot->semaphore === 'neutral' ? self::INK : self::NAVY;
 
         $boxes = [
-            [$coverage, 'Cobertura de sitios', $fill, $ink],
+            [$coverage, 'Cumplimiento por puesto', $fill, $ink],
             [(string) $snapshot->reviews, 'Revistas', self::CARD, self::INK],
             [(string) $snapshot->kmTraveled, 'Km recorridos', self::CARD, self::GOLD],
             [(string) $snapshot->recommendations['total'], 'Recomendaciones', self::CARD, self::INK],
@@ -128,8 +128,8 @@ final class ExportSupervisionExecutiveReportService
         }
 
         $detail = $snapshot->sitesContracted > 0
-            ? 'Sitios visitados '.$snapshot->sitesVisited.' de '.$snapshot->sitesContracted.'. Umbral verde ≥ 90 %, amarillo ≥ 70 %.'
-            : 'No hay sitios con línea de Supervisión en este periodo.';
+            ? 'Revistas cumplidas por puesto y día operativo (06:00–06:00): '.$snapshot->sitesVisited.' de '.$snapshot->sitesContracted.'. Umbral verde ≥ 90 %, amarillo ≥ 70 %.'
+            : 'No hay puestos con servicio programado en este periodo.';
         $this->text($slide, $detail, 40, 280, 880, 50, 14, self::MUTED);
         $this->text(
             $slide,
@@ -254,8 +254,8 @@ final class ExportSupervisionExecutiveReportService
         $this->heading($slide, 'Sitios y recomendaciones', $snapshot->caption);
 
         $unvisited = $snapshot->unvisitedSites === []
-            ? 'Todos los sitios con Supervisión tienen al menos una revista en el periodo.'
-            : 'Sin revista: '.implode(', ', array_slice($snapshot->unvisitedSites, 0, 12));
+            ? 'Todos los puestos tienen revista en cada día de servicio del periodo.'
+            : 'Puestos con revistas pendientes ('.count($snapshot->unvisitedSites).'): '.implode(', ', array_slice($snapshot->unvisitedSites, 0, 12));
         $this->text($slide, $unvisited, 40, 110, 880, 80, 14, self::INK);
 
         $recs = 'Recomendaciones — '.$snapshot->recommendations['total']

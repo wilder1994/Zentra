@@ -7,9 +7,9 @@
 <section class="space-y-4">
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div class="rounded-lg border p-3 {{ $semaphoreClass }}">
-            <p class="text-[10px] uppercase tracking-wide">Cobertura de sitios</p>
+            <p class="text-[10px] uppercase tracking-wide">Cumplimiento por puesto</p>
             <p class="text-2xl font-semibold tabular-nums">{{ $summary->coveragePercent !== null ? number_format($summary->coveragePercent, 1).'%' : '—' }}</p>
-            <p class="text-[11px] opacity-80">{{ $summary->sitesVisited }}/{{ $summary->sitesContracted }} clientes con Supervisión</p>
+            <p class="text-[11px] opacity-80">{{ $summary->sitesVisited }} de {{ $summary->sitesContracted }} puesto-día con revista</p>
         </div>
         <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
             <p class="text-[10px] uppercase tracking-wide text-slate-500">Revistas</p>
@@ -155,7 +155,7 @@
                 </table>
             </div>
             @if ($summary->unvisitedSites !== [])
-                <p class="mt-3 text-[11px] text-amber-200/80">Sin revista: {{ implode(', ', array_slice($summary->unvisitedSites, 0, 8)) }}</p>
+                <p class="mt-3 text-[11px] text-amber-200/80">Puestos con revistas pendientes ({{ count($summary->unvisitedSites) }}): {{ implode(', ', array_slice($summary->unvisitedSites, 0, 8)) }}{{ count($summary->unvisitedSites) > 8 ? '…' : '' }}</p>
             @endif
         </div>
     </div>

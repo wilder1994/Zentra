@@ -10,6 +10,8 @@ Revista 80 m + historial limpio (11 oct 2026): radio de revista `SupervisorRevie
 
 Paradas en historial + km GPS (11 oct 2026): `/company/supervision/turnos/{shift}/ruta` devuelve `stops`, `start`, `end`, `km`; el historial pinta paradas (≥ 2 min en 75 m). Cierre por el sistema guarda `km_traveled` por GPS si no hay km de odómetro. Turnos viejos: `php artisan supervision:backfill-gps-km`. Pull + `npm run build` + `view:cache` + `config:cache` + `route:cache` + backfill. Sin migrate ni APK.
 
+Cumplimiento por puesto (12 oct 2026): migrate `2026_10_12_010000` (`supervisor_posts.service_days` máscara Lun..Dom, `serves_holidays`). Un puesto activo espera ≥ 1 revista por día operativo (06:00–06:00) en sus días de servicio; festivos de Colombia calculados en `ColombiaHolidays`. `BuildPostComplianceService` alimenta mapa en vivo (Clientes/Instalaciones, interruptor Pendientes, pin con número, aviso de instalaciones sin ubicación), tira del día, Resumen, PPTX y panel Mi empresa. Pull + `migrate --force` + `npm run build` + `config:cache` + `route:cache` + `view:cache`. Sin APK.
+
 Catálogo comercial (29 sep 2026): migrate `2026_09_29_010000` (`pricing_settings.catalog`, `has_indexing`, `has_observatory`). Pull + `migrate --force` + `npm run build` + `view:cache` + `route:cache`. Artisan como `wcodex-zentra`.
 
 Sitio público: [https://zentra.wcodex.cloud](https://zentra.wcodex.cloud)

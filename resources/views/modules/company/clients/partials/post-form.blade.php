@@ -7,6 +7,8 @@
     if ($selectedHours > 0 && ! isset($postModalities[$selectedHours])) {
         $postModalities[$selectedHours] = $selectedHours.' h';
     }
+    $selectedDays = array_map('intval', (array) old('service_days', $post?->serviceDayList() ?? [1, 2, 3, 4, 5, 6, 7]));
+    $servesHolidays = (bool) old('serves_holidays', $post?->serves_holidays ?? true);
     $installations = $installations ?? collect();
     $installation = $installation ?? null;
     $returnTo = $returnTo ?? null;
@@ -70,6 +72,35 @@
         </select>
     </div>
 
+    <div class="sm:col-span-2" x-data="{ days: @js($selectedDays), set(list) { this.days = list } }">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+            <label class="block text-[11px] text-slate-500">Días de servicio</label>
+            <div class="flex gap-1">
+                <button type="button" @click="set([1,2,3,4,5,6,7])" class="rounded-md border border-slate-700 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-slate-800">Lun a Dom</button>
+                <button type="button" @click="set([1,2,3,4,5])" class="rounded-md border border-slate-700 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-slate-800">Lun a Vie</button>
+                <button type="button" @click="set([1,2,3,4,5,6])" class="rounded-md border border-slate-700 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-slate-800">Lun a Sáb</button>
+            </div>
+        </div>
+        <div class="flex flex-wrap gap-1">
+            @foreach (\App\Models\SupervisorPost::DAY_LABELS as $iso => $dayLabel)
+                <label class="cursor-pointer">
+                    <input type="checkbox" name="service_days[]" value="{{ $iso }}" x-model.number="days" class="peer sr-only">
+                    <span class="inline-flex min-w-[2.6rem] justify-center rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-400 peer-checked:border-indigo-500 peer-checked:bg-indigo-600/30 peer-checked:text-white">{{ $dayLabel }}</span>
+                </label>
+            @endforeach
+        </div>
+        <div class="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-slate-300">
+            <span class="text-slate-500">¿Presta servicio en festivos?</span>
+            <label class="inline-flex items-center gap-1">
+                <input type="radio" name="serves_holidays" value="1" @checked($servesHolidays) class="border-slate-700 {{ $check }}"> Sí
+            </label>
+            <label class="inline-flex items-center gap-1">
+                <input type="radio" name="serves_holidays" value="0" @checked(! $servesHolidays) class="border-slate-700 {{ $check }}"> No
+            </label>
+        </div>
+        <p class="mt-1 text-[11px] text-slate-500">Cada día de servicio espera al menos una revista (de 06:00 a 06:00). Los días sin servicio no cuentan para el cumplimiento.</p>
+    </div>
+
     <div class="sm:col-span-2 space-y-2" x-data="postEmployeePicker(@js($pickerConfig))" @click.outside="open = false">
         <label class="block text-[11px] text-slate-500">Vigilantes</label>
         <div class="flex flex-wrap gap-1">
@@ -124,7 +155,7 @@
         <label class="block text-[11px] text-slate-500 mb-1">Lng. puesto (opcional)</label>
         <input type="text" name="longitude" value="{{ old('longitude', $post?->longitude) }}" placeholder="Sin pin propio" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-2 py-1.5 text-xs text-white">
     </div>
-    <p class="sm:col-span-2 text-[11px] text-slate-500">Crear o editar el puesto no pide GPS. La revista sí: 40 m del pin del puesto o, si no hay, de la instalación. Un pin lejos de la sede se anota; no se bloquea el alta.</p>
+    <p class="sm:col-span-2 text-[11px] text-slate-500">Crear o editar el puesto no pide GPS. La revista sí: {{ \App\Support\Supervision\SupervisorReviewGeofence::RADIUS_METERS }} m del pin del puesto o, si no hay, de la instalación. Un pin lejos de la sede se anota; no se bloquea el alta.</p>
 
     <div class="sm:col-span-2">
         <label class="block text-[11px] text-slate-500 mb-1">Observaciones @if ($isEdit)<span class="text-slate-600">(obligatorio si el servicio ya está armado)</span>@else<span class="text-slate-600">(opcional en el alta)</span>@endif</label>

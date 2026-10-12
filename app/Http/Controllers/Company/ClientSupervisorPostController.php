@@ -29,6 +29,7 @@ final class ClientSupervisorPostController extends Controller
                 'installation_id' => (int) $request->validated('installation_id'),
                 'name' => $request->validated('name'),
                 'modality' => (int) $request->validated('modality'),
+                ...$this->schedule($request),
                 'is_active' => $request->boolean('is_active', true),
                 'employee_ids' => $request->validated('employee_ids') ?? [],
                 'observations' => $request->validated('observations'),
@@ -56,6 +57,7 @@ final class ClientSupervisorPostController extends Controller
                 'installation_id' => (int) $request->validated('installation_id'),
                 'name' => $request->validated('name'),
                 'modality' => (int) $request->validated('modality'),
+                ...$this->schedule($request),
                 'is_active' => $request->boolean('is_active'),
                 'employee_ids' => $request->validated('employee_ids') ?? [],
                 'observations' => $request->validated('observations'),
@@ -91,6 +93,20 @@ final class ClientSupervisorPostController extends Controller
         }
 
         return $this->backToClient($client, $request, 'Puesto eliminado.');
+    }
+
+    /** @return array{service_days?: int, serves_holidays?: bool} */
+    private function schedule(StoreClientSupervisorPostRequest $request): array
+    {
+        $out = [];
+        if ($request->has('service_days')) {
+            $out['service_days'] = SupervisorPost::daysMask((array) $request->validated('service_days'));
+        }
+        if ($request->has('serves_holidays')) {
+            $out['serves_holidays'] = $request->boolean('serves_holidays');
+        }
+
+        return $out;
     }
 
     private function optionalCoord(StoreClientSupervisorPostRequest $request, string $key): ?float

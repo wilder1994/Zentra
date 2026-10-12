@@ -20,15 +20,26 @@ final class SupervisorPost extends Model
         'installation_id',
         'name',
         'modality',
+        'service_days',
+        'serves_holidays',
         'is_active',
         'latitude',
         'longitude',
     ];
 
+    public const ALL_DAYS = 127;
+
+    public const WEEKDAYS = 31;
+
+    /** @var array<int, string> ISO 1 = lunes */
+    public const DAY_LABELS = [1 => 'Lun', 2 => 'Mar', 3 => 'Mié', 4 => 'Jue', 5 => 'Vie', 6 => 'Sáb', 7 => 'Dom'];
+
     protected function casts(): array
     {
         return [
             'modality' => 'integer',
+            'service_days' => 'integer',
+            'serves_holidays' => 'boolean',
             'is_active' => 'boolean',
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
@@ -54,6 +65,56 @@ final class SupervisorPost extends Model
         }
 
         return $hours.' h';
+    }
+
+    /** @param list<int> $isoDays */
+    public static function daysMask(array $isoDays): int
+    {
+        $mask = 0;
+        foreach ($isoDays as $day) {
+            $day = (int) $day;
+            if ($day >= 1 && $day <= 7) {
+                $mask |= 1 << ($day - 1);
+            }
+        }
+
+        return $mask;
+    }
+
+    /** @return list<int> */
+    public function serviceDayList(): array
+    {
+        $mask = (int) ($this->service_days ?? self::ALL_DAYS);
+
+        return array_values(array_filter(range(1, 7), fn (int $d) => ($mask & (1 << ($d - 1))) !== 0));
+    }
+
+    public function servesOnDay(int $isoDay): bool
+    {
+        return (((int) ($this->service_days ?? self::ALL_DAYS)) & (1 << ($isoDay - 1))) !== 0;
+    }
+
+    /** Si el puesto espera revista en ese día operativo. */
+    public function expectsReviewOn(\Carbon\CarbonInterface $date): bool
+    {
+        if (! $this->servesOnDay((int) $date->isoWeekday())) {
+            return false;
+        }
+
+        return $this->serves_holidays !== false || ! \App\Support\Supervision\ColombiaHolidays::isHoliday($date);
+    }
+
+    public function serviceDaysLabel(): string
+    {
+        $mask = (int) ($this->service_days ?? self::ALL_DAYS);
+        $days = match ($mask) {
+            self::ALL_DAYS => 'Lun a Dom',
+            self::WEEKDAYS => 'Lun a Vie',
+            63 => 'Lun a Sáb',
+            default => implode(', ', array_map(fn (int $d) => self::DAY_LABELS[$d], $this->serviceDayList())) ?: 'Sin días',
+        };
+
+        return $days.' · '.($this->serves_holidays === false ? 'sin festivos' : 'con festivos');
     }
 
     public function installation(): BelongsTo

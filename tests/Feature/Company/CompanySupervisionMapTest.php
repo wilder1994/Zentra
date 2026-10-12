@@ -86,7 +86,7 @@ final class CompanySupervisionMapTest extends TestCase
 
         $summary = $this->actingAs($user)->get(route('company.supervision.index', ['tab' => 'summary']));
         $summary->assertOk();
-        $summary->assertSee('Cobertura de sitios');
+        $summary->assertSee('Cumplimiento por puesto');
         $summary->assertSee('Revistas');
         $summary->assertSee('Descargar PPTX');
         $summary->assertSee('Hoy');

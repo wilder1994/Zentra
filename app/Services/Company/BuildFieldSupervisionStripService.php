@@ -6,13 +6,12 @@ namespace App\Services\Company;
 
 use App\Enums\SupervisorFieldOutcome;
 use App\Enums\SupervisorShiftStatus;
-use App\Models\Client;
 use App\Models\SecurityCompany;
 use App\Models\SupervisorFieldLog;
-use App\Models\SupervisorPost;
 use App\Models\SupervisorRecommendation;
 use App\Models\SupervisorShift;
 use App\Models\SupervisorShiftReview;
+use App\Support\Supervision\SupervisionOperationalDay;
 
 final class BuildFieldSupervisionStripService
 {
@@ -24,19 +23,14 @@ final class BuildFieldSupervisionStripService
         }
 
         $companyId = (int) $company->id;
-        $from = now()->startOfDay();
-        $to = now()->endOfDay();
+        $date = SupervisionOperationalDay::dateFor();
+        [$from, $to] = SupervisionOperationalDay::window($date);
+        $to = $to->subSecond();
 
-        $contracted = Client::query()
-            ->where('security_company_id', $companyId)
-            ->where('has_supervision', true)
-            ->count();
-
-        $visited = (int) SupervisorShiftReview::query()
-            ->whereHas('shift', fn ($q) => $q->where('security_company_id', $companyId))
-            ->whereBetween('recorded_at', [$from, $to])
-            ->selectRaw('count(distinct client_id) as aggregate')
-            ->value('aggregate');
+        $rows = app(BuildPostComplianceService::class)->day($companyId, $date);
+        $expectedRows = array_filter($rows, fn (array $row) => $row['expected']);
+        $contracted = count($expectedRows);
+        $visited = count(array_filter($expectedRows, fn (array $row) => $row['done']));
 
         $openShifts = SupervisorShift::query()
             ->where('security_company_id', $companyId)
@@ -75,13 +69,7 @@ final class BuildFieldSupervisionStripService
             'recommendations_today' => $recsToday,
             'attention_today' => $attention,
             'km_today' => $km,
-            'posts_count' => SupervisorPost::query()
-                ->whereHas('client', function ($q) use ($companyId): void {
-                    $q->where('security_company_id', $companyId)
-                        ->where('has_supervision', true);
-                })
-                ->where('is_active', true)
-                ->count(),
+            'posts_count' => count($rows),
         ];
     }
 }

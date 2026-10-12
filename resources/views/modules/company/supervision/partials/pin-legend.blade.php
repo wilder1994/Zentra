@@ -10,8 +10,14 @@
     <span class="inline-flex items-center gap-1.5"><span class="inline-block h-2.5 w-2.5 rounded-full bg-sky-400 ring-1 ring-slate-900"></span>Apoyo</span>
     <span class="inline-flex items-center gap-1.5"><span class="inline-block h-2.5 w-2.5 rounded-full bg-amber-400 ring-1 ring-slate-900"></span>Alarma</span>
     <span class="inline-flex items-center gap-1.5"><span class="inline-block h-2.5 w-2.5 rounded-full bg-purple-400 ring-1 ring-slate-900"></span>Parada</span>
-    <span class="inline-flex items-center gap-1.5"><span class="inline-block h-2.5 w-2.5 rounded-full bg-indigo-500 ring-1 ring-slate-900"></span>Cliente</span>
-    <span class="inline-flex items-center gap-1.5"><span class="inline-block h-2.5 w-2.5 rounded-full bg-cyan-400 ring-1 ring-slate-900"></span>Instalación</span>
+    @if (($live ?? false) === true)
+        <span class="inline-flex items-center gap-1.5"><span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-green-600 text-[9px] font-bold text-white ring-1 ring-slate-900">3</span>Puestos revisados</span>
+        <span class="inline-flex items-center gap-1.5"><span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white ring-1 ring-slate-900">2</span>Revisión parcial</span>
+        <span class="inline-flex items-center gap-1.5 col-span-2"><span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[9px] font-bold text-white ring-1 ring-slate-900">4</span>Pendiente por revista (número = puestos)</span>
+    @else
+        <span class="inline-flex items-center gap-1.5"><span class="inline-block h-2.5 w-2.5 rounded-full bg-indigo-500 ring-1 ring-slate-900"></span>Cliente</span>
+        <span class="inline-flex items-center gap-1.5"><span class="inline-block h-2.5 w-2.5 rounded-full bg-cyan-400 ring-1 ring-slate-900"></span>Instalación</span>
+    @endif
     <span class="inline-flex items-center gap-1.5"><span class="inline-block h-2.5 w-2.5 rounded-full bg-emerald-300 ring-1 ring-slate-900"></span>En línea</span>
     <span class="inline-flex items-center gap-1.5"><span class="inline-block h-2.5 w-2.5 rounded-full bg-amber-400 ring-1 ring-slate-900"></span>Pantalla apagada</span>
     <span class="inline-flex items-center gap-1.5 col-span-2"><span class="inline-block h-2.5 w-2.5 rounded-full bg-red-300 ring-1 ring-slate-900"></span>Sin señal (más de 90 s sin GPS)</span>

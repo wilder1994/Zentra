@@ -32,6 +32,8 @@ final class ManageSupervisorPostService
             'installation_id' => $installation->id,
             'name' => $name,
             'modality' => $hours,
+            'service_days' => $this->validDays((int) ($data['service_days'] ?? SupervisorPost::ALL_DAYS)),
+            'serves_holidays' => (bool) ($data['serves_holidays'] ?? true),
             'is_active' => (bool) ($data['is_active'] ?? true),
             'latitude' => $data['latitude'] ?? null,
             'longitude' => $data['longitude'] ?? null,
@@ -47,7 +49,7 @@ final class ManageSupervisorPostService
                 $client,
                 $installation,
                 $post,
-                'Alta de puesto «'.$post->name.'» · '.$post->modalityLabel().' · '.$installation->name,
+                'Alta de puesto «'.$post->name.'» · '.$post->modalityLabel().' · '.$post->serviceDaysLabel().' · '.$installation->name,
                 $data['observations'] ?? null,
                 ['action' => 'created'],
             );
@@ -70,6 +72,7 @@ final class ManageSupervisorPostService
         $oldName = $post->name;
         $oldHours = (int) $post->modality;
         $oldActive = (bool) $post->is_active;
+        $oldSchedule = $post->serviceDaysLabel();
         $oldInstallationId = (int) $post->installation_id;
         $oldInstallationName = $post->installation?->name ?? '—';
         $oldStaff = $post->employees->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all();
@@ -100,6 +103,14 @@ final class ManageSupervisorPostService
             $post->is_active = (bool) $data['is_active'];
         }
 
+        if (array_key_exists('service_days', $data)) {
+            $post->service_days = $this->validDays((int) $data['service_days']);
+        }
+
+        if (array_key_exists('serves_holidays', $data)) {
+            $post->serves_holidays = (bool) $data['serves_holidays'];
+        }
+
         if (array_key_exists('latitude', $data) || array_key_exists('longitude', $data)) {
             $post->latitude = $data['latitude'] ?? null;
             $post->longitude = $data['longitude'] ?? null;
@@ -125,6 +136,9 @@ final class ManageSupervisorPostService
         }
         if (isset($data['installation_id']) && (int) $post->installation_id !== $oldInstallationId) {
             $parts[] = 'Instalación '.$oldInstallationName.' → '.($post->installation?->name ?? '—');
+        }
+        if ($post->serviceDaysLabel() !== $oldSchedule) {
+            $parts[] = 'Días '.$oldSchedule.' → '.$post->serviceDaysLabel();
         }
         if (array_key_exists('is_active', $data) && (bool) $post->is_active !== $oldActive) {
             $parts[] = $post->is_active ? 'Reactivado' : 'Inactivado';
@@ -177,6 +191,18 @@ final class ManageSupervisorPostService
         if ($client instanceof Client && $installation instanceof Installation) {
             $this->recordChange($client, $installation, $post, $label, $observations, ['action' => 'deleted']);
         }
+    }
+
+    private function validDays(int $mask): int
+    {
+        $mask &= SupervisorPost::ALL_DAYS;
+        if ($mask === 0) {
+            throw ValidationException::withMessages([
+                'service_days' => 'Elige al menos un día de servicio.',
+            ]);
+        }
+
+        return $mask;
     }
 
     private function assertClientCanHavePosts(Client $client): void

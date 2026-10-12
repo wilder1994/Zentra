@@ -57,6 +57,10 @@ No hay usuario supervisor de semilla. El supervisor se crea en **Usuarios** a pa
 
 Sin puestos de Supervisión en la ficha del cliente no se guarda revista. Los `locations` (puertas) no entran en el combo.
 
+**Cumplimiento por puesto:** la unidad es el **puesto** (cliente → instalación → puesto), no el cliente. Cada puesto activo espera **al menos una revista por día operativo** (06:00 a 06:00 del día siguiente; la fecha es la del inicio) en sus **días de servicio** (Lun..Dom, atajos Lun a Vie / Lun a Sáb) y, si es festivo de Colombia, solo si «¿Presta servicio en festivos?» = Sí. Revistas en días sin servicio se guardan pero no cuentan. Un periodo espera puestos × días de servicio. Lo usan el mapa en vivo, la tira del día, Resumen/PPTX y el panel Mi empresa (`BuildPostComplianceService`).
+
+**Mapa en vivo:** sin clientes de fondo. Vista general: motos, revistas/eventos de los turnos abiertos y pines de cliente o instalación (selector **Clientes | Instalaciones**) con el número de puestos revisados dentro (verde todos, ámbar parcial). Interruptor **Pendientes**: solo puntos con puestos sin revista, número = pendientes (rojo ninguno revisado). Hover/clic: instalaciones, puestos, revisados, pendientes y lista de puestos sin revista. Clic en un supervisor (fila o «Mapa»): solo su recorrido en vivo; **Ver todos** vuelve. Instalaciones sin coordenadas: aviso para registrar su ubicación.
+
 ---
 
 ## Offline (sin cobertura)

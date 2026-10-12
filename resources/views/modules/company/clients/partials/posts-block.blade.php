@@ -12,7 +12,7 @@
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <p class="text-sm text-slate-200">
                     {{ $post->name }}
-                    <span class="text-[10px] text-slate-400">{{ $post->modalityLabel() }}</span>
+                    <span class="text-[10px] text-slate-400">{{ $post->modalityLabel() }} · {{ $post->serviceDaysLabel() }}</span>
                     @if ($post->employees->isNotEmpty())
                         <span class="text-[10px] text-slate-500">· {{ $post->employees->map->fullName()->join(', ') }}</span>
                     @endif

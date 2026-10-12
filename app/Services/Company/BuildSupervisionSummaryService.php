@@ -10,7 +10,6 @@ use App\Enums\SupervisorFieldModule;
 use App\Enums\SupervisorFieldOutcome;
 use App\Enums\SupervisorRiskLevel;
 use App\Enums\SupervisorShiftStatus;
-use App\Models\Client;
 use App\Models\SecurityCompany;
 use App\Models\SupervisorFieldLog;
 use App\Models\SupervisorRecommendation;
@@ -25,6 +24,7 @@ final class BuildSupervisionSummaryService
 {
     public function __construct(
         private readonly BuildSupervisionPeriodCharts $charts,
+        private readonly BuildPostComplianceService $compliance,
     ) {}
 
     public function execute(SecurityCompany $company, SupervisionQueryFilter $filter): SupervisionPeriodSnapshot
@@ -37,12 +37,6 @@ final class BuildSupervisionSummaryService
             : CarbonImmutable::now()->endOfDay();
 
         $companyId = (int) $company->id;
-
-        $sites = Client::query()
-            ->where('security_company_id', $companyId)
-            ->where('has_supervision', true)
-            ->orderBy('name')
-            ->get(['id', 'name']);
 
         $reviews = SupervisorShiftReview::query()
             ->whereHas('shift', fn ($q) => $q->where('security_company_id', $companyId)->matchingFilter($filter))
@@ -65,18 +59,23 @@ final class BuildSupervisionSummaryService
             ->with('user:id,name')
             ->get();
 
-        $visitedIds = $reviews->pluck('client_id')->unique()->all();
-        $unvisited = $sites
-            ->reject(fn (Client $site) => in_array((int) $site->id, $visitedIds, true))
-            ->pluck('name')
+        $compliance = $this->compliance->range($companyId, $fromAt, $toAt, $filter);
+        $unvisited = collect($compliance['posts'])
+            ->filter(fn (array $row) => $row['done'] < $row['expected'])
+            ->sortByDesc(fn (array $row) => $row['expected'] - $row['done'])
+            ->map(function (array $row): string {
+                $post = $row['post'];
+                $missing = $row['expected'] - $row['done'];
+                $where = trim(($post->client?->name ?? '').' · '.($post->installation?->name ?? ''), ' ·');
+
+                return $where.' · '.$post->name.($row['expected'] > 1 ? ' ('.$missing.' de '.$row['expected'].' días)' : '');
+            })
             ->values()
             ->all();
 
-        $sitesContracted = $sites->count();
-        $sitesVisited = count($visitedIds);
-        $coverage = $sitesContracted > 0
-            ? round(($sitesVisited / $sitesContracted) * 100, 1)
-            : null;
+        $sitesContracted = $compliance['expected'];
+        $sitesVisited = $compliance['done'];
+        $coverage = $compliance['percent'];
 
         $semaphore = $this->semaphore($coverage, $sitesContracted);
 
@@ -268,7 +267,7 @@ final class BuildSupervisionSummaryService
         $alerts = [];
 
         if ($unvisited !== []) {
-            $alerts[] = count($unvisited).' sitio(s) con Supervisión sin revista en el periodo: '.implode(', ', array_slice($unvisited, 0, 8));
+            $alerts[] = count($unvisited).' puesto(s) con revistas pendientes en el periodo: '.implode(', ', array_slice($unvisited, 0, 8));
         }
 
         $failedAlarms = $logs

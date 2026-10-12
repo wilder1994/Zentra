@@ -5,6 +5,7 @@
     $eventsJson = json_encode($map['events'] ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
     $clientsJson = json_encode($map['clients'] ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
     $installationsJson = json_encode($map['installations'] ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
+    $coverageJson = json_encode($map['coverage'] ?? null, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
     $googleMapsJson = json_encode($map['google_maps'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
     $activeTab = in_array($tab ?? '', ['live', 'history', 'summary', 'sheets'], true) ? $tab : 'live';
     $tabQuery = array_filter([
@@ -162,10 +163,28 @@
                         'h-[min(78vh,740px)] min-h-[420px]' => in_array($activeTab, ['live', 'history'], true),
                         'h-[420px]' => ! in_array($activeTab, ['live', 'history'], true),
                     ])>
-                        <div class="absolute top-3 left-3 z-10 inline-flex rounded-md border border-slate-700 bg-slate-950/90 p-0.5 text-xs">
-                            <button type="button" class="supervision-map-type-btn rounded px-2 py-1 font-medium text-white bg-indigo-600/80" data-map-type="satellite">Satélite</button>
-                            <button type="button" class="supervision-map-type-btn rounded px-2 py-1 font-medium text-slate-400 hover:text-slate-200" data-map-type="terrain">Terreno</button>
+                        <div class="absolute top-3 left-3 right-16 z-10 flex flex-wrap items-center gap-2 pointer-events-none">
+                            <div class="pointer-events-auto inline-flex rounded-md border border-slate-700 bg-slate-950/90 p-0.5 text-xs">
+                                <button type="button" class="supervision-map-type-btn rounded px-2 py-1 font-medium text-white bg-indigo-600/80" data-map-type="satellite">Satélite</button>
+                                <button type="button" class="supervision-map-type-btn rounded px-2 py-1 font-medium text-slate-400 hover:text-slate-200" data-map-type="terrain">Terreno</button>
+                            </div>
+                            @if ($activeTab === 'live')
+                                <button type="button" id="supervision-show-all" class="pointer-events-auto hidden rounded-md border border-indigo-400/60 bg-indigo-600/90 px-2.5 py-1 text-xs font-semibold text-white shadow hover:bg-indigo-500">← Ver todos</button>
+                                <div class="pointer-events-auto inline-flex rounded-md border border-slate-700 bg-slate-950/90 p-0.5 text-xs">
+                                    <button type="button" class="supervision-points-btn rounded px-2 py-1 font-medium" data-points="client">Clientes</button>
+                                    <button type="button" class="supervision-points-btn rounded px-2 py-1 font-medium" data-points="installation">Instalaciones</button>
+                                </div>
+                                <label class="pointer-events-auto inline-flex cursor-pointer items-center gap-2 rounded-md border border-slate-700 bg-slate-950/90 px-2 py-1 text-xs text-slate-200">
+                                    <input type="checkbox" id="supervision-pending-toggle" class="peer sr-only">
+                                    <span class="relative inline-block h-4 w-7 rounded-full bg-slate-700 transition peer-checked:bg-red-500 after:absolute after:left-0.5 after:top-0.5 after:h-3 after:w-3 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-3"></span>
+                                    Pendientes
+                                </label>
+                                <span id="supervision-coverage-chip" class="pointer-events-auto rounded-md border border-slate-700 bg-slate-950/90 px-2 py-1 text-[11px] text-slate-300"></span>
+                            @endif
                         </div>
+                        @if ($activeTab === 'live')
+                            <div id="supervision-missing-location" class="absolute bottom-3 left-3 z-10 hidden max-w-[22rem] rounded-md border border-amber-500/50 bg-slate-950/95 px-3 py-2 text-[11px] text-amber-200 shadow-lg"></div>
+                        @endif
                         <div id="supervision-map-fallback" class="absolute inset-0 flex items-center justify-center text-center p-6 text-sm text-slate-500 hidden">
                             <div>
                                 <p class="text-slate-300 font-medium mb-1">Mapa no disponible</p>
@@ -178,8 +197,8 @@
                 @if ($activeTab === 'live')
                     <section class="lg:col-span-5 xl:col-span-4 rounded-lg border border-slate-800 bg-slate-900/80 p-4 min-h-[420px] lg:min-h-0 lg:h-[min(78vh,740px)] flex flex-col">
                         <h3 class="text-sm font-semibold text-white shrink-0">Supervisores en turno</h3>
-                        @include('modules.company.supervision.partials.pin-legend')
-                        <p class="text-xs text-slate-500 mt-2 shrink-0">Se actualiza solo. Clic en la fila: ruta GPS de ese supervisor. Ver: ficha del turno (se guarda al cerrar).</p>
+                        @include('modules.company.supervision.partials.pin-legend', ['live' => true])
+                        <p class="text-xs text-slate-500 mt-2 shrink-0">Se actualiza solo. Clic en la fila o «Mapa»: solo el recorrido en vivo de ese supervisor; «Ver todos» en el mapa vuelve a la vista general. Ver: ficha del turno. Día operativo de revistas: 06:00 a 06:00.</p>
                         <div class="mt-3 overflow-auto flex-1" id="supervision-live-list">
                             @include('modules.company.supervision.partials.live-roster', ['rows' => $map['live']])
                         </div>
@@ -354,6 +373,9 @@
                 let events = {!! $eventsJson !!};
                 const clients = {!! $clientsJson !!};
                 const installations = {!! $installationsJson !!};
+                let coverage = {!! $coverageJson !!};
+                let pointsMode = 'client';
+                let pendingOnly = false;
                 const googleMaps = {!! $googleMapsJson !!};
                 const activeTab = @json($activeTab);
                 const liveFeedUrl = @json(route('company.supervision.live-feed'));
@@ -460,14 +482,18 @@
                             const sheet = row.sheet_url
                                 ? '<a href="' + esc(row.sheet_url) + '" target="_blank" rel="noopener" class="js-sheet-link inline-flex rounded-md border border-slate-700 px-2 py-0.5 text-[11px] font-semibold text-indigo-300 hover:bg-slate-800">Ver</a>'
                                 : '';
-                            return '<tr class="supervision-live-pick border-b border-slate-800/70 align-top cursor-pointer hover:bg-slate-800/60' + (selected ? ' bg-slate-800' : '') + '" data-shift-id="' + esc(String(row.shift_id)) + '">'
+                            return '<tr class="supervision-live-pick border-b border-slate-800/70 align-top cursor-pointer hover:bg-slate-800/60' + (selected ? ' bg-slate-800 ring-1 ring-inset ring-indigo-500/60' : '') + '" data-shift-id="' + esc(String(row.shift_id)) + '">'
                                 + '<td class="py-2 pr-2"><p class="font-medium text-slate-100">' + esc(row.user || 'Supervisor') + '</p>'
                                 + '<p class="text-xs mt-0.5 ' + signalTextClass(row) + '">' + esc(row.online_label || (row.online ? 'En línea' : 'Sin señal')) + '</p>'
                                 + '<p class="text-xs text-slate-500 mt-0.5">Inicio ' + esc(row.started_at_label || '—') + '</p></td>'
                                 + '<td class="py-2 pr-2 text-xs text-slate-300 leading-snug">' + esc(row.status_line || liveStatus(row)) + '</td>'
                                 + '<td class="py-2 text-right text-slate-300 tabular-nums">' + Number(row.km || 0).toFixed(1) + '</td>'
                                 + '<td class="py-2 text-right text-slate-300 tabular-nums">' + String(row.reviews_count || 0) + '</td>'
-                                + '<td class="py-2 pl-2 text-right">' + sheet + '</td>'
+                                + '<td class="py-2 pl-2 text-right"><div class="flex flex-col items-end gap-1">'
+                                + '<button type="button" class="inline-flex rounded-md border px-2 py-0.5 text-[11px] font-semibold '
+                                + (selected ? 'border-indigo-400 bg-indigo-600 text-white' : 'border-slate-700 text-amber-300 hover:bg-slate-800')
+                                + '">' + (selected ? 'En mapa' : 'Mapa') + '</button>'
+                                + sheet + '</div></td>'
                                 + '</tr>';
                         }).join('')
                         + '</tbody></table>';
@@ -559,6 +585,115 @@
                     return out;
                 }
 
+                function coverageColor(row) {
+                    if (row.done >= row.posts) return '#16a34a';
+                    if (row.done > 0) return '#f59e0b';
+                    return '#dc2626';
+                }
+
+                function coverageIcon(row, count) {
+                    const text = String(count);
+                    const size = text.length > 2 ? 34 : 30;
+                    const color = coverageColor(row);
+                    const ring = pointsMode === 'installation' ? '<circle cx="16" cy="16" r="13" fill="none" stroke="#ffffff" stroke-width="1" stroke-dasharray="3 2"/>' : '';
+                    return svgIcon(
+                        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="15" fill="' + color + '" stroke="#0b1220" stroke-width="2"/>' + ring
+                        + '<text x="16" y="20.5" text-anchor="middle" font-family="system-ui,sans-serif" font-size="' + (text.length > 2 ? 10 : 13) + '" font-weight="700" fill="#ffffff">' + text + '</text></svg>',
+                        size,
+                        size / 2,
+                    );
+                }
+
+                function collectCoveragePins() {
+                    if (!coverage) return [];
+                    const source = pointsMode === 'installation' ? (coverage.installations || []) : (coverage.clients || []);
+                    return source
+                        .filter((row) => row.lat != null && row.lng != null)
+                        .filter((row) => (pendingOnly ? row.posts - row.done > 0 : row.done > 0))
+                        .map((row) => ({
+                            kind: 'coverage',
+                            scope: pointsMode,
+                            lat: row.lat,
+                            lng: row.lng,
+                            title: row.name,
+                            count: pendingOnly ? row.posts - row.done : row.done,
+                            row,
+                        }));
+                }
+
+                function drawCoveragePins(map, bounds, pins) {
+                    let any = false;
+                    pins.forEach((pin) => {
+                        const marker = addOverlay(new google.maps.Marker({
+                            map,
+                            position: { lat: Number(pin.lat), lng: Number(pin.lng) },
+                            zIndex: 3,
+                            icon: coverageIcon(pin.row, pin.count),
+                        }));
+                        bindPinOpen(marker, pin);
+                        any = extend(bounds, pin) || any;
+                    });
+                    return any;
+                }
+
+                function coverageCardHtml(pin) {
+                    const row = pin.row;
+                    const pending = row.posts - row.done;
+                    const kind = pin.scope === 'installation' ? 'Instalación' : 'Cliente';
+                    const meta = (pin.scope === 'installation'
+                        ? (row.client ? row.client + ' · ' : '')
+                        : row.installations + (row.installations === 1 ? ' instalación · ' : ' instalaciones · '))
+                        + row.posts + (row.posts === 1 ? ' puesto' : ' puestos');
+                    const list = (row.pending || []).slice(0, 8).map((name) => '<li style="margin:2px 0">' + esc(name) + '</li>').join('');
+                    const more = (row.pending || []).length > 8 ? '<li style="color:#64748b">y ' + ((row.pending || []).length - 8) + ' más</li>' : '';
+                    return '<div style="width:250px;background:#0b1220;border:1px solid #334155;border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.5);overflow:hidden;font:12px/1.35 system-ui,sans-serif">'
+                        + '<div style="height:3px;background:' + coverageColor(row) + '"></div>'
+                        + '<div style="padding:8px 10px 10px">'
+                        + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">'
+                        + '<span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8;font-weight:700">' + kind + '</span>'
+                        + '<button type="button" class="sup-card-close" style="border:0;background:transparent;color:#64748b;cursor:pointer;font-size:16px;line-height:1;padding:0 2px">×</button>'
+                        + '</div>'
+                        + '<p style="margin:6px 0 0;color:#f8fafc;font-weight:650">' + esc(row.name) + '</p>'
+                        + '<p style="margin:3px 0 0;color:#94a3b8">' + esc(meta) + '</p>'
+                        + '<p style="margin:6px 0 0"><span style="color:#6ee7b7">' + row.done + ' revisados</span>'
+                        + '<span style="color:#64748b"> · </span><span style="color:' + (pending > 0 ? '#fca5a5' : '#6ee7b7') + '">' + pending + ' pendientes</span></p>'
+                        + (list ? '<p style="margin:8px 0 2px;color:#94a3b8;font-size:11px">Puestos sin revista hoy:</p><ul style="margin:0;padding-left:16px;color:#e2e8f0">' + list + more + '</ul>' : '')
+                        + '<a href="' + esc(row.url) + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;color:#93c5fd;font-weight:600;font-size:11px;text-decoration:none">Abrir ' + kind.toLowerCase() + '</a>'
+                        + '</div></div>';
+                }
+
+                function renderCoverageChrome() {
+                    const chip = document.getElementById('supervision-coverage-chip');
+                    if (chip) {
+                        chip.textContent = coverage
+                            ? 'Puestos revisados hoy: ' + coverage.done + ' de ' + coverage.posts
+                            : '';
+                        chip.title = coverage ? 'Día operativo ' + coverage.window_label : '';
+                    }
+                    document.querySelectorAll('.supervision-points-btn').forEach((btn) => {
+                        const active = btn.dataset.points === pointsMode;
+                        btn.classList.toggle('bg-indigo-600/80', active);
+                        btn.classList.toggle('text-white', active);
+                        btn.classList.toggle('text-slate-400', !active);
+                    });
+                    document.getElementById('supervision-show-all')?.classList.toggle('hidden', selectedLiveShiftId === null);
+                    const box = document.getElementById('supervision-missing-location');
+                    if (!box) return;
+                    const missing = (coverage && coverage.missing_location) || [];
+                    if (!missing.length) {
+                        box.classList.add('hidden');
+                        box.innerHTML = '';
+                        return;
+                    }
+                    const n = missing.length;
+                    box.innerHTML = '<details><summary style="cursor:pointer;font-weight:600">⚠ ' + n + (n === 1 ? ' instalación sin ubicación' : ' instalaciones sin ubicación') + '</summary>'
+                        + '<p style="margin:4px 0;color:#fcd34d">Registra la ubicación (coordenadas) de la instalación para poder pasarle revista.</p>'
+                        + '<ul style="margin:0;padding-left:14px;max-height:9rem;overflow:auto">'
+                        + missing.map((row) => '<li><a href="' + esc(row.url) + '" target="_blank" rel="noopener" style="color:#93c5fd">' + esc(row.name) + '</a> <span style="color:#94a3b8">· ' + esc(row.client) + '</span></li>').join('')
+                        + '</ul></details>';
+                    box.classList.remove('hidden');
+                }
+
                 function pinKindLabel(kind) {
                     return ({
                         start: 'Inicio',
@@ -600,6 +735,7 @@
                 }
 
                 function pinCardHtml(pin) {
+                    if (pin.kind === 'coverage') return coverageCardHtml(pin);
                     const row = pin.row || pin;
                     const kind = pinKindLabel(pin.kind);
                     let headline = row.client || pin.title || kind;
@@ -1043,24 +1179,37 @@
                     clearOverlays();
                     const bounds = new google.maps.LatLngBounds();
                     let hasPoint = false;
-                    const pins = collectClientPins();
+                    const pins = [];
                     if (selectedLiveShiftId !== null && !live.some((row) => Number(row.shift_id) === Number(selectedLiveShiftId))) {
                         selectedLiveShiftId = null;
                     }
-                    live.forEach((row) => {
-                        const isSelected = Number(selectedLiveShiftId) === Number(row.shift_id);
-                        if (isSelected) {
-                            hasPoint = drawPath(googleMap, bounds, row, { street: false }) || hasPoint;
-                            pins.push(...collectTrailPins(row, { current: true, flag: false }));
-                            pins.push(...collectReviewPins(row.shift_id));
-                            pins.push(...collectEventPins(row.shift_id));
-                        } else {
-                            pins.push(...collectTrailPins(row, { current: true, flag: false }).filter((pin) => pin.kind === 'moto'));
+                    const selected = selectedLiveShiftId !== null
+                        ? live.find((row) => Number(row.shift_id) === Number(selectedLiveShiftId))
+                        : null;
+                    if (selected) {
+                        hasPoint = drawPath(googleMap, bounds, selected, { street: false });
+                        pins.push(...collectTrailPins(selected, { current: true, flag: false }));
+                        pins.push(...collectReviewPins(selected.shift_id));
+                        pins.push(...collectEventPins(selected.shift_id));
+                    } else {
+                        if (!pendingOnly) {
+                            live.forEach((row) => {
+                                pins.push(...collectTrailPins(row, { current: true, flag: false }).filter((pin) => pin.kind === 'moto'));
+                            });
+                            pins.push(...collectReviewPins(null));
+                            pins.push(...collectEventPins(null));
                         }
-                    });
+                        hasPoint = drawCoveragePins(googleMap, bounds, collectCoveragePins()) || hasPoint;
+                    }
                     hasPoint = drawPins(googleMap, bounds, pins) || hasPoint;
-                    if (hasPoint && fit) googleMap.fitBounds(bounds, 48);
+                    if (hasPoint && fit) {
+                        googleMap.fitBounds(bounds, 48);
+                        google.maps.event.addListenerOnce(googleMap, 'idle', () => {
+                            if (googleMap.getZoom() > 17) googleMap.setZoom(17);
+                        });
+                    }
                     renderLiveList(live);
+                    renderCoverageChrome();
                 }
 
                 async function paintHistory(shiftId) {
@@ -1165,6 +1314,23 @@
                         paintLive(true);
                     });
 
+                    document.getElementById('supervision-show-all')?.addEventListener('click', () => {
+                        selectedLiveShiftId = null;
+                        paintLive(true);
+                    });
+                    document.querySelectorAll('.supervision-points-btn').forEach((btn) => {
+                        btn.addEventListener('click', () => {
+                            pointsMode = btn.dataset.points === 'installation' ? 'installation' : 'client';
+                            selectedLiveShiftId = null;
+                            paintLive(true);
+                        });
+                    });
+                    document.getElementById('supervision-pending-toggle')?.addEventListener('change', (ev) => {
+                        pendingOnly = Boolean(ev.target.checked);
+                        selectedLiveShiftId = null;
+                        paintLive(true);
+                    });
+
                     paintLive(true);
                     liveFitted = true;
                     clearInterval(livePollTimer);
@@ -1177,6 +1343,7 @@
                             live = data.live || [];
                             reviews = data.reviews || [];
                             events = data.events || [];
+                            coverage = data.coverage || coverage;
                             paintLive(!liveFitted);
                             liveFitted = true;
                         } catch (e) {}

@@ -18,6 +18,8 @@ use App\Models\OperationalAlert;
 use App\Models\SecurityCompany;
 use App\Models\SupervisorReview;
 use App\Models\User;
+use App\Support\Supervision\SupervisionOperationalDay;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -47,6 +49,25 @@ final class CompanyDashboardAnalytics
         $reviewsToday = $this->reviewsOnDate($activeClientIds, today()->toDateString());
         $reviewsMonth = $this->reviewsInMonth($activeClientIds);
         $revista = $this->revistaKpis($activeClients, $reviewsToday, $reviewsMonth, $openShifts);
+
+        $compliance = app(BuildPostComplianceService::class);
+        $opDate = SupervisionOperationalDay::dateFor();
+        $postsToday = array_values(array_filter($compliance->day($companyId, $opDate), fn (array $row) => $row['expected']));
+        $postsByClient = [];
+        foreach ($postsToday as $row) {
+            $cid = (int) $row['post']->client_id;
+            $postsByClient[$cid] ??= ['expected' => 0, 'done' => 0];
+            $postsByClient[$cid]['expected']++;
+            $postsByClient[$cid]['done'] += $row['done'] ? 1 : 0;
+        }
+        $history = $compliance->range($companyId, $opDate->startOfMonth()->subMonths(7), $opDate);
+        $monthDays = array_filter($history['days'], fn (array $d) => str_starts_with($d['date'], $opDate->format('Y-m')));
+        $monthExpected = array_sum(array_column($monthDays, 'expected'));
+        $revista['compliance_pct'] = $monthExpected > 0
+            ? round(array_sum(array_column($monthDays, 'done')) / $monthExpected * 100, 1)
+            : 0.0;
+        $revista['today_expected'] = count($postsToday);
+        $revista['today_done'] = count(array_filter($postsToday, fn (array $row) => $row['done']));
         $blockCounts = $this->activeBlockCounts($activeClientIds);
         $panicsToday = $this->panicsToday($activeClientIds);
         $panicsOpen = $this->panicsOpen($activeClientIds);
@@ -55,7 +76,7 @@ final class CompanyDashboardAnalytics
         $activeClients->load([
             'installations' => fn ($q) => $q->whereNotNull('latitude')->whereNotNull('longitude'),
         ]);
-        $mapMarkers = $this->mapMarkers($activeClients, $reviewsToday, $openShifts);
+        $mapMarkers = $this->mapMarkers($activeClients, $postsByClient, $openShifts);
         $maxClients = (int) ($company->max_clients ?: 0);
         $activeCount = $activeClients->count();
         $blockTotal = $blockCounts['vehicles'] + $blockCounts['persons'];
@@ -97,8 +118,8 @@ final class CompanyDashboardAnalytics
                 'center' => config('google-maps.default_center'),
                 'zoom' => config('google-maps.default_zoom'),
             ],
-            'revista_monthly' => $this->revistaMonthly($activeClients, $activeClientIds),
-            'revista_week' => $this->revistaTrend($activeClients, $activeClientIds),
+            'revista_monthly' => $this->revistaMonthly($history['days'], $opDate),
+            'revista_week' => $this->revistaTrend($history['days'], $opDate),
             'access_by_client' => $this->accessByClientToday($activeClients),
             'open_shifts_table' => $this->openShiftsTable($openShifts, $reviewsToday),
             'portfolio' => [
@@ -463,24 +484,24 @@ final class CompanyDashboardAnalytics
 
     /**
      * @param  Collection<int, Client>  $activeClients
-     * @param  Collection<int, SupervisorReview>  $reviewsToday
+     * @param  array<int, array{expected: int, done: int}>  $postsByClient
      * @param  Collection<int, GuardShift>  $openShifts
      * @return list<array<string, mixed>>
      */
     private function mapMarkers(
         Collection $activeClients,
-        Collection $reviewsToday,
+        array $postsByClient,
         Collection $openShifts,
     ): array {
         $markers = [];
 
         foreach ($activeClients as $client) {
             $clientKey = $this->coordKey($client->latitude, $client->longitude);
-            $target = max(1, (int) ($client->revista_target_per_day ?: 1));
-            $done = $reviewsToday->where('client_id', $client->id)->count();
+            $target = (int) ($postsByClient[(int) $client->id]['expected'] ?? 0);
+            $done = (int) ($postsByClient[(int) $client->id]['done'] ?? 0);
             $hasOpenShift = $openShifts->contains(fn (GuardShift $s) => (int) $s->client_id === (int) $client->id);
             $tone = 'ok';
-            if ($done === 0 && $hasOpenShift) {
+            if ($target > 0 && $done === 0) {
                 $tone = 'danger';
             } elseif ($done < $target) {
                 $tone = 'warn';
@@ -497,10 +518,10 @@ final class CompanyDashboardAnalytics
                     'tone' => $tone,
                     'tone_label' => match ($tone) {
                         'ok' => 'Salud OK',
-                        'warn' => 'Bajo meta',
-                        default => 'Crítico',
+                        'warn' => 'Puestos pendientes',
+                        default => 'Sin revistas hoy',
                     },
-                    'revistas_hoy' => sprintf('%d/%d', $done, $target),
+                    'revistas_hoy' => $target > 0 ? sprintf('%d/%d puestos', $done, $target) : 'Sin puestos hoy',
                     'turno_abierto' => $hasOpenShift,
                     'vehiculos_hoy' => $this->countAccessToday([(int) $client->id], ['visitor_vehicle', 'resident_vehicle']),
                     'visitantes_hoy' => $this->countAccessToday([(int) $client->id], ['visitor']),
@@ -595,32 +616,27 @@ final class CompanyDashboardAnalytics
     }
 
     /**
-     * @param  Collection<int, Client>  $activeClients
-     * @param  list<int>  $clientIds
+     * @param  list<array{date: string, expected: int, done: int}>  $days
      * @return array{labels: list<string>, done: list<int>, expected: list<int>, pending: list<int>}
      */
-    private function revistaTrend(Collection $activeClients, array $clientIds): array
+    private function revistaTrend(array $days, CarbonImmutable $opDate): array
     {
         $labels = [];
         $done = [];
         $expected = [];
         $pending = [];
-        $dailyExpected = (int) $activeClients->sum(
-            fn (Client $c) => max(1, (int) ($c->revista_target_per_day ?: 1))
-        );
+        $byDate = [];
+        foreach ($days as $day) {
+            $byDate[$day['date']] = $day;
+        }
 
         for ($i = 6; $i >= 0; $i--) {
-            $date = now()->subDays($i);
+            $date = $opDate->subDays($i);
+            $row = $byDate[$date->format('Y-m-d')] ?? ['expected' => 0, 'done' => 0];
             $labels[] = $date->translatedFormat('D');
-            $dayDone = $clientIds === []
-                ? 0
-                : (int) SupervisorReview::query()
-                    ->whereIn('client_id', $clientIds)
-                    ->whereDate('reviewed_at', $date->toDateString())
-                    ->count();
-            $expected[] = $dailyExpected;
-            $done[] = $dayDone;
-            $pending[] = max(0, $dailyExpected - $dayDone);
+            $expected[] = (int) $row['expected'];
+            $done[] = (int) $row['done'];
+            $pending[] = max(0, (int) $row['expected'] - (int) $row['done']);
         }
 
         return [
@@ -632,37 +648,30 @@ final class CompanyDashboardAnalytics
     }
 
     /**
-     * Últimos 8 meses calendario: meta, realizadas y pendientes.
+     * Últimos 8 meses: revistas esperadas por puesto y día operativo, realizadas y pendientes.
      *
-     * @param  Collection<int, Client>  $activeClients
-     * @param  list<int>  $clientIds
+     * @param  list<array{date: string, expected: int, done: int}>  $days
      * @return array{labels: list<string>, expected: list<int>, done: list<int>, pending: list<int>}
      */
-    private function revistaMonthly(Collection $activeClients, array $clientIds): array
+    private function revistaMonthly(array $days, CarbonImmutable $opDate): array
     {
         $labels = [];
         $expected = [];
         $done = [];
         $pending = [];
-        $dailyTarget = (int) $activeClients->sum(
-            fn (Client $c) => max(1, (int) ($c->revista_target_per_day ?: 1))
-        );
+        $byMonth = [];
+        foreach ($days as $day) {
+            $key = substr($day['date'], 0, 7);
+            $byMonth[$key] ??= ['expected' => 0, 'done' => 0];
+            $byMonth[$key]['expected'] += (int) $day['expected'];
+            $byMonth[$key]['done'] += (int) $day['done'];
+        }
 
         for ($i = 7; $i >= 0; $i--) {
-            $month = now()->startOfMonth()->subMonths($i);
-            $daysInMonth = (int) $month->daysInMonth;
-            if ($i === 0) {
-                $daysInMonth = max(1, (int) now()->day);
-            }
-            $monthExpected = $dailyTarget * $daysInMonth;
-            $monthDone = $clientIds === []
-                ? 0
-                : (int) SupervisorReview::query()
-                    ->whereIn('client_id', $clientIds)
-                    ->whereYear('reviewed_at', $month->year)
-                    ->whereMonth('reviewed_at', $month->month)
-                    ->when($i === 0, fn ($q) => $q->whereDate('reviewed_at', '<=', today()->toDateString()))
-                    ->count();
+            $month = $opDate->startOfMonth()->subMonths($i);
+            $row = $byMonth[$month->format('Y-m')] ?? ['expected' => 0, 'done' => 0];
+            $monthExpected = (int) $row['expected'];
+            $monthDone = (int) $row['done'];
 
             $labels[] = $month->translatedFormat('M');
             $expected[] = $monthExpected;

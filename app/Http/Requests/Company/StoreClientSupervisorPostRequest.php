@@ -49,6 +49,9 @@ final class StoreClientSupervisorPostRequest extends FormRequest
             'installation_id' => ['required', 'integer', 'exists:installations,id'],
             'name' => ['required', 'string', 'max:120'],
             'modality' => ['required', 'integer', Rule::in($allowedHours !== [] ? $allowedHours : [12])],
+            'service_days' => ['sometimes', 'array', 'min:1'],
+            'service_days.*' => ['integer', 'between:1,7'],
+            'serves_holidays' => ['sometimes', 'boolean'],
             'employee_ids' => ['nullable', 'array'],
             'employee_ids.*' => ['integer', 'exists:employees,id'],
             'is_active' => ['sometimes', 'boolean'],
@@ -66,6 +69,8 @@ final class StoreClientSupervisorPostRequest extends FormRequest
             'installation_id' => 'instalación',
             'name' => 'nombre',
             'modality' => 'modalidad',
+            'service_days' => 'días de servicio',
+            'serves_holidays' => 'servicio en festivos',
             'employee_ids' => 'vigilantes',
             'observations' => 'observaciones',
         ];

@@ -558,7 +558,7 @@
                         <p class="text-lg font-semibold text-white tabular-nums">
                             <span x-text="field && field.coverage_pct !== null ? field.coverage_pct + '%' : '—'">{{ $fieldSupervision['coverage_pct'] !== null ? $fieldSupervision['coverage_pct'].'%' : '—' }}</span>
                         </p>
-                        <p class="text-[10px] text-slate-600"><span x-text="fieldVal('sites_visited')">{{ $fieldSupervision['sites_visited'] }}</span>/<span x-text="fieldVal('sites_contracted')">{{ $fieldSupervision['sites_contracted'] }}</span></p>
+                        <p class="text-[10px] text-slate-600"><span x-text="fieldVal('sites_visited')">{{ $fieldSupervision['sites_visited'] }}</span>/<span x-text="fieldVal('sites_contracted')">{{ $fieldSupervision['sites_contracted'] }}</span> puestos hoy</p>
                     </div>
                     <div class="rounded-md border border-slate-800 bg-slate-950/40 px-3 py-2">
                         <p class="text-[10px] text-slate-500 uppercase">Recomendaciones</p>
@@ -574,7 +574,7 @@
                     </div>
                 </div>
                 <p class="text-[11px] text-slate-600 mt-2">
-                    Distinto de las revistas de portería (gráficas de abajo). Aquí solo cuenta la app de Supervisión.
+                    Cobertura: puestos con al menos una revista en el día operativo (06:00 a 06:00), según sus días de servicio y festivos.
                     @if (($fieldSupervision['posts_count'] ?? 0) > 0)
                         · {{ $fieldSupervision['posts_count'] }} puesto{{ $fieldSupervision['posts_count'] === 1 ? '' : 's' }} activos.
                     @endif
@@ -660,6 +660,7 @@
             <div class="company-cc-card">
                 <div class="company-cc-card-head">
                     <h3 class="text-sm font-semibold text-white">Revistas mensuales</h3>
+                    <span class="text-[10px] text-slate-500">por puesto y día de servicio</span>
                 </div>
                 <div class="company-cc-card-body">
                     <div class="company-cc-chart">
@@ -671,6 +672,7 @@
             <div class="company-cc-card">
                 <div class="company-cc-card-head">
                     <h3 class="text-sm font-semibold text-white">Revistas de supervisión (7 días)</h3>
+                    <span class="text-[10px] text-slate-500">día operativo 06:00 a 06:00</span>
                 </div>
                 <div class="company-cc-card-body">
                     <div class="company-cc-chart">

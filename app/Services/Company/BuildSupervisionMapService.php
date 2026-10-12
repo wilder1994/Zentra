@@ -13,6 +13,7 @@ use App\Models\SecurityCompany;
 use App\Models\SupervisorFieldLog;
 use App\Models\SupervisorShift;
 use App\Models\SupervisorShiftReview;
+use App\Support\Supervision\SupervisionOperationalDay;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 
@@ -20,7 +21,111 @@ final class BuildSupervisionMapService
 {
     public function __construct(
         private readonly BuildSupervisorTrailService $trail,
+        private readonly BuildPostComplianceService $compliance,
     ) {}
+
+    /**
+     * Puestos esperados hoy (día operativo 06:00–06:00) agrupados por cliente e instalación.
+     *
+     * @return array<string, mixed>
+     */
+    public function liveCoverage(SecurityCompany $company): array
+    {
+        $date = SupervisionOperationalDay::dateFor();
+        [$start, $end] = SupervisionOperationalDay::window($date);
+        $rows = array_values(array_filter(
+            $this->compliance->day((int) $company->id, $date),
+            fn (array $row) => $row['expected'],
+        ));
+
+        $installations = [];
+        $clients = [];
+        $missing = [];
+        foreach ($rows as $row) {
+            /** @var \App\Models\SupervisorPost $post */
+            $post = $row['post'];
+            $installation = $post->installation;
+            $client = $post->client;
+            if ($installation === null || $client === null) {
+                continue;
+            }
+            $label = $post->name;
+
+            $site = &$installations[$installation->id];
+            $site ??= [
+                'id' => $installation->id,
+                'name' => $installation->name,
+                'client' => $client->name,
+                'client_id' => $client->id,
+                'lat' => $installation->latitude !== null ? (float) $installation->latitude : null,
+                'lng' => $installation->longitude !== null ? (float) $installation->longitude : null,
+                'posts' => 0,
+                'done' => 0,
+                'pending' => [],
+                'url' => route('company.installations.show', $installation),
+            ];
+            $site['posts']++;
+            $site['done'] += $row['done'] ? 1 : 0;
+            if (! $row['done']) {
+                $site['pending'][] = $label;
+            }
+            unset($site);
+
+            $owner = &$clients[$client->id];
+            $owner ??= [
+                'id' => $client->id,
+                'name' => $client->name,
+                'lat' => $client->latitude !== null ? (float) $client->latitude : null,
+                'lng' => $client->longitude !== null ? (float) $client->longitude : null,
+                'installations' => [],
+                'posts' => 0,
+                'done' => 0,
+                'pending' => [],
+                'url' => route('company.clients.show', $client),
+            ];
+            $owner['installations'][$installation->id] = true;
+            $owner['posts']++;
+            $owner['done'] += $row['done'] ? 1 : 0;
+            if (! $row['done']) {
+                $owner['pending'][] = $installation->name.' · '.$label;
+            }
+            unset($owner);
+        }
+
+        foreach ($installations as $site) {
+            if ($site['lat'] === null || $site['lng'] === null) {
+                $missing[] = ['id' => $site['id'], 'name' => $site['name'], 'client' => $site['client'], 'url' => $site['url']];
+            }
+        }
+
+        $clients = array_map(function (array $owner) use ($installations): array {
+            if ($owner['lat'] === null || $owner['lng'] === null) {
+                foreach (array_keys($owner['installations']) as $siteId) {
+                    $site = $installations[$siteId] ?? null;
+                    if ($site !== null && $site['lat'] !== null && $site['lng'] !== null) {
+                        $owner['lat'] = $site['lat'];
+                        $owner['lng'] = $site['lng'];
+                        break;
+                    }
+                }
+            }
+            $owner['installations'] = count($owner['installations']);
+
+            return $owner;
+        }, $clients);
+
+        $tz = (string) config('app.timezone');
+
+        return [
+            'date' => $date->toDateString(),
+            'window_label' => $start->timezone($tz)->format('d/m H:i').' – '.$end->timezone($tz)->format('d/m H:i'),
+            'posts' => count($rows),
+            'done' => count(array_filter($rows, fn (array $row) => $row['done'])),
+            'clients' => array_values($clients),
+            'installations' => array_values($installations),
+            'missing_location' => $missing,
+        ];
+    }
 
     /** @return array<string, mixed> */
     public function execute(SecurityCompany $company, SupervisionQueryFilter $filter, string $tab = 'live'): array
@@ -183,6 +288,7 @@ final class BuildSupervisionMapService
             'events' => $events,
             'clients' => $clientPins,
             'installations' => $installationPins,
+            'coverage' => $tab === 'live' ? $this->liveCoverage($company) : null,
             'from' => $fromAt->toDateString(),
             'to' => $toAt->toDateString(),
             'google_maps' => [
@@ -243,6 +349,7 @@ final class BuildSupervisionMapService
             'live' => $live,
             'reviews' => $reviews,
             'events' => $events,
+            'coverage' => $this->liveCoverage($company),
         ];
     }
 
