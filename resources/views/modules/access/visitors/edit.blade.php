@@ -1,5 +1,5 @@
 <x-access-layout title="Editar Visitante">
-    <div class="bg-slate-900 rounded-xl border border-slate-800 p-6 max-w-3xl" x-data="{
+    <div class="porteria-form bg-slate-900 rounded-xl border border-slate-800 p-6 max-w-3xl" x-data="{
         regDoc: @js(old('document_number', $visitor->document_number)),
         regFirst: @js(old('first_name', $visitor->first_name)),
         regLast: @js(old('last_name', $visitor->last_name)),

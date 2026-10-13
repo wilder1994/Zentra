@@ -142,7 +142,8 @@ class AccessLogController extends Controller
         $created = $register->register(
             $validated,
             DataUrlToUploadedFile::make($validated['person_photo_data'] ?? $validated['vehicle_photo_data'] ?? null, 'ficha'),
-            requirePhoto: in_array($validated['subject_kind'], ['visitor', 'vehicle'], true),
+            requirePhoto: $validated['subject_kind'] === 'visitor'
+                || ($validated['subject_kind'] === 'vehicle' && empty($validated['structure_id'])),
         );
 
         if ($alsoEnter && $validated['subject_kind'] !== 'member') {
@@ -160,7 +161,7 @@ class AccessLogController extends Controller
 
             return redirect()
                 ->route('access.logs.index', ['tab' => 'movimiento'])
-                ->with('success', 'Visitante registrado e ingreso anotado.');
+                ->with('success', 'Ficha registrada e ingreso anotado.');
         }
 
         return redirect()

@@ -566,3 +566,10 @@ html[data-theme="light"] .plan-metal-btn { color: #fff; background: linear-gradi
 html[data-theme="light"] .operate-banner { background-color: #fef3c7 !important; border-color: #fcd34d !important; }
 html[data-theme="light"] .operate-banner-title { color: #78350f !important; }
 html[data-theme="light"] .operate-banner-hint { color: #92400e !important; }
+
+.porteria-form :is(input, select, textarea):focus {
+    border-color: var(--ui-accent) !important;
+    --tw-ring-color: var(--ui-accent) !important;
+    box-shadow: 0 0 0 1px var(--ui-accent) !important;
+    outline: none !important;
+}

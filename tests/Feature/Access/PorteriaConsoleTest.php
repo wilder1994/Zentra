@@ -10,6 +10,7 @@ use App\Models\Location;
 use App\Models\Structure;
 use App\Models\StructureMember;
 use App\Models\User;
+use App\Models\Vehicle;
 use App\Models\Visitor;
 use App\Services\Access\PorteriaDoorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -155,6 +156,38 @@ final class PorteriaConsoleTest extends TestCase
         ]);
         $this->assertSame('servicio', $visitor->visitor_type);
         $this->assertSame('Empresa Contadores SAS', $visitor->company);
+    }
+
+    public function test_census_vehicle_registers_without_photo_and_enters(): void
+    {
+        [$vigilante, $client] = $this->vigilante();
+        $door = Location::query()->withoutGlobalScopes()->where('client_id', $client->id)->where('is_active', true)->firstOrFail();
+        $session = $this->porteriaSession($client, (int) $door->id);
+
+        $this->actingAs($vigilante)->withSession($session)
+            ->post(route('access.turnos.store'), ['location_id' => $door->id])
+            ->assertRedirect();
+        $session[PorteriaDoorService::SESSION_KEY] = $door->id;
+
+        $node = Structure::query()->where('client_id', $client->id)->firstOrFail();
+
+        $this->actingAs($vigilante)->withSession($session)
+            ->post(route('access.logs.register'), [
+                'subject_kind' => 'vehicle',
+                'structure_id' => $node->id,
+                'plate' => 'CEN123',
+                'vehicle_type' => 'carro',
+                'also_enter' => '1',
+            ])
+            ->assertRedirect(route('access.logs.index', ['tab' => 'movimiento']));
+
+        $vehicle = Vehicle::query()->where('plate', 'CEN123')->firstOrFail();
+        $this->assertSame((int) $node->id, (int) $vehicle->structure_id);
+        $this->assertDatabaseHas('access_logs', [
+            'vehicle_id' => $vehicle->id,
+            'access_type' => 'member_vehicle',
+            'status' => 'active',
+        ]);
     }
 
     public function test_porteria_register_requires_photo_for_visitor(): void

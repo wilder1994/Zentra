@@ -13,7 +13,7 @@
     </div>
 
     @if($tab === 'movimiento')
-    <div class="max-w-2xl space-y-4" x-data="porteriaMove()" x-init="boot()">
+    <div class="porteria-form max-w-2xl space-y-4" x-data="porteriaMove()" x-init="boot()">
         <label class="block text-sm font-medium text-slate-300">Documento, nombre o placa</label>
         <input type="search" x-model="q" @input.debounce.350ms="lookup()" placeholder="Buscar…"
                class="w-full rounded-lg bg-slate-950 border-slate-700 text-white">
@@ -32,22 +32,68 @@
             </template>
         </div>
 
-        <div x-show="!selected && q.length >= 2 && !loading && hits.length === 0" class="rounded-xl border border-amber-700/50 bg-amber-900/20 p-4 space-y-4">
+        <div x-show="!selected && q.length >= 2 && !loading && hits.length === 0" class="porteria-form rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-4">
             <div>
-                <p class="text-sm font-semibold text-amber-100">Primera vez — registrar ficha</p>
-                <p class="text-xs text-amber-200/80 mt-1">Completa los datos. Para visitantes y vehículos se registra el ingreso en el mismo paso.</p>
+                <p class="text-sm font-semibold text-white">Primera vez — registrar ficha</p>
+                <p class="text-xs text-slate-400 mt-1">Completa los datos. Visitantes y vehículos quedan con el ingreso registrado en el mismo paso.</p>
             </div>
             <form method="POST" action="{{ route('access.logs.register') }}" class="space-y-4">
                 @csrf
                 <input type="hidden" name="also_enter" :value="regKind === 'member' ? '0' : '1'">
+                <input type="hidden" name="subject_kind" :value="regKind === 'census_vehicle' ? 'vehicle' : regKind">
 
-                <label class="text-xs text-slate-400 block">Tipo de ficha
-                    <select name="subject_kind" x-model="regKind" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
-                        <option value="visitor">Visitante (persona)</option>
-                        <option value="vehicle">Vehículo visitante</option>
-                        <option value="member">Persona del censo</option>
-                    </select>
-                </label>
+                <div>
+                    <p class="text-xs text-slate-400 mb-2">Tipo de ficha</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        @foreach([
+                            'visitor' => 'Visitante · persona',
+                            'vehicle' => 'Visitante · vehículo',
+                            'member' => 'Censo · persona',
+                            'census_vehicle' => 'Censo · vehículo',
+                        ] as $kindValue => $kindLabel)
+                            <button type="button" @click="regKind = '{{ $kindValue }}'"
+                                    :class="regKind === '{{ $kindValue }}' ? 'bg-indigo-600 text-white border-transparent' : 'bg-slate-950 text-slate-300 border-slate-700'"
+                                    class="px-3 py-2 rounded-lg border text-sm font-medium text-left transition-colors">{{ $kindLabel }}</button>
+                        @endforeach
+                    </div>
+                </div>
+
+                <template x-if="regKind === 'census_vehicle'">
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="text-xs text-slate-400 col-span-2">Apartamento / casa del propietario <span class="text-amber-400">*</span>
+                                <select name="structure_id" required class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
+                                    <option value="">Seleccionar</option>
+                                    @foreach($nodes as $node)
+                                        <option value="{{ $node->id }}">{{ $node->installation?->name }} · {{ $node->name }}@if($node->structureType) ({{ $node->structureType->name }})@endif</option>
+                                    @endforeach
+                                </select>
+                            </label>
+                            <label class="text-xs text-slate-400">Placa <span class="text-amber-400">*</span>
+                                <input name="plate" x-model="regPlate" required class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm uppercase">
+                            </label>
+                            <label class="text-xs text-slate-400">Tipo
+                                <select name="vehicle_type" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
+                                    <option value="carro">Carro</option>
+                                    <option value="moto">Moto</option>
+                                    <option value="camion">Camión</option>
+                                </select>
+                            </label>
+                            <label class="text-xs text-slate-400">Marca
+                                <input name="vehicle_brand" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
+                            </label>
+                            <label class="text-xs text-slate-400">Color
+                                <input name="vehicle_color" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
+                            </label>
+                        </div>
+                        @include('modules.access.partials.camera-capture', [
+                            'name' => 'person_photo_data',
+                            'label' => 'Foto del vehículo',
+                            'required' => false,
+                            'hint' => 'Opcional',
+                        ])
+                    </div>
+                </template>
 
                 <template x-if="regKind === 'visitor' || regKind === 'vehicle'">
                     <div class="space-y-4">
@@ -154,7 +200,7 @@
             </form>
         </div>
 
-        <div x-show="selected" class="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-4">
+        <div x-show="selected" class="porteria-form rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-4">
             <div class="flex gap-4">
                 <img x-show="selected?.photo_url" :src="selected?.photo_url" alt="" class="h-24 w-24 rounded-xl object-cover bg-slate-800">
                 <div class="h-24 w-24 rounded-xl bg-slate-800" x-show="selected && !selected.photo_url"></div>

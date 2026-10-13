@@ -1,7 +1,7 @@
 <x-access-layout title="Nuevo Visitante">
     <p class="mb-4 text-sm text-slate-400">Pre-registro desde administración o portería. La foto es opcional aquí; si llega sin foto, se pedirá al ingresar.</p>
 
-    <div class="bg-slate-900 rounded-xl border border-slate-800 p-6 max-w-3xl" x-data="{
+    <div class="porteria-form bg-slate-900 rounded-xl border border-slate-800 p-6 max-w-3xl" x-data="{
         scanBuffer: '',
         regDoc: @js(old('document_number', '')),
         regFirst: @js(old('first_name', '')),
