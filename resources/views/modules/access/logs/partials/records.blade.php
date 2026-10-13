@@ -94,7 +94,7 @@
                                 <form method="POST" action="{{ route('access.logs.exit', $log) }}">
                                     @csrf
                                     @method('PATCH')
-                                    <button class="rounded-md bg-amber-600 px-2 py-1 text-[11px] font-semibold text-white">Dar salida</button>
+                                    <button class="rounded-md px-2 py-1 text-[11px] font-semibold text-white {{ $census ? 'bg-emerald-600' : 'bg-amber-600' }}">Dar salida</button>
                                 </form>
                             @endcan
                         @endif

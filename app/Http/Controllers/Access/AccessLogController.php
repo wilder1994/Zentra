@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Access;
 use App\Http\Controllers\Controller;
 use App\Models\AccessLog;
 use App\Models\User;
+use App\Services\Access\AuditLogger;
 use App\Services\Access\LookupPorteriaSubjectService;
 use App\Services\Access\PorteriaDoorService;
 use App\Services\Access\RegisterPorteriaMovementService;
@@ -19,6 +20,8 @@ use Illuminate\View\View;
 
 class AccessLogController extends Controller
 {
+    private const VISITOR_TYPES = ['visitor', 'visitor_vehicle'];
+
     /** @var array<string, list<string>> */
     private const SCOPE_TYPES = [
         'member' => ['member', 'resident'],
@@ -98,7 +101,10 @@ class AccessLogController extends Controller
             'door' => $doors->operatingOrFirst($request),
             'logs' => $logs,
             'visitCounts' => $visitCounts,
-            'activeCount' => AccessLog::query()->where('status', 'active')->count(),
+            'bulkCounts' => [
+                'visitor' => AccessLog::query()->where('status', 'active')->where('access_type', 'visitor')->count(),
+                'visitor_vehicle' => AccessLog::query()->where('status', 'active')->where('access_type', 'visitor_vehicle')->count(),
+            ],
             'from' => $from->toDateString(),
             'to' => $to->toDateString(),
             'scope' => $scope,
@@ -329,14 +335,28 @@ class AccessLogController extends Controller
         return response()->json(['error' => 'Usa Ingreso y salida → Movimiento.'], 422);
     }
 
-    public function bulkExit(): RedirectResponse
+    public function bulkExit(Request $request, AuditLogger $audit): RedirectResponse
     {
-        AccessLog::query()->where('status', 'active')->update([
-            'exit_time' => now(),
-            'status' => 'completed',
+        $validated = $request->validate([
+            'target' => 'required|in:visitor,visitor_vehicle,both',
+        ], [
+            'target.required' => 'Elige a quiénes dar salida.',
         ]);
 
-        return redirect()->route('access.logs.index', ['tab' => 'registros'])->with('success', 'Salida masiva registrada.');
+        $types = match ($validated['target']) {
+            'visitor' => ['visitor'],
+            'visitor_vehicle' => ['visitor_vehicle'],
+            default => self::VISITOR_TYPES,
+        };
+
+        $logs = AccessLog::query()->where('status', 'active')->whereIn('access_type', $types)->get();
+        foreach ($logs as $log) {
+            $log->update(['exit_time' => now(), 'status' => 'completed']);
+            $audit->record($log, 'access.exit', ['status' => 'active'], ['status' => 'completed', 'bulk' => true]);
+        }
+
+        return redirect()->route('access.logs.index', ['tab' => 'registros'])
+            ->with('success', $logs->isEmpty() ? 'No había visitantes adentro.' : 'Salida masiva registrada: '.$logs->count().'.');
     }
 
     /** @return array<string, mixed> */

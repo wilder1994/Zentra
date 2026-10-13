@@ -275,6 +275,63 @@ final class PorteriaConsoleTest extends TestCase
             ->assertJsonPath('items.1.active', false);
     }
 
+    public function test_bulk_exit_only_closes_selected_visitors_never_census(): void
+    {
+        [$vigilante, $client] = $this->vigilante();
+        $door = Location::query()->withoutGlobalScopes()->where('client_id', $client->id)->where('is_active', true)->firstOrFail();
+        $session = $this->porteriaSession($client, (int) $door->id);
+
+        $this->actingAs($vigilante)->withSession($session)
+            ->post(route('access.turnos.store'), ['location_id' => $door->id])
+            ->assertRedirect();
+        $session[PorteriaDoorService::SESSION_KEY] = $door->id;
+
+        $node = Structure::query()->where('client_id', $client->id)->firstOrFail();
+        $photo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+        $this->actingAs($vigilante)->withSession($session)
+            ->post(route('access.logs.register'), [
+                'subject_kind' => 'vehicle',
+                'structure_id' => $node->id,
+                'plate' => 'RES777',
+                'vehicle_type' => 'carro',
+                'also_enter' => '1',
+            ])
+            ->assertRedirect();
+        $this->actingAs($vigilante)->withSession($session)
+            ->post(route('access.logs.register'), [
+                'subject_kind' => 'visitor',
+                'first_name' => 'Masiva',
+                'last_name' => 'Visita',
+                'document_type' => 'CC',
+                'document_number' => '1099009900',
+                'visitor_type' => 'persona',
+                'person_photo_data' => $photo,
+                'also_enter' => '1',
+                'destination_text' => 'Salón social',
+                'authorized_text' => 'Administración',
+            ])
+            ->assertRedirect();
+
+        $censusLog = AccessLog::query()->where('access_type', 'member_vehicle')->where('status', 'active')->firstOrFail();
+        $visitorLog = AccessLog::query()->where('access_type', 'visitor')->where('status', 'active')->firstOrFail();
+
+        $this->actingAs($vigilante)->withSession($session)
+            ->post(route('access.logs.bulk-exit'), [])
+            ->assertSessionHasErrors('target');
+
+        $this->actingAs($vigilante)->withSession($session)
+            ->post(route('access.logs.bulk-exit'), ['target' => 'visitor_vehicle'])
+            ->assertRedirect();
+        $this->assertSame('active', $visitorLog->fresh()->status);
+
+        $this->actingAs($vigilante)->withSession($session)
+            ->post(route('access.logs.bulk-exit'), ['target' => 'both'])
+            ->assertRedirect();
+        $this->assertSame('completed', $visitorLog->fresh()->status);
+        $this->assertSame('active', $censusLog->fresh()->status);
+    }
+
     public function test_porteria_register_requires_photo_for_visitor(): void
     {
         [$vigilante, $client] = $this->vigilante();

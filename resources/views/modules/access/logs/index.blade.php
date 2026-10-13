@@ -10,13 +10,44 @@
            class="px-4 py-2 rounded-lg text-sm font-semibold {{ $tab === 'movimiento' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300' }}">Movimiento</a>
         <a href="{{ route('access.logs.index', array_merge(request()->except('tab'), ['tab' => 'registros'])) }}"
            class="px-4 py-2 rounded-lg text-sm font-semibold {{ $tab === 'registros' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300' }}">Registros</a>
-        @if($tab === 'registros' && $activeCount > 0)
+        @php $bulkTotal = $tab === 'registros' ? array_sum($bulkCounts) : 0; @endphp
+        @if($bulkTotal > 0)
             @can('access.register.exit')
-                <form action="{{ route('access.logs.bulk-exit') }}" method="POST" class="ml-auto"
-                      onsubmit="return confirm('¿Registrar la salida de las {{ $activeCount }} personas o vehículos que siguen adentro?')">
-                    @csrf
-                    <button class="px-4 py-2 rounded-lg bg-red-700 text-white text-sm font-semibold">Salida masiva ({{ $activeCount }})</button>
-                </form>
+                <div class="ml-auto" x-data="{ open: false, target: '{{ $bulkCounts['visitor'] > 0 && $bulkCounts['visitor_vehicle'] > 0 ? 'both' : ($bulkCounts['visitor'] > 0 ? 'visitor' : 'visitor_vehicle') }}' }">
+                    <button type="button" @click="open = true" class="px-4 py-2 rounded-lg bg-red-700 text-white text-sm font-semibold">Salida masiva ({{ $bulkTotal }})</button>
+                    <template x-teleport="body">
+                        <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" @keydown.escape.window="open = false">
+                            <div class="absolute inset-0 bg-slate-950/70" @click="open = false"></div>
+                            <form method="POST" action="{{ route('access.logs.bulk-exit') }}" class="relative w-full max-w-sm space-y-4 rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-2xl">
+                                @csrf
+                                <div>
+                                    <h3 class="text-base font-semibold text-white">Salida masiva de visitantes</h3>
+                                    <p class="mt-1 text-xs text-slate-400">El censo no se incluye: residentes y sus vehículos viven en la instalación.</p>
+                                </div>
+                                <div class="space-y-2">
+                                    @foreach([
+                                        'visitor' => ['Personas visitantes', $bulkCounts['visitor']],
+                                        'visitor_vehicle' => ['Vehículos visitantes', $bulkCounts['visitor_vehicle']],
+                                        'both' => ['Ambos', $bulkTotal],
+                                    ] as $value => [$label, $count])
+                                        <label class="flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm {{ $count === 0 ? 'opacity-50' : '' }}"
+                                               :class="target === '{{ $value }}' ? 'border-red-500 bg-red-500/10 text-white' : 'border-slate-700 text-slate-300'">
+                                            <span class="flex items-center gap-2">
+                                                <input type="radio" name="target" value="{{ $value }}" x-model="target" @disabled($count === 0) class="text-red-600">
+                                                {{ $label }}
+                                            </span>
+                                            <span class="text-xs font-semibold">{{ $count }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                                <div class="flex justify-end gap-2">
+                                    <button type="button" @click="open = false" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-200 text-sm">Cancelar</button>
+                                    <button class="px-4 py-2 rounded-lg bg-red-700 text-white text-sm font-semibold">Dar salida</button>
+                                </div>
+                            </form>
+                        </div>
+                    </template>
+                </div>
             @endcan
         @endif
     </div>
@@ -296,10 +327,11 @@
 
                 <div class="flex flex-wrap gap-2" x-show="!step">
                     <template x-if="selected && selected.inside">
-                        <button name="action" value="exit" class="px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-semibold">Dar salida</button>
+                        <button name="action" value="exit" class="px-4 py-2 rounded-lg text-white text-sm font-semibold"
+                                :class="selected.census ? 'bg-emerald-600' : 'bg-amber-600'">Dar salida</button>
                     </template>
                     <template x-if="selected && !selected.inside && !selected.blocked && selected.census">
-                        <button name="action" value="enter" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold">Ingresar</button>
+                        <button name="action" value="enter" class="px-4 py-2 rounded-lg bg-yellow-400 text-slate-900 text-sm font-semibold">Ingresar</button>
                     </template>
                     <template x-if="selected && !selected.inside && !selected.blocked && !selected.census">
                         <button type="button" @click="startEnter()" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold">Ingresar</button>
