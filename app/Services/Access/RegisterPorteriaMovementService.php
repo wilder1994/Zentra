@@ -31,7 +31,7 @@ final class RegisterPorteriaMovementService
     /**
      * @param  array<string, mixed>  $input
      */
-    public function move(User $actor, array $input): AccessLog
+    public function move(User $actor, array $input, ?UploadedFile $photo = null): AccessLog
     {
         $kind = (string) ($input['kind'] ?? '');
         $id = (int) ($input['id'] ?? 0);
@@ -48,7 +48,7 @@ final class RegisterPorteriaMovementService
             return $this->exit($kind, $id);
         }
 
-        return $this->enterExisting($actor, $kind, $id, $input);
+        return $this->enterExisting($actor, $kind, $id, $input, $photo);
     }
 
     /**
@@ -57,7 +57,7 @@ final class RegisterPorteriaMovementService
      * @param  array<string, mixed>  $input
      * @return array{kind: string, id: int}
      */
-    public function register(array $input, ?UploadedFile $photo = null): array
+    public function register(array $input, ?UploadedFile $photo = null, bool $requirePhoto = false): array
     {
         $clientId = (int) $this->tenant->clientId();
         $kind = (string) ($input['subject_kind'] ?? 'visitor');
@@ -70,10 +70,20 @@ final class RegisterPorteriaMovementService
         }
 
         if ($kind === 'vehicle') {
+            if ($requirePhoto && $photo === null) {
+                $plate = strtoupper(trim((string) ($input['plate'] ?? '')));
+                $existingPhoto = $plate !== ''
+                    ? Vehicle::query()->where('client_id', $clientId)->where('plate', $plate)->value('photo_path')
+                    : null;
+                if (empty($existingPhoto)) {
+                    throw ValidationException::withMessages([
+                        'person_photo_data' => 'La foto del vehículo es obligatoria en el primer registro.',
+                    ]);
+                }
+            }
             $visitor = null;
             if (empty($input['structure_id'])) {
                 $visitor = $this->resolveVisitor($clientId, $input);
-                $this->applyPhoto($visitor, null, 'porteria/personas');
             }
             $vehicle = $this->resolveVehicle($clientId, $input, $visitor, null);
             $this->applyPhoto($vehicle, $photo, 'porteria/vehiculos');
@@ -81,12 +91,25 @@ final class RegisterPorteriaMovementService
             return ['kind' => 'vehicle', 'id' => (int) $vehicle->id];
         }
 
+        if ($requirePhoto && $photo === null) {
+            $doc = trim((string) ($input['document_number'] ?? ''));
+            $docType = (string) ($input['document_type'] ?? 'CC');
+            $existingPhoto = Visitor::withTrashed()
+                ->where('client_id', $clientId)
+                ->where('document_type', $docType)
+                ->where('document_number', $doc)
+                ->value('photo_path');
+            if (empty($existingPhoto)) {
+                throw ValidationException::withMessages([
+                    'person_photo_data' => 'La foto del visitante es obligatoria en el primer registro.',
+                ]);
+            }
+        }
         $visitor = $this->resolveVisitor($clientId, $input);
         $this->applyPhoto($visitor, $photo, 'porteria/personas');
 
         if (! empty($input['plate'])) {
-            $vehicle = $this->resolveVehicle($clientId, $input, $visitor, null);
-            $this->applyPhoto($vehicle, null, 'porteria/vehiculos');
+            $this->resolveVehicle($clientId, $input, $visitor, null);
         }
 
         return ['kind' => 'visitor', 'id' => (int) $visitor->id];
@@ -140,7 +163,7 @@ final class RegisterPorteriaMovementService
     /**
      * @param  array<string, mixed>  $input
      */
-    private function enterExisting(User $actor, string $kind, int $id, array $input): AccessLog
+    private function enterExisting(User $actor, string $kind, int $id, array $input, ?UploadedFile $photo = null): AccessLog
     {
         $clientId = (int) $this->tenant->clientId();
         $door = $this->requireDoor();
@@ -160,15 +183,30 @@ final class RegisterPorteriaMovementService
             $member = StructureMember::query()->where('client_id', $clientId)->whereKey($id)->firstOrFail();
             $this->assertPersonNotBlocked($member->document_number);
             $census = true;
+            $this->applyPhoto($member, $photo, 'porteria/personas');
         } elseif ($kind === 'visitor') {
             $visitor = Visitor::query()->where('client_id', $clientId)->whereKey($id)->firstOrFail();
             $this->assertVisitorNotBlocked($visitor);
+            $this->applyPhoto($visitor, $photo, 'porteria/personas');
+            $visitor->refresh();
+            if (empty($visitor->photo_path)) {
+                throw ValidationException::withMessages([
+                    'person_photo_data' => 'La foto del visitante es obligatoria para ingresar.',
+                ]);
+            }
         } else {
             $vehicle = Vehicle::query()->where('client_id', $clientId)->whereKey($id)->firstOrFail();
             $this->assertVehicleNotBlocked($vehicle);
             $census = $vehicle->structure_id !== null;
             if ($vehicle->visitor_id) {
                 $visitor = $vehicle->visitor;
+            }
+            $this->applyPhoto($vehicle, $photo, 'porteria/vehiculos');
+            $vehicle->refresh();
+            if (! $census && empty($vehicle->photo_path)) {
+                throw ValidationException::withMessages([
+                    'person_photo_data' => 'La foto del vehículo visitante es obligatoria para ingresar.',
+                ]);
             }
         }
 
@@ -191,6 +229,7 @@ final class RegisterPorteriaMovementService
             'destination_structure_id' => $dest['structure_id'],
             'destination_text' => $dest['text'],
             'authorized_member_id' => $dest['authorized_member_id'],
+            'authorized_text' => $dest['authorized_text'],
             'authorized_by' => $actor->id,
             'access_type' => $accessType,
             'entry_time' => now(),
@@ -231,16 +270,22 @@ final class RegisterPorteriaMovementService
 
     /**
      * @param  array<string, mixed>  $input
-     * @return array{structure_id: ?int, text: ?string, authorized_member_id: ?int}
+     * @return array{structure_id: ?int, text: ?string, authorized_member_id: ?int, authorized_text: ?string}
      */
     private function destination(int $clientId, array $input, bool $census): array
     {
         $structureId = (int) ($input['destination_structure_id'] ?? 0);
         $text = trim((string) ($input['destination_text'] ?? ''));
         $authorizedId = (int) ($input['authorized_member_id'] ?? 0);
+        $authorizedText = trim((string) ($input['authorized_text'] ?? ''));
 
         if ($census) {
-            return ['structure_id' => null, 'text' => null, 'authorized_member_id' => null];
+            return [
+                'structure_id' => null,
+                'text' => null,
+                'authorized_member_id' => null,
+                'authorized_text' => null,
+            ];
         }
 
         if ($structureId > 0) {
@@ -259,7 +304,13 @@ final class RegisterPorteriaMovementService
 
         if ($structureId < 1 && $text === '') {
             throw ValidationException::withMessages([
-                'destination_structure_id' => 'Indica nodo o destino (texto).',
+                'destination_structure_id' => 'Indica apartamento, zona o destino (texto).',
+            ]);
+        }
+
+        if ($authorizedId < 1 && $authorizedText === '') {
+            throw ValidationException::withMessages([
+                'authorized_text' => 'Indica quién autoriza (residente del nodo o nombre).',
             ]);
         }
 
@@ -267,6 +318,7 @@ final class RegisterPorteriaMovementService
             'structure_id' => $structureId > 0 ? $structureId : null,
             'text' => $text !== '' ? $text : null,
             'authorized_member_id' => $authorizedId > 0 ? $authorizedId : null,
+            'authorized_text' => $authorizedId > 0 ? null : ($authorizedText !== '' ? $authorizedText : null),
         ];
     }
 
@@ -339,6 +391,18 @@ final class RegisterPorteriaMovementService
             ]);
         }
 
+        $profile = [
+            'first_name' => $first,
+            'last_name' => $last,
+            'phone' => $this->nullableString($input['phone'] ?? null),
+            'email' => $this->nullableString($input['email'] ?? null),
+            'company' => $this->nullableString($input['company'] ?? null),
+            'visitor_type' => $this->visitorType($input['visitor_type'] ?? null),
+            'nationality' => $this->nullableString($input['nationality'] ?? null) ?? 'Colombiana',
+            'birth_date' => $input['birth_date'] ?? null,
+            'notes' => $this->nullableString($input['notes'] ?? null),
+        ];
+
         $existing = Visitor::withTrashed()
             ->where('client_id', $clientId)
             ->where('document_type', $docType)
@@ -348,19 +412,38 @@ final class RegisterPorteriaMovementService
             if ($existing->trashed()) {
                 $existing->restore();
             }
-            $existing->update(['first_name' => $first, 'last_name' => $last]);
+            $existing->update(array_filter(
+                $profile,
+                static fn ($value) => $value !== null && $value !== '',
+            ));
 
-            return $existing;
+            return $existing->fresh();
         }
 
         return Visitor::query()->create([
             'client_id' => $clientId,
             'document_type' => $docType,
             'document_number' => $doc,
-            'first_name' => $first,
-            'last_name' => $last,
-            'visitor_type' => 'persona',
+            ...$profile,
         ]);
+    }
+
+    private function visitorType(mixed $value): string
+    {
+        $type = is_string($value) ? $value : 'persona';
+        $allowed = ['persona', 'contratista', 'proveedor', 'domiciliario', 'servicio'];
+
+        return in_array($type, $allowed, true) ? $type : 'persona';
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+        $trimmed = trim($value);
+
+        return $trimmed !== '' ? $trimmed : null;
     }
 
     /**

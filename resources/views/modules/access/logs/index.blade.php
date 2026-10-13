@@ -32,56 +32,124 @@
             </template>
         </div>
 
-        <div x-show="!selected && q.length >= 2 && !loading && hits.length === 0" class="rounded-xl border border-amber-700/50 bg-amber-900/20 p-4 space-y-3">
-            <p class="text-sm text-amber-200">No hay ficha. ¿Registrar?</p>
-            <form method="POST" action="{{ route('access.logs.register') }}" class="space-y-3">
+        <div x-show="!selected && q.length >= 2 && !loading && hits.length === 0" class="rounded-xl border border-amber-700/50 bg-amber-900/20 p-4 space-y-4">
+            <div>
+                <p class="text-sm font-semibold text-amber-100">Primera vez — registrar ficha</p>
+                <p class="text-xs text-amber-200/80 mt-1">Completa los datos. Para visitantes y vehículos se registra el ingreso en el mismo paso.</p>
+            </div>
+            <form method="POST" action="{{ route('access.logs.register') }}" class="space-y-4">
                 @csrf
-                <input type="hidden" name="person_photo_data" :value="photo">
-                <div class="grid grid-cols-2 gap-2">
-                    <label class="text-xs text-slate-400 col-span-2">Tipo
-                        <select name="subject_kind" x-model="regKind" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
-                            <option value="visitor">Visitante</option>
-                            <option value="member">Persona del censo</option>
-                            <option value="vehicle">Vehículo</option>
-                        </select>
-                    </label>
-                    <label class="text-xs text-slate-400">Nombre
-                        <input name="first_name" x-model="regFirst" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
-                    </label>
-                    <label class="text-xs text-slate-400">Apellido
-                        <input name="last_name" x-model="regLast" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
-                    </label>
-                    <label class="text-xs text-slate-400">Tipo doc.
-                        <input name="document_type" value="CC" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
-                    </label>
-                    <label class="text-xs text-slate-400">Documento
-                        <input name="document_number" x-model="regDoc" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
-                    </label>
-                    <label class="text-xs text-slate-400 col-span-2" x-show="regKind === 'vehicle'">Placa
-                        <input name="plate" x-model="regPlate" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
-                    </label>
-                    <label class="text-xs text-slate-400 col-span-2" x-show="regKind === 'member'">Nodo
-                        <select name="structure_id" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
-                            <option value="">Seleccionar</option>
-                            @foreach($nodes as $node)
-                                <option value="{{ $node->id }}">{{ $node->installation?->name }} · {{ $node->name }}</option>
-                            @endforeach
-                        </select>
-                    </label>
-                    <div class="col-span-2" x-show="regKind === 'member'">
-                        <select name="member_type_id" class="w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
-                            <option value="">Tipo de persona</option>
-                            @foreach($memberTypes as $type)
-                                <option value="{{ $type->id }}">{{ $type->name }}</option>
-                            @endforeach
-                        </select>
+                <input type="hidden" name="also_enter" :value="regKind === 'member' ? '0' : '1'">
+
+                <label class="text-xs text-slate-400 block">Tipo de ficha
+                    <select name="subject_kind" x-model="regKind" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
+                        <option value="visitor">Visitante (persona)</option>
+                        <option value="vehicle">Vehículo visitante</option>
+                        <option value="member">Persona del censo</option>
+                    </select>
+                </label>
+
+                <template x-if="regKind === 'visitor' || regKind === 'vehicle'">
+                    <div class="space-y-4">
+                        @include('modules.access.partials.visitor-profile-fields', ['prefix' => 'reg'])
+                        <div class="grid grid-cols-2 gap-2" x-show="regKind === 'vehicle'">
+                            <label class="text-xs text-slate-400">Placa <span class="text-amber-400">*</span>
+                                <input name="plate" x-model="regPlate" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm uppercase">
+                            </label>
+                            <label class="text-xs text-slate-400">Tipo
+                                <select name="vehicle_type" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
+                                    <option value="carro">Carro</option>
+                                    <option value="moto">Moto</option>
+                                    <option value="camion">Camión</option>
+                                </select>
+                            </label>
+                            <label class="text-xs text-slate-400">Marca
+                                <input name="vehicle_brand" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
+                            </label>
+                            <label class="text-xs text-slate-400">Color
+                                <input name="vehicle_color" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
+                            </label>
+                        </div>
+                        @include('modules.access.partials.camera-capture', [
+                            'name' => 'person_photo_data',
+                            'label' => 'Foto',
+                            'required' => true,
+                            'hint' => 'Abre la cámara, acomoda a la persona y pulsa Tomar foto',
+                        ])
+                        <div class="space-y-2 rounded-xl border border-slate-700/60 bg-slate-950/40 p-3">
+                            <p class="text-xs font-semibold text-slate-300 uppercase tracking-wide">Esta visita</p>
+                            <label class="text-xs text-slate-400 block">¿A dónde va? (apartamento o zona)
+                                <select name="destination_structure_id" x-model="destId" @change="loadHosts()"
+                                        class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
+                                    <option value="">Elegir nodo o usar texto abajo</option>
+                                    @foreach($nodes as $node)
+                                        <option value="{{ $node->id }}">{{ $node->name }}@if($node->structureType) · {{ $node->structureType->name }}@endif</option>
+                                    @endforeach
+                                </select>
+                            </label>
+                            <label class="text-xs text-slate-400 block">Destino (si no está en la lista)
+                                <input name="destination_text" x-model="destText"
+                                       class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm"
+                                       placeholder="Zona común, administración, torre…">
+                            </label>
+                            <label class="text-xs text-slate-400 block">¿Quién autoriza? (residente del nodo)
+                                <select name="authorized_member_id" x-model="authId"
+                                        class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
+                                    <option value="">— Escribir nombre abajo —</option>
+                                    <template x-for="h in hosts" :key="h.id">
+                                        <option :value="h.id" x-text="h.name"></option>
+                                    </template>
+                                </select>
+                            </label>
+                            <label class="text-xs text-slate-400 block">Nombre de quien autoriza
+                                <input name="authorized_text" x-model="authText"
+                                       class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm"
+                                       placeholder="Administración, contratista externo, residente por teléfono…">
+                            </label>
+                            <label class="text-xs text-slate-400 block">Motivo (opcional)
+                                <input name="purpose" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm"
+                                       placeholder="Visita, entrega, revisión de contadores…">
+                            </label>
+                        </div>
                     </div>
-                </div>
-                <div class="flex items-center gap-3">
-                    <button type="button" @click="snap()" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 text-white">Foto (opcional)</button>
-                    <video x-ref="cam" class="hidden h-16 w-16 rounded object-cover bg-black" autoplay playsinline></video>
-                    <img x-show="photo" :src="photo" alt="" class="h-16 w-16 rounded object-cover">
-                    <button type="submit" class="ml-auto px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold">Registrar</button>
+                </template>
+
+                <template x-if="regKind === 'member'">
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="text-xs text-slate-400">Nombres
+                            <input name="first_name" x-model="regFirst" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
+                        </label>
+                        <label class="text-xs text-slate-400">Apellidos
+                            <input name="last_name" x-model="regLast" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
+                        </label>
+                        <label class="text-xs text-slate-400">Tipo doc.
+                            <input name="document_type" value="CC" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
+                        </label>
+                        <label class="text-xs text-slate-400">Documento
+                            <input name="document_number" x-model="regDoc" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
+                        </label>
+                        <label class="text-xs text-slate-400 col-span-2">Apartamento / nodo
+                            <select name="structure_id" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
+                                <option value="">Seleccionar</option>
+                                @foreach($nodes as $node)
+                                    <option value="{{ $node->id }}">{{ $node->installation?->name }} · {{ $node->name }}@if($node->structureType) ({{ $node->structureType->name }})@endif</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <label class="text-xs text-slate-400 col-span-2">Tipo de persona
+                            <select name="member_type_id" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
+                                <option value="">Tipo de persona</option>
+                                @foreach($memberTypes as $type)
+                                    <option value="{{ $type->id }}">{{ $type->name }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                    </div>
+                </template>
+
+                <div class="flex justify-end">
+                    <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold"
+                            x-text="regKind === 'member' ? 'Crear ficha del censo' : 'Registrar e ingresar'"></button>
                 </div>
             </form>
         </div>
@@ -98,40 +166,55 @@
                 </div>
             </div>
 
-            <template x-if="selected && !selected.census && !selected.inside">
-                <div class="grid grid-cols-1 gap-3">
-                    <label class="text-xs text-slate-400">Nodo / destino
-                        <select x-model="destId" @change="loadHosts()" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
-                            <option value="">Texto libre o elige nodo</option>
-                            @foreach($nodes as $node)
-                                <option value="{{ $node->id }}">{{ $node->name }}</option>
-                            @endforeach
-                        </select>
-                    </label>
-                    <label class="text-xs text-slate-400">Destino (si no hay nodo)
-                        <input x-model="destText" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm" placeholder="Torre, oficina…">
-                    </label>
-                    <label class="text-xs text-slate-400">Autoriza
-                        <select x-model="authId" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
-                            <option value="">—</option>
-                            <template x-for="h in hosts" :key="h.id">
-                                <option :value="h.id" x-text="h.name"></option>
-                            </template>
-                        </select>
-                    </label>
-                </div>
-            </template>
-
-            <form method="POST" action="{{ route('access.logs.move') }}" class="flex flex-wrap gap-2">
+            <form method="POST" action="{{ route('access.logs.move') }}" class="space-y-3">
                 @csrf
                 <input type="hidden" name="kind" :value="selected?.kind">
                 <input type="hidden" name="id" :value="selected?.id">
-                <input type="hidden" name="destination_structure_id" :value="destId">
-                <input type="hidden" name="destination_text" :value="destText">
-                <input type="hidden" name="authorized_member_id" :value="authId">
-                <button x-show="selected && !selected.inside && !selected.blocked" name="action" value="enter" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold">Ingresa</button>
-                <button x-show="selected && selected.inside" name="action" value="exit" class="px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-semibold">Sale</button>
-                <button type="button" @click="cancel()" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-200 text-sm">Cancelar</button>
+
+                <template x-if="selected && !selected.census && !selected.inside && !selected.photo_url">
+                    <div>
+                        <p class="text-xs text-amber-300 mb-2">Sin foto en la ficha — tómalo antes de ingresar.</p>
+                        @include('modules.access.partials.camera-capture', [
+                            'name' => 'person_photo_data',
+                            'label' => 'Foto',
+                            'required' => true,
+                        ])
+                    </div>
+                </template>
+
+                <template x-if="selected && !selected.census && !selected.inside">
+                    <div class="grid grid-cols-1 gap-3">
+                        <label class="text-xs text-slate-400">¿A dónde va? (apartamento o zona)
+                            <select name="destination_structure_id" x-model="destId" @change="loadHosts()" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
+                                <option value="">Elegir nodo o usar texto abajo</option>
+                                @foreach($nodes as $node)
+                                    <option value="{{ $node->id }}">{{ $node->name }}@if($node->structureType) · {{ $node->structureType->name }}@endif</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <label class="text-xs text-slate-400">Destino (si no está en la lista)
+                            <input name="destination_text" x-model="destText" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm" placeholder="Zona común, administración…">
+                        </label>
+                        <label class="text-xs text-slate-400">¿Quién autoriza? (residente del nodo)
+                            <select name="authorized_member_id" x-model="authId" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
+                                <option value="">— Escribir nombre abajo —</option>
+                                <template x-for="h in hosts" :key="h.id">
+                                    <option :value="h.id" x-text="h.name"></option>
+                                </template>
+                            </select>
+                        </label>
+                        <label class="text-xs text-slate-400">Nombre de quien autoriza
+                            <input name="authorized_text" x-model="authText" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm"
+                                   placeholder="Administración, persona externa…">
+                        </label>
+                    </div>
+                </template>
+
+                <div class="flex flex-wrap gap-2">
+                    <button x-show="selected && !selected.inside && !selected.blocked" name="action" value="enter" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold">Ingresa</button>
+                    <button x-show="selected && selected.inside" name="action" value="exit" class="px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-semibold">Sale</button>
+                    <button type="button" @click="cancel()" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-200 text-sm">Cancelar</button>
+                </div>
             </form>
         </div>
     </div>
@@ -203,7 +286,7 @@
                             @endif
                         </td>
                         <td class="px-3 py-2 text-slate-300">{{ $log->destinationLabel() }}</td>
-                        <td class="px-3 py-2 text-slate-300">{{ $log->authorizedMember?->full_name ?? '—' }}</td>
+                        <td class="px-3 py-2 text-slate-300">{{ $log->authorizerLabel() }}</td>
                         <td class="px-3 py-2 text-slate-300">{{ $log->host?->name ?? '—' }}</td>
                         <td class="px-3 py-2">
                             @if($log->status === 'active')
@@ -237,22 +320,28 @@
                 destId: '',
                 destText: '',
                 authId: '',
+                authText: '',
                 hosts: [],
-                photo: '',
                 regKind: 'visitor',
                 regFirst: '',
                 regLast: '',
                 regDoc: '',
+                regPhone: '',
+                regEmail: '',
+                regCompany: '',
+                regType: 'persona',
                 regPlate: '',
                 lookupUrl: @json(route('access.logs.lookup')),
                 hostsUrl: @json(route('access.logs.hosts')),
                 boot() {
                     if (this.q.length >= 2) this.lookup();
+                    if (/^\d{5,}$/.test(this.q.trim())) this.regDoc = this.q.trim();
                 },
                 lookup() {
                     this.selected = null;
                     if (this.q.trim().length < 2) { this.hits = []; return; }
                     this.loading = true;
+                    if (/^\d{5,}$/.test(this.q.trim())) this.regDoc = this.q.trim();
                     fetch(this.lookupUrl + '?q=' + encodeURIComponent(this.q), { headers: { 'Accept': 'application/json' } })
                         .then(r => r.json())
                         .then(d => { this.hits = d.hits || []; this.loading = false; })
@@ -263,6 +352,7 @@
                     this.destId = row.last?.destination_structure_id ? String(row.last.destination_structure_id) : '';
                     this.destText = row.last?.destination_text || '';
                     this.authId = row.last?.authorized_member_id ? String(row.last.authorized_member_id) : '';
+                    this.authText = row.last?.authorized_text || '';
                     if (this.destId) this.loadHosts();
                 },
                 cancel() { this.selected = null; },
@@ -271,20 +361,6 @@
                     fetch(this.hostsUrl + '?structure_id=' + this.destId, { headers: { 'Accept': 'application/json' } })
                         .then(r => r.json())
                         .then(d => { this.hosts = d.hosts || []; });
-                },
-                async snap() {
-                    const v = this.$refs.cam;
-                    v.classList.remove('hidden');
-                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                    v.srcObject = stream;
-                    await new Promise(r => setTimeout(r, 400));
-                    const c = document.createElement('canvas');
-                    c.width = v.videoWidth || 320;
-                    c.height = v.videoHeight || 240;
-                    c.getContext('2d').drawImage(v, 0, 0);
-                    this.photo = c.toDataURL('image/jpeg', 0.7);
-                    stream.getTracks().forEach(t => t.stop());
-                    v.classList.add('hidden');
                 },
             };
         }

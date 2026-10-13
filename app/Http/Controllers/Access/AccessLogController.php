@@ -116,11 +116,17 @@ class AccessLogController extends Controller
             'destination_structure_id' => 'nullable|integer',
             'destination_text' => 'nullable|string|max:255',
             'authorized_member_id' => 'nullable|integer',
+            'authorized_text' => 'nullable|string|max:255',
             'purpose' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
+            'person_photo_data' => 'nullable|string',
         ]);
 
-        $log = $register->move($request->user(), $validated);
+        $log = $register->move(
+            $request->user(),
+            $validated,
+            DataUrlToUploadedFile::make($validated['person_photo_data'] ?? null, 'ficha'),
+        );
         $msg = $validated['action'] === 'exit' ? 'Salida registrada.' : 'Ingreso registrado.';
 
         return redirect()
@@ -132,10 +138,30 @@ class AccessLogController extends Controller
     public function storeRegister(Request $request, RegisterPorteriaMovementService $register): RedirectResponse
     {
         $validated = $this->movementPayload($request);
+        $alsoEnter = $request->boolean('also_enter', true);
         $created = $register->register(
             $validated,
             DataUrlToUploadedFile::make($validated['person_photo_data'] ?? $validated['vehicle_photo_data'] ?? null, 'ficha'),
+            requirePhoto: in_array($validated['subject_kind'], ['visitor', 'vehicle'], true),
         );
+
+        if ($alsoEnter && $validated['subject_kind'] !== 'member') {
+            $register->move($request->user(), [
+                'kind' => $created['kind'],
+                'id' => $created['id'],
+                'action' => 'enter',
+                'destination_structure_id' => $validated['destination_structure_id'] ?? null,
+                'destination_text' => $validated['destination_text'] ?? null,
+                'authorized_member_id' => $validated['authorized_member_id'] ?? null,
+                'authorized_text' => $validated['authorized_text'] ?? null,
+                'purpose' => $validated['purpose'] ?? null,
+                'notes' => $validated['notes'] ?? null,
+            ]);
+
+            return redirect()
+                ->route('access.logs.index', ['tab' => 'movimiento'])
+                ->with('success', 'Visitante registrado e ingreso anotado.');
+        }
 
         return redirect()
             ->route('access.logs.index', [
@@ -214,10 +240,16 @@ class AccessLogController extends Controller
             'last_name' => 'nullable|string|max:100',
             'document_type' => 'nullable|string|max:20',
             'document_number' => 'nullable|string|max:50',
+            'phone' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:100',
+            'company' => 'nullable|string|max:150',
+            'visitor_type' => 'nullable|in:persona,contratista,proveedor,domiciliario,servicio',
+            'nationality' => 'nullable|string|max:50',
             'birth_date' => 'nullable|date',
             'plate' => 'nullable|string|max:20',
             'vehicle_brand' => 'nullable|string|max:80',
             'vehicle_color' => 'nullable|string|max:40',
+            'vehicle_type' => 'nullable|string|max:40',
             'purpose' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
             'person_photo_data' => 'nullable|string',
@@ -225,6 +257,8 @@ class AccessLogController extends Controller
             'destination_structure_id' => 'nullable|integer',
             'destination_text' => 'nullable|string|max:255',
             'authorized_member_id' => 'nullable|integer',
+            'authorized_text' => 'nullable|string|max:255',
+            'also_enter' => 'nullable|boolean',
         ]);
         $validated['with_vehicle'] = $request->boolean('with_vehicle');
 

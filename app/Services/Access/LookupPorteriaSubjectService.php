@@ -74,7 +74,7 @@ final class LookupPorteriaSubjectService
         $clientId = (int) $this->tenant->clientId();
 
         return Structure::query()
-            ->with('installation')
+            ->with(['installation', 'structureType'])
             ->where('client_id', $clientId)
             ->orderBy('name')
             ->get();
@@ -209,7 +209,7 @@ final class LookupPorteriaSubjectService
     }
 
     /**
-     * @return array{destination_structure_id: ?int, destination_name: ?string, destination_text: ?string, authorized_member_id: ?int, authorized_name: ?string}|null
+     * @return array{destination_structure_id: ?int, destination_name: ?string, destination_text: ?string, authorized_member_id: ?int, authorized_name: ?string, authorized_text: ?string}|null
      */
     private function lastVisit(string $column, int $id): ?array
     {
@@ -229,6 +229,7 @@ final class LookupPorteriaSubjectService
             'destination_text' => $log->destination_text,
             'authorized_member_id' => $log->authorized_member_id,
             'authorized_name' => $log->authorizedMember?->full_name,
+            'authorized_text' => $log->authorized_text,
         ];
     }
 

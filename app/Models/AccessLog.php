@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToClient;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class AccessLog extends Model
 {
@@ -12,7 +13,7 @@ class AccessLog extends Model
 
     protected $fillable = [
         'client_id', 'visitor_id', 'structure_member_id', 'user_id', 'resident_id', 'housing_unit_id', 'vehicle_id', 'host_id', 'location_id',
-        'destination_structure_id', 'destination_text', 'authorized_member_id',
+        'destination_structure_id', 'destination_text', 'authorized_member_id', 'authorized_text',
         'authorized_by', 'access_type', 'entry_time', 'exit_time', 'status',
         'purpose', 'company_visited', 'screening_temp', 'qr_code', 'notes',
         'photo_path', 'vehicle_photo_path',
@@ -110,6 +111,12 @@ class AccessLog extends Model
             ?? (is_string($this->destination_text) && $this->destination_text !== '' ? $this->destination_text : '—');
     }
 
+    public function authorizerLabel(): string
+    {
+        return $this->authorizedMember?->full_name
+            ?? (is_string($this->authorized_text) && $this->authorized_text !== '' ? $this->authorized_text : '—');
+    }
+
     public function isVehicleMovement(): bool
     {
         return in_array($this->access_type, ['visitor_vehicle', 'member_vehicle', 'resident_vehicle'], true);
@@ -125,6 +132,6 @@ class AccessLog extends Model
             return null;
         }
 
-        return \Illuminate\Support\Facades\Storage::disk('public')->url($path);
+        return Storage::disk('public')->url($path);
     }
 }

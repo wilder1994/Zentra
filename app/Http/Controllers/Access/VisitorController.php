@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Vehicle;
 use App\Models\Visitor;
 use App\Services\Access\BlocklistGuard;
+use App\Support\Access\DataUrlToUploadedFile;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -49,10 +50,14 @@ class VisitorController extends Controller
             'email' => 'nullable|email|max:100',
             'nationality' => 'nullable|string|max:50',
             'company' => 'nullable|string|max:150',
-            'visitor_type' => 'required|in:persona,contratista,proveedor',
+            'visitor_type' => 'required|in:persona,contratista,proveedor,domiciliario,servicio',
             'birth_date' => 'nullable|date',
             'notes' => 'nullable|string',
+            'person_photo_data' => 'nullable|string',
         ]);
+
+        $photo = DataUrlToUploadedFile::make($validated['person_photo_data'] ?? null, 'visitante');
+        unset($validated['person_photo_data']);
 
         $existing = Visitor::withTrashed()
             ->where('document_type', $validated['document_type'])
@@ -62,12 +67,18 @@ class VisitorController extends Controller
         if ($existing) {
             $existing->restore();
             $existing->update($validated);
+            if ($photo !== null) {
+                $existing->update(['photo_path' => $photo->store('porteria/personas', 'public')]);
+            }
 
             return redirect()->route('access.visitors.index')
                 ->with('success', 'Visitante restaurado exitosamente.');
         }
 
-        Visitor::create($validated);
+        $visitor = Visitor::create($validated);
+        if ($photo !== null) {
+            $visitor->update(['photo_path' => $photo->store('porteria/personas', 'public')]);
+        }
 
         return redirect()->route('access.visitors.index')
             ->with('success', 'Visitante creado exitosamente.');
@@ -102,12 +113,18 @@ class VisitorController extends Controller
             'email' => 'nullable|email|max:100',
             'nationality' => 'nullable|string|max:50',
             'company' => 'nullable|string|max:150',
-            'visitor_type' => 'required|in:persona,contratista,proveedor',
+            'visitor_type' => 'required|in:persona,contratista,proveedor,domiciliario,servicio',
             'birth_date' => 'nullable|date',
             'notes' => 'nullable|string',
+            'person_photo_data' => 'nullable|string',
         ]);
 
+        $photo = DataUrlToUploadedFile::make($validated['person_photo_data'] ?? null, 'visitante');
+        unset($validated['person_photo_data']);
         $visitor->update($validated);
+        if ($photo !== null) {
+            $visitor->update(['photo_path' => $photo->store('porteria/personas', 'public')]);
+        }
 
         return redirect()->route('access.visitors.index')
             ->with('success', 'Visitante actualizado exitosamente.');

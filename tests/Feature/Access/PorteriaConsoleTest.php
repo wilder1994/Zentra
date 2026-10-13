@@ -7,6 +7,7 @@ namespace Tests\Feature\Access;
 use App\Models\AccessLog;
 use App\Models\Client;
 use App\Models\Location;
+use App\Models\Structure;
 use App\Models\StructureMember;
 use App\Models\User;
 use App\Models\Visitor;
@@ -56,6 +57,10 @@ final class PorteriaConsoleTest extends TestCase
 
         $session[PorteriaDoorService::SESSION_KEY] = $door->id;
 
+        $photo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+        $node = Structure::query()->where('client_id', $client->id)->firstOrFail();
+        $authorizer = StructureMember::query()->where('client_id', $client->id)->firstOrFail();
+
         $this->actingAs($vigilante)->withSession($session)
             ->post(route('access.logs.register'), [
                 'subject_kind' => 'visitor',
@@ -63,27 +68,22 @@ final class PorteriaConsoleTest extends TestCase
                 'last_name' => 'Visitante',
                 'document_type' => 'CC',
                 'document_number' => '1099001122',
-            ])
-            ->assertRedirect();
-
-        $this->assertDatabaseHas('visitors', [
-            'client_id' => $client->id,
-            'document_number' => '1099001122',
-        ]);
-        $visitor = Visitor::query()->where('document_number', '1099001122')->firstOrFail();
-        $this->assertFalse(AccessLog::query()->where('visitor_id', $visitor->id)->exists());
-        $node = \App\Models\Structure::query()->where('client_id', $client->id)->firstOrFail();
-        $authorizer = StructureMember::query()->where('client_id', $client->id)->firstOrFail();
-
-        $this->actingAs($vigilante)->withSession($session)
-            ->post(route('access.logs.move'), [
-                'kind' => 'visitor',
-                'id' => $visitor->id,
-                'action' => 'enter',
+                'phone' => '3001234567',
+                'visitor_type' => 'persona',
+                'person_photo_data' => $photo,
+                'also_enter' => '1',
                 'destination_structure_id' => $node->id,
                 'authorized_member_id' => $authorizer->id,
             ])
             ->assertRedirect(route('access.logs.index', ['tab' => 'movimiento']));
+
+        $this->assertDatabaseHas('visitors', [
+            'client_id' => $client->id,
+            'document_number' => '1099001122',
+            'phone' => '3001234567',
+        ]);
+        $visitor = Visitor::query()->where('document_number', '1099001122')->firstOrFail();
+        $this->assertNotEmpty($visitor->photo_path);
 
         $this->assertDatabaseHas('access_logs', [
             'visitor_id' => $visitor->id,
@@ -114,6 +114,76 @@ final class PorteriaConsoleTest extends TestCase
             ->assertOk()
             ->assertSee('Ana Visitante')
             ->assertSee($authorizer->first_name);
+    }
+
+    public function test_visitor_entry_allows_authorized_text_without_member(): void
+    {
+        [$vigilante, $client] = $this->vigilante();
+        $door = Location::query()->withoutGlobalScopes()->where('client_id', $client->id)->where('is_active', true)->firstOrFail();
+        $session = $this->porteriaSession($client, (int) $door->id);
+
+        $this->actingAs($vigilante)->withSession($session)
+            ->post(route('access.turnos.store'), ['location_id' => $door->id])
+            ->assertRedirect();
+        $session[PorteriaDoorService::SESSION_KEY] = $door->id;
+
+        $photo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+        $this->actingAs($vigilante)->withSession($session)
+            ->post(route('access.logs.register'), [
+                'subject_kind' => 'visitor',
+                'first_name' => 'Luis',
+                'last_name' => 'Contador',
+                'document_type' => 'CC',
+                'document_number' => '1099003344',
+                'visitor_type' => 'servicio',
+                'company' => 'Empresa Contadores SAS',
+                'person_photo_data' => $photo,
+                'also_enter' => '1',
+                'destination_text' => 'Cuarto de contadores',
+                'authorized_text' => 'Administración del conjunto',
+            ])
+            ->assertRedirect(route('access.logs.index', ['tab' => 'movimiento']));
+
+        $visitor = Visitor::query()->where('document_number', '1099003344')->firstOrFail();
+        $this->assertDatabaseHas('access_logs', [
+            'visitor_id' => $visitor->id,
+            'destination_text' => 'Cuarto de contadores',
+            'authorized_text' => 'Administración del conjunto',
+            'authorized_member_id' => null,
+            'status' => 'active',
+        ]);
+        $this->assertSame('servicio', $visitor->visitor_type);
+        $this->assertSame('Empresa Contadores SAS', $visitor->company);
+    }
+
+    public function test_porteria_register_requires_photo_for_visitor(): void
+    {
+        [$vigilante, $client] = $this->vigilante();
+        $door = Location::query()->withoutGlobalScopes()->where('client_id', $client->id)->where('is_active', true)->firstOrFail();
+        $session = $this->porteriaSession($client, (int) $door->id);
+
+        $this->actingAs($vigilante)->withSession($session)
+            ->post(route('access.turnos.store'), ['location_id' => $door->id])
+            ->assertRedirect();
+        $session[PorteriaDoorService::SESSION_KEY] = $door->id;
+
+        $this->actingAs($vigilante)->withSession($session)
+            ->from(route('access.logs.index', ['tab' => 'movimiento']))
+            ->post(route('access.logs.register'), [
+                'subject_kind' => 'visitor',
+                'first_name' => 'Sin',
+                'last_name' => 'Foto',
+                'document_type' => 'CC',
+                'document_number' => '1099005566',
+                'also_enter' => '0',
+            ])
+            ->assertSessionHasErrors('person_photo_data');
+
+        $this->assertDatabaseMissing('visitors', [
+            'client_id' => $client->id,
+            'document_number' => '1099005566',
+        ]);
     }
 
     /** @return array{0: User, 1: Client} */
