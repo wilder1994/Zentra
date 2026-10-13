@@ -5,27 +5,27 @@
     </x-slot:actions>
 
     <div class="space-y-5">
-        <div class="flex flex-wrap items-end justify-between gap-3">
-            <nav class="flex gap-1 rounded-xl bg-slate-900 p-1 ring-1 ring-slate-800">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <nav class="inline-flex h-10 items-center gap-1 rounded-lg bg-slate-900 p-1 ring-1 ring-slate-800">
                 @foreach (['hoy' => 'Hoy', 'proximas' => 'Próximas', 'historial' => 'Historial'] as $key => $label)
                     <a href="{{ route('client.authorizations.index', ['tab' => $key]) }}"
-                       class="rounded-lg px-4 py-2 text-sm font-medium {{ $tab === $key ? 'bg-teal-600 text-white' : 'text-slate-400 hover:text-white' }}">
-                        {{ $label }}@isset($counts[$key]) <span class="ml-1 text-xs opacity-80">({{ $counts[$key] }})</span>@endisset
+                       class="inline-flex h-8 items-center whitespace-nowrap rounded-md px-3 text-sm font-medium {{ $tab === $key ? 'bg-teal-600 text-white' : 'text-slate-400 hover:text-white' }}">
+                        {{ $label }}@isset($counts[$key])<span class="ml-1 text-xs opacity-80">({{ $counts[$key] }})</span>@endisset
                     </a>
                 @endforeach
             </nav>
 
-            <form method="GET" class="flex flex-wrap items-end gap-2">
+            <form method="GET" class="flex flex-wrap items-center gap-2">
                 <input type="hidden" name="tab" value="{{ $tab }}">
                 <input type="search" name="q" value="{{ request('q') }}" placeholder="Nombre, documento, unidad o placa"
-                       class="w-64 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white">
-                <select name="type" class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white">
+                       class="h-10 w-full sm:w-80 rounded-lg border border-slate-700 bg-slate-900 px-3 text-sm text-white">
+                <select name="type" class="h-10 rounded-lg border border-slate-700 bg-slate-900 pl-3 pr-8 text-sm text-white">
                     <option value="">Todos los tipos</option>
                     @foreach ($types as $value => $label)
                         <option value="{{ $value }}" @selected(request('type') === $value)>{{ $label }}</option>
                     @endforeach
                 </select>
-                <button class="rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-600">Filtrar</button>
+                <button class="inline-flex h-10 items-center rounded-lg bg-slate-700 px-4 text-sm font-semibold text-white hover:bg-slate-600">Filtrar</button>
             </form>
         </div>
 
