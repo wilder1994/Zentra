@@ -41,7 +41,8 @@
                 @php
                     $photo = $item->photoUrl();
                     $unit = $item->unitLabel();
-                    $unitPending = $item->structure_id ? ($pendingByUnit[$item->structure_id] ?? 0) : 0;
+                    $unitPending = $item->structure_id ? ($pendingByUnit[$item->structure_id] ?? ['cards' => 0, 'qty' => 0]) : ['cards' => 0, 'qty' => 0];
+                    $qty = max(1, (int) $item->quantity);
                     $title = $unit !== '—' ? $unit : $item->recipientLabel();
                 @endphp
                 <article class="flex overflow-hidden rounded-xl border border-slate-800 bg-slate-900">
@@ -58,7 +59,7 @@
                     <div class="flex min-w-0 flex-1 flex-col p-3">
                         <div class="flex items-start justify-between gap-1">
                             <p class="truncate text-sm font-semibold text-white" title="{{ $title }}">{{ $title }}</p>
-                            <span class="shrink-0 rounded-full bg-slate-700/40 px-1.5 py-0.5 text-[10px] font-semibold text-slate-300">{{ $item->typeLabel() }}</span>
+                            <span class="shrink-0 rounded-full bg-slate-700/40 px-1.5 py-0.5 text-[10px] font-semibold text-slate-300">{{ $qty > 1 ? $qty.' × ' : '' }}{{ $item->typeLabel() }}</span>
                         </div>
                         @if($unit !== '—')
                             <p class="truncate text-[11px] text-slate-400" title="{{ $item->recipientLabel() }}">Para: {{ $item->recipientLabel() }}</p>
@@ -77,10 +78,10 @@
                             <a href="{{ route('access.correspondence.show', $item) }}" class="rounded-md border border-slate-700 px-2 py-1 text-[11px] font-semibold text-slate-200 hover:bg-slate-800">Ver</a>
                             @if($item->status === 'pending')
                                 <button type="button" class="rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white"
-                                        @click="openSingle(@js(route('access.correspondence.deliver', $item)), @js($item->structure_id), @js($title))">Entregar</button>
-                                @if($unitPending > 1)
+                                        @click="openSingle(@js(route('access.correspondence.deliver', $item)), @js($item->structure_id), @js($title), {{ $qty }})">Entregar</button>
+                                @if($unitPending['cards'] > 1)
                                     <button type="button" class="rounded-md border border-emerald-600 px-2 py-1 text-[11px] font-semibold text-emerald-400"
-                                            @click="openUnit(@js($item->structure_id), @js($unit), {{ $unitPending }})">Todo ({{ $unitPending }})</button>
+                                            @click="openUnit(@js($item->structure_id), @js($unit), {{ $unitPending['qty'] }})">Todo ({{ $unitPending['qty'] }})</button>
                                 @endif
                             @endif
                         </div>
@@ -101,7 +102,7 @@
                 <template x-if="mode === 'single'"><input type="hidden" name="_method" value="PATCH"></template>
                 <template x-if="mode === 'unit'"><input type="hidden" name="structure_id" :value="structureId"></template>
                 <div>
-                    <h3 class="text-base font-semibold text-white" x-text="mode === 'unit' ? 'Entregar ' + count + ' paquetes · ' + unit : 'Entregar paquete · ' + unit"></h3>
+                    <h3 class="text-base font-semibold text-white" x-text="(count > 1 ? 'Entregar ' + count + ' paquetes · ' : 'Entregar paquete · ') + unit"></h3>
                     <p class="mt-1 text-xs text-slate-400">Registra quién lo recibe en portería.</p>
                 </div>
                 <template x-if="members.length">
@@ -146,8 +147,8 @@
             function correspondenceDelivery(membersUrl) {
                 return {
                     open: false, mode: 'single', action: '', structureId: null, unit: '', count: 1, members: [], memberId: '',
-                    openSingle(action, structureId, unit) {
-                        this.mode = 'single'; this.action = action; this.unit = unit; this.count = 1;
+                    openSingle(action, structureId, unit, count) {
+                        this.mode = 'single'; this.action = action; this.unit = unit; this.count = count || 1;
                         this.load(structureId);
                     },
                     openUnit(structureId, unit, count) {

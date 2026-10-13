@@ -10,7 +10,6 @@ use App\Models\StructureMember;
 use App\Models\User;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -24,9 +23,8 @@ final class ManageCorrespondenceService
 
     /**
      * @param  array<string, mixed>  $input
-     * @return Collection<int, Correspondence>
      */
-    public function register(User $actor, array $input, ?UploadedFile $photo = null): Collection
+    public function register(User $actor, array $input, ?UploadedFile $photo = null): Correspondence
     {
         $clientId = (int) $this->tenant->clientId();
         $door = $this->doors->operatingOrFirst(request());
@@ -56,34 +54,30 @@ final class ManageCorrespondenceService
         $photoPath = $photo?->store('porteria/correspondencia', 'public');
         $quantity = max(1, min(20, (int) ($input['quantity'] ?? 1)));
 
-        return DB::transaction(function () use ($actor, $input, $door, $structureId, $memberId, $recipientText, $photoPath, $quantity): Collection {
-            $created = collect();
-            for ($i = 0; $i < $quantity; $i++) {
-                $item = Correspondence::query()->create([
-                    'location_id' => $door->id,
-                    'structure_id' => $structureId > 0 ? $structureId : null,
-                    'structure_member_id' => $memberId > 0 ? $memberId : null,
-                    'recipient_text' => $recipientText !== '' ? $recipientText : null,
-                    'carrier' => $this->nullable($input['carrier'] ?? null),
-                    'courier_guide' => $this->nullable($input['courier_guide'] ?? null),
-                    'package_type' => (string) $input['package_type'],
-                    'notes' => $this->nullable($input['notes'] ?? null),
-                    'photo_path' => $photoPath,
-                    'received_at' => now(),
-                    'received_by' => $actor->id,
-                    'status' => 'pending',
-                ]);
-                $this->audit->record($item, 'correspondence.create', null, [
-                    'structure_id' => $item->structure_id,
-                    'structure_member_id' => $item->structure_member_id,
-                    'package_type' => $item->package_type,
-                    'carrier' => $item->carrier,
-                ]);
-                $created->push($item);
-            }
+        $item = Correspondence::query()->create([
+            'location_id' => $door->id,
+            'structure_id' => $structureId > 0 ? $structureId : null,
+            'structure_member_id' => $memberId > 0 ? $memberId : null,
+            'recipient_text' => $recipientText !== '' ? $recipientText : null,
+            'carrier' => $this->nullable($input['carrier'] ?? null),
+            'courier_guide' => $this->nullable($input['courier_guide'] ?? null),
+            'package_type' => (string) $input['package_type'],
+            'quantity' => $quantity,
+            'notes' => $this->nullable($input['notes'] ?? null),
+            'photo_path' => $photoPath,
+            'received_at' => now(),
+            'received_by' => $actor->id,
+            'status' => 'pending',
+        ]);
+        $this->audit->record($item, 'correspondence.create', null, [
+            'structure_id' => $item->structure_id,
+            'structure_member_id' => $item->structure_member_id,
+            'package_type' => $item->package_type,
+            'quantity' => $quantity,
+            'carrier' => $item->carrier,
+        ]);
 
-            return $created;
-        });
+        return $item;
     }
 
     /**
@@ -119,7 +113,7 @@ final class ManageCorrespondenceService
             }
         });
 
-        return $items->count();
+        return (int) $items->sum('quantity');
     }
 
     public function void(User $actor, Correspondence $item, string $reason): void

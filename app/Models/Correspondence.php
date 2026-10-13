@@ -24,7 +24,7 @@ class Correspondence extends Model
     protected $fillable = [
         'client_id', 'visitor_id', 'host_id', 'location_id', 'housing_unit_id', 'resident_id',
         'structure_id', 'structure_member_id', 'recipient_text',
-        'carrier', 'courier_guide', 'package_type', 'received_at', 'received_by',
+        'carrier', 'courier_guide', 'package_type', 'quantity', 'received_at', 'received_by',
         'delivered_at', 'delivered_by', 'delivered_to_member_id', 'delivered_to_name', 'delivered_to_document',
         'status', 'photo_path', 'delivery_photo_path', 'notes',
         'voided_at', 'voided_by', 'void_reason',
@@ -36,6 +36,7 @@ class Correspondence extends Model
             'received_at' => 'datetime',
             'delivered_at' => 'datetime',
             'voided_at' => 'datetime',
+            'quantity' => 'integer',
         ];
     }
 

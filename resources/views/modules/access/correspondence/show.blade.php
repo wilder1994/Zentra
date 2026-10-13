@@ -19,7 +19,7 @@
         $rows = [
             'Unidad' => $item->unitLabel(),
             'Para' => $item->recipientLabel(),
-            'Tipo' => $item->typeLabel(),
+            'Tipo' => ($item->quantity > 1 ? $item->quantity.' × ' : '').$item->typeLabel(),
             'Transportadora' => $item->carrier ?? '—',
             'Guía' => $item->courier_guide ?? '—',
             'Puerta' => $item->location?->name ?? '—',

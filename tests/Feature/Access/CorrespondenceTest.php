@@ -43,16 +43,27 @@ final class CorrespondenceTest extends TestCase
             ])
             ->assertRedirect(route('access.correspondence.index'));
 
-        $items = Correspondence::query()->where('courier_guide', 'GUIA-001')->get();
+        $first = Correspondence::query()->where('courier_guide', 'GUIA-001')->sole();
+        $this->assertSame(2, $first->quantity);
+        $this->assertNotNull($first->location_id);
+        $this->assertNotEmpty($first->photo_path);
+        $this->assertSame((int) $client->id, (int) $first->client_id);
+
+        $this->actingAs($guard)->withSession($session)
+            ->post(route('access.correspondence.store'), [
+                'structure_id' => $member->structure_id,
+                'package_type' => 'sobre',
+                'courier_guide' => 'GUIA-002',
+            ])
+            ->assertRedirect();
+        $items = Correspondence::query()->whereIn('courier_guide', ['GUIA-001', 'GUIA-002'])->orderBy('id')->get();
         $this->assertCount(2, $items);
-        $this->assertNotNull($items->first()->location_id);
-        $this->assertNotEmpty($items->first()->photo_path);
-        $this->assertSame((int) $client->id, (int) $items->first()->client_id);
 
         $this->actingAs($guard)->withSession($session)
             ->get(route('access.correspondence.index', ['q' => 'GUIA-001']))
             ->assertOk()
-            ->assertSee('Todo (2)')
+            ->assertSee('2 × Caja')
+            ->assertSee('Todo (3)')
             ->assertSee($member->full_name);
 
         $this->actingAs($guard)->withSession($session)

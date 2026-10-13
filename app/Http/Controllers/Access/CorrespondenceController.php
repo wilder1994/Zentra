@@ -62,10 +62,10 @@ class CorrespondenceController extends Controller
         $pendingByUnit = Correspondence::query()
             ->where('status', 'pending')
             ->whereNotNull('structure_id')
-            ->selectRaw('structure_id, COUNT(*) as c')
+            ->selectRaw('structure_id, COUNT(*) as cards, SUM(quantity) as qty')
             ->groupBy('structure_id')
-            ->pluck('c', 'structure_id')
-            ->map(fn ($c) => (int) $c)
+            ->get()
+            ->mapWithKeys(fn ($row) => [(int) $row->structure_id => ['cards' => (int) $row->cards, 'qty' => (int) $row->qty]])
             ->all();
 
         return view('modules.access.correspondence.index', [
@@ -76,7 +76,7 @@ class CorrespondenceController extends Controller
             'from' => $from->toDateString(),
             'to' => $to->toDateString(),
             'pendingByUnit' => $pendingByUnit,
-            'pendingTotal' => Correspondence::query()->where('status', 'pending')->count(),
+            'pendingTotal' => (int) Correspondence::query()->where('status', 'pending')->sum('quantity'),
             'canVoid' => (bool) $request->user()?->can('access.view.audit'),
         ]);
     }
@@ -119,10 +119,10 @@ class CorrespondenceController extends Controller
         ]);
 
         $photo = DataUrlToUploadedFile::make($validated['package_photo_data'] ?? null, 'paquete');
-        $created = $service->register($request->user(), $validated, $photo);
+        $item = $service->register($request->user(), $validated, $photo);
 
         return redirect()->route('access.correspondence.index')
-            ->with('success', $created->count() > 1 ? $created->count().' paquetes registrados.' : 'Paquete registrado.');
+            ->with('success', $item->quantity > 1 ? $item->quantity.' paquetes registrados.' : 'Paquete registrado.');
     }
 
     public function show(Correspondence $correspondence): View
