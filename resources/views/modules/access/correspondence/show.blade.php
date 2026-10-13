@@ -1,96 +1,94 @@
-<x-access-layout title="Detalle de Correspondencia">
+<x-access-layout title="Detalle de correspondencia">
     <x-slot:actions>
         <x-ui.button variant="secondary" href="{{ route('access.correspondence.index') }}">← Volver</x-ui.button>
     </x-slot:actions>
 
+    @if($errors->any())
+        <div class="mb-4 max-w-3xl rounded-lg border border-red-700 bg-red-900/40 px-4 py-3 text-sm text-red-200">
+            @foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach
+        </div>
+    @endif
+
     @php
-        $destinatario = $correspondence->resident?->full_name ?? $correspondence->housingUnit?->full_label ?? $correspondence->host?->name ?? '-';
+        $statusLabel = ['pending' => 'Pendiente', 'delivered' => 'Entregado', 'voided' => 'Anulado'][$item->status] ?? $item->status;
+        $statusClass = match ($item->status) {
+            'delivered' => 'bg-emerald-500/15 text-emerald-400',
+            'voided' => 'bg-red-500/15 text-red-400',
+            default => 'bg-amber-500/15 text-amber-400',
+        };
+        $rows = [
+            'Unidad' => $item->unitLabel(),
+            'Para' => $item->recipientLabel(),
+            'Tipo' => $item->typeLabel(),
+            'Transportadora' => $item->carrier ?? '—',
+            'Guía' => $item->courier_guide ?? '—',
+            'Puerta' => $item->location?->name ?? '—',
+            'Llegó' => $item->received_at?->format('d/m/Y H:i').' · '.$item->received_at?->diffForHumans(),
+            'Recibió (vigilante)' => $item->receiver?->name ?? '—',
+        ];
+        if ($item->status === 'delivered') {
+            $rows['Entregado'] = $item->delivered_at?->format('d/m/Y H:i');
+            $rows['Entregado a'] = $item->deliveredToLabel();
+            $rows['Entregó (vigilante)'] = $item->deliverer?->name ?? '—';
+        }
+        if ($item->status === 'voided') {
+            $rows['Anulado'] = $item->voided_at?->format('d/m/Y H:i').' · '.($item->voider?->name ?? '—');
+            $rows['Motivo'] = $item->void_reason ?? '—';
+        }
     @endphp
 
-    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
-            <div class="px-6 py-5">
-                <div class="flex items-center gap-3 mb-6">
-                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-pink-500 to-pink-700 flex items-center justify-center text-white text-lg font-bold">
-                        {{ strtoupper(substr($destinatario, 0, 2)) }}
-                    </div>
-                    <div>
-                        <p class="text-sm font-medium text-white">{{ $destinatario }}</p>
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ring-1
-                            @if($correspondence->package_type == 'caja') bg-orange-900/30 text-orange-300 ring-orange-700
-                            @elseif($correspondence->package_type == 'sobre') bg-blue-900/30 text-blue-300 ring-blue-700
-                            @else bg-gray-900/30 text-gray-300 ring-gray-700 @endif">
-                            {{ ucfirst($correspondence->package_type) }}
-                        </span>
-                    </div>
-                    <span class="ml-auto inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ring-1
-                        {{ $correspondence->status == 'pending' ? 'bg-amber-900/30 text-amber-300 ring-amber-700' : 'bg-emerald-900/30 text-emerald-300 ring-emerald-700' }}">
-                        @if($correspondence->status == 'pending')
-                            <span class="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
-                            Pendiente
-                        @else
-                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                            Entregado
-                        @endif
-                    </span>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="bg-slate-950/60 rounded-lg p-3">
-                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Transportadora</p>
-                        <p class="mt-1 text-sm font-semibold text-white">{{ $correspondence->carrier ?? '-' }}</p>
-                    </div>
-                    <div class="bg-slate-950/60 rounded-lg p-3">
-                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Guía</p>
-                        <p class="mt-1 text-sm font-semibold text-white">{{ $correspondence->courier_guide ?? '-' }}</p>
-                    </div>
-                    <div class="bg-slate-950/60 rounded-lg p-3">
-                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Recibido por</p>
-                        <p class="mt-1 text-sm font-semibold text-white">{{ $correspondence->receiver?->name ?? '-' }}</p>
-                    </div>
-                    <div class="bg-slate-950/60 rounded-lg p-3">
-                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Recibido el</p>
-                        <p class="mt-1 text-sm font-semibold text-white">{{ $correspondence->received_at->format('d/m/Y H:i') }}</p>
-                    </div>
-                    @if($correspondence->delivered_at)
-                    <div class="bg-slate-950/60 rounded-lg p-3">
-                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Entregado por</p>
-                        <p class="mt-1 text-sm font-semibold text-white">{{ $correspondence->deliverer?->name ?? '-' }}</p>
-                    </div>
-                    <div class="bg-slate-950/60 rounded-lg p-3">
-                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Entregado el</p>
-                        <p class="mt-1 text-sm font-semibold text-white">{{ $correspondence->delivered_at->format('d/m/Y H:i') }}</p>
-                    </div>
-                    @endif
-                </div>
-
-                @if($correspondence->notes)
-                <div class="mt-4">
-                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Notas</p>
-                    <div class="bg-slate-950/60 rounded-lg p-3">
-                        <p class="text-sm text-white">{{ $correspondence->notes }}</p>
-                    </div>
-                </div>
+    <div class="max-w-3xl space-y-4">
+        <div class="flex overflow-hidden rounded-xl border border-slate-800 bg-slate-900">
+            <div class="flex w-40 shrink-0 items-center justify-center bg-slate-950 sm:w-56">
+                @if($item->photoUrl())
+                    <img src="{{ $item->photoUrl() }}" alt="" class="h-full w-full object-cover">
+                @else
+                    <svg class="h-14 w-14 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                        <path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5v-9Z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/>
+                    </svg>
                 @endif
             </div>
-            <div class="px-6 py-4 bg-slate-950/60 border-t border-slate-800 flex justify-end gap-2">
-                @if($correspondence->status == 'pending')
-                <form action="{{ route('access.correspondence.deliver', $correspondence) }}" method="POST" onsubmit="return confirm('¿Marcar como entregado?')">
-                    @csrf @method('PATCH')
-                    <button type="submit" class="inline-flex items-center px-3 py-1.5 bg-emerald-600 border border-transparent rounded-lg font-semibold text-xs text-white hover:bg-emerald-700 transition-colors shadow-sm">
-                        <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Marcar como Entregado
-                    </button>
-                </form>
+            <div class="w-px shrink-0 bg-gradient-to-b from-transparent via-indigo-500/70 to-transparent"></div>
+            <div class="min-w-0 flex-1 p-5">
+                <div class="mb-3 flex items-center justify-between gap-2">
+                    <p class="truncate text-lg font-semibold text-white">{{ $item->unitLabel() !== '—' ? $item->unitLabel() : $item->recipientLabel() }}</p>
+                    <span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ $statusClass }}">{{ $statusLabel }}</span>
+                </div>
+                <dl class="grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+                    @foreach($rows as $label => $value)
+                        <div><dt class="text-xs text-slate-500">{{ $label }}</dt><dd class="text-slate-200">{{ $value }}</dd></div>
+                    @endforeach
+                </dl>
+                @if($item->notes)
+                    <p class="mt-3 rounded-lg bg-slate-950/60 p-3 text-sm text-slate-300">{{ $item->notes }}</p>
                 @endif
-                <form action="{{ route('access.correspondence.destroy', $correspondence) }}" method="POST" onsubmit="return confirm('¿Eliminar este registro?')">
-                    @csrf @method('DELETE')
-                    <button type="submit" class="inline-flex items-center px-3 py-1.5 bg-red-600 border border-transparent rounded-lg font-semibold text-xs text-white hover:bg-red-700 transition-colors shadow-sm">
-                        <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                        Eliminar
-                    </button>
-                </form>
             </div>
         </div>
+
+        @if($item->deliveryPhotoUrl())
+            <div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
+                <p class="mb-2 text-xs text-slate-500">Foto de la entrega</p>
+                <img src="{{ $item->deliveryPhotoUrl() }}" alt="" class="max-h-72 rounded-lg object-cover">
+            </div>
+        @endif
+
+        @if($item->status === 'pending' && $canVoid)
+            <form method="POST" action="{{ route('access.correspondence.void', $item) }}" x-data="{ show: false }"
+                  class="porteria-form rounded-xl border border-slate-800 bg-slate-900 p-4">
+                @csrf
+                @method('PATCH')
+                <button type="button" x-show="!show" @click="show = true" class="text-sm font-semibold text-red-400 hover:text-red-300">Anular registro</button>
+                <div x-show="show" x-cloak class="space-y-3">
+                    <label class="block text-xs text-slate-400">Motivo de la anulación <span class="text-amber-400">*</span>
+                        <input name="void_reason" maxlength="255" class="mt-1 w-full rounded-lg border-slate-700 bg-slate-950 text-sm text-white"
+                               placeholder="Registrado por error, duplicado, devuelto a la transportadora…">
+                    </label>
+                    <div class="flex gap-2">
+                        <button class="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white">Anular</button>
+                        <button type="button" @click="show = false" class="rounded-lg bg-slate-800 px-4 py-2 text-sm text-slate-200">Cancelar</button>
+                    </div>
+                </div>
+            </form>
+        @endif
     </div>
 </x-access-layout>

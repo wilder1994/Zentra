@@ -8,8 +8,9 @@
     $required = (bool) ($required ?? false);
     $hint = $hint ?? ($required ? 'Obligatoria en el primer registro' : 'Opcional');
     $initial = $initial ?? '';
+    $facing = $facing ?? 'user';
 @endphp
-<div class="rounded-xl border border-slate-800 bg-slate-950/50 p-3" x-data="accessCam(@js($initial))">
+<div class="rounded-xl border border-slate-800 bg-slate-950/50 p-3" x-data="accessCam(@js($initial), @js($facing))">
     <div class="flex items-center gap-3">
         <template x-if="dataUrl">
             <img :src="dataUrl" alt="Foto capturada" class="h-16 w-16 rounded-lg object-cover border border-slate-700">
@@ -70,8 +71,9 @@
 @once
 @push('scripts')
 <script>
-function accessCam(initial) {
+function accessCam(initial, facing) {
     return {
+        facing: facing || 'user',
         open: false,
         stream: null,
         preview: '',
@@ -85,7 +87,7 @@ function accessCam(initial) {
         async startStream() {
             this.error = '';
             try {
-                this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } }, audio: false });
+                this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: this.facing, width: { ideal: 720 }, height: { ideal: 720 } }, audio: false });
                 await this.$nextTick();
                 this.$refs.live.srcObject = this.stream;
             } catch (e) {

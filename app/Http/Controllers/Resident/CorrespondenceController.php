@@ -28,7 +28,7 @@ final class CorrespondenceController extends Controller
             abort(403);
         }
 
-        $correspondence->load('visitor', 'location', 'receivedBy', 'deliveredBy');
+        $correspondence->load('visitor', 'location', 'receiver', 'deliverer');
 
         return view('modules.resident.correspondence.show', compact('correspondence'));
     }

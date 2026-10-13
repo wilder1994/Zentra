@@ -7,9 +7,9 @@
             <p class="text-sm text-slate-300">Tipo: <span class="text-white">{{ $correspondence->package_type }}</span></p>
             <p class="text-sm text-slate-300">Mensajero: {{ $correspondence->carrier ?? '—' }}</p>
             <p class="text-sm text-slate-300">Guía: {{ $correspondence->courier_guide ?? '—' }}</p>
-            <p class="text-sm text-slate-300">Recibido: {{ $correspondence->received_at->format('d/m/Y H:i') }} por {{ $correspondence->receivedBy?->name ?? '—' }}</p>
+            <p class="text-sm text-slate-300">Recibido: {{ $correspondence->received_at->format('d/m/Y H:i') }} por {{ $correspondence->receiver?->name ?? '—' }}</p>
             @if($correspondence->delivered_at)
-                <p class="text-sm text-slate-300">Entregado: {{ $correspondence->delivered_at->format('d/m/Y H:i') }} por {{ $correspondence->deliveredBy?->name ?? '—' }}</p>
+                <p class="text-sm text-slate-300">Entregado: {{ $correspondence->delivered_at->format('d/m/Y H:i') }} por {{ $correspondence->deliverer?->name ?? '—' }}</p>
             @endif
             <p class="text-sm text-slate-300">
                 Estado:

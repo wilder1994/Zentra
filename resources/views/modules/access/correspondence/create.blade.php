@@ -1,118 +1,135 @@
-<x-access-layout title="Registrar Correspondencia">
+<x-access-layout title="Registrar correspondencia">
     <x-slot:actions>
         <x-ui.button variant="secondary" href="{{ route('access.correspondence.index') }}">← Volver</x-ui.button>
     </x-slot:actions>
 
-    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-800">
-                <h3 class="text-lg font-semibold text-white">Nuevo Paquete o Encomienda</h3>
-                <p class="text-sm text-slate-500 mt-0.5">Registre la correspondencia recibida para su posterior entrega</p>
-            </div>
-            <div class="px-6 py-5">
-                <div x-data="{ assignType: 'resident' }">
-                    <label class="block text-sm font-semibold text-slate-300 mb-3">Asignar a</label>
-                    <div class="flex flex-wrap gap-2 mb-6">
-                        <label class="relative cursor-pointer">
-                            <input type="radio" x-model="assignType" value="resident" class="sr-only peer">
-                            <div class="px-4 py-2 border-2 rounded-lg text-sm font-medium transition-all peer-checked:border-pink-500 peer-checked:bg-pink-900/30 peer-checked:text-pink-300 border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-600">
-                                Residente
-                            </div>
-                        </label>
-                        <label class="relative cursor-pointer">
-                            <input type="radio" x-model="assignType" value="apartment" class="sr-only peer">
-                            <div class="px-4 py-2 border-2 rounded-lg text-sm font-medium transition-all peer-checked:border-pink-500 peer-checked:bg-pink-900/30 peer-checked:text-pink-300 border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-600">
-                                Apartamento/Casa
-                            </div>
-                        </label>
-                        <label class="relative cursor-pointer">
-                            <input type="radio" x-model="assignType" value="host" class="sr-only peer">
-                            <div class="px-4 py-2 border-2 rounded-lg text-sm font-medium transition-all peer-checked:border-pink-500 peer-checked:bg-pink-900/30 peer-checked:text-pink-300 border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-600">
-                                Usuario del sistema
-                            </div>
-                        </label>
-                    </div>
-
-                    <form method="POST" action="{{ route('access.correspondence.store') }}">
-                        @csrf
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div x-show="assignType === 'resident'">
-                                <label class="block text-sm font-medium text-slate-300">Residente</label>
-                                <select name="resident_id" class="mt-1 block w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="">Seleccionar...</option>
-                                    @foreach($residents as $r)
-                                    <option value="{{ $r->id }}" {{ old('resident_id') == $r->id ? 'selected' : '' }}>{{ $r->full_name }} ({{ $r->document_number }})</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div x-show="assignType === 'apartment'">
-                                <label class="block text-sm font-medium text-slate-300">Apartamento/Casa</label>
-                                <select name="housing_unit_id" class="mt-1 block w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="">Seleccionar...</option>
-                                    @foreach($housingUnits as $hu)
-                                    <option value="{{ $hu->id }}" {{ old('housing_unit_id') == $hu->id ? 'selected' : '' }}>{{ $hu->full_label }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div x-show="assignType === 'host'">
-                                <label class="block text-sm font-medium text-slate-300">Destinatario (usuario)</label>
-                                <select name="host_id" class="mt-1 block w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="">Seleccionar...</option>
-                                    @foreach($hosts as $host)
-                                    <option value="{{ $host->id }}" {{ old('host_id') == $host->id ? 'selected' : '' }}>{{ $host->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-300">Ubicación</label>
-                                <select name="location_id" required class="mt-1 block w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="">Seleccionar...</option>
-                                    @foreach($locations as $loc)
-                                    <option value="{{ $loc->id }}" {{ old('location_id') == $loc->id ? 'selected' : '' }}>{{ $loc->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-300">Tipo de Paquete</label>
-                                <select name="package_type" class="mt-1 block w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="documento">📄 Documento</option>
-                                    <option value="sobre">✉️ Sobre</option>
-                                    <option value="caja">📦 Caja</option>
-                                    <option value="otro">📎 Otro</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-300">Transportadora</label>
-                                <input type="text" name="carrier" value="{{ old('carrier') }}" class="mt-1 block w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-indigo-500 focus:ring-indigo-500" placeholder="Ej: Servientrega, Envía, etc.">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-300">Guía</label>
-                                <input type="text" name="courier_guide" value="{{ old('courier_guide') }}" class="mt-1 block w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-indigo-500 focus:ring-indigo-500" placeholder="Número de guía">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-300">Visitante (quien dejó)</label>
-                                <select name="visitor_id" class="mt-1 block w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="">N/A</option>
-                                    @foreach($visitors as $v)
-                                    <option value="{{ $v->id }}" {{ old('visitor_id') == $v->id ? 'selected' : '' }}>{{ $v->full_name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-                        <div class="mt-4">
-                            <label class="block text-sm font-medium text-slate-300">Notas</label>
-                            <textarea name="notes" rows="2" class="mt-1 block w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-indigo-500 focus:ring-indigo-500" placeholder="Observaciones adicionales...">{{ old('notes') }}</textarea>
-                        </div>
-                        <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-800">
-                            <a href="{{ route('access.correspondence.index') }}" class="inline-flex items-center px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg font-semibold text-xs text-slate-300 hover:bg-slate-700 transition-colors">Cancelar</a>
-                            <button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 transition-colors shadow-sm">
-                                <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                Registrar
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+    @if($errors->any())
+        <div class="mb-4 max-w-2xl rounded-lg border border-red-700 bg-red-900/40 px-4 py-3 text-sm text-red-200">
+            @foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach
         </div>
-    </div>
+    @endif
+
+    <form method="POST" action="{{ route('access.correspondence.store') }}"
+          class="porteria-form max-w-2xl space-y-5 rounded-xl border border-slate-800 bg-slate-900 p-5"
+          x-data="correspondenceForm({
+              membersUrl: @js(route('access.correspondence.members')),
+              structureId: @js((string) old('structure_id', '')),
+              memberId: @js((string) old('structure_member_id', '')),
+              mode: @js(old('recipient_text') && ! old('structure_id') ? 'other' : 'unit'),
+              type: @js(old('package_type', 'caja')),
+          })" x-init="boot()">
+        @csrf
+
+        <div class="space-y-3">
+            <p class="text-xs font-semibold uppercase tracking-wide text-slate-300">Destinatario</p>
+            <div class="grid grid-cols-2 gap-2">
+                <button type="button" @click="mode = 'unit'"
+                        :class="mode === 'unit' ? 'bg-indigo-600 text-white border-transparent' : 'bg-slate-950 text-slate-300 border-slate-700'"
+                        class="rounded-lg border px-3 py-2 text-left text-sm font-medium">Unidad del censo</button>
+                <button type="button" @click="mode = 'other'"
+                        :class="mode === 'other' ? 'bg-indigo-600 text-white border-transparent' : 'bg-slate-950 text-slate-300 border-slate-700'"
+                        class="rounded-lg border px-3 py-2 text-left text-sm font-medium">Administración / otro</button>
+            </div>
+
+            <template x-if="mode === 'unit'">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label class="block text-xs text-slate-400">Unidad (apartamento / casa) <span class="text-amber-400">*</span>
+                        <select name="structure_id" x-model="structureId" @change="loadMembers()" required
+                                class="mt-1 w-full rounded-lg border-slate-700 bg-slate-950 text-sm text-white">
+                            <option value="">Seleccionar</option>
+                            @foreach($nodes as $node)
+                                <option value="{{ $node->id }}">{{ $node->name }}@if($node->structureType) · {{ $node->structureType->name }}@endif</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <label class="block text-xs text-slate-400">Para (opcional)
+                        <select name="structure_member_id" x-model="memberId" :disabled="!structureId"
+                                class="mt-1 w-full rounded-lg border-slate-700 bg-slate-950 text-sm text-white disabled:opacity-50">
+                            <option value="">Toda la unidad</option>
+                            <template x-for="m in members" :key="m.id">
+                                <option :value="String(m.id)" x-text="m.name" :selected="String(m.id) === memberId"></option>
+                            </template>
+                        </select>
+                    </label>
+                </div>
+            </template>
+
+            <template x-if="mode === 'other'">
+                <label class="block text-xs text-slate-400">Destinatario <span class="text-amber-400">*</span>
+                    <input name="recipient_text" value="{{ old('recipient_text') }}" required maxlength="150"
+                           class="mt-1 w-full rounded-lg border-slate-700 bg-slate-950 text-sm text-white"
+                           placeholder="Administración, consejo, zona común, persona externa…">
+                </label>
+            </template>
+        </div>
+
+        <div class="space-y-3">
+            <p class="text-xs font-semibold uppercase tracking-wide text-slate-300">Paquete</p>
+            <input type="hidden" name="package_type" :value="type">
+            <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                @foreach(\App\Models\Correspondence::TYPES as $value => $label)
+                    <button type="button" @click="type = '{{ $value }}'"
+                            :class="type === '{{ $value }}' ? 'bg-indigo-600 text-white border-transparent' : 'bg-slate-950 text-slate-300 border-slate-700'"
+                            class="rounded-lg border px-3 py-2 text-sm font-medium">{{ $label }}</button>
+                @endforeach
+            </div>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <label class="block text-xs text-slate-400 sm:col-span-1">Transportadora
+                    <input name="carrier" list="carrier-list" value="{{ old('carrier') }}" maxlength="100"
+                           class="mt-1 w-full rounded-lg border-slate-700 bg-slate-950 text-sm text-white" placeholder="Servientrega, Envía…">
+                    <datalist id="carrier-list">
+                        @foreach($carriers as $carrier)<option value="{{ $carrier }}">@endforeach
+                    </datalist>
+                </label>
+                <label class="block text-xs text-slate-400">Número de guía
+                    <input name="courier_guide" value="{{ old('courier_guide') }}" maxlength="100"
+                           class="mt-1 w-full rounded-lg border-slate-700 bg-slate-950 text-sm text-white">
+                </label>
+                <label class="block text-xs text-slate-400">Cantidad
+                    <input type="number" name="quantity" value="{{ old('quantity', 1) }}" min="1" max="20"
+                           class="mt-1 w-full rounded-lg border-slate-700 bg-slate-950 text-sm text-white">
+                </label>
+            </div>
+            <label class="block text-xs text-slate-400">Notas
+                <textarea name="notes" rows="2" maxlength="1000"
+                          class="mt-1 w-full rounded-lg border-slate-700 bg-slate-950 text-sm text-white"
+                          placeholder="Estado del paquete, observaciones…">{{ old('notes') }}</textarea>
+            </label>
+            @include('modules.access.partials.camera-capture', [
+                'name' => 'package_photo_data',
+                'label' => 'Foto del paquete',
+                'required' => false,
+                'hint' => 'Opcional · sirve como evidencia del estado al recibirlo',
+                'facing' => 'environment',
+            ])
+        </div>
+
+        <div class="flex justify-end gap-2 border-t border-slate-800 pt-4">
+            <a href="{{ route('access.correspondence.index') }}" class="rounded-lg bg-slate-800 px-4 py-2 text-sm text-slate-200">Cancelar</a>
+            <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">Registrar</button>
+        </div>
+    </form>
+
+    @push('scripts')
+        <script>
+            function correspondenceForm(opts) {
+                return {
+                    membersUrl: opts.membersUrl,
+                    structureId: opts.structureId,
+                    memberId: opts.memberId,
+                    mode: opts.mode,
+                    type: opts.type,
+                    members: [],
+                    boot() { if (this.structureId) this.loadMembers(true); },
+                    loadMembers(keep = false) {
+                        if (!keep) this.memberId = '';
+                        if (!this.structureId) { this.members = []; return; }
+                        fetch(this.membersUrl + '?structure_id=' + this.structureId, { headers: { Accept: 'application/json' } })
+                            .then(r => r.json())
+                            .then(d => { this.members = d.members || []; });
+                    },
+                };
+            }
+        </script>
+    @endpush
 </x-access-layout>

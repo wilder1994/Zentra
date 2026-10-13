@@ -113,8 +113,11 @@ Route::middleware(['auth', 'password.changed', 'active', 'tenancy.access', 'clie
     });
 
     Route::middleware('permission:access.manage.correspondence')->group(function () {
-        Route::resource('correspondence', CorrespondenceController::class)->except(['edit', 'update']);
+        Route::get('correspondence/members', [CorrespondenceController::class, 'members'])->name('correspondence.members');
+        Route::post('correspondence/deliver-unit', [CorrespondenceController::class, 'deliverUnit'])->name('correspondence.deliver-unit');
+        Route::resource('correspondence', CorrespondenceController::class)->only(['index', 'create', 'store', 'show']);
         Route::patch('correspondence/{correspondence}/deliver', [CorrespondenceController::class, 'markDelivered'])->name('correspondence.deliver');
+        Route::patch('correspondence/{correspondence}/void', [CorrespondenceController::class, 'void'])->name('correspondence.void');
     });
 
     Route::resource('guard_logs', GuardLogController::class)->except(['edit', 'update'])

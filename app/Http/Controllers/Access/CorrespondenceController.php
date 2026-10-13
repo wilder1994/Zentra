@@ -4,103 +4,175 @@ namespace App\Http\Controllers\Access;
 
 use App\Http\Controllers\Controller;
 use App\Models\Correspondence;
-use App\Models\HousingUnit;
-use App\Models\Location;
-use App\Models\Resident;
-use App\Models\User;
-use App\Models\Visitor;
-use App\Notifications\CorrespondenciaRecibida;
-use App\Services\Access\AuditLogger;
+use App\Services\Access\LookupPorteriaSubjectService;
+use App\Services\Access\ManageCorrespondenceService;
+use App\Support\Access\DataUrlToUploadedFile;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class CorrespondenceController extends Controller
 {
-    public function index()
+    public function index(Request $request, LookupPorteriaSubjectService $lookup): View
     {
-        $correspondence = Correspondence::with(['host', 'location', 'receiver', 'housingUnit.building', 'resident'])
-            ->latest('received_at')
-            ->paginate(15);
+        $tab = (string) $request->query('tab', 'pendientes');
+        if (! in_array($tab, ['pendientes', 'entregados', 'anulados'], true)) {
+            $tab = 'pendientes';
+        }
+        $q = trim((string) $request->query('q', ''));
+        $type = (string) $request->query('type', '');
+        $from = $request->filled('from') ? $request->date('from') : now()->startOfMonth();
+        $to = $request->filled('to') ? $request->date('to') : today();
 
-        return view('modules.access.correspondence.index', compact('correspondence'));
-    }
+        $status = match ($tab) {
+            'entregados' => 'delivered',
+            'anulados' => 'voided',
+            default => 'pending',
+        };
 
-    public function create()
-    {
-        $hosts = User::all();
-        $locations = Location::where('is_active', true)->get();
-        $visitors = Visitor::all();
-        $residents = Resident::where('is_active', true)->with('housingUnits.building')->get();
-        $housingUnits = HousingUnit::where('is_active', true)->with('building')->get();
+        $query = Correspondence::query()
+            ->with(['structure', 'structureMember', 'housingUnit', 'resident', 'host', 'receiver', 'deliverer', 'deliveredToMember', 'location'])
+            ->where('status', $status);
 
-        return view('modules.access.correspondence.create', compact('hosts', 'locations', 'visitors', 'residents', 'housingUnits'));
-    }
-
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'visitor_id' => 'nullable|exists:visitors,id',
-            'host_id' => 'nullable|exists:users,id',
-            'housing_unit_id' => 'nullable|exists:housing_units,id',
-            'resident_id' => 'nullable|exists:residents,id',
-            'location_id' => 'required|exists:locations,id',
-            'carrier' => 'nullable|string|max:100',
-            'courier_guide' => 'nullable|string|max:100',
-            'package_type' => 'required|in:sobre,caja,documento,otro',
-            'notes' => 'nullable|string',
-        ]);
-
-        $validated['received_at'] = now();
-        $validated['received_by'] = auth()->id();
-        $validated['status'] = 'pending';
-
-        $correspondence = Correspondence::create($validated);
-
-        if ($correspondence->host_id !== null) {
-            $correspondence->host->notify(new CorrespondenciaRecibida($correspondence));
-        } elseif ($correspondence->resident?->user !== null) {
-            $correspondence->resident->user->notify(new CorrespondenciaRecibida($correspondence));
+        if ($status !== 'pending') {
+            $dateColumn = $status === 'delivered' ? 'delivered_at' : 'voided_at';
+            $query->whereDate($dateColumn, '>=', $from)->whereDate($dateColumn, '<=', $to)->latest($dateColumn);
+        } else {
+            $query->oldest('received_at');
         }
 
-        app(AuditLogger::class)->record($correspondence, 'correspondence.create', null, [
-            'housing_unit_id' => $correspondence->housing_unit_id,
-            'resident_id' => $correspondence->resident_id,
-            'package_type' => $correspondence->package_type,
-            'carrier' => $correspondence->carrier,
-        ]);
+        if (array_key_exists($type, Correspondence::TYPES)) {
+            $query->where('package_type', $type);
+        }
 
-        return redirect()->route('access.correspondence.index')
-            ->with('success', 'Correspondencia registrada exitosamente.');
+        if ($q !== '') {
+            $query->where(function ($w) use ($q): void {
+                $w->where('courier_guide', 'like', "%{$q}%")
+                    ->orWhere('carrier', 'like', "%{$q}%")
+                    ->orWhere('recipient_text', 'like', "%{$q}%")
+                    ->orWhereHas('structure', fn ($s) => $s->where('name', 'like', "%{$q}%"))
+                    ->orWhereHas('structureMember', fn ($m) => $m->where('first_name', 'like', "%{$q}%")
+                        ->orWhere('last_name', 'like', "%{$q}%")
+                        ->orWhere('document_number', 'like', "%{$q}%"));
+            });
+        }
+
+        $pendingByUnit = Correspondence::query()
+            ->where('status', 'pending')
+            ->whereNotNull('structure_id')
+            ->selectRaw('structure_id, COUNT(*) as c')
+            ->groupBy('structure_id')
+            ->pluck('c', 'structure_id')
+            ->map(fn ($c) => (int) $c)
+            ->all();
+
+        return view('modules.access.correspondence.index', [
+            'items' => $query->paginate(32)->withQueryString(),
+            'tab' => $tab,
+            'q' => $q,
+            'type' => $type,
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+            'pendingByUnit' => $pendingByUnit,
+            'pendingTotal' => Correspondence::query()->where('status', 'pending')->count(),
+            'canVoid' => (bool) $request->user()?->can('access.view.audit'),
+        ]);
     }
 
-    public function show(Correspondence $correspondence)
+    public function create(LookupPorteriaSubjectService $lookup): View
     {
-        $correspondence->load(['host', 'location', 'receiver', 'deliverer', 'visitor', 'housingUnit.building', 'resident']);
+        $carriers = Correspondence::query()
+            ->whereNotNull('carrier')
+            ->select('carrier')
+            ->distinct()
+            ->orderBy('carrier')
+            ->limit(50)
+            ->pluck('carrier');
 
-        return view('modules.access.correspondence.show', compact('correspondence'));
+        return view('modules.access.correspondence.create', [
+            'nodes' => $lookup->nodes(),
+            'carriers' => $carriers,
+        ]);
     }
 
-    public function destroy(Correspondence $correspondence)
+    public function members(Request $request, LookupPorteriaSubjectService $lookup): JsonResponse
     {
-        $correspondence->delete();
+        $structureId = $request->integer('structure_id');
 
-        return redirect()->route('access.correspondence.index')
-            ->with('success', 'Correspondencia eliminada.');
+        return response()->json(['members' => $structureId > 0 ? $lookup->hostsForNode($structureId) : []]);
     }
 
-    public function markDelivered(Correspondence $correspondence)
+    public function store(Request $request, ManageCorrespondenceService $service): RedirectResponse
     {
-        $correspondence->update([
-            'delivered_at' => now(),
-            'delivered_by' => auth()->id(),
-            'status' => 'delivered',
+        $validated = $request->validate([
+            'structure_id' => 'nullable|integer',
+            'structure_member_id' => 'nullable|integer',
+            'recipient_text' => 'nullable|string|max:150',
+            'package_type' => ['required', Rule::in(array_keys(Correspondence::TYPES))],
+            'carrier' => 'nullable|string|max:100',
+            'courier_guide' => 'nullable|string|max:100',
+            'notes' => 'nullable|string|max:1000',
+            'quantity' => 'nullable|integer|min:1|max:20',
+            'package_photo_data' => 'nullable|string',
         ]);
 
-        app(AuditLogger::class)->record($correspondence, 'correspondence.deliver', null, [
-            'delivered_at' => $correspondence->delivered_at?->toDateTimeString(),
-            'delivered_by' => $correspondence->delivered_by,
-        ]);
+        $photo = DataUrlToUploadedFile::make($validated['package_photo_data'] ?? null, 'paquete');
+        $created = $service->register($request->user(), $validated, $photo);
 
         return redirect()->route('access.correspondence.index')
-            ->with('success', 'Correspondencia marcada como entregada.');
+            ->with('success', $created->count() > 1 ? $created->count().' paquetes registrados.' : 'Paquete registrado.');
+    }
+
+    public function show(Correspondence $correspondence): View
+    {
+        $correspondence->load(['structure', 'structureMember', 'housingUnit', 'resident', 'host', 'receiver', 'deliverer', 'deliveredToMember', 'voider', 'location']);
+
+        return view('modules.access.correspondence.show', [
+            'item' => $correspondence,
+            'canVoid' => (bool) auth()->user()?->can('access.view.audit'),
+        ]);
+    }
+
+    public function markDelivered(Request $request, Correspondence $correspondence, ManageCorrespondenceService $service): RedirectResponse
+    {
+        $validated = $this->deliveryInput($request);
+        $photo = DataUrlToUploadedFile::make($validated['delivery_photo_data'] ?? null, 'entrega');
+        $service->deliver($request->user(), $correspondence, $validated, $photo);
+
+        return back()->with('success', 'Paquete entregado.');
+    }
+
+    public function deliverUnit(Request $request, ManageCorrespondenceService $service): RedirectResponse
+    {
+        $validated = $this->deliveryInput($request, true);
+        $photo = DataUrlToUploadedFile::make($validated['delivery_photo_data'] ?? null, 'entrega');
+        $count = $service->deliverUnit($request->user(), (int) $validated['structure_id'], $validated, $photo);
+
+        return back()->with('success', $count.' paquetes entregados.');
+    }
+
+    public function void(Request $request, Correspondence $correspondence, ManageCorrespondenceService $service): RedirectResponse
+    {
+        abort_unless($request->user()?->can('access.view.audit'), 403);
+        $validated = $request->validate(['void_reason' => 'required|string|max:255'], [
+            'void_reason.required' => 'Escribe el motivo de la anulación.',
+        ]);
+        $service->void($request->user(), $correspondence, $validated['void_reason']);
+
+        return redirect()->route('access.correspondence.index')->with('success', 'Paquete anulado.');
+    }
+
+    /** @return array<string, mixed> */
+    private function deliveryInput(Request $request, bool $withUnit = false): array
+    {
+        return $request->validate(array_filter([
+            'structure_id' => $withUnit ? 'required|integer' : null,
+            'delivered_to_member_id' => 'nullable|integer',
+            'delivered_to_name' => 'nullable|string|max:150',
+            'delivered_to_document' => 'nullable|string|max:50',
+            'delivery_photo_data' => 'nullable|string',
+        ]));
     }
 }

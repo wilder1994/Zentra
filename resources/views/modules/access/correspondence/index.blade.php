@@ -1,109 +1,168 @@
-<x-access-layout title="Paquetes y Encomiendas">
-    <x-slot:actions>
-        <x-ui.button href="{{ route('access.correspondence.create') }}">
-            <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-            Registrar
-        </x-ui.button>
-    </x-slot:actions>
-
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        @include('modules.access.partials.subnav')
-
-        <div class="mt-6 bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-800">
-                <h3 class="text-lg font-semibold text-white">Correspondencia Recibida</h3>
-                <p class="text-sm text-slate-500 mt-0.5">Gestión de paquetes, documentos y encomiendas</p>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-800">
-                    <thead class="bg-slate-950/60">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Destinatario</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Tipo</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Transportadora</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Recibido</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Estado</th>
-                            <th class="px-6 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-800">
-                        @forelse($correspondence as $c)
-                        <tr class="hover:bg-slate-800/40 transition-colors">
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="flex items-center">
-                                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-pink-500 to-pink-700 flex items-center justify-center text-white text-xs font-bold">
-                                        {{ strtoupper(substr($c->resident?->full_name ?? $c->host?->name ?? '?', 0, 2)) }}
-                                    </div>
-                                    <div class="ml-3">
-                                        <p class="text-sm font-medium text-white">
-                                            @if($c->resident)
-                                                {{ $c->resident->full_name }}
-                                            @elseif($c->housingUnit)
-                                                {{ $c->housingUnit->full_label }}
-                                            @elseif($c->host)
-                                                {{ $c->host->name }}
-                                            @else
-                                                -
-                                            @endif
-                                        </p>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                    @if($c->package_type == 'caja') bg-orange-900/30 text-orange-300 ring-1 ring-orange-700
-                                    @elseif($c->package_type == 'sobre') bg-blue-900/30 text-blue-300 ring-1 ring-blue-700
-                                    @elseif($c->package_type == 'documento') bg-gray-900/30 text-gray-300 ring-1 ring-gray-700
-                                    @else bg-purple-900/30 text-purple-300 ring-1 ring-purple-700 @endif">
-                                    {{ ucfirst($c->package_type) }}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-400">{{ $c->carrier ?? '-' }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-400">{{ $c->received_at->format('d/m/Y H:i') }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                @if($c->status == 'pending')
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-900/30 text-amber-300 ring-1 ring-amber-700">
-                                        <span class="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
-                                        Pendiente
-                                    </span>
-                                @else
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-900/30 text-emerald-300 ring-1 ring-emerald-700">
-                                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                        Entregado
-                                    </span>
-                                @endif
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
-                                <div class="flex items-center justify-end gap-2">
-                                    <a href="{{ route('access.correspondence.show', $c) }}" class="text-indigo-600 hover:text-indigo-800 font-medium text-xs">Ver</a>
-                                    @if($c->status == 'pending')
-                                    <form action="{{ route('access.correspondence.deliver', $c) }}" method="POST" class="inline" onsubmit="return confirm('¿Marcar como entregado?')">
-                                        @csrf @method('PATCH')
-                                        <button type="submit" class="text-emerald-600 hover:text-emerald-800 font-medium text-xs">Entregar</button>
-                                    </form>
-                                    @endif
-                                    <form action="{{ route('access.correspondence.destroy', $c) }}" method="POST" class="inline" onsubmit="return confirm('¿Eliminar?')">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="text-red-600 hover:text-red-800 font-medium text-xs">Eliminar</button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="6" class="px-6 py-12 text-center">
-                                <svg class="mx-auto h-10 w-10 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                                <p class="mt-2 text-sm text-slate-500">No hay correspondencia registrada</p>
-                                <a href="{{ route('access.correspondence.create') }}" class="mt-3 inline-flex items-center px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-500 transition-colors">
-                                    Registrar primera correspondencia
-                                </a>
-                            </td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+<x-access-layout title="Correspondencia">
+    @if($errors->any())
+        <div class="mb-4 rounded-lg border border-red-700 bg-red-900/40 px-4 py-3 text-sm text-red-200">
+            @foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach
         </div>
-        <div class="mt-4">{{ $correspondence->links() }}</div>
+    @endif
+
+    <div class="mb-4 flex flex-wrap items-center gap-2">
+        @foreach(['pendientes' => 'Pendientes ('.$pendingTotal.')', 'entregados' => 'Entregados', 'anulados' => 'Anulados'] as $key => $label)
+            <a href="{{ route('access.correspondence.index', ['tab' => $key]) }}"
+               class="rounded-lg px-4 py-2 text-sm font-semibold {{ $tab === $key ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300' }}">{{ $label }}</a>
+        @endforeach
+        <a href="{{ route('access.correspondence.create') }}" class="ml-auto rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">+ Registrar paquete</a>
     </div>
+
+    <form method="GET" class="mb-5 flex flex-wrap items-end gap-3">
+        <input type="hidden" name="tab" value="{{ $tab }}">
+        <label class="min-w-[14rem] flex-1">
+            <span class="block text-xs text-slate-500">Buscar</span>
+            <input type="search" name="q" value="{{ $q }}" placeholder="Unidad, persona, guía o transportadora"
+                   class="mt-1 h-9 w-full rounded-lg border-slate-700 bg-slate-950 text-sm text-white">
+        </label>
+        @if($tab !== 'pendientes')
+            @include('modules.company.supervision.partials.period-picker', ['from' => $from, 'to' => $to])
+        @endif
+        <label class="w-40">
+            <span class="block text-xs text-slate-500">Tipo</span>
+            <select name="type" class="mt-1 h-9 w-full rounded-lg border-slate-700 bg-slate-950 py-0 text-sm text-white">
+                <option value="">Todos</option>
+                @foreach(\App\Models\Correspondence::TYPES as $value => $label)
+                    <option value="{{ $value }}" @selected($type === $value)>{{ $label }}</option>
+                @endforeach
+            </select>
+        </label>
+        <button class="h-9 rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white">Filtrar</button>
+    </form>
+
+    <div x-data="correspondenceDelivery(@js(route('access.correspondence.members')))">
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            @forelse($items as $item)
+                @php
+                    $photo = $item->photoUrl();
+                    $unit = $item->unitLabel();
+                    $unitPending = $item->structure_id ? ($pendingByUnit[$item->structure_id] ?? 0) : 0;
+                    $title = $unit !== '—' ? $unit : $item->recipientLabel();
+                @endphp
+                <article class="flex overflow-hidden rounded-xl border border-slate-800 bg-slate-900">
+                    <div class="flex w-24 shrink-0 items-center justify-center bg-slate-950 sm:w-28">
+                        @if($photo)
+                            <img src="{{ $photo }}" alt="" class="h-full w-full object-cover">
+                        @else
+                            <svg class="h-10 w-10 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                                <path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5v-9Z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/>
+                            </svg>
+                        @endif
+                    </div>
+                    <div class="w-px shrink-0 bg-gradient-to-b from-transparent via-indigo-500/70 to-transparent"></div>
+                    <div class="flex min-w-0 flex-1 flex-col p-3">
+                        <div class="flex items-start justify-between gap-1">
+                            <p class="truncate text-sm font-semibold text-white" title="{{ $title }}">{{ $title }}</p>
+                            <span class="shrink-0 rounded-full bg-slate-700/40 px-1.5 py-0.5 text-[10px] font-semibold text-slate-300">{{ $item->typeLabel() }}</span>
+                        </div>
+                        @if($unit !== '—')
+                            <p class="truncate text-[11px] text-slate-400" title="{{ $item->recipientLabel() }}">Para: {{ $item->recipientLabel() }}</p>
+                        @endif
+                        <dl class="mt-2 space-y-0.5 text-[11px] leading-snug">
+                            <div class="flex gap-1"><dt class="shrink-0 text-slate-500">Llegó</dt><dd class="truncate text-slate-200">{{ $item->received_at?->format('d/m H:i') }} · {{ $item->received_at?->diffForHumans() }}</dd></div>
+                            <div class="flex gap-1"><dt class="shrink-0 text-slate-500">Envío</dt><dd class="truncate text-slate-200">{{ $item->carrier ?? '—' }}{{ $item->courier_guide ? ' · '.$item->courier_guide : '' }}</dd></div>
+                            <div class="flex gap-1"><dt class="shrink-0 text-slate-500">Recibió</dt><dd class="truncate text-slate-200">{{ $item->receiver?->name ?? '—' }}</dd></div>
+                            @if($item->status === 'delivered')
+                                <div class="flex gap-1"><dt class="shrink-0 text-slate-500">Entregado</dt><dd class="truncate text-emerald-300">{{ $item->delivered_at?->format('d/m H:i') }} · {{ $item->deliveredToLabel() }}</dd></div>
+                            @elseif($item->status === 'voided')
+                                <div class="flex gap-1"><dt class="shrink-0 text-slate-500">Anulado</dt><dd class="truncate text-red-300" title="{{ $item->void_reason }}">{{ $item->void_reason }}</dd></div>
+                            @endif
+                        </dl>
+                        <div class="mt-auto flex flex-wrap gap-1.5 pt-2">
+                            <a href="{{ route('access.correspondence.show', $item) }}" class="rounded-md border border-slate-700 px-2 py-1 text-[11px] font-semibold text-slate-200 hover:bg-slate-800">Ver</a>
+                            @if($item->status === 'pending')
+                                <button type="button" class="rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white"
+                                        @click="openSingle(@js(route('access.correspondence.deliver', $item)), @js($item->structure_id), @js($title))">Entregar</button>
+                                @if($unitPending > 1)
+                                    <button type="button" class="rounded-md border border-emerald-600 px-2 py-1 text-[11px] font-semibold text-emerald-400"
+                                            @click="openUnit(@js($item->structure_id), @js($unit), {{ $unitPending }})">Todo ({{ $unitPending }})</button>
+                                @endif
+                            @endif
+                        </div>
+                    </div>
+                </article>
+            @empty
+                <p class="col-span-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-10 text-center text-sm text-slate-500">
+                    {{ $tab === 'pendientes' ? 'No hay paquetes pendientes por entregar.' : 'Sin registros en el periodo.' }}
+                </p>
+            @endforelse
+        </div>
+
+        <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" @keydown.escape.window="open = false">
+            <div class="absolute inset-0 bg-slate-950/70" @click="open = false"></div>
+            <form method="POST" :action="mode === 'unit' ? @js(route('access.correspondence.deliver-unit')) : action"
+                  class="porteria-form relative w-full max-w-md space-y-4 rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-2xl">
+                @csrf
+                <template x-if="mode === 'single'"><input type="hidden" name="_method" value="PATCH"></template>
+                <template x-if="mode === 'unit'"><input type="hidden" name="structure_id" :value="structureId"></template>
+                <div>
+                    <h3 class="text-base font-semibold text-white" x-text="mode === 'unit' ? 'Entregar ' + count + ' paquetes · ' + unit : 'Entregar paquete · ' + unit"></h3>
+                    <p class="mt-1 text-xs text-slate-400">Registra quién lo recibe en portería.</p>
+                </div>
+                <template x-if="members.length">
+                    <label class="block text-xs text-slate-400">Persona de la unidad
+                        <select name="delivered_to_member_id" x-model="memberId" class="mt-1 w-full rounded-lg border-slate-700 bg-slate-950 text-sm text-white">
+                            <option value="">— Otra persona (escribir abajo) —</option>
+                            <template x-for="m in members" :key="m.id">
+                                <option :value="String(m.id)" x-text="m.name"></option>
+                            </template>
+                        </select>
+                    </label>
+                </template>
+                <template x-if="!memberId">
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <label class="block text-xs text-slate-400 sm:col-span-2">Nombre de quien recibe <span class="text-amber-400">*</span>
+                            <input name="delivered_to_name" required maxlength="150" class="mt-1 w-full rounded-lg border-slate-700 bg-slate-950 text-sm text-white">
+                        </label>
+                        <label class="block text-xs text-slate-400 sm:col-span-2">Documento (opcional)
+                            <input name="delivered_to_document" maxlength="50" class="mt-1 w-full rounded-lg border-slate-700 bg-slate-950 text-sm text-white">
+                        </label>
+                    </div>
+                </template>
+                @include('modules.access.partials.camera-capture', [
+                    'name' => 'delivery_photo_data',
+                    'label' => 'Foto de la entrega',
+                    'required' => false,
+                    'hint' => 'Opcional',
+                    'facing' => 'environment',
+                ])
+                <div class="flex justify-end gap-2">
+                    <button type="button" @click="open = false" class="rounded-lg bg-slate-800 px-4 py-2 text-sm text-slate-200">Cancelar</button>
+                    <button class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">Confirmar entrega</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="mt-4">{{ $items->links() }}</div>
+
+    @push('scripts')
+        <script>
+            function correspondenceDelivery(membersUrl) {
+                return {
+                    open: false, mode: 'single', action: '', structureId: null, unit: '', count: 1, members: [], memberId: '',
+                    openSingle(action, structureId, unit) {
+                        this.mode = 'single'; this.action = action; this.unit = unit; this.count = 1;
+                        this.load(structureId);
+                    },
+                    openUnit(structureId, unit, count) {
+                        this.mode = 'unit'; this.unit = unit; this.count = count;
+                        this.load(structureId);
+                    },
+                    load(structureId) {
+                        this.structureId = structureId; this.members = []; this.memberId = ''; this.open = true;
+                        if (!structureId) return;
+                        fetch(membersUrl + '?structure_id=' + structureId, { headers: { Accept: 'application/json' } })
+                            .then(r => r.json())
+                            .then(d => { this.members = d.members || []; });
+                    },
+                };
+            }
+        </script>
+    @endpush
 </x-access-layout>
