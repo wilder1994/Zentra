@@ -6,6 +6,7 @@ namespace App\Services\Access;
 
 use App\Domain\Structure\Data\CreateMemberData;
 use App\Models\AccessLog;
+use App\Models\AuthorizationGuest;
 use App\Models\Location;
 use App\Models\MemberType;
 use App\Models\Structure;
@@ -13,9 +14,12 @@ use App\Models\StructureMember;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\Visitor;
+use App\Models\VisitorPreAuthorization;
 use App\Services\Structure\CreateMemberService;
+use App\Services\Structure\ManageAuthorizationService;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 final class RegisterPorteriaMovementService
@@ -26,6 +30,7 @@ final class RegisterPorteriaMovementService
         private readonly PorteriaDoorService $doors,
         private readonly CreateMemberService $createMember,
         private readonly AuditLogger $audit,
+        private readonly ManageAuthorizationService $authorizations,
     ) {}
 
     /**
@@ -210,7 +215,7 @@ final class RegisterPorteriaMovementService
             }
         }
 
-        $dest = $this->destination($clientId, $input, $census);
+        $guestId = $kind === 'visitor' ? (int) ($input['authorization_guest_id'] ?? 0) : 0;
 
         $accessType = match (true) {
             $kind === 'vehicle' && $census => 'member_vehicle',
@@ -219,31 +224,61 @@ final class RegisterPorteriaMovementService
             default => 'visitor',
         };
 
-        $log = AccessLog::query()->create([
-            'client_id' => $clientId,
-            'visitor_id' => $visitor?->id,
-            'structure_member_id' => $member?->id,
-            'vehicle_id' => $vehicle?->id,
-            'host_id' => $actor->id,
-            'location_id' => $door->id,
-            'destination_structure_id' => $dest['structure_id'],
-            'destination_text' => $dest['text'],
-            'authorized_member_id' => $dest['authorized_member_id'],
-            'authorized_text' => $dest['authorized_text'],
-            'authorized_by' => $actor->id,
-            'access_type' => $accessType,
-            'entry_time' => now(),
-            'status' => 'active',
-            'purpose' => $input['purpose'] ?? null,
-            'notes' => $input['notes'] ?? null,
-        ]);
+        return DB::transaction(function () use ($actor, $clientId, $door, $input, $census, $guestId, $accessType, $visitor, $member, $vehicle): AccessLog {
+            $guest = null;
+            if ($guestId > 0 && $visitor !== null) {
+                $guest = AuthorizationGuest::query()->where('client_id', $clientId)->whereKey($guestId)->lockForUpdate()->firstOrFail();
+                $this->authorizations->assertCanEnter($guest, $visitor);
+                $dest = $this->authorizationDestination($guest->authorization);
+            } else {
+                $dest = $this->destination($clientId, $input, $census);
+            }
 
-        $this->audit->record($log, 'access.entry', null, [
-            'access_type' => $accessType,
-            'location_id' => $door->id,
-        ]);
+            $log = AccessLog::query()->create([
+                'client_id' => $clientId,
+                'visitor_id' => $visitor?->id,
+                'structure_member_id' => $member?->id,
+                'vehicle_id' => $vehicle?->id,
+                'host_id' => $actor->id,
+                'location_id' => $door->id,
+                'destination_structure_id' => $dest['structure_id'],
+                'destination_text' => $dest['text'],
+                'authorized_member_id' => $dest['authorized_member_id'],
+                'authorized_text' => $dest['authorized_text'],
+                'authorization_guest_id' => $guest?->id,
+                'authorized_by' => $actor->id,
+                'access_type' => $accessType,
+                'entry_time' => now(),
+                'status' => 'active',
+                'purpose' => $input['purpose'] ?? ($guest ? $guest->authorization->typeLabel() : null),
+                'notes' => $input['notes'] ?? null,
+            ]);
 
-        return $log;
+            $this->audit->record($log, 'access.entry', null, [
+                'access_type' => $accessType,
+                'location_id' => $door->id,
+                'authorization_guest_id' => $guest?->id,
+            ]);
+
+            if ($guest !== null) {
+                $this->authorizations->registerEntry($guest, $log);
+            }
+
+            return $log;
+        });
+    }
+
+    /**
+     * @return array{structure_id: ?int, text: ?string, authorized_member_id: ?int, authorized_text: ?string}
+     */
+    private function authorizationDestination(VisitorPreAuthorization $authorization): array
+    {
+        return [
+            'structure_id' => $authorization->structure_id,
+            'text' => $authorization->structure_id === null ? $authorization->destination_text : null,
+            'authorized_member_id' => $authorization->member_id,
+            'authorized_text' => $authorization->member_id === null ? $authorization->authorizerLabel() : null,
+        ];
     }
 
     private function exit(string $kind, int $id): AccessLog

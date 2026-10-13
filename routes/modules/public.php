@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Public\AuthorizationPassController;
 use App\Http\Controllers\Public\ObservatoryApiDocsController;
 use App\Http\Controllers\Public\ObservatoryIntakeController;
 use App\Http\Controllers\Public\PlansController;
@@ -12,6 +13,11 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/docs/observatory', [ObservatoryApiDocsController::class, 'page'])->name('observatory.docs');
 Route::get('/geo/cali-comunas.geojson', fn () => app(CaliComunaLayer::class)->download())->name('geo.cali-comunas');
+
+Route::get('/q/{token}', AuthorizationPassController::class)
+    ->where('token', '[A-Za-z0-9]{16,64}')
+    ->middleware('throttle:30,1')
+    ->name('authorizations.pass');
 
 Route::prefix('o/{slug}')->name('observatory.public.')->group(function () {
     Route::get('/', [ObservatoryIntakeController::class, 'show'])->name('show');

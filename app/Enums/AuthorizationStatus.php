@@ -14,8 +14,8 @@ enum AuthorizationStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::Pending => 'Pendiente',
-            self::Processed => 'Procesada',
+            self::Pending => 'Activa',
+            self::Processed => 'Usada',
             self::Expired => 'Vencida',
             self::Cancelled => 'Cancelada',
         };

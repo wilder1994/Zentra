@@ -155,20 +155,28 @@ final class SeedPilotStructuresService
             }
             if ($host) {
                 for ($k = 1; $k <= 5; $k++) {
-                    VisitorPreAuthorization::query()->firstOrCreate(
+                    $day = now()->addDays($k);
+                    $authorization = VisitorPreAuthorization::query()->firstOrCreate(
                         [
                             'client_id' => $client->id,
                             'structure_id' => $host->structure_id,
                             'visitor_name' => "Visitante Piloto {$k}",
-                            'valid_for_date' => now()->addDays($k)->toDateString(),
+                            'valid_for_date' => $day->toDateString(),
                         ],
                         [
+                            'installation_id' => $host->structure?->installation_id,
                             'member_id' => $host->id,
                             'visitor_document' => sprintf('900%06d', $k),
                             'visitor_category' => VisitorCategory::Visitor,
+                            'valid_from' => $day->copy()->startOfDay(),
+                            'valid_until' => $day->copy()->endOfDay(),
                             'status' => AuthorizationStatus::Pending,
-                            'qr_auth_token' => strtoupper(Str::random(16)),
+                            'qr_auth_token' => Str::random(40),
                         ]
+                    );
+                    $authorization->guests()->firstOrCreate(
+                        ['document_number' => sprintf('900%06d', $k)],
+                        ['client_id' => $client->id, 'first_name' => 'Visitante', 'last_name' => "Piloto {$k}"],
                     );
                 }
 

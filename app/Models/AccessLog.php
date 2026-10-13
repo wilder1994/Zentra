@@ -13,7 +13,7 @@ class AccessLog extends Model
 
     protected $fillable = [
         'client_id', 'visitor_id', 'structure_member_id', 'user_id', 'resident_id', 'housing_unit_id', 'vehicle_id', 'host_id', 'location_id',
-        'destination_structure_id', 'destination_text', 'authorized_member_id', 'authorized_text',
+        'destination_structure_id', 'destination_text', 'authorized_member_id', 'authorized_text', 'authorization_guest_id',
         'authorized_by', 'access_type', 'entry_time', 'exit_time', 'status',
         'purpose', 'company_visited', 'screening_temp', 'qr_code', 'notes',
         'photo_path', 'vehicle_photo_path',
@@ -79,6 +79,11 @@ class AccessLog extends Model
     public function authorizedMember()
     {
         return $this->belongsTo(StructureMember::class, 'authorized_member_id');
+    }
+
+    public function authorizationGuest()
+    {
+        return $this->belongsTo(AuthorizationGuest::class);
     }
 
     public function authorizer()

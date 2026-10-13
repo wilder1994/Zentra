@@ -4,18 +4,22 @@ declare(strict_types=1);
 
 namespace App\Services\Structure;
 
-use App\Domain\Structure\Data\CreateAuthorizationData;
-use App\Enums\VisitorCategory;
+use App\Enums\AuthorizationType;
 use App\Models\Structure;
 use App\Models\StructureMember;
+use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 final class ImportAuthorizationsService implements ToCollection, WithHeadingRow
 {
     private int $clientId;
+
+    private ?User $actor = null;
 
     /** @var array<int, string> */
     private array $errors = [];
@@ -23,77 +27,70 @@ final class ImportAuthorizationsService implements ToCollection, WithHeadingRow
     private int $imported = 0;
 
     public function __construct(
-        private readonly CreateAuthorizationService $createAuthorizationService,
+        private readonly ManageAuthorizationService $authorizations,
     ) {}
 
-    public function forClient(int $clientId): self
+    public function forClient(int $clientId, ?User $actor = null): self
     {
         $this->clientId = $clientId;
+        $this->actor = $actor;
 
         return $this;
     }
 
     public function collection(Collection $rows): void
     {
-        DB::transaction(function () use ($rows): void {
-            foreach ($rows as $index => $row) {
-                $line = $index + 2;
+        foreach ($rows as $index => $row) {
+            $line = $index + 2;
 
-                $visitorName = trim((string) ($row['visitante'] ?? $row['visitor_name'] ?? ''));
-                $structureRef = trim((string) ($row['estructura'] ?? $row['structure'] ?? $row['apartamento'] ?? ''));
-                $validDate = trim((string) ($row['fecha'] ?? $row['valid_for_date'] ?? ''));
+            $visitorName = trim((string) ($row['visitante'] ?? $row['visitor_name'] ?? ''));
+            $structureRef = trim((string) ($row['estructura'] ?? $row['structure'] ?? $row['apartamento'] ?? $row['unidad'] ?? ''));
+            $from = $this->date($row['fecha'] ?? $row['valid_for_date'] ?? $row['desde'] ?? null);
+            $until = $this->date($row['hasta'] ?? $row['fecha_fin'] ?? null) ?? $from;
 
-                if ($visitorName === '' || $structureRef === '' || $validDate === '') {
-                    $this->errors[] = "Fila {$line}: faltan campos obligatorios (visitante, estructura, fecha).";
+            if ($visitorName === '' || $structureRef === '' || $from === null) {
+                $this->errors[] = "Fila {$line}: faltan campos obligatorios (visitante, unidad, fecha).";
 
-                    continue;
-                }
-
-                $structure = Structure::query()
-                    ->where('client_id', $this->clientId)
-                    ->where(function ($q) use ($structureRef): void {
-                        $q->where('code', $structureRef)
-                            ->orWhere('name', $structureRef);
-                    })
-                    ->first();
-
-                if ($structure === null) {
-                    $this->errors[] = "Fila {$line}: estructura «{$structureRef}» no encontrada.";
-
-                    continue;
-                }
-
-                $memberId = null;
-                $hostDoc = trim((string) ($row['anfitrion_documento'] ?? $row['host_document'] ?? ''));
-                if ($hostDoc !== '') {
-                    $member = StructureMember::query()
-                        ->where('client_id', $this->clientId)
-                        ->where('document_number', $hostDoc)
-                        ->first();
-                    $memberId = $member?->id;
-                }
-
-                $categoryRaw = strtolower(trim((string) ($row['categoria'] ?? $row['category'] ?? 'visitor')));
-                $category = match ($categoryRaw) {
-                    'contratista', 'contractor' => VisitorCategory::Contractor,
-                    'domicilio', 'delivery', 'mensajeria' => VisitorCategory::Delivery,
-                    default => VisitorCategory::Visitor,
-                };
-
-                $this->createAuthorizationService->execute(new CreateAuthorizationData(
-                    clientId: $this->clientId,
-                    structureId: $structure->id,
-                    memberId: $memberId,
-                    visitorName: $visitorName,
-                    visitorDocument: trim((string) ($row['documento'] ?? $row['visitor_document'] ?? '')) ?: null,
-                    visitorCategory: $category,
-                    validForDate: $validDate,
-                    notes: trim((string) ($row['notas'] ?? $row['notes'] ?? '')) ?: null,
-                ));
-
-                $this->imported++;
+                continue;
             }
-        });
+
+            $structure = Structure::query()
+                ->where('client_id', $this->clientId)
+                ->where(fn ($q) => $q->where('code', $structureRef)->orWhere('name', $structureRef))
+                ->first();
+            if ($structure === null) {
+                $this->errors[] = "Fila {$line}: unidad «{$structureRef}» no encontrada.";
+
+                continue;
+            }
+
+            $hostDoc = trim((string) ($row['anfitrion_documento'] ?? $row['host_document'] ?? ''));
+            $memberId = $hostDoc === '' ? null : StructureMember::query()
+                ->where('client_id', $this->clientId)
+                ->where('structure_id', $structure->id)
+                ->where('document_number', $hostDoc)
+                ->value('id');
+
+            try {
+                $this->authorizations->create($this->actor, [
+                    'type' => $this->type((string) ($row['tipo'] ?? $row['categoria'] ?? $row['category'] ?? '')),
+                    'structure_id' => $structure->id,
+                    'member_id' => $memberId,
+                    'valid_from' => $from,
+                    'valid_until' => $until,
+                    'notes' => trim((string) ($row['notas'] ?? $row['notes'] ?? '')) ?: null,
+                    'origin' => 'import',
+                    'guests' => [[
+                        'first_name' => $visitorName,
+                        'document_number' => trim((string) ($row['documento'] ?? $row['visitor_document'] ?? '')) ?: null,
+                        'phone' => trim((string) ($row['telefono'] ?? $row['phone'] ?? '')) ?: null,
+                    ]],
+                ]);
+                $this->imported++;
+            } catch (ValidationException $e) {
+                $this->errors[] = "Fila {$line}: ".collect($e->errors())->flatten()->first();
+            }
+        }
     }
 
     public function importedCount(): int
@@ -105,5 +102,33 @@ final class ImportAuthorizationsService implements ToCollection, WithHeadingRow
     public function errors(): array
     {
         return $this->errors;
+    }
+
+    private function date(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if (is_numeric($value)) {
+            return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value))->toDateString();
+        }
+
+        try {
+            return Carbon::parse((string) $value)->toDateString();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function type(string $raw): string
+    {
+        return match (mb_strtolower(trim($raw))) {
+            'trasteo', 'mudanza', 'move' => AuthorizationType::Move->value,
+            'evento', 'event' => AuthorizationType::Event->value,
+            'entrevista', 'interview' => AuthorizationType::Interview->value,
+            'obra', 'contratista', 'contractor', 'work' => AuthorizationType::Work->value,
+            'otro', 'other' => AuthorizationType::Other->value,
+            default => AuthorizationType::Visit->value,
+        };
     }
 }

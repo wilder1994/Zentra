@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Services\Access;
 
 use App\Models\AccessLog;
+use App\Models\AuthorizationGuest;
 use App\Models\MemberType;
 use App\Models\Structure;
 use App\Models\StructureMember;
 use App\Models\Vehicle;
 use App\Models\Visitor;
+use App\Models\VisitorPreAuthorization;
 use App\Support\Privacy\MinorPersonalData;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Collection;
@@ -33,6 +35,14 @@ final class LookupPorteriaSubjectService
 
         if ($q === '' || $clientId < 1) {
             return ['q' => $q, 'hits' => []];
+        }
+
+        $token = $this->extractToken($q);
+        if ($token !== null) {
+            $byToken = $this->authorizationHits($token);
+            if ($byToken !== null) {
+                return ['q' => $q, 'hits' => $byToken['hits'], 'authorization' => $byToken['summary']];
+            }
         }
 
         $hits = [];
@@ -140,25 +150,123 @@ final class LookupPorteriaSubjectService
             })
             ->limit(8)
             ->get()
-            ->map(function (Visitor $visitor): array {
-                $block = $this->blocklist->checkPerson(visitor: $visitor);
-                $inside = $this->activeLog('visitor_id', (int) $visitor->id);
-                $last = $this->lastVisit('visitor_id', (int) $visitor->id);
-
-                return $this->card(
-                    kind: 'visitor',
-                    id: (int) $visitor->id,
-                    title: $visitor->full_name,
-                    document: $visitor->displayedDocument(),
-                    census: false,
-                    photo: $visitor->photo_path,
-                    blocked: $block !== null,
-                    blockReason: $block?->reason,
-                    inside: $inside,
-                    last: $last,
-                );
-            })
+            ->map(fn (Visitor $visitor): array => $this->visitorCard($visitor, $this->bestGuestFor((int) $visitor->id)))
             ->all();
+    }
+
+    /** @return array<string, mixed> */
+    private function visitorCard(Visitor $visitor, ?AuthorizationGuest $guest): array
+    {
+        $block = $this->blocklist->checkPerson(visitor: $visitor);
+
+        return [
+            ...$this->card(
+                kind: 'visitor',
+                id: (int) $visitor->id,
+                title: $visitor->full_name,
+                document: $visitor->displayedDocument(),
+                census: false,
+                photo: $visitor->photo_path,
+                blocked: $block !== null,
+                blockReason: $block?->reason,
+                inside: $this->activeLog('visitor_id', (int) $visitor->id),
+                last: $this->lastVisit('visitor_id', (int) $visitor->id),
+            ),
+            'auth' => $guest !== null ? $this->authPayload($guest) : null,
+        ];
+    }
+
+    /** Texto escaneado del QR (URL del pase) o token pegado a mano; los documentos numéricos no cuentan. */
+    private function extractToken(string $q): ?string
+    {
+        if (preg_match('~/q/([A-Za-z0-9]{16,64})~', $q, $m) === 1) {
+            return $m[1];
+        }
+
+        return preg_match('/^[A-Za-z0-9]{16,64}$/', $q) === 1 && ! ctype_digit($q) ? $q : null;
+    }
+
+    /**
+     * @return array{hits: list<array<string, mixed>>, summary: array<string, mixed>}|null
+     */
+    private function authorizationHits(string $token): ?array
+    {
+        $authorization = VisitorPreAuthorization::query()
+            ->with(['structure', 'member', 'guests.visitor'])
+            ->where('qr_auth_token', $token)
+            ->first();
+        if ($authorization === null) {
+            return null;
+        }
+
+        $hits = [];
+        $unregistered = [];
+        foreach ($authorization->guests as $guest) {
+            $guest->setRelation('authorization', $authorization);
+            if ($guest->visitor !== null) {
+                $hits[] = $this->visitorCard($guest->visitor, $guest);
+            } else {
+                $unregistered[] = $guest->fullName();
+            }
+        }
+
+        return [
+            'hits' => $hits,
+            'summary' => [
+                'id' => $authorization->id,
+                'type' => $authorization->typeLabel(),
+                'destination' => $authorization->destinationLabel(),
+                'state' => $authorization->state(),
+                'state_label' => $authorization->stateLabel(),
+                'message' => $authorization->stateMessage(),
+                'guests' => $authorization->guests->count(),
+                'unregistered' => $unregistered,
+            ],
+        ];
+    }
+
+    /** Autorización más relevante del visitante: primero la que permite entrar, luego la más reciente (máx. 30 días). */
+    private function bestGuestFor(int $visitorId): ?AuthorizationGuest
+    {
+        return AuthorizationGuest::query()
+            ->with(['authorization.structure', 'authorization.member'])
+            ->where('visitor_id', $visitorId)
+            ->whereHas('authorization', fn ($q) => $q->where('valid_until', '>=', now()->subDays(30)))
+            ->latest('id')
+            ->limit(10)
+            ->get()
+            ->sortByDesc(fn (AuthorizationGuest $g) => ($g->canEnter() ? 1 : 0).'-'.$g->authorization->valid_until->format('YmdHis'))
+            ->first();
+    }
+
+    /** @return array<string, mixed> */
+    private function authPayload(AuthorizationGuest $guest): array
+    {
+        $authorization = $guest->authorization;
+        $canEnter = $guest->canEnter();
+        $alreadyUsed = ! $canEnter && $authorization->state() === VisitorPreAuthorization::STATE_ACTIVE;
+
+        return [
+            'id' => $authorization->id,
+            'guest_id' => $guest->id,
+            'type' => $authorization->typeLabel(),
+            'destination' => $authorization->destinationLabel(),
+            'destination_structure_id' => $authorization->structure_id,
+            'destination_text' => $authorization->structure_id === null ? $authorization->destination_text : null,
+            'authorized_member_id' => $authorization->member_id,
+            'authorized_name' => $authorization->authorizerLabel(),
+            'authorized_text' => $authorization->member_id === null ? $authorization->authorizerLabel() : null,
+            'validity' => $authorization->validityLabel(),
+            'state' => $alreadyUsed ? VisitorPreAuthorization::STATE_USED : $authorization->state(),
+            'state_label' => $alreadyUsed ? 'Usada' : $authorization->stateLabel(),
+            'message' => $alreadyUsed
+                ? 'Ya ingresó con esta autorización (una sola entrada) · confirma con la unidad.'
+                : $authorization->stateMessage(),
+            'can_enter' => $canEnter,
+            'multi_entry' => (bool) $authorization->multi_entry,
+            'notes' => $authorization->notes,
+            'plate' => $authorization->vehicle_plate,
+        ];
     }
 
     /**

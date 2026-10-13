@@ -236,6 +236,7 @@ class AccessLogController extends Controller
             'destination_text' => 'nullable|string|max:255',
             'authorized_member_id' => 'nullable|integer',
             'authorized_text' => 'nullable|string|max:255',
+            'authorization_guest_id' => 'nullable|integer',
             'purpose' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
             'person_photo_data' => 'nullable|string',

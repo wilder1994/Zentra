@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Access;
 
+use App\Enums\AuthorizationStatus;
 use App\Http\Controllers\Controller;
 use App\Models\AccessLog;
 use App\Models\Correspondence;
@@ -31,7 +32,9 @@ class DashboardController extends Controller
 
         $pendingCorrespondence = Correspondence::query()->where('status', 'pending')->count();
         $pendingAuthorizations = VisitorPreAuthorization::query()
-            ->whereDate('valid_for_date', today())
+            ->where('status', AuthorizationStatus::Pending->value)
+            ->where('valid_from', '<=', now()->endOfDay())
+            ->where('valid_until', '>=', now())
             ->count();
 
         return view('modules.access.dashboard', [
