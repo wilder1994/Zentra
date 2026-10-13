@@ -117,6 +117,18 @@ class AccessLog extends Model
             ?? (is_string($this->authorized_text) && $this->authorized_text !== '' ? $this->authorized_text : '—');
     }
 
+    public function isCensusMovement(): bool
+    {
+        return in_array($this->access_type, ['member', 'resident', 'member_vehicle', 'resident_vehicle'], true);
+    }
+
+    public function censusUnitLabel(): string
+    {
+        return $this->structureMember?->structure?->name
+            ?? $this->vehicle?->structure?->name
+            ?? '—';
+    }
+
     public function isVehicleMovement(): bool
     {
         return in_array($this->access_type, ['visitor_vehicle', 'member_vehicle', 'resident_vehicle'], true);

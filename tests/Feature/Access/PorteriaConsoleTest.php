@@ -188,6 +188,20 @@ final class PorteriaConsoleTest extends TestCase
             'access_type' => 'member_vehicle',
             'status' => 'active',
         ]);
+
+        $this->actingAs($vigilante)->withSession($session)
+            ->get(route('access.logs.index', ['tab' => 'registros', 'q' => 'CEN123']))
+            ->assertOk()
+            ->assertSee('Unidad')
+            ->assertSee($node->name)
+            ->assertDontSee('Autoriza</dt>', false);
+
+        $this->actingAs($vigilante)->withSession($session)
+            ->getJson(route('access.logs.history', ['kind' => 'vehicle', 'id' => $vehicle->id]))
+            ->assertOk()
+            ->assertJsonPath('census', true)
+            ->assertJsonPath('unit', $node->name)
+            ->assertJsonPath('items.0.destination', $node->name);
     }
 
     public function test_records_show_one_card_per_subject_with_history(): void

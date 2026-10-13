@@ -82,7 +82,7 @@ class AccessLogController extends Controller
             ->groupByRaw(self::SUBJECT_KEY_SQL);
 
         $logs = AccessLog::query()
-            ->with(['visitor', 'structureMember', 'vehicle', 'host', 'destinationStructure', 'authorizedMember', 'location'])
+            ->with(['visitor', 'structureMember.structure', 'vehicle.structure', 'host', 'destinationStructure', 'authorizedMember', 'location'])
             ->whereIn('id', $latestIds)
             ->latest('entry_time')
             ->latest('id')
@@ -128,13 +128,15 @@ class AccessLogController extends Controller
         }
 
         $logs = (clone $base)
-            ->with(['host', 'destinationStructure', 'authorizedMember', 'location'])
+            ->with(['host', 'destinationStructure', 'authorizedMember', 'location', 'structureMember.structure', 'vehicle.structure'])
             ->latest('entry_time')
             ->latest('id')
             ->limit(100)
             ->get();
 
-        $destinations = $logs->map(fn (AccessLog $log) => $log->destinationLabel())
+        $census = (bool) $logs->first()?->isCensusMovement();
+
+        $destinations = $census ? collect() : $logs->map(fn (AccessLog $log) => $log->destinationLabel())
             ->filter(fn (string $label) => $label !== '—')
             ->countBy()
             ->sortDesc()
@@ -142,11 +144,14 @@ class AccessLogController extends Controller
 
         return response()->json([
             'total' => (clone $base)->count(),
+            'census' => $census,
+            'unit' => $census ? $logs->first()->censusUnitLabel() : null,
             'top_destinations' => $destinations->map(fn (int $count, string $name) => ['name' => $name, 'count' => $count])->values(),
             'items' => $logs->map(fn (AccessLog $log) => [
                 'entry' => $log->entry_time?->format('d/m/Y H:i'),
                 'exit' => $log->exit_time?->format('d/m/Y H:i'),
-                'destination' => $log->destinationLabel(),
+                'census' => $log->isCensusMovement(),
+                'destination' => $log->isCensusMovement() ? $log->censusUnitLabel() : $log->destinationLabel(),
                 'authorizer' => $log->authorizerLabel(),
                 'guard' => $log->host?->name ?? '—',
                 'door' => $log->location?->name,

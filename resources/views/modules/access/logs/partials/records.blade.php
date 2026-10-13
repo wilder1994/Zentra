@@ -42,7 +42,9 @@
                 $exitLabel = $log->exit_time
                     ? $log->exit_time->format($log->entry_time && $log->exit_time->isSameDay($log->entry_time) ? 'H:i' : 'd/m H:i')
                     : '—';
-                $destination = $log->destinationLabel();
+                $census = $log->isCensusMovement();
+                $destination = $census ? $log->censusUnitLabel() : $log->destinationLabel();
+                $subtitle = $census && $isVehicle ? $log->censusUnitLabel() : $log->subjectName();
                 $authorizer = $log->authorizerLabel();
                 $guardName = $log->host?->name ?? '—';
             @endphp
@@ -64,7 +66,7 @@
                 <div class="flex min-w-0 flex-1 flex-col p-3">
                     <p class="truncate text-sm font-semibold text-white" title="{{ $title }}">{{ $title }}</p>
                     @if($isVehicle)
-                        <p class="truncate text-[11px] text-slate-400" title="{{ $log->subjectName() }}">{{ $log->subjectName() }}</p>
+                        <p class="truncate text-[11px] text-slate-400" title="{{ $subtitle }}">{{ $subtitle }}</p>
                     @endif
                     <div class="mt-0.5 flex items-center justify-between gap-1">
                         <span class="truncate text-[11px] text-slate-500">{{ $log->movementLabel() }}</span>
@@ -74,8 +76,10 @@
                     </div>
                     <dl class="mt-2 space-y-0.5 text-[11px] leading-snug">
                         <div class="flex gap-1"><dt class="shrink-0 text-slate-500">Hora</dt><dd class="truncate text-slate-200">{{ $log->entry_time?->format('d/m H:i') ?? '—' }} → {{ $exitLabel }}</dd></div>
-                        <div class="flex gap-1"><dt class="shrink-0 text-slate-500">Destino</dt><dd class="truncate text-slate-200" title="{{ $destination }}">{{ $destination }}</dd></div>
-                        <div class="flex gap-1"><dt class="shrink-0 text-slate-500">Autoriza</dt><dd class="truncate text-slate-200" title="{{ $authorizer }}">{{ $authorizer }}</dd></div>
+                        <div class="flex gap-1"><dt class="shrink-0 text-slate-500">{{ $census ? 'Unidad' : 'Destino' }}</dt><dd class="truncate text-slate-200" title="{{ $destination }}">{{ $destination }}</dd></div>
+                        @unless($census)
+                            <div class="flex gap-1"><dt class="shrink-0 text-slate-500">Autoriza</dt><dd class="truncate text-slate-200" title="{{ $authorizer }}">{{ $authorizer }}</dd></div>
+                        @endunless
                         <div class="flex gap-1"><dt class="shrink-0 text-slate-500">Vigilante</dt><dd class="truncate text-slate-200" title="{{ $guardName }}">{{ $guardName }}</dd></div>
                     </dl>
                     <div class="mt-auto flex gap-1.5 pt-2">
@@ -110,7 +114,10 @@
                     <div>
                         <h3 class="text-base font-semibold text-white" x-text="'Historial · ' + title"></h3>
                         <p class="text-xs text-slate-400" x-show="data">
-                            <span x-text="data?.total ?? 0"></span> visitas en total
+                            <span x-text="data?.total ?? 0"></span> <span x-text="data?.census ? 'ingresos en total' : 'visitas en total'"></span>
+                            <template x-if="data && data.census && data.unit">
+                                <span> · Unidad: <span x-text="data.unit"></span></span>
+                            </template>
                             <template x-if="data && data.top_destinations.length">
                                 <span> · Destinos frecuentes: <span x-text="data.top_destinations.map(d => d.name + ' (' + d.count + ')').join(', ')"></span></span>
                             </template>
@@ -131,8 +138,8 @@
                                           x-text="item.active ? 'Dentro' : 'Salió'"></span>
                                 </div>
                                 <p class="mt-1 text-slate-400">
-                                    Destino: <span class="text-slate-200" x-text="item.destination"></span>
-                                    · Autoriza: <span class="text-slate-200" x-text="item.authorizer"></span>
+                                    <span x-text="item.census ? 'Unidad: ' : 'Destino: '"></span><span class="text-slate-200" x-text="item.destination"></span>
+                                    <template x-if="!item.census"><span> · Autoriza: <span class="text-slate-200" x-text="item.authorizer"></span></span></template>
                                     · Vigilante: <span class="text-slate-200" x-text="item.guard"></span>
                                     <template x-if="item.door"><span> · Puerta: <span class="text-slate-200" x-text="item.door"></span></span></template>
                                 </p>
