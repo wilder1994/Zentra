@@ -37,7 +37,7 @@
             <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
                 @foreach ($types as $value => $label)
                     <button type="button" @click="setType('{{ $value }}')"
-                            :class="type === '{{ $value }}' ? 'border-teal-500 bg-teal-500/15 text-teal-200' : 'border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-500'"
+                            :class="type === '{{ $value }}' ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-500'"
                             class="rounded-xl border px-3 py-3 text-sm font-medium">{{ $label }}</button>
                 @endforeach
             </div>
@@ -48,8 +48,8 @@
                 <h3 class="text-sm font-semibold text-white">2. Destino y quién autoriza</h3>
                 <div class="flex gap-1 rounded-lg bg-slate-950 p-1 ring-1 ring-slate-800">
                     <input type="hidden" name="destination_mode" :value="mode">
-                    <button type="button" @click="mode = 'unit'" :class="mode === 'unit' ? 'bg-slate-700 text-white' : 'text-slate-400'" class="rounded-md px-3 py-1.5 text-xs font-semibold">Unidad</button>
-                    <button type="button" @click="mode = 'zone'" :class="mode === 'zone' ? 'bg-slate-700 text-white' : 'text-slate-400'" class="rounded-md px-3 py-1.5 text-xs font-semibold">Zona común</button>
+                    <button type="button" @click="mode = 'unit'" :class="mode === 'unit' ? 'bg-indigo-600 text-white' : 'text-slate-400'" class="rounded-md px-3 py-1.5 text-xs font-semibold">Unidad</button>
+                    <button type="button" @click="mode = 'zone'" :class="mode === 'zone' ? 'bg-indigo-600 text-white' : 'text-slate-400'" class="rounded-md px-3 py-1.5 text-xs font-semibold">Zona común</button>
                 </div>
             </div>
 
@@ -82,7 +82,7 @@
                         <input type="text" name="destination_text" x-model="destinationText" required maxlength="150" placeholder="Ej. Salón social" class="{{ $input }}">
                         <div class="mt-2 flex flex-wrap gap-1.5">
                             @foreach ($zones as $zone)
-                                <button type="button" @click="destinationText = @js($zone)" class="rounded-full bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-700">{{ $zone }}</button>
+                                <button type="button" @click="destinationText = @js($zone)" class="rounded-full bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:opacity-80">{{ $zone }}</button>
                             @endforeach
                         </div>
                     </div>
@@ -118,15 +118,15 @@
                     <input type="date" name="valid_until" x-model="validUntil" :min="validFrom" required class="{{ $input }}">
                 </div>
                 <div class="sm:col-span-2 flex flex-wrap items-end gap-2">
-                    <button type="button" @click="range(0, 0)" class="rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-200 hover:bg-slate-700">Hoy</button>
-                    <button type="button" @click="range(1, 1)" class="rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-200 hover:bg-slate-700">Mañana</button>
-                    <button type="button" @click="range(0, 6)" class="rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-200 hover:bg-slate-700">7 días</button>
-                    <button type="button" @click="range(0, 29)" class="rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-200 hover:bg-slate-700">30 días</button>
+                    <button type="button" @click="range(0, 0)" class="rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-200 hover:opacity-80">Hoy</button>
+                    <button type="button" @click="range(1, 1)" class="rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-200 hover:opacity-80">Mañana</button>
+                    <button type="button" @click="range(0, 6)" class="rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-200 hover:opacity-80">7 días</button>
+                    <button type="button" @click="range(0, 29)" class="rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-200 hover:opacity-80">30 días</button>
                 </div>
             </div>
             <div class="mt-4 grid gap-4 sm:grid-cols-2">
                 <label class="flex items-start gap-3 rounded-xl border border-slate-800 bg-slate-950 p-3">
-                    <input type="checkbox" name="multi_entry" value="1" x-model="multi" @change="multiTouched = true" class="mt-0.5 rounded border-slate-600 bg-slate-900 text-teal-500">
+                    <input type="checkbox" name="multi_entry" value="1" x-model="multi" @change="multiTouched = true" class="mt-0.5 rounded border-slate-600 bg-slate-900 text-indigo-500">
                     <span>
                         <span class="block text-sm font-medium text-white">Entrada múltiple</span>
                         <span class="block text-xs text-slate-500">Pueden entrar y salir varias veces durante la vigencia (trasteos, eventos, obras).</span>
@@ -146,8 +146,8 @@
                     <p class="text-xs text-slate-500">Cada persona queda registrada como visitante. En portería solo se toma la foto.</p>
                 </div>
                 <div class="flex gap-2">
-                    <button type="button" @click="pasteOpen = !pasteOpen" class="rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700">Pegar lista</button>
-                    <button type="button" @click="addGuest()" class="rounded-lg bg-teal-600 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-500">+ Agregar persona</button>
+                    <button type="button" @click="pasteOpen = !pasteOpen" class="rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:opacity-80">Pegar lista</button>
+                    <button type="button" @click="addGuest()" class="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500">+ Agregar persona</button>
                 </div>
             </div>
 
@@ -156,7 +156,7 @@
                 <textarea x-model="pasteText" rows="5" class="mt-2 {{ $input }} font-mono" placeholder="1012345678, Juan, Pérez, 3001234567"></textarea>
                 <div class="mt-2 flex justify-end gap-2">
                     <button type="button" @click="pasteOpen = false" class="rounded-lg px-3 py-1.5 text-xs text-slate-400 hover:text-white">Cancelar</button>
-                    <button type="button" @click="importPaste()" class="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-500">Agregar a la lista</button>
+                    <button type="button" @click="importPaste()" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500">Agregar a la lista</button>
                 </div>
             </div>
 
@@ -183,7 +183,7 @@
 
         <div class="flex justify-end gap-2">
             <a href="{{ route('client.authorizations.index') }}" class="rounded-lg px-4 py-2 text-sm text-slate-400 hover:text-white">Cancelar</a>
-            <button type="submit" class="rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-500">Crear autorización</button>
+            <button type="submit" class="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500">Crear autorización</button>
         </div>
     </form>
 

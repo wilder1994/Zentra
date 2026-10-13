@@ -16,7 +16,7 @@
         <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 {{ $badge }}">{{ $auth->stateLabel() }}</span>
     </div>
 
-    <a href="{{ $href }}" class="mt-3 block truncate text-base font-semibold text-white hover:text-teal-300" title="{{ $auth->visitor_name }}">{{ $auth->visitor_name }}</a>
+    <a href="{{ $href }}" class="mt-3 block truncate text-base font-semibold text-white hover:text-indigo-300" title="{{ $auth->visitor_name }}">{{ $auth->visitor_name }}</a>
 
     <dl class="mt-3 space-y-1.5 text-sm">
         <div class="flex justify-between gap-3"><dt class="text-slate-500">Destino</dt><dd class="truncate text-right text-slate-200">{{ $auth->destinationLabel() }}</dd></div>

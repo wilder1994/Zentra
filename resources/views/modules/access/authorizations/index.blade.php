@@ -19,7 +19,7 @@
                         <option value="{{ $value }}" @selected(request('type') === $value)>{{ $label }}</option>
                     @endforeach
                 </select>
-                <button class="inline-flex h-10 items-center rounded-lg bg-slate-700 px-4 text-sm font-semibold text-white hover:bg-slate-600">Filtrar</button>
+                <button class="inline-flex h-10 items-center rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white hover:bg-indigo-500">Filtrar</button>
             </form>
         </div>
 

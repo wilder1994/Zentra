@@ -1,7 +1,7 @@
 <x-client-layout title="Autorizaciones" :wide="true">
     <x-slot:actions>
-        <a href="{{ route('client.authorizations.import') }}" class="rounded-lg bg-slate-800 px-3 py-2 text-sm text-white hover:bg-slate-700">Importar Excel</a>
-        <a href="{{ route('client.authorizations.create') }}" class="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500">Nueva autorización</a>
+        <a href="{{ route('client.authorizations.import') }}" class="rounded-lg bg-slate-800 px-3 py-2 text-sm text-white hover:opacity-80">Importar Excel</a>
+        <a href="{{ route('client.authorizations.create') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Nueva autorización</a>
     </x-slot:actions>
 
     <div class="space-y-5">
@@ -9,7 +9,7 @@
             <nav class="inline-flex h-10 items-center gap-1 rounded-lg bg-slate-900 p-1 ring-1 ring-slate-800">
                 @foreach (['hoy' => 'Hoy', 'proximas' => 'Próximas', 'historial' => 'Historial'] as $key => $label)
                     <a href="{{ route('client.authorizations.index', ['tab' => $key]) }}"
-                       class="inline-flex h-8 items-center whitespace-nowrap rounded-md px-3 text-sm font-medium {{ $tab === $key ? 'bg-teal-600 text-white' : 'text-slate-400 hover:text-white' }}">
+                       class="inline-flex h-8 items-center whitespace-nowrap rounded-md px-3 text-sm font-medium {{ $tab === $key ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white' }}">
                         {{ $label }}@isset($counts[$key])<span class="ml-1 text-xs opacity-80">({{ $counts[$key] }})</span>@endisset
                     </a>
                 @endforeach
@@ -25,7 +25,7 @@
                         <option value="{{ $value }}" @selected(request('type') === $value)>{{ $label }}</option>
                     @endforeach
                 </select>
-                <button class="inline-flex h-10 items-center rounded-lg bg-slate-700 px-4 text-sm font-semibold text-white hover:bg-slate-600">Filtrar</button>
+                <button class="inline-flex h-10 items-center rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white hover:bg-indigo-500">Filtrar</button>
             </form>
         </div>
 
@@ -34,7 +34,7 @@
                 <p class="text-slate-300 font-medium">
                     {{ match ($tab) { 'proximas' => 'No hay autorizaciones programadas.', 'historial' => 'Aún no hay historial.', default => 'No hay autorizaciones vigentes hoy.' } }}
                 </p>
-                <a href="{{ route('client.authorizations.create') }}" class="mt-4 inline-flex rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500">Crear autorización</a>
+                <a href="{{ route('client.authorizations.create') }}" class="mt-4 inline-flex rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Crear autorización</a>
             </div>
         @else
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">

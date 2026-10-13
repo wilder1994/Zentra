@@ -15,7 +15,7 @@
     @endphp
 
     <x-slot:actions>
-        <a href="{{ route('client.authorizations.index') }}" class="rounded-lg bg-slate-800 px-3 py-2 text-sm text-white hover:bg-slate-700">← Volver</a>
+        <a href="{{ route('client.authorizations.index') }}" class="rounded-lg bg-slate-800 px-3 py-2 text-sm text-white hover:opacity-80">← Volver</a>
     </x-slot:actions>
 
     <div class="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -81,10 +81,10 @@
                         <a href="https://wa.me/?text={{ rawurlencode($message) }}" target="_blank" rel="noopener"
                            class="rounded-lg bg-emerald-600 px-3 py-2 text-center text-sm font-semibold text-white hover:bg-emerald-500">Compartir por WhatsApp</a>
                         <button type="button" @click="navigator.clipboard.writeText(@js($passUrl)); copied = true; setTimeout(() => copied = false, 1800)"
-                                class="rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+                                class="rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold text-white hover:opacity-80"
                                 x-text="copied ? '¡Enlace copiado!' : 'Copiar enlace'">Copiar enlace</button>
-                        <button type="button" @click="downloadQr()" class="rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700">Descargar QR</button>
-                        <a href="{{ $passUrl }}" target="_blank" rel="noopener" class="text-center text-xs text-teal-400 hover:text-teal-300">Ver pase público</a>
+                        <button type="button" @click="downloadQr()" class="rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold text-white hover:opacity-80">Descargar QR</button>
+                        <a href="{{ $passUrl }}" target="_blank" rel="noopener" class="text-center text-xs text-indigo-400 hover:text-indigo-300">Ver pase público</a>
                     </div>
                 @else
                     <p class="text-center text-sm text-slate-400">Esta autorización ya no está vigente; el QR no se comparte. Si el visitante llega, portería confirma con la unidad.</p>
