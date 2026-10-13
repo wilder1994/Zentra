@@ -64,6 +64,7 @@ final class AuthorizationGuest extends Model
 
         return $authorization !== null
             && $authorization->state() === VisitorPreAuthorization::STATE_ACTIVE
+            && $authorization->withinTimeWindow()
             && ($authorization->multi_entry || $this->entries_count === 0);
     }
 }

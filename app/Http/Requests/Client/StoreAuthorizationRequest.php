@@ -41,14 +41,16 @@ final class StoreAuthorizationRequest extends FormRequest
             'authorized_text' => ['nullable', 'string', 'max:150'],
             'valid_from' => ['required', 'date'],
             'valid_until' => ['required', 'date', 'after_or_equal:valid_from'],
+            'entry_time_from' => ['nullable', 'date_format:H:i', 'required_with:entry_time_until'],
+            'entry_time_until' => ['nullable', 'date_format:H:i', 'required_with:entry_time_from', 'after:entry_time_from'],
             'multi_entry' => ['boolean'],
             'vehicle_plate' => ['nullable', 'string', 'max:15'],
-            'notes' => ['nullable', 'string', 'max:1000'],
+            'notes' => ['nullable', 'string', 'max:500'],
             'guests' => ['required', 'array', 'min:1', 'max:300'],
             'guests.*.document_type' => ['nullable', 'string', 'max:10'],
             'guests.*.document_number' => ['required', 'string', 'max:30'],
             'guests.*.first_name' => ['required', 'string', 'max:100'],
-            'guests.*.last_name' => ['nullable', 'string', 'max:100'],
+            'guests.*.last_name' => ['required', 'string', 'max:100'],
             'guests.*.phone' => ['nullable', 'string', 'max:20'],
         ];
     }
@@ -62,6 +64,8 @@ final class StoreAuthorizationRequest extends FormRequest
             'guests.required' => 'Agrega al menos una persona.',
             'guests.*.document_number.required' => 'Cada persona necesita su documento.',
             'guests.*.first_name.required' => 'Cada persona necesita su nombre.',
+            'guests.*.last_name.required' => 'Cada persona necesita su apellido.',
+            'entry_time_until.after' => 'La hora final debe ser posterior a la inicial.',
             'valid_until.after_or_equal' => 'La fecha final no puede ser anterior a la inicial.',
         ];
     }

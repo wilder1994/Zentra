@@ -42,6 +42,8 @@ final class VisitorPreAuthorization extends Model
         'valid_for_date',
         'valid_from',
         'valid_until',
+        'entry_time_from',
+        'entry_time_until',
         'multi_entry',
         'vehicle_plate',
         'qr_auth_token',
@@ -109,6 +111,28 @@ final class VisitorPreAuthorization extends Model
         return self::STATE_ACTIVE;
     }
 
+    public function hasTimeWindow(): bool
+    {
+        return ! empty($this->entry_time_from) && ! empty($this->entry_time_until);
+    }
+
+    public function withinTimeWindow(): bool
+    {
+        if (! $this->hasTimeWindow()) {
+            return true;
+        }
+        $now = now()->format('H:i:s');
+
+        return $now >= $this->entry_time_from && $now <= $this->entry_time_until;
+    }
+
+    public function timeWindowLabel(): ?string
+    {
+        return $this->hasTimeWindow()
+            ? substr((string) $this->entry_time_from, 0, 5).' – '.substr((string) $this->entry_time_until, 0, 5)
+            : null;
+    }
+
     public function stateLabel(): string
     {
         return match ($this->state()) {
@@ -144,11 +168,9 @@ final class VisitorPreAuthorization extends Model
         if ($from === null || $until === null) {
             return $this->valid_for_date?->format('d/m/Y') ?? '—';
         }
-        if ($from->isSameDay($until)) {
-            return $from->format('d/m/Y');
-        }
+        $days = $from->isSameDay($until) ? $from->format('d/m/Y') : $from->format('d/m').' al '.$until->format('d/m/Y');
 
-        return $from->format('d/m').' al '.$until->format('d/m/Y');
+        return $this->hasTimeWindow() ? $days.' · '.$this->timeWindowLabel() : $days;
     }
 
     public function stateMessage(): string

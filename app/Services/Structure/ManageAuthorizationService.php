@@ -80,12 +80,21 @@ final class ManageAuthorizationService
             throw ValidationException::withMessages(['valid_until' => 'La vigencia ya terminó.']);
         }
 
+        $timeFrom = $this->clean($data['entry_time_from'] ?? null);
+        $timeUntil = $this->clean($data['entry_time_until'] ?? null);
+        if (($timeFrom === null) !== ($timeUntil === null)) {
+            throw ValidationException::withMessages(['entry_time_from' => 'Indica la hora de inicio y la hora final.']);
+        }
+        if ($timeFrom !== null && $timeUntil <= $timeFrom) {
+            throw ValidationException::withMessages(['entry_time_until' => 'La hora final debe ser posterior a la inicial.']);
+        }
+
         $guests = $this->normalizeGuests($data['guests'] ?? []);
         if ($guests === []) {
             throw ValidationException::withMessages(['guests' => 'Agrega al menos una persona.']);
         }
 
-        return DB::transaction(function () use ($actor, $clientId, $installationId, $type, $structureId, $destinationText, $memberId, $authorizedText, $from, $until, $guests, $data): VisitorPreAuthorization {
+        return DB::transaction(function () use ($actor, $clientId, $installationId, $type, $structureId, $destinationText, $memberId, $authorizedText, $from, $until, $timeFrom, $timeUntil, $guests, $data): VisitorPreAuthorization {
             $first = $guests[0];
             $authorization = VisitorPreAuthorization::query()->create([
                 'client_id' => $clientId,
@@ -104,6 +113,8 @@ final class ManageAuthorizationService
                 'valid_for_date' => $from->toDateString(),
                 'valid_from' => $from,
                 'valid_until' => $until,
+                'entry_time_from' => $timeFrom,
+                'entry_time_until' => $timeUntil,
                 'multi_entry' => array_key_exists('multi_entry', $data) && $data['multi_entry'] !== null
                     ? (bool) $data['multi_entry']
                     : $type->defaultMultiEntry(),
@@ -132,6 +143,7 @@ final class ManageAuthorizationService
                 'guests' => count($guests),
                 'valid_from' => $from->toDateTimeString(),
                 'valid_until' => $until->toDateTimeString(),
+                'entry_window' => $timeFrom !== null ? "{$timeFrom}-{$timeUntil}" : null,
             ]);
 
             return $authorization;

@@ -244,7 +244,9 @@ final class LookupPorteriaSubjectService
     {
         $authorization = $guest->authorization;
         $canEnter = $guest->canEnter();
-        $alreadyUsed = ! $canEnter && $authorization->state() === VisitorPreAuthorization::STATE_ACTIVE;
+        $active = $authorization->state() === VisitorPreAuthorization::STATE_ACTIVE;
+        $outsideHours = ! $canEnter && $active && ! $authorization->withinTimeWindow();
+        $alreadyUsed = ! $canEnter && $active && ! $outsideHours;
 
         return [
             'id' => $authorization->id,
@@ -257,11 +259,21 @@ final class LookupPorteriaSubjectService
             'authorized_name' => $authorization->authorizerLabel(),
             'authorized_text' => $authorization->member_id === null ? $authorization->authorizerLabel() : null,
             'validity' => $authorization->validityLabel(),
-            'state' => $alreadyUsed ? VisitorPreAuthorization::STATE_USED : $authorization->state(),
-            'state_label' => $alreadyUsed ? 'Usada' : $authorization->stateLabel(),
-            'message' => $alreadyUsed
-                ? 'Ya ingresó con esta autorización (una sola entrada) · confirma con la unidad.'
-                : $authorization->stateMessage(),
+            'state' => match (true) {
+                $outsideHours => 'outside_hours',
+                $alreadyUsed => VisitorPreAuthorization::STATE_USED,
+                default => $authorization->state(),
+            },
+            'state_label' => match (true) {
+                $outsideHours => 'Fuera de horario',
+                $alreadyUsed => 'Usada',
+                default => $authorization->stateLabel(),
+            },
+            'message' => match (true) {
+                $outsideHours => 'Horario autorizado '.$authorization->timeWindowLabel().' · confirma con la unidad.',
+                $alreadyUsed => 'Ya ingresó con esta autorización (una sola entrada) · confirma con la unidad.',
+                default => $authorization->stateMessage(),
+            },
             'can_enter' => $canEnter,
             'multi_entry' => (bool) $authorization->multi_entry,
             'notes' => $authorization->notes,

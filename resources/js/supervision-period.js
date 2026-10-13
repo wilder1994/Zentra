@@ -1,13 +1,13 @@
-const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-const SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+export const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+export const SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 const pad = (n) => String(n).padStart(2, '0');
-const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const parse = (value) => {
+export const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+export const parse = (value) => {
     const [y, m, d] = String(value || '').split('-').map(Number);
     return y && m && d ? new Date(y, m - 1, d) : null;
 };
-const lastDay = (y, m) => new Date(y, m + 1, 0).getDate();
+export const lastDay = (y, m) => new Date(y, m + 1, 0).getDate();
 
 /** Un solo control de periodo: un día o, con «Rango», desde–hasta en dos meses. Escribe from/to en el formulario. */
 export function supervisionPeriodPicker(config) {

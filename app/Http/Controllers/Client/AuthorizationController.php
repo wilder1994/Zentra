@@ -8,6 +8,7 @@ use App\Enums\AuthorizationType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Client\StoreAuthorizationRequest;
 use App\Models\StructureMember;
+use App\Models\Visitor;
 use App\Models\VisitorPreAuthorization;
 use App\Repositories\StructureRepository;
 use App\Repositories\VisitorPreAuthorizationRepository;
@@ -75,6 +76,17 @@ final class AuthorizationController extends Controller
             ->map(fn (StructureMember $m) => ['id' => $m->id, 'name' => trim($m->first_name.' '.$m->last_name)]);
 
         return response()->json(['members' => $members]);
+    }
+
+    public function visitor(Request $request): JsonResponse
+    {
+        $document = preg_replace('/[\s.]/', '', (string) $request->query('document')) ?? '';
+        $visitor = strlen($document) < 5 ? null : Visitor::query()
+            ->where('client_id', (int) $this->tenantContext->clientId())
+            ->where('document_number', $document)
+            ->first(['document_type', 'first_name', 'last_name', 'phone']);
+
+        return response()->json(['visitor' => $visitor?->only(['document_type', 'first_name', 'last_name', 'phone'])]);
     }
 
     public function store(StoreAuthorizationRequest $request): RedirectResponse

@@ -32,7 +32,7 @@
                 <dl class="mt-5 grid gap-4 text-sm sm:grid-cols-2">
                     <div><dt class="text-xs uppercase tracking-wide text-slate-500">Destino</dt><dd class="mt-0.5 text-white">{{ $authorization->destinationLabel() }}@if ($authorization->installation) <span class="text-slate-500">· {{ $authorization->installation->name }}</span>@endif</dd></div>
                     <div><dt class="text-xs uppercase tracking-wide text-slate-500">Autoriza</dt><dd class="mt-0.5 text-white">{{ $authorization->authorizerLabel() }}</dd></div>
-                    <div><dt class="text-xs uppercase tracking-wide text-slate-500">Vigencia</dt><dd class="mt-0.5 text-white">{{ $authorization->valid_from?->format('d/m/Y') }} – {{ $authorization->valid_until?->format('d/m/Y') }}</dd></div>
+                    <div><dt class="text-xs uppercase tracking-wide text-slate-500">Vigencia</dt><dd class="mt-0.5 text-white">{{ $authorization->valid_from?->format('d/m/Y') }} – {{ $authorization->valid_until?->format('d/m/Y') }}<span class="text-slate-500"> · {{ $authorization->timeWindowLabel() ?? 'Todo el día' }}</span></dd></div>
                     <div><dt class="text-xs uppercase tracking-wide text-slate-500">Entradas</dt><dd class="mt-0.5 text-white">{{ $authorization->multi_entry ? 'Múltiples durante la vigencia' : 'Una por persona' }}</dd></div>
                     @if ($authorization->vehicle_plate)
                         <div><dt class="text-xs uppercase tracking-wide text-slate-500">Placa</dt><dd class="mt-0.5 font-mono text-white">{{ $authorization->vehicle_plate }}</dd></div>

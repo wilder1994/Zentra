@@ -145,6 +145,7 @@ Route::middleware(['auth', 'password.changed', 'active', 'tenancy.access', 'clie
             Route::get('/authorizations/import', [AuthorizationController::class, 'importForm'])->name('authorizations.import');
             Route::post('/authorizations/import', [AuthorizationController::class, 'import'])->name('authorizations.import.store');
             Route::get('/authorizations/members', [AuthorizationController::class, 'members'])->name('authorizations.members');
+            Route::get('/authorizations/visitor', [AuthorizationController::class, 'visitor'])->name('authorizations.visitor');
             Route::get('/authorizations/{authorization}', [AuthorizationController::class, 'show'])->whereNumber('authorization')->name('authorizations.show');
             Route::patch('/authorizations/{authorization}/cancel', [AuthorizationController::class, 'cancel'])->whereNumber('authorization')->name('authorizations.cancel');
         });

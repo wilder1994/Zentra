@@ -205,6 +205,31 @@ final class AuthorizationModuleTest extends TestCase
         $this->assertSame('active', AccessLog::query()->where('visitor_id', $guest->visitor_id)->value('status'));
     }
 
+    public function test_outside_time_window_is_informative_and_normal_entry_still_works(): void
+    {
+        [$guard, $client, $session] = $this->guardOnShift();
+        $authorization = $this->authorizationFor($client, '1077000050', multi: true);
+        $this->travelTo(now()->setTime(20, 0));
+        $authorization->update(['entry_time_from' => '08:00', 'entry_time_until' => '10:00']);
+        $guest = $authorization->guests()->firstOrFail();
+        Visitor::query()->whereKey($guest->visitor_id)->update(['photo_path' => self::PHOTO]);
+
+        $auth = $this->actingAs($guard)->withSession($session)
+            ->getJson(route('access.logs.lookup', ['q' => '1077000050']))
+            ->json('hits.0.auth');
+        $this->assertFalse($auth['can_enter']);
+        $this->assertSame('outside_hours', $auth['state']);
+        $this->assertStringContainsString('08:00 – 10:00', $auth['message']);
+
+        $this->actingAs($guard)->withSession($session)
+            ->post(route('access.logs.move'), [
+                'kind' => 'visitor', 'id' => $guest->visitor_id, 'action' => 'enter',
+                'destination_structure_id' => $authorization->structure_id, 'authorized_text' => 'Confirmado con la unidad',
+            ])
+            ->assertSessionHasNoErrors();
+        $this->travelBack();
+    }
+
     public function test_cancelled_authorization_hides_qr_on_public_pass(): void
     {
         [$admin, $client] = $this->admin();

@@ -17,6 +17,7 @@ import { observatoryMap } from './observatory-map';
 import { postEmployeePicker } from './post-employee-picker';
 import { employeeReassignForm } from './employee-reassign-form';
 import { supervisionPeriodPicker } from './supervision-period';
+import { authorizationValidityPicker } from './authorization-validity';
 import { panelSidebar } from './panel-sidebar';
 import { opsLiveAlerts } from './ops-live-alerts';
 import { deviceChangeAlerts } from './device-change-alerts';
@@ -55,6 +56,7 @@ Alpine.data('observatoryMap', observatoryMap);
 Alpine.data('postEmployeePicker', postEmployeePicker);
 Alpine.data('employeeReassignForm', employeeReassignForm);
 Alpine.data('supervisionPeriodPicker', supervisionPeriodPicker);
+Alpine.data('authorizationValidityPicker', authorizationValidityPicker);
 
 Alpine.start();
 initFormFeedback();
