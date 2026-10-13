@@ -53,6 +53,11 @@ final class BookingModuleTest extends TestCase
         $this->assertNull($zone->weekdays);
         $this->assertSame(120, $zone->min_minutes);
 
+        $this->actingAs($admin)->withSession($session)
+            ->get(route('client.bookings.zones'))
+            ->assertOk()
+            ->assertSee('Exclusiva · hasta 60 personas');
+
         $day = today()->addDays(3);
         $this->actingAs($admin)->withSession($session)
             ->get(route('client.bookings.index', ['zone' => $zone->id, 'month' => $day->format('Y-m')]))

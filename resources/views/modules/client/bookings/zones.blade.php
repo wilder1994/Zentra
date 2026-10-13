@@ -60,7 +60,7 @@
                             <div class="flex justify-between gap-3"><dt class="text-slate-500">Horario</dt><dd class="text-right text-slate-200">{{ $z->scheduleLabel() }}</dd></div>
                             <div class="flex justify-between gap-3"><dt class="text-slate-500">Días</dt><dd class="text-right text-slate-200">{{ $z->weekdaysLabel() }}</dd></div>
                             <div class="flex justify-between gap-3"><dt class="text-slate-500">Reglas</dt><dd class="text-right text-slate-200">
-                                {{ $z->allow_full_day ? 'Día completo o por horas' : 'Solo por horas' }}@if ($z->max_per_unit_month) · {{ $z->max_per_unit_month }}/mes por unidad@endif
+                                {{ $z->allow_full_day ? 'Día completo o por horas' : 'Solo por horas' }}{{ $z->max_per_unit_month ? " · {$z->max_per_unit_month}/mes por unidad" : '' }}
                             </dd></div>
                         </dl>
                         <div class="mt-auto flex justify-end gap-2 pt-4">
