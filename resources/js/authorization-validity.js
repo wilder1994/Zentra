@@ -127,7 +127,7 @@ export function authorizationValidityPicker(config) {
 
         dayClass(value) {
             if (!value) return '';
-            if (value < todayIso) return 'text-slate-600 cursor-not-allowed';
+            if (value < todayIso) return 'text-slate-500 opacity-40 cursor-not-allowed';
             const to = this.draft.to || this.draft.from;
             if (value === this.draft.from || value === to) return 'bg-indigo-600 text-white font-semibold';
             if (this.draft.range && this.draft.from && to && value > this.draft.from && value < to) return 'bg-indigo-500/20 text-indigo-300';

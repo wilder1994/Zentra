@@ -144,7 +144,7 @@
 
             <template x-teleport="body">
                 <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 pt-16 sm:items-center sm:pt-4" @keydown.escape.window="close()">
-                    <div class="absolute inset-0 bg-slate-950/70" @click="close()"></div>
+                    <div class="absolute inset-0 bg-black/50" @click="close()"></div>
                     <div class="relative w-full rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl" :class="draft.range ? 'max-w-[40rem]' : 'max-w-[22rem]'">
                         <div class="flex items-center justify-between">
                             <h3 class="text-base font-semibold text-white">Vigencia de la autorización</h3>
@@ -152,7 +152,7 @@
                         </div>
 
                         <label class="mt-3 inline-flex cursor-pointer items-center gap-2 text-sm text-slate-200">
-                            <input type="checkbox" class="h-4 w-4 rounded border-slate-600 bg-slate-950 text-indigo-600" :checked="draft.range" @change="toggleRange()">
+                            <input type="checkbox" class="h-4 w-4 rounded border-slate-400 text-indigo-600 focus:ring-indigo-500/40" :checked="draft.range" @change="toggleRange()">
                             Varios días (rango)
                             <span class="text-xs text-slate-500" x-show="draft.range" x-text="picking ? 'Elige el día final' : 'Elige desde y hasta'"></span>
                         </label>
@@ -187,7 +187,7 @@
                                 <div class="flex items-center justify-between gap-3">
                                     <span class="text-sm font-medium text-white">Horario de ingreso</span>
                                     <label class="inline-flex cursor-pointer items-center gap-2 text-sm text-slate-300">
-                                        <input type="checkbox" x-model="draft.allDay" class="h-4 w-4 rounded border-slate-600 bg-slate-950 text-indigo-600">
+                                        <input type="checkbox" x-model="draft.allDay" class="h-4 w-4 rounded border-slate-400 text-indigo-600 focus:ring-indigo-500/40">
                                         Todo el día
                                     </label>
                                 </div>
@@ -202,7 +202,7 @@
                                 <p class="mt-1 text-xs text-slate-500" x-show="!draft.allDay" x-text="draft.range ? 'Aplica a cada día del rango.' : 'Aplica para ese día.'"></p>
                             </div>
                             <label class="flex cursor-pointer items-start gap-3">
-                                <input type="checkbox" x-model="draft.multi" class="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-950 text-indigo-600">
+                                <input type="checkbox" x-model="draft.multi" class="mt-0.5 h-4 w-4 rounded border-slate-400 text-indigo-600 focus:ring-indigo-500/40">
                                 <span>
                                     <span class="block text-sm font-medium text-white">Entrada múltiple</span>
                                     <span class="block text-xs text-slate-500">Puede entrar y salir varias veces durante la vigencia. Si no, cada persona entra una sola vez.</span>
@@ -258,7 +258,7 @@
 
             <template x-teleport="body">
                 <div x-show="guestModal.open" x-cloak class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-16 sm:items-center sm:pt-4" @keydown.escape.window="guestModal.open = false">
-                    <div class="absolute inset-0 bg-slate-950/70" @click="guestModal.open = false"></div>
+                    <div class="absolute inset-0 bg-black/50" @click="guestModal.open = false"></div>
                     <div class="relative w-full max-w-md space-y-4 rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl">
                         <div class="flex items-center justify-between">
                             <h3 class="text-base font-semibold text-white" x-text="guestModal.index === null ? 'Agregar persona' : 'Editar persona'"></h3>
