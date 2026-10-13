@@ -60,7 +60,7 @@
                         <div class="flex-1 bg-slate-950 border border-purple-800 rounded-lg px-4 py-3">
                             <code class="text-sm font-mono text-purple-300 break-all">{{ $preAuthorization->qr_code }}</code>
                         </div>
-                        <button onclick="navigator.clipboard.writeText('{{ $preAuthorization->qr_code }}')" class="inline-flex items-center px-3 py-2 bg-purple-600 border border-transparent rounded-lg font-semibold text-xs text-white hover:bg-purple-700 transition-colors shadow-sm whitespace-nowrap">
+                        <button onclick="navigator.clipboard.writeText('{{ $preAuthorization->qr_code }}')" class="inline-flex items-center px-3 py-2 bg-indigo-600 border border-transparent rounded-lg font-semibold text-xs text-white hover:bg-indigo-500 transition-colors shadow-sm whitespace-nowrap">
                             <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
                             Copiar
                         </button>

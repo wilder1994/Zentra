@@ -105,7 +105,7 @@
                         </div>
                         <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-800">
                             <a href="{{ route('access.correspondence.index') }}" class="inline-flex items-center px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg font-semibold text-xs text-slate-300 hover:bg-slate-700 transition-colors">Cancelar</a>
-                            <button type="submit" class="inline-flex items-center px-4 py-2 bg-pink-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-pink-700 transition-colors shadow-sm">
+                            <button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 transition-colors shadow-sm">
                                 <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                                 Registrar
                             </button>
