@@ -74,13 +74,22 @@
                 @endforeach
             </div>
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <label class="block text-xs text-slate-400 sm:col-span-1">Transportadora
-                    <input name="carrier" list="carrier-list" value="{{ old('carrier') }}" maxlength="100"
+                <div class="relative text-xs text-slate-400" x-data="{ value: @js(old('carrier', '')), open: false, options: @js($carriers->values()) }"
+                     @click.outside="open = false">
+                    <label for="carrier-input">Transportadora</label>
+                    <input id="carrier-input" name="carrier" x-model="value" maxlength="100" autocomplete="off"
+                           @focus="open = true" @input="open = true" @keydown.escape="open = false"
                            class="mt-1 w-full rounded-lg border-slate-700 bg-slate-950 text-sm text-white" placeholder="Servientrega, Envía…">
-                    <datalist id="carrier-list">
-                        @foreach($carriers as $carrier)<option value="{{ $carrier }}">@endforeach
-                    </datalist>
-                </label>
+                    <ul x-show="open && options.filter(o => o.toLowerCase().includes(value.toLowerCase()) && o !== value).length" x-cloak
+                        class="absolute left-0 right-0 z-30 mt-1 max-h-48 overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 py-1 shadow-xl">
+                        <template x-for="o in options.filter(o => o.toLowerCase().includes(value.toLowerCase()) && o !== value)" :key="o">
+                            <li>
+                                <button type="button" @click="value = o; open = false"
+                                        class="block w-full px-3 py-1.5 text-left text-sm text-slate-200 hover:bg-slate-800" x-text="o"></button>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
                 <label class="block text-xs text-slate-400">Número de guía
                     <input name="courier_guide" value="{{ old('courier_guide') }}" maxlength="100"
                            class="mt-1 w-full rounded-lg border-slate-700 bg-slate-950 text-sm text-white">
