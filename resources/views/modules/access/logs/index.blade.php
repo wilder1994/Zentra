@@ -5,11 +5,20 @@
         </div>
     @endif
 
-    <div class="flex gap-2 mb-6">
+    <div class="flex flex-wrap items-center gap-2 mb-4">
         <a href="{{ route('access.logs.index', ['tab' => 'movimiento']) }}"
            class="px-4 py-2 rounded-lg text-sm font-semibold {{ $tab === 'movimiento' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300' }}">Movimiento</a>
         <a href="{{ route('access.logs.index', array_merge(request()->except('tab'), ['tab' => 'registros'])) }}"
            class="px-4 py-2 rounded-lg text-sm font-semibold {{ $tab === 'registros' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300' }}">Registros</a>
+        @if($tab === 'registros' && $activeCount > 0)
+            @can('access.register.exit')
+                <form action="{{ route('access.logs.bulk-exit') }}" method="POST" class="ml-auto"
+                      onsubmit="return confirm('¿Registrar la salida de las {{ $activeCount }} personas o vehículos que siguen adentro?')">
+                    @csrf
+                    <button class="px-4 py-2 rounded-lg bg-red-700 text-white text-sm font-semibold">Salida masiva ({{ $activeCount }})</button>
+                </form>
+            @endcan
+        @endif
     </div>
 
     @if($tab === 'movimiento')
@@ -265,94 +274,7 @@
         </div>
     </div>
     @else
-    <form method="GET" class="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
-        <input type="hidden" name="tab" value="registros">
-        <label class="text-xs text-slate-400">Desde
-            <input type="date" name="from" value="{{ $from }}" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
-        </label>
-        <label class="text-xs text-slate-400">Hasta
-            <input type="date" name="to" value="{{ $to }}" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
-        </label>
-        <label class="text-xs text-slate-400">Tipo
-            <select name="scope" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
-                <option value="all" @selected($scope === 'all')>Todos</option>
-                <option value="people" @selected($scope === 'people')>Personas</option>
-                <option value="vehicles" @selected($scope === 'vehicles')>Vehículos</option>
-            </select>
-        </label>
-        <label class="text-xs text-slate-400">Vigilante
-            <select name="host_id" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
-                <option value="">Todos</option>
-                @foreach($guards as $guard)
-                    <option value="{{ $guard->id }}" @selected($hostId === (int) $guard->id)>{{ $guard->name }}</option>
-                @endforeach
-            </select>
-        </label>
-        <label class="text-xs text-slate-400 col-span-2">Buscar
-            <input type="search" name="q" value="{{ $q }}" placeholder="Nombre, documento o placa" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
-        </label>
-        <div class="col-span-2 lg:col-span-6">
-            <button class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold">Filtrar</button>
-        </div>
-    </form>
-    @if($logs->getCollection()->where('status', 'active')->isNotEmpty())
-        <form action="{{ route('access.logs.bulk-exit') }}" method="POST" class="mb-4" onsubmit="return confirm('¿Salida de todos los activos?')">
-            @csrf
-            <button class="px-4 py-2 rounded-lg bg-red-700 text-white text-sm">Salida masiva</button>
-        </form>
-    @endif
-
-    <div class="overflow-x-auto rounded-xl border border-slate-800">
-        <table class="min-w-full text-sm">
-            <thead class="bg-slate-900 text-slate-400 text-xs uppercase">
-                <tr>
-                    <th class="px-3 py-2 text-left">Entrada</th>
-                    <th class="px-3 py-2 text-left">Salida</th>
-                    <th class="px-3 py-2 text-left">Quién</th>
-                    <th class="px-3 py-2 text-left">Tipo</th>
-                    <th class="px-3 py-2 text-left">Foto</th>
-                    <th class="px-3 py-2 text-left">Destino</th>
-                    <th class="px-3 py-2 text-left">Autoriza</th>
-                    <th class="px-3 py-2 text-left">Vigilante</th>
-                    <th class="px-3 py-2 text-left">Estado</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-800">
-                @forelse($logs as $log)
-                    <tr class="bg-slate-950">
-                        <td class="px-3 py-2 text-white whitespace-nowrap">{{ $log->entry_time?->format('d/m H:i') }}</td>
-                        <td class="px-3 py-2 text-slate-300 whitespace-nowrap">{{ $log->exit_time?->format('d/m H:i') ?? '—' }}</td>
-                        <td class="px-3 py-2 text-white">{{ $log->vehicle?->plate ? $log->vehicle->plate.' · ' : '' }}{{ $log->subjectName() }}</td>
-                        <td class="px-3 py-2 text-slate-400">{{ $log->movementLabel() }}</td>
-                        <td class="px-3 py-2">
-                            @if($log->fichaPhotoUrl())
-                                <img src="{{ $log->fichaPhotoUrl() }}" alt="" class="h-10 w-10 rounded object-cover">
-                            @else
-                                <span class="text-slate-600">—</span>
-                            @endif
-                        </td>
-                        <td class="px-3 py-2 text-slate-300">{{ $log->destinationLabel() }}</td>
-                        <td class="px-3 py-2 text-slate-300">{{ $log->authorizerLabel() }}</td>
-                        <td class="px-3 py-2 text-slate-300">{{ $log->host?->name ?? '—' }}</td>
-                        <td class="px-3 py-2">
-                            @if($log->status === 'active')
-                                <form method="POST" action="{{ route('access.logs.exit', $log) }}">
-                                    @csrf
-                                    @method('PATCH')
-                                    <button class="text-amber-400 text-xs font-semibold">Dentro · salir</button>
-                                </form>
-                            @else
-                                <span class="text-xs text-slate-500">Cerrado</span>
-                            @endif
-                        </td>
-                    </tr>
-                @empty
-                    <tr><td colspan="9" class="px-3 py-8 text-center text-slate-500">Sin movimientos en el rango.</td></tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-    <div class="mt-4">{{ $logs->links() }}</div>
+    @include('modules.access.logs.partials.records')
     @endif
 
     @if($tab === 'movimiento')

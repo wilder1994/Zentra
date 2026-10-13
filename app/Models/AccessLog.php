@@ -100,8 +100,8 @@ class AccessLog extends Model
         return match ($this->access_type) {
             'visitor_vehicle' => 'Visitante · vehículo',
             'resident_vehicle', 'member_vehicle' => 'Censo · vehículo',
-            'resident', 'member' => 'Censo · peatón',
-            default => 'Visitante · peatón',
+            'resident', 'member' => 'Censo · persona',
+            default => 'Visitante · persona',
         };
     }
 

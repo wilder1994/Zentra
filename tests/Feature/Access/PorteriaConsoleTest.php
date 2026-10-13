@@ -190,6 +190,71 @@ final class PorteriaConsoleTest extends TestCase
         ]);
     }
 
+    public function test_records_show_one_card_per_subject_with_history(): void
+    {
+        [$vigilante, $client] = $this->vigilante();
+        $door = Location::query()->withoutGlobalScopes()->where('client_id', $client->id)->where('is_active', true)->firstOrFail();
+        $session = $this->porteriaSession($client, (int) $door->id);
+
+        $this->actingAs($vigilante)->withSession($session)
+            ->post(route('access.turnos.store'), ['location_id' => $door->id])
+            ->assertRedirect();
+        $session[PorteriaDoorService::SESSION_KEY] = $door->id;
+
+        $photo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+        $this->actingAs($vigilante)->withSession($session)
+            ->post(route('access.logs.register'), [
+                'subject_kind' => 'visitor',
+                'first_name' => 'Rita',
+                'last_name' => 'Repetida',
+                'document_type' => 'CC',
+                'document_number' => '1099007788',
+                'visitor_type' => 'persona',
+                'person_photo_data' => $photo,
+                'also_enter' => '1',
+                'destination_text' => 'Salón social',
+                'authorized_text' => 'Administración',
+            ])
+            ->assertRedirect();
+        $visitor = Visitor::query()->where('document_number', '1099007788')->firstOrFail();
+
+        $this->actingAs($vigilante)->withSession($session)
+            ->post(route('access.logs.move'), ['kind' => 'visitor', 'id' => $visitor->id, 'action' => 'exit'])
+            ->assertRedirect();
+        $this->actingAs($vigilante)->withSession($session)
+            ->post(route('access.logs.move'), [
+                'kind' => 'visitor',
+                'id' => $visitor->id,
+                'action' => 'enter',
+                'destination_text' => 'Piscina',
+                'authorized_text' => 'Administración',
+            ])
+            ->assertRedirect();
+        $this->assertSame(2, AccessLog::query()->where('visitor_id', $visitor->id)->count());
+
+        $html = $this->actingAs($vigilante)->withSession($session)
+            ->get(route('access.logs.index', ['tab' => 'registros', 'q' => '1099007788']))
+            ->assertOk()
+            ->assertSee('Historial (2)')
+            ->assertSee('Dar salida')
+            ->getContent();
+        $this->assertSame(1, substr_count($html, 'Historial (2)'));
+
+        $this->actingAs($vigilante)->withSession($session)
+            ->get(route('access.logs.index', ['tab' => 'registros', 'q' => '1099007788', 'scope' => 'member']))
+            ->assertOk()
+            ->assertDontSee('Rita Repetida');
+
+        $this->actingAs($vigilante)->withSession($session)
+            ->getJson(route('access.logs.history', ['kind' => 'visitor', 'id' => $visitor->id]))
+            ->assertOk()
+            ->assertJsonPath('total', 2)
+            ->assertJsonPath('items.0.destination', 'Piscina')
+            ->assertJsonPath('items.0.active', true)
+            ->assertJsonPath('items.1.active', false);
+    }
+
     public function test_porteria_register_requires_photo_for_visitor(): void
     {
         [$vigilante, $client] = $this->vigilante();

@@ -92,6 +92,7 @@ Route::middleware(['auth', 'password.changed', 'active', 'tenancy.access', 'clie
     Route::middleware(['shift.open', 'permission:access.register.entry'])->group(function () {
         Route::get('/logs/lookup', [AccessLogController::class, 'lookup'])->name('logs.lookup');
         Route::get('/logs/hosts', [AccessLogController::class, 'hosts'])->name('logs.hosts');
+        Route::get('/logs/history', [AccessLogController::class, 'history'])->name('logs.history');
         Route::get('/logs', [AccessLogController::class, 'index'])->name('logs.index');
         Route::get('/logs/entry', [AccessLogController::class, 'entry'])->name('logs.entry');
         Route::post('/logs/entry', [AccessLogController::class, 'storeEntry'])->name('logs.entry.store');

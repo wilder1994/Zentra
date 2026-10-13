@@ -14,10 +14,26 @@ use App\Support\Access\DataUrlToUploadedFile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class AccessLogController extends Controller
 {
+    /** @var array<string, list<string>> */
+    private const SCOPE_TYPES = [
+        'member' => ['member', 'resident'],
+        'visitor' => ['visitor'],
+        'member_vehicle' => ['member_vehicle', 'resident_vehicle'],
+        'visitor_vehicle' => ['visitor_vehicle'],
+    ];
+
+    /** Una tarjeta por placa (vehículos) o por ficha/cédula (personas). */
+    private const SUBJECT_KEY_SQL = 'CASE
+        WHEN access_logs.vehicle_id IS NOT NULL THEN access_logs.vehicle_id * 10 + 1
+        WHEN access_logs.structure_member_id IS NOT NULL THEN access_logs.structure_member_id * 10 + 2
+        WHEN access_logs.visitor_id IS NOT NULL THEN access_logs.visitor_id * 10 + 3
+        ELSE access_logs.id * 10 + 4 END';
+
     public function index(Request $request, LookupPorteriaSubjectService $lookup, PorteriaDoorService $doors): View
     {
         $from = $request->filled('from') ? $request->date('from') : today();
@@ -28,15 +44,14 @@ class AccessLogController extends Controller
         $tab = (string) $request->query('tab', 'movimiento');
 
         $logsQuery = AccessLog::query()
-            ->with(['visitor', 'structureMember', 'vehicle', 'host', 'destinationStructure', 'authorizedMember', 'location'])
             ->whereDate('entry_time', '>=', $from)
-            ->whereDate('entry_time', '<=', $to)
-            ->latest('entry_time');
+            ->whereDate('entry_time', '<=', $to);
 
-        if ($scope === 'people') {
-            $logsQuery->whereNull('vehicle_id');
-        } elseif ($scope === 'vehicles') {
-            $logsQuery->whereNotNull('vehicle_id');
+        $scopeTypes = self::SCOPE_TYPES[$scope] ?? null;
+        if ($scopeTypes !== null) {
+            $logsQuery->whereIn('access_type', $scopeTypes);
+        } else {
+            $scope = 'all';
         }
 
         if ($hostId > 0) {
@@ -62,12 +77,28 @@ class AccessLogController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        $latestIds = (clone $logsQuery)
+            ->selectRaw('MAX(access_logs.id) as id')
+            ->groupByRaw(self::SUBJECT_KEY_SQL);
+
+        $logs = AccessLog::query()
+            ->with(['visitor', 'structureMember', 'vehicle', 'host', 'destinationStructure', 'authorizedMember', 'location'])
+            ->whereIn('id', $latestIds)
+            ->latest('entry_time')
+            ->latest('id')
+            ->paginate(24)
+            ->withQueryString();
+
+        $visitCounts = $this->visitCounts($logs->getCollection());
+
         return view('modules.access.logs.index', [
             'tab' => in_array($tab, ['movimiento', 'registros'], true) ? $tab : 'movimiento',
             'nodes' => $lookup->nodes(),
             'memberTypes' => $lookup->memberTypes(),
             'door' => $doors->operatingOrFirst($request),
-            'logs' => $logsQuery->paginate(30)->withQueryString(),
+            'logs' => $logs,
+            'visitCounts' => $visitCounts,
+            'activeCount' => AccessLog::query()->where('status', 'active')->count(),
             'from' => $from->toDateString(),
             'to' => $to->toDateString(),
             'scope' => $scope,
@@ -75,6 +106,83 @@ class AccessLogController extends Controller
             'q' => $q,
             'guards' => $guards,
         ]);
+    }
+
+    public function history(Request $request): JsonResponse
+    {
+        $kind = (string) $request->query('kind');
+        $id = $request->integer('id');
+        $column = match ($kind) {
+            'vehicle' => 'vehicle_id',
+            'member' => 'structure_member_id',
+            'visitor' => 'visitor_id',
+            default => null,
+        };
+        if ($column === null || $id < 1) {
+            return response()->json(['error' => 'Ficha inválida.'], 422);
+        }
+
+        $base = AccessLog::query()->where($column, $id);
+        if ($kind !== 'vehicle') {
+            $base->whereNull('vehicle_id');
+        }
+
+        $logs = (clone $base)
+            ->with(['host', 'destinationStructure', 'authorizedMember', 'location'])
+            ->latest('entry_time')
+            ->latest('id')
+            ->limit(100)
+            ->get();
+
+        $destinations = $logs->map(fn (AccessLog $log) => $log->destinationLabel())
+            ->filter(fn (string $label) => $label !== '—')
+            ->countBy()
+            ->sortDesc()
+            ->take(3);
+
+        return response()->json([
+            'total' => (clone $base)->count(),
+            'top_destinations' => $destinations->map(fn (int $count, string $name) => ['name' => $name, 'count' => $count])->values(),
+            'items' => $logs->map(fn (AccessLog $log) => [
+                'entry' => $log->entry_time?->format('d/m/Y H:i'),
+                'exit' => $log->exit_time?->format('d/m/Y H:i'),
+                'destination' => $log->destinationLabel(),
+                'authorizer' => $log->authorizerLabel(),
+                'guard' => $log->host?->name ?? '—',
+                'door' => $log->location?->name,
+                'active' => $log->status === 'active',
+            ])->values(),
+        ]);
+    }
+
+    /**
+     * @param  Collection<int, AccessLog>  $logs
+     * @return array<string, int>
+     */
+    private function visitCounts(Collection $logs): array
+    {
+        $counts = [];
+        $vehicleIds = $logs->whereNotNull('vehicle_id')->pluck('vehicle_id')->unique()->values();
+        $memberIds = $logs->whereNull('vehicle_id')->whereNotNull('structure_member_id')->pluck('structure_member_id')->unique()->values();
+        $visitorIds = $logs->whereNull('vehicle_id')->whereNull('structure_member_id')->whereNotNull('visitor_id')->pluck('visitor_id')->unique()->values();
+
+        if ($vehicleIds->isNotEmpty()) {
+            foreach (AccessLog::query()->whereIn('vehicle_id', $vehicleIds)->groupBy('vehicle_id')->selectRaw('vehicle_id, COUNT(*) as c')->get() as $row) {
+                $counts['vehicle-'.$row->vehicle_id] = (int) $row->c;
+            }
+        }
+        if ($memberIds->isNotEmpty()) {
+            foreach (AccessLog::query()->whereNull('vehicle_id')->whereIn('structure_member_id', $memberIds)->groupBy('structure_member_id')->selectRaw('structure_member_id, COUNT(*) as c')->get() as $row) {
+                $counts['member-'.$row->structure_member_id] = (int) $row->c;
+            }
+        }
+        if ($visitorIds->isNotEmpty()) {
+            foreach (AccessLog::query()->whereNull('vehicle_id')->whereNull('structure_member_id')->whereIn('visitor_id', $visitorIds)->groupBy('visitor_id')->selectRaw('visitor_id, COUNT(*) as c')->get() as $row) {
+                $counts['visitor-'.$row->visitor_id] = (int) $row->c;
+            }
+        }
+
+        return $counts;
     }
 
     public function lookup(Request $request, LookupPorteriaSubjectService $lookup): JsonResponse
