@@ -86,7 +86,7 @@ class AccessLogController extends Controller
             ->whereIn('id', $latestIds)
             ->latest('entry_time')
             ->latest('id')
-            ->paginate(24)
+            ->paginate(32)
             ->withQueryString();
 
         $visitCounts = $this->visitCounts($logs->getCollection());

@@ -29,7 +29,7 @@
 </form>
 
 <div x-data="accessLogHistory(@js(route('access.logs.history')))">
-    <div class="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         @forelse($logs as $log)
             @php
                 $isVehicle = $log->vehicle_id !== null;
@@ -39,13 +39,19 @@
                 $photo = $log->fichaPhotoUrl();
                 $inside = $log->status === 'active';
                 $title = $isVehicle ? ($log->vehicle?->plate ?? 'Vehículo') : $log->subjectName();
+                $exitLabel = $log->exit_time
+                    ? $log->exit_time->format($log->entry_time && $log->exit_time->isSameDay($log->entry_time) ? 'H:i' : 'd/m H:i')
+                    : '—';
+                $destination = $log->destinationLabel();
+                $authorizer = $log->authorizerLabel();
+                $guardName = $log->host?->name ?? '—';
             @endphp
             <article class="flex overflow-hidden rounded-xl border border-slate-800 bg-slate-900">
-                <div class="flex w-36 shrink-0 items-center justify-center bg-slate-950 sm:w-40">
+                <div class="flex w-24 shrink-0 items-center justify-center bg-slate-950 sm:w-28">
                     @if($photo)
-                        <img src="{{ $photo }}" alt="" class="h-full max-h-56 w-full object-cover">
+                        <img src="{{ $photo }}" alt="" class="aspect-[3/4] h-full w-full object-cover">
                     @else
-                        <svg class="h-14 w-14 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                        <svg class="h-10 w-10 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                             @if($isVehicle)
                                 <path d="M5 16h14M6 16l1.5-5h9L18 16M7 19a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
                             @else
@@ -55,30 +61,27 @@
                     @endif
                 </div>
                 <div class="w-px shrink-0 bg-gradient-to-b from-transparent via-indigo-500/70 to-transparent"></div>
-                <div class="min-w-0 flex-1 p-4">
-                    <div class="flex items-start justify-between gap-2">
-                        <div class="min-w-0">
-                            <p class="truncate text-base font-semibold text-white">{{ $title }}</p>
-                            @if($isVehicle)
-                                <p class="truncate text-xs text-slate-400">{{ $log->subjectName() }}</p>
-                            @endif
-                            <p class="text-xs text-slate-500">{{ $log->movementLabel() }}</p>
-                        </div>
-                        <span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold {{ $inside ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-700/40 text-slate-400' }}">
+                <div class="flex min-w-0 flex-1 flex-col p-3">
+                    <p class="truncate text-sm font-semibold text-white" title="{{ $title }}">{{ $title }}</p>
+                    @if($isVehicle)
+                        <p class="truncate text-[11px] text-slate-400" title="{{ $log->subjectName() }}">{{ $log->subjectName() }}</p>
+                    @endif
+                    <div class="mt-0.5 flex items-center justify-between gap-1">
+                        <span class="truncate text-[11px] text-slate-500">{{ $log->movementLabel() }}</span>
+                        <span class="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold {{ $inside ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-700/40 text-slate-400' }}">
                             {{ $inside ? 'Dentro' : 'Salió' }}
                         </span>
                     </div>
-                    <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
-                        <div><dt class="text-slate-500">Entrada</dt><dd class="text-slate-200">{{ $log->entry_time?->format('d/m H:i') ?? '—' }}</dd></div>
-                        <div><dt class="text-slate-500">Salida</dt><dd class="text-slate-200">{{ $log->exit_time?->format('d/m H:i') ?? '—' }}</dd></div>
-                        <div class="col-span-2"><dt class="text-slate-500">Destino</dt><dd class="truncate text-slate-200">{{ $log->destinationLabel() }}</dd></div>
-                        <div><dt class="text-slate-500">Autoriza</dt><dd class="truncate text-slate-200">{{ $log->authorizerLabel() }}</dd></div>
-                        <div><dt class="text-slate-500">Vigilante</dt><dd class="truncate text-slate-200">{{ $log->host?->name ?? '—' }}</dd></div>
+                    <dl class="mt-2 space-y-0.5 text-[11px] leading-snug">
+                        <div class="flex gap-1"><dt class="shrink-0 text-slate-500">Hora</dt><dd class="truncate text-slate-200">{{ $log->entry_time?->format('d/m H:i') ?? '—' }} → {{ $exitLabel }}</dd></div>
+                        <div class="flex gap-1"><dt class="shrink-0 text-slate-500">Destino</dt><dd class="truncate text-slate-200" title="{{ $destination }}">{{ $destination }}</dd></div>
+                        <div class="flex gap-1"><dt class="shrink-0 text-slate-500">Autoriza</dt><dd class="truncate text-slate-200" title="{{ $authorizer }}">{{ $authorizer }}</dd></div>
+                        <div class="flex gap-1"><dt class="shrink-0 text-slate-500">Vigilante</dt><dd class="truncate text-slate-200" title="{{ $guardName }}">{{ $guardName }}</dd></div>
                     </dl>
-                    <div class="mt-3 flex flex-wrap gap-2">
+                    <div class="mt-auto flex gap-1.5 pt-2">
                         @if($kind)
                             <button type="button" @click="openFor(@js($kind), {{ (int) $subjectId }}, @js($title))"
-                                    class="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-800">
+                                    class="rounded-md border border-slate-700 px-2 py-1 text-[11px] font-semibold text-slate-200 hover:bg-slate-800">
                                 Historial ({{ $visits }})
                             </button>
                         @endif
@@ -87,7 +90,7 @@
                                 <form method="POST" action="{{ route('access.logs.exit', $log) }}">
                                     @csrf
                                     @method('PATCH')
-                                    <button class="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white">Dar salida</button>
+                                    <button class="rounded-md bg-amber-600 px-2 py-1 text-[11px] font-semibold text-white">Dar salida</button>
                                 </form>
                             @endcan
                         @endif
