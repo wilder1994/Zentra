@@ -1,21 +1,15 @@
-<x-access-layout>
-    <div class="-mt-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-6 pb-8 bg-gradient-to-r from-slate-800 to-indigo-900 mb-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm font-medium text-indigo-300">Control de Acceso</p>
-                <h2 class="text-xl font-bold text-white">Mis Turnos</h2>
-            </div>
-            @if($currentShift)
-                <form method="POST" action="{{ route('access.turnos.close') }}" onsubmit="return confirm('¿Cerrar el turno actual?');">
-                    @csrf
-                    <input type="hidden" name="end_notes" value="">
-                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-amber-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-amber-500 transition-colors shadow-sm">Cerrar Turno</button>
-                </form>
-            @else
-                <a href="{{ route('access.turnos.open') }}" class="inline-flex items-center px-4 py-2 bg-emerald-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-emerald-500 transition-colors shadow-sm">Abrir Turno</a>
-            @endif
-        </div>
-    </div>
+<x-access-layout title="Mis Turnos">
+    <x-slot:actions>
+        @if($currentShift)
+            <form method="POST" action="{{ route('access.turnos.close') }}" onsubmit="return confirm('¿Cerrar el turno actual?');">
+                @csrf
+                <input type="hidden" name="end_notes" value="">
+                <x-ui.button type="submit" variant="secondary">Cerrar Turno</x-ui.button>
+            </form>
+        @else
+            <x-ui.button href="{{ route('access.turnos.open') }}">Abrir Turno</x-ui.button>
+        @endif
+    </x-slot:actions>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         @if($currentShift)

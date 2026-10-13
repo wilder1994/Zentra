@@ -1,32 +1,13 @@
-<x-access-layout>
-    <div class="-mt-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-6 pb-8 bg-gradient-to-r from-slate-800 to-indigo-900 mb-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm font-medium text-indigo-300">Control Vehicular</p>
-                <h2 class="text-xl font-bold text-white">Vehículos - Residentes</h2>
-            </div>
-            <a href="{{ route('access.vehicle_access.entry') }}" class="inline-flex items-center px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm">
-                <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                Ingreso Vehicular
-            </a>
-        </div>
-    </div>
+<x-access-layout title="Vehículos - Residentes">
+    <x-slot:actions>
+        <x-ui.button href="{{ route('access.vehicle_access.entry') }}">
+            <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+            Ingreso Vehicular
+        </x-ui.button>
+    </x-slot:actions>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         @include('modules.access.partials.subnav')
-
-        @if(session('success'))
-        <div class="mt-6 rounded-lg bg-emerald-900/40 border border-emerald-700 text-emerald-200 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
-            <svg class="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            {{ session('success') }}
-        </div>
-        @endif
-        @if(session('error'))
-        <div class="mt-6 rounded-lg bg-red-900/40 border border-red-700 text-red-200 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
-            <svg class="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            {{ session('error') }}
-        </div>
-        @endif
 
         @if($activeVehicles->count())
         <div class="mt-6 bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">

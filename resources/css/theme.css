@@ -562,3 +562,7 @@ html[data-theme="light"] .plan-metal-title {
     background-image: linear-gradient(100deg, color-mix(in srgb, var(--metal) 70%, #111) 0%, var(--metal) 100%);
 }
 html[data-theme="light"] .plan-metal-btn { color: #fff; background: linear-gradient(135deg, var(--metal), color-mix(in srgb, var(--metal) 70%, #111)); }
+
+html[data-theme="light"] .operate-banner { background-color: #fef3c7 !important; border-color: #fcd34d !important; }
+html[data-theme="light"] .operate-banner-title { color: #78350f !important; }
+html[data-theme="light"] .operate-banner-hint { color: #92400e !important; }

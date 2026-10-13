@@ -1,7 +1,4 @@
-<x-access-layout>
-    <div class="-mt-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-6 pb-8 bg-gradient-to-r from-slate-800 to-indigo-900 mb-6">
-        <h2 class="font-semibold text-xl text-white leading-tight">Torres / Bloques</h2>
-    </div>
+<x-access-layout title="Torres / Bloques">
     <div class="py-6">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             @include('modules.access.partials.subnav')

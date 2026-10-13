@@ -1,13 +1,7 @@
-<x-access-layout>
-    <div class="-mt-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-6 pb-8 bg-gradient-to-r from-indigo-900 to-slate-900 mb-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm font-medium text-indigo-300">Supervisión</p>
-                <h2 class="text-xl font-bold text-white">Nueva Supervisión</h2>
-            </div>
-            <a href="{{ route('access.supervision.index') }}" class="text-sm text-indigo-300 hover:text-white transition-colors">← Volver</a>
-        </div>
-    </div>
+<x-access-layout title="Nueva Supervisión">
+    <x-slot:actions>
+        <x-ui.button variant="secondary" href="{{ route('access.supervision.index') }}">← Volver</x-ui.button>
+    </x-slot:actions>
 
     <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         @php($activeSupervisor = session('supervision.supervisor_name'))

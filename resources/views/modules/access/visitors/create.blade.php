@@ -1,13 +1,4 @@
-<x-access-layout>
-    <div class="-mt-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-6 pb-8 bg-gradient-to-r from-slate-800 to-indigo-900 mb-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm font-medium text-indigo-300">Control de Acceso</p>
-                <h2 class="text-xl font-bold text-white">Nuevo Visitante</h2>
-            </div>
-        </div>
-    </div>
-
+<x-access-layout title="Nuevo Visitante">
     <div class="bg-slate-900 rounded-xl border border-slate-800 p-6">
         <form method="POST" action="{{ route('access.visitors.store') }}" x-data="{
             scanBuffer: '',

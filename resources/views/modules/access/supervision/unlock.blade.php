@@ -1,7 +1,7 @@
-<x-access-layout>
+<x-access-layout title="Supervisión">
     <div class="max-w-xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
-            <div class="px-6 py-5 bg-gradient-to-r from-indigo-900/40 to-slate-900 border-b border-slate-800">
+            <div class="px-6 py-5 border-b border-slate-800">
                 <div class="flex items-center gap-3">
                     <div class="w-11 h-11 rounded-xl bg-indigo-900/60 flex items-center justify-center flex-shrink-0">
                         <svg class="w-6 h-6 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.739-2.753 8.554m0 0H14.19m-4.943 0h-1.51A4.044 4.044 0 013.693 15.5V15.5a4.044 4.044 0 011.844-4.055m0 0A12.53 12.53 0 0112 6.55a.95.95 0 00.909-.691l.501-1.2a.889.889 0 011.086-.5l2.65.86a.9.9 0 01.6 1.11l-.62 1.86a.913.913 0 01-.95.63A37.786 37.786 0 0115 9.6m-4.056-4.85A18.515 18.515 0 0012 2.333c2.727 4.681 2.242 6.313 2.242 6.313M19 21h2m-8 0h2"/></svg>

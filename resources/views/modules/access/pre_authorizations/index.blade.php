@@ -1,16 +1,10 @@
-<x-access-layout>
-    <div class="-mt-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-6 pb-8 bg-gradient-to-r from-slate-800 to-indigo-900 mb-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm font-medium text-indigo-300">Pre-Autorizaciones</p>
-                <h2 class="text-xl font-bold text-white">Autorizaciones de Ingreso</h2>
-            </div>
-            <a href="{{ route('access.pre_authorizations.create') }}" class="inline-flex items-center px-3 py-1.5 bg-purple-500 hover:bg-purple-400 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm">
-                <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                Nueva Pre-Autorización
-            </a>
-        </div>
-    </div>
+<x-access-layout title="Autorizaciones de Ingreso">
+    <x-slot:actions>
+        <x-ui.button href="{{ route('access.pre_authorizations.create') }}">
+            <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+            Nueva Pre-Autorización
+        </x-ui.button>
+    </x-slot:actions>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         @include('modules.access.partials.subnav')

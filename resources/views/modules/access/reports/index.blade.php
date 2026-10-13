@@ -1,14 +1,5 @@
-<x-access-layout>
+<x-access-layout title="Reportes e Informes">
     @include('modules.access.partials.subnav')
-
-    <div class="-mt-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-6 pb-8 bg-gradient-to-r from-slate-800 to-indigo-900 mb-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm font-medium text-indigo-300">Analítica</p>
-                <h2 class="text-xl font-bold text-white">Reportes e Informes</h2>
-            </div>
-        </div>
-    </div>
 
     <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
         @php $statCards = [

@@ -1,15 +1,4 @@
 <x-access-layout title="Ingreso y salida">
-    <div class="-mt-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-6 pb-8 bg-gradient-to-r from-slate-800 to-indigo-900 mb-6">
-        <p class="text-sm font-medium text-indigo-300">Puerta {{ $door?->name ?? '—' }}</p>
-        <h2 class="text-xl font-bold text-white">Ingreso y salida</h2>
-    </div>
-
-    @if(session('success'))
-        <div class="mb-4 rounded-lg bg-emerald-900/40 border border-emerald-700 text-emerald-200 px-4 py-3 text-sm">{{ session('success') }}</div>
-    @endif
-    @if(session('error'))
-        <div class="mb-4 rounded-lg bg-red-900/40 border border-red-700 text-red-200 px-4 py-3 text-sm">{{ session('error') }}</div>
-    @endif
     @if($errors->any())
         <div class="mb-4 rounded-lg bg-red-900/40 border border-red-700 text-red-200 px-4 py-3 text-sm">
             @foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach

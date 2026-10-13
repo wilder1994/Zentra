@@ -1,13 +1,7 @@
-<x-access-layout>
-    <div class="-mt-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-6 pb-8 bg-gradient-to-r from-slate-800 to-indigo-900 mb-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm font-medium text-indigo-300">Pre-Autorizaciones</p>
-                <h2 class="text-xl font-bold text-white">Nueva Pre-Autorización</h2>
-            </div>
-            <a href="{{ route('access.pre_authorizations.index') }}" class="text-sm text-indigo-300 hover:text-white transition-colors">← Volver</a>
-        </div>
-    </div>
+<x-access-layout title="Nueva Pre-Autorización">
+    <x-slot:actions>
+        <x-ui.button variant="secondary" href="{{ route('access.pre_authorizations.index') }}">← Volver</x-ui.button>
+    </x-slot:actions>
 
     <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">

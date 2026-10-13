@@ -1,18 +1,12 @@
-<x-access-layout>
-    <div class="-mt-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-6 pb-8 bg-gradient-to-r from-slate-800 to-indigo-900 mb-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm font-medium text-indigo-300">Control de Acceso</p>
-                <h2 class="text-xl font-bold text-white">Reservas</h2>
-            </div>
-            @can('access.manage.locations')
-            <a href="{{ route('access.zones.create') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 transition-colors shadow-sm">
-                <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                Nueva Zona
-            </a>
-            @endcan
-        </div>
-    </div>
+<x-access-layout title="Reservas">
+    <x-slot:actions>
+        @can('access.manage.locations')
+        <x-ui.button href="{{ route('access.zones.create') }}">
+            <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+            Nueva Zona
+        </x-ui.button>
+        @endcan
+    </x-slot:actions>
 
     @if($errors->any())
         <div class="rounded-lg bg-red-900/40 border border-red-700 text-red-200 px-4 py-3 text-sm mb-6">

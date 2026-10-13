@@ -1,14 +1,9 @@
-<x-access-layout>
-    <div class="-mt-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-6 pb-8 bg-gradient-to-r from-slate-800 to-indigo-900 mb-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm font-medium text-indigo-300">Control de Acceso</p>
-                <h2 class="text-xl font-bold text-white">Kiosco de Salida</h2>
-                <p class="text-sm text-slate-300 mt-1">Escanea o ingresa el documento (o placa) para registrar la salida.</p>
-            </div>
-            <a href="{{ route('access.logs.index') }}" class="text-sm text-indigo-300 hover:text-white transition-colors">← Volver</a>
-        </div>
-    </div>
+<x-access-layout title="Kiosco de Salida">
+    <x-slot:actions>
+        <x-ui.button variant="secondary" href="{{ route('access.logs.index') }}">← Volver</x-ui.button>
+    </x-slot:actions>
+
+    <p class="mb-4 text-sm text-slate-400">Escanea o ingresa el documento (o placa) para registrar la salida.</p>
 
     <div class="max-w-2xl mx-auto">
         <div x-data="exitKiosk()" class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">

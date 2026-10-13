@@ -1,24 +1,16 @@
-<x-access-layout>
-    <div class="-mt-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-6 pb-8 bg-gradient-to-r from-indigo-900 to-slate-900 mb-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm font-medium text-indigo-300">Supervisión</p>
-                <h2 class="text-xl font-bold text-white">Registros de Supervisión</h2>
-            </div>
-            <div class="flex items-center gap-2">
-                @can('access.manage.supervision_codes')
-                <a href="{{ route('access.supervision.codes.index') }}" class="inline-flex items-center px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm">
-                    <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1115 9z"/></svg>
-                    Códigos
-                </a>
-                @endcan
-                <a href="{{ route('access.supervision.create') }}" class="inline-flex items-center px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm">
-                    <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                    Nueva Supervisión
-                </a>
-            </div>
-        </div>
-    </div>
+<x-access-layout title="Registros de Supervisión">
+    <x-slot:actions>
+        @can('access.manage.supervision_codes')
+        <x-ui.button href="{{ route('access.supervision.codes.index') }}">
+            <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1115 9z"/></svg>
+            Códigos
+        </x-ui.button>
+        @endcan
+        <x-ui.button href="{{ route('access.supervision.create') }}">
+            <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+            Nueva Supervisión
+        </x-ui.button>
+    </x-slot:actions>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         @include('modules.access.partials.subnav')

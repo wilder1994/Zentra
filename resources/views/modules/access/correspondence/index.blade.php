@@ -1,16 +1,10 @@
-<x-access-layout>
-    <div class="-mt-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-6 pb-8 bg-gradient-to-r from-slate-800 to-indigo-900 mb-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm font-medium text-indigo-300">Correspondencia</p>
-                <h2 class="text-xl font-bold text-white">Paquetes y Encomiendas</h2>
-            </div>
-            <a href="{{ route('access.correspondence.create') }}" class="inline-flex items-center px-3 py-1.5 bg-pink-500 hover:bg-pink-400 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm">
-                <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                Registrar
-            </a>
-        </div>
-    </div>
+<x-access-layout title="Paquetes y Encomiendas">
+    <x-slot:actions>
+        <x-ui.button href="{{ route('access.correspondence.create') }}">
+            <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+            Registrar
+        </x-ui.button>
+    </x-slot:actions>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         @include('modules.access.partials.subnav')
