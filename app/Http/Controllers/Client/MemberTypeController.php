@@ -10,6 +10,7 @@ use App\Http\Requests\Client\UpdateMemberTypeRequest;
 use App\Models\MemberType;
 use App\Services\Client\ManageClientMemberTypeService;
 use App\Support\Tenancy\TenantContext;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\ValidationException;
 
@@ -25,15 +26,19 @@ final class MemberTypeController extends Controller
         return redirect()->route('client.members.index');
     }
 
-    public function store(StoreMemberTypeRequest $request): RedirectResponse
+    public function store(StoreMemberTypeRequest $request): RedirectResponse|JsonResponse
     {
-        $this->manageClientMemberTypeService->create(
+        $type = $this->manageClientMemberTypeService->create(
             (int) $this->tenantContext->clientId(),
             [
                 'name' => $request->validated('name'),
                 'is_active' => $request->boolean('is_active', true),
             ],
         );
+
+        if ($request->expectsJson()) {
+            return response()->json(['id' => $type->id, 'name' => $type->name], 201);
+        }
 
         return redirect()
             ->route('client.members.index')

@@ -20,20 +20,7 @@
                 :installation-id="$installationId"
                 :structure-id="$structureId"
             />
-            <div>
-                <label class="block text-xs text-slate-400 mb-1">Tipo</label>
-                @if ($memberTypes->isEmpty())
-                    <p class="text-sm text-amber-300">Crea un tipo de persona con el botón <strong>Tipos de persona</strong> en el listado antes de registrar.</p>
-                @else
-                    <select name="member_type_id" required class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm text-white">
-                        <option value="">Seleccione tipo</option>
-                        @foreach ($memberTypes as $type)
-                            <option value="{{ $type->id }}" @selected((string) old('member_type_id') === (string) $type->id)>{{ $type->name }}</option>
-                        @endforeach
-                    </select>
-                @endif
-                @error('member_type_id')<p class="mt-1 text-xs text-red-400">{{ $message }}</p>@enderror
-            </div>
+            @include('modules.client.members.partials.type-select', ['selected' => old('member_type_id')])
             <div class="grid sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs text-slate-400 mb-1">Teléfono</label>
@@ -44,7 +31,7 @@
                     <input type="email" name="email" value="{{ old('email') }}" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm text-white">
                 </div>
             </div>
-            <button type="submit" @disabled($memberTypes->isEmpty()) class="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500 disabled:opacity-50">Guardar y generar código de acceso</button>
+            <button type="submit" class="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500 disabled:opacity-50">Guardar y generar código de acceso</button>
         </form>
     </div>
 </x-client-layout>

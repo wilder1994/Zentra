@@ -10,6 +10,26 @@ use Illuminate\Validation\ValidationException;
 
 final class ManageClientMemberTypeService
 {
+    public const DEFAULT_NAMES = ['Propietario', 'Inquilino', 'Familiar', 'Empleado doméstico', 'Administración'];
+
+    public function ensureDefaults(int $clientId): void
+    {
+        $hasAny = MemberType::query()->withoutGlobalScopes()->where('client_id', $clientId)->exists();
+        if ($hasAny) {
+            return;
+        }
+
+        foreach (self::DEFAULT_NAMES as $i => $name) {
+            MemberType::query()->withoutGlobalScopes()->create([
+                'client_id' => $clientId,
+                'name' => $name,
+                'slug' => Str::slug($name),
+                'is_active' => true,
+                'sort_order' => ($i + 1) * 10,
+            ]);
+        }
+    }
+
     /** @param array{name: string, is_active?: bool} $data */
     public function create(int $clientId, array $data): MemberType
     {

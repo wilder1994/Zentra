@@ -24,15 +24,7 @@
                 :installation-id="$installationId"
                 :structure-id="$structureId"
             />
-            <div>
-                <label class="block text-xs text-slate-400 mb-1">Tipo</label>
-                <select name="member_type_id" required class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm text-white">
-                    @foreach ($memberTypes as $type)
-                        <option value="{{ $type->id }}" @selected((string) old('member_type_id', $member->member_type_id) === (string) $type->id)>{{ $type->name }}</option>
-                    @endforeach
-                </select>
-                @error('member_type_id')<p class="mt-1 text-xs text-red-400">{{ $message }}</p>@enderror
-            </div>
+            @include('modules.client.members.partials.type-select', ['selected' => old('member_type_id', $member->member_type_id)])
             <div class="grid sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs text-slate-400 mb-1">Teléfono</label>

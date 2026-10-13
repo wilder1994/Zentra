@@ -9,6 +9,7 @@ use App\Enums\ClientLifecycle;
 use App\Enums\ClientPlanTier;
 use App\Models\Client;
 use App\Models\SecurityCompany;
+use App\Services\Client\ManageClientMemberTypeService;
 use Illuminate\Support\Str;
 
 final class CreateClientService
@@ -28,7 +29,7 @@ final class CreateClientService
         $slug = $this->uniqueSlug($data->securityCompanyId, $data->name);
         $loginSuffix = $this->uniqueLoginSuffix($data->securityCompanyId, $slug);
 
-        return Client::query()->create([
+        $client = Client::query()->create([
             'security_company_id' => $data->securityCompanyId,
             'name' => $data->name,
             'party_type' => $data->partyType,
@@ -59,6 +60,10 @@ final class CreateClientService
             'service_started_at' => $data->serviceStartedAt ?? now()->toDateString(),
             'lifecycle' => ClientLifecycle::Active,
         ]);
+
+        app(ManageClientMemberTypeService::class)->ensureDefaults((int) $client->id);
+
+        return $client;
     }
 
     private function uniqueSlug(int $companyId, string $name): string
