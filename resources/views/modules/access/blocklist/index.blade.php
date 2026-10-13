@@ -61,6 +61,7 @@
                                 {{ $entry->expires_at?->format('d/m/Y H:i') ?? '—' }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                                @can('access.blocklist.remove')
                                 <form action="{{ route('access.blocklist.destroy', $entry) }}" method="POST" onsubmit="return confirm('¿Remover este bloqueo?')">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="inline-flex items-center px-2.5 py-1 bg-emerald-600 border border-transparent rounded-lg font-semibold text-xs text-white hover:bg-emerald-700 transition-colors shadow-sm">
@@ -68,6 +69,7 @@
                                         Remover
                                     </button>
                                 </form>
+                                @endcan
                             </td>
                         </tr>
                         @empty

@@ -5,10 +5,12 @@
                 <p class="text-sm font-medium text-indigo-300">Control de Acceso</p>
                 <h2 class="text-xl font-bold text-white">Reservas</h2>
             </div>
+            @can('access.manage.locations')
             <a href="{{ route('access.zones.create') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 transition-colors shadow-sm">
                 <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                 Nueva Zona
             </a>
+            @endcan
         </div>
     </div>
 
@@ -107,7 +109,7 @@
                     <div class="mt-3 text-xs text-slate-500">
                         {{ $zone->bookings_count }} reserva(s) de hoy
                     </div>
-                    @if($zone->is_active)
+                    @if($zone->is_active && auth()->user()->can('access.manage.locations'))
                         <form method="POST" action="{{ route('access.zones.destroy', $zone) }}" class="mt-4" onsubmit="return confirm('¿Desactivar esta zona?');">
                             @csrf
                             @method('DELETE')

@@ -125,6 +125,20 @@ En el cliente se registran datos comerciales (`party_type`, documento, contactos
 
 Slug técnico: `guardia`. Label UI: **Vigilante**.
 
+### Operar desde el expediente = ver como ese rol
+
+Al operar un cliente desde el expediente (súper admin o admin de empresa), portería (`access.*`) y panel cliente (`client.*`) usan **los permisos del rol operado**, no los de quien opera (`OperateAsRole`):
+
+| Botón | Permisos que se aplican |
+|-------|-------------------------|
+| Operar portería | Rol `guardia` (Vigilante) |
+| Operar cliente | Rol `client-admin` + módulos por defecto del cliente |
+| Operar instalación | Rol `client-installation-admin` + módulos por defecto de la instalación |
+
+Menú y URLs (estricto): lo que el rol no puede, da 403. El panel empresa y «Volver al expediente» no cambian.
+
+Vigilante en portería: no ve Instalaciones, no crea/borra puntos de acceso, torres, apartamentos ni zonas comunes, no ve reportes ni auditoría, y **puede bloquear pero no quitar bloqueos** (`access.blocklist.remove`, solo administradores). Sí atiende Reservas del día (check-in por QR) y abre/cierra su turno.
+
 ---
 
 ## Reglas: Supervisor de vigilancia

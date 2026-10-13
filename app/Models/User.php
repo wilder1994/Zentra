@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\AccessGrantScope;
 use App\Services\Auth\AllocateLoginUsername;
+use App\Support\Company\OperateAsRole;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -18,7 +19,23 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, HasRoles, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
+    use HasRoles {
+        hasPermissionTo as private spatieHasPermissionTo;
+    }
+
+    public function hasPermissionTo($permission, $guardName = null): bool
+    {
+        $name = is_string($permission) ? $permission : ($permission->name ?? null);
+        if (is_string($name)) {
+            $simulated = app(OperateAsRole::class)->allows($name);
+            if ($simulated !== null) {
+                return $simulated;
+            }
+        }
+
+        return $this->spatieHasPermissionTo($permission, $guardName);
+    }
 
     protected $fillable = [
         'name',

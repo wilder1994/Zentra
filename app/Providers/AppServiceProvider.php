@@ -11,29 +11,30 @@ use App\Models\ObservatoryEvent;
 use App\Models\Resident;
 use App\Models\SecurityCompany;
 use App\Models\StructureType;
+use App\Models\SupervisorAlarmType;
 use App\Models\SupervisorChecklistItem;
 use App\Models\SupervisorControlBookType;
 use App\Models\SupervisorDocumentType;
-use App\Models\SupervisorShiftTemplate;
-use App\Models\SupervisorWeaponBrand;
-use App\Models\SupervisorWeaponType;
-use App\Models\SupervisorAlarmType;
 use App\Models\SupervisorPostModality;
 use App\Models\SupervisorRiskType;
+use App\Models\SupervisorShiftTemplate;
 use App\Models\SupervisorSupportType;
+use App\Models\SupervisorWeaponBrand;
+use App\Models\SupervisorWeaponType;
 use App\Models\SupervisorZone;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\Visitor;
-use App\Policies\MemberTypePolicy;
-use App\Policies\ObservatoryEventPolicy;
 use App\Policies\CompanyCollaboratorTypePolicy;
 use App\Policies\CompanyJobTitlePolicy;
 use App\Policies\EmployeePolicy;
+use App\Policies\MemberTypePolicy;
+use App\Policies\ObservatoryEventPolicy;
 use App\Policies\SecurityCompanyPolicy;
 use App\Policies\StructureTypePolicy;
 use App\Policies\SupervisorCompanyCatalogPolicy;
 use App\Policies\UserPolicy;
+use App\Support\Company\OperateAsRole;
 use App\Support\Tenancy\TenantContext;
 use App\View\Composers\AccessLayoutComposer;
 use App\View\Composers\CompanyLayoutComposer;
@@ -48,6 +49,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(TenantContext::class);
+        $this->app->scoped(OperateAsRole::class);
     }
 
     public function boot(): void
@@ -79,6 +81,11 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(SupervisorSupportType::class, SupervisorCompanyCatalogPolicy::class);
 
         Gate::before(function (User $user, string $ability): ?bool {
+            $simulated = app(OperateAsRole::class)->allows($ability);
+            if ($simulated !== null) {
+                return $simulated;
+            }
+
             if ($user->hasRole('super-admin')) {
                 return true;
             }
