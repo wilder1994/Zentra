@@ -189,14 +189,7 @@ Route::middleware(['auth', 'password.changed', 'active', 'tenancy.access', 'clie
     // Zonas comunes (portería)
     Route::middleware('permission:access.manage.zones')->group(function () {
         Route::get('/zones', [ZoneController::class, 'index'])->name('zones.index');
-        Route::post('/zones/checkin', [ZoneController::class, 'checkin'])->name('zones.checkin');
-        Route::post('/zones/{booking}/complete', [ZoneController::class, 'complete'])->name('zones.complete');
-        Route::post('/zones/{booking}/cancel', [ZoneController::class, 'cancel'])->name('zones.cancel');
-
-        Route::middleware('permission:access.manage.locations')->group(function () {
-            Route::get('/zones/create', [ZoneController::class, 'create'])->name('zones.create');
-            Route::post('/zones', [ZoneController::class, 'store'])->name('zones.store');
-            Route::delete('/zones/{zone}', [ZoneController::class, 'destroy'])->name('zones.destroy');
-        });
+        Route::patch('/zones/{booking}/checkin', [ZoneController::class, 'checkin'])->whereNumber('booking')->name('zones.checkin');
+        Route::patch('/zones/{booking}/complete', [ZoneController::class, 'complete'])->whereNumber('booking')->name('zones.complete');
     });
 });

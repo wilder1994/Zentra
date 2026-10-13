@@ -680,7 +680,7 @@ Integrado en `main` / `creawilder` (rama Manuel + Command Center). Roles en `con
 | **Supervisión (minuta)** | `/access/supervision/*`, códigos `/access/supervision/codes` | Unlock por código, evidencias (`supervision_attachments`), firma en minuta |
 | **Turnos portería** | `/access/turnos` | Apertura/cierre; puerta obligatoria; `EnsureOpenShift` + `EnsurePorteriaDoor` |
 | **Pánico** | `POST /access/ops/panic`, `GET /access/ops/alerts.json` | Mismo overlay que cliente/supervisor. Sin minuta `is_panic`. [`PORTERIA.md`](docs/PORTERIA.md) |
-| **Zonas comunes** | `/access/zones`, reserva cliente `/client/zones` | `common_zones` + bookings; permiso `access.manage.zones` / `client.zones.book` |
+| **Reservas** | Panel cliente `/client/bookings` (calendario, aprobación, zonas); portería `/access/zones` (dar uso / finalizar) | `common_zones` por instalación + `common_zone_bookings`; invitados → autorización tipo Evento; permisos `client.bookings.manage` / `access.manage.zones` |
 | **Auditoría** | `/access/audit` | `audit_logs` + `AuditLogger` |
 | **Geo / recurrencia** | Locations con geo; pre-autorizaciones con recurrencia | `GeoService`, `RecurrenceService` |
 | **Notificaciones** | Portal residente | `notifications` + `CorrespondenciaRecibida` / `AlertaOperativa` |

@@ -148,6 +148,11 @@ final class GrantableModules
                     'view' => ['client.authorizations.manage'],
                     'manage' => ['client.authorizations.manage'],
                 ],
+                'bookings' => [
+                    'label' => 'Reservas',
+                    'view' => ['client.bookings.manage'],
+                    'manage' => ['client.bookings.manage'],
+                ],
                 'users' => [
                     'label' => 'Usuarios',
                     'view' => ['client.users.manage'],
@@ -239,7 +244,7 @@ final class GrantableModules
     /** @return list<string> */
     public static function censusAliasModules(): array
     {
-        return ['structures', 'members', 'vehicles', 'pets', 'authorizations'];
+        return ['structures', 'members', 'vehicles', 'pets', 'authorizations', 'bookings'];
     }
 
     /** @return list<string> */

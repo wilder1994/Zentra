@@ -133,7 +133,7 @@ final class OperateAsRoleTest extends TestCase
             PorteriaDoorService::SESSION_KEY => $door->id,
         ];
 
-        foreach (['access.locations.create', 'access.buildings.create', 'access.housing_units.create', 'access.sites.index', 'access.reports.index', 'access.reports.export', 'access.zones.create'] as $route) {
+        foreach (['access.locations.create', 'access.buildings.create', 'access.housing_units.create', 'access.sites.index', 'access.reports.index', 'access.reports.export'] as $route) {
             $this->actingAs($guard)->withSession($session)->get(route($route))->assertForbidden();
         }
 

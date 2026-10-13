@@ -12,6 +12,8 @@ final class ClientPanelModules
 
     public const AUTHORIZATIONS = 'authorizations';
 
+    public const BOOKINGS = 'bookings';
+
     public const DOORS = 'doors';
 
     public const OBSERVATORY = 'observatory';
@@ -23,6 +25,7 @@ final class ClientPanelModules
             self::VEHICLES,
             self::PETS,
             self::AUTHORIZATIONS,
+            self::BOOKINGS,
             self::DOORS,
             self::OBSERVATORY,
         ];
@@ -35,6 +38,7 @@ final class ClientPanelModules
             self::VEHICLES => 'Vehículos',
             self::PETS => 'Mascotas',
             self::AUTHORIZATIONS => 'Autorizaciones',
+            self::BOOKINGS => 'Reservas',
             self::DOORS => 'Puertas',
             self::OBSERVATORY => 'Observatorio',
         ];
@@ -47,6 +51,7 @@ final class ClientPanelModules
             self::VEHICLES => 'Censo de vehículos por nodo.',
             self::PETS => 'Censo de mascotas por nodo.',
             self::AUTHORIZATIONS => 'Autorizaciones del censo.',
+            self::BOOKINGS => 'Reservas de zonas comunes con aprobación.',
             self::DOORS => 'Portería. Solo si el cliente ya tiene puertas creadas.',
             self::OBSERVATORY => 'Tablero y reportes escolares. Si no está chuleado, el cliente no lo ve.',
         ];
@@ -59,6 +64,7 @@ final class ClientPanelModules
             self::VEHICLES => true,
             self::PETS => true,
             self::AUTHORIZATIONS => true,
+            self::BOOKINGS => true,
             self::DOORS => true,
             self::OBSERVATORY => false,
         ];

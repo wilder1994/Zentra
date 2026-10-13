@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Client\AppUserController;
 use App\Http\Controllers\Client\AuthorizationController;
+use App\Http\Controllers\Client\BookingController;
 use App\Http\Controllers\Client\DashboardController;
 use App\Http\Controllers\Client\EmployeeController;
 use App\Http\Controllers\Client\InstallationController;
@@ -16,7 +17,6 @@ use App\Http\Controllers\Client\PetController;
 use App\Http\Controllers\Client\StructureController;
 use App\Http\Controllers\Client\UserController;
 use App\Http\Controllers\Client\VehicleController;
-use App\Http\Controllers\Client\ZoneBookingController;
 use App\Http\Controllers\Ops\OperationalAlertController;
 use App\Http\Controllers\Ops\SigBoardLiveController;
 use Illuminate\Support\Facades\Route;
@@ -183,11 +183,17 @@ Route::middleware(['auth', 'password.changed', 'active', 'tenancy.access', 'clie
             ->middleware('permission:client.users.manage')
             ->name('users.update');
 
-        // Zonas comunes
-        Route::middleware('permission:client.zones.book')->group(function () {
-            Route::get('/zones', [ZoneBookingController::class, 'index'])->name('zones.index');
-            Route::get('/zones/book', [ZoneBookingController::class, 'create'])->name('zones.book');
-            Route::post('/zones', [ZoneBookingController::class, 'store'])->name('zones.store');
-            Route::post('/zones/{booking}/cancel', [ZoneBookingController::class, 'cancel'])->name('zones.cancel');
+        Route::middleware(['permission:client.bookings.manage', 'client.module:bookings'])->prefix('bookings')->name('bookings.')->group(function () {
+            Route::get('/', [BookingController::class, 'index'])->name('index');
+            Route::post('/', [BookingController::class, 'store'])->name('store');
+            Route::get('/members', [AuthorizationController::class, 'members'])->name('members');
+            Route::get('/visitor', [AuthorizationController::class, 'visitor'])->name('visitor');
+            Route::get('/zones', [BookingController::class, 'zones'])->name('zones');
+            Route::post('/zones', [BookingController::class, 'storeZone'])->name('zones.store');
+            Route::put('/zones/{zone}', [BookingController::class, 'updateZone'])->whereNumber('zone')->name('zones.update');
+            Route::patch('/{booking}/approve', [BookingController::class, 'approve'])->whereNumber('booking')->name('approve');
+            Route::put('/{booking}/approve', [BookingController::class, 'approveModified'])->whereNumber('booking')->name('approve.modified');
+            Route::patch('/{booking}/reject', [BookingController::class, 'reject'])->whereNumber('booking')->name('reject');
+            Route::patch('/{booking}/cancel', [BookingController::class, 'cancel'])->whereNumber('booking')->name('cancel');
         });
     });
