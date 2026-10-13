@@ -117,11 +117,11 @@
                         <label class="{{ $label }}">¿Cómo se usa?</label>
                         <input type="hidden" name="booking_mode" :value="form.booking_mode">
                         <div class="grid gap-2 sm:grid-cols-2">
-                            <button type="button" @click="form.booking_mode = 'exclusive'" :class="form.booking_mode === 'exclusive' ? 'ring-2 ring-indigo-500' : 'ring-1 ring-slate-700'" class="rounded-lg bg-slate-950 px-3 py-2 text-left">
+                            <button type="button" @click="form.booking_mode = 'exclusive'" :class="form.booking_mode === 'exclusive' ? 'border-[var(--ui-accent)] ring-1 ring-[var(--ui-accent)]' : 'border-slate-700'" class="rounded-lg border bg-slate-950 px-3 py-2 text-left">
                                 <span class="block text-sm font-semibold text-white">Exclusiva</span>
                                 <span class="block text-xs text-slate-500">Una unidad a la vez (salón, BBQ).</span>
                             </button>
-                            <button type="button" @click="form.booking_mode = 'shared'" :class="form.booking_mode === 'shared' ? 'ring-2 ring-indigo-500' : 'ring-1 ring-slate-700'" class="rounded-lg bg-slate-950 px-3 py-2 text-left">
+                            <button type="button" @click="form.booking_mode = 'shared'" :class="form.booking_mode === 'shared' ? 'border-[var(--ui-accent)] ring-1 ring-[var(--ui-accent)]' : 'border-slate-700'" class="rounded-lg border bg-slate-950 px-3 py-2 text-left">
                                 <span class="block text-sm font-semibold text-white">Por cupos</span>
                                 <span class="block text-xs text-slate-500">Varias unidades hasta la capacidad (piscina, gimnasio).</span>
                             </button>
@@ -148,8 +148,9 @@
                         <div class="flex flex-wrap gap-1.5">
                             @foreach ($weekdays as $value => $short)
                                 <label class="cursor-pointer">
-                                    <input type="checkbox" name="weekdays[]" value="{{ $value }}" x-model.number="form.weekdays" class="peer sr-only">
-                                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-950 text-sm font-semibold text-slate-400 ring-1 ring-slate-700 peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:ring-0">{{ $short }}</span>
+                                    <input type="checkbox" name="weekdays[]" value="{{ $value }}" x-model.number="form.weekdays" class="sr-only">
+                                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-sm font-semibold"
+                                          :class="form.weekdays.includes({{ $value }}) ? 'bg-indigo-600 text-white' : 'border border-slate-700 text-slate-400'">{{ $short }}</span>
                                 </label>
                             @endforeach
                         </div>
