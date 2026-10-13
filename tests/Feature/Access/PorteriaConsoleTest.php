@@ -233,6 +233,12 @@ final class PorteriaConsoleTest extends TestCase
             ->assertRedirect();
         $this->assertSame(2, AccessLog::query()->where('visitor_id', $visitor->id)->count());
 
+        $this->actingAs($vigilante)->withSession($session)
+            ->get(route('access.logs.index', ['tab' => 'movimiento']))
+            ->assertOk()
+            ->assertSee('¿Se dirige al mismo lugar?')
+            ->assertSee('Dar salida');
+
         $html = $this->actingAs($vigilante)->withSession($session)
             ->get(route('access.logs.index', ['tab' => 'registros', 'q' => '1099007788']))
             ->assertOk()
