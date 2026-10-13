@@ -59,10 +59,11 @@ final class StoreMemberRequest extends FormRequest
             'document_type' => CorpusAcceptanceRules::documentTypeRule(),
             'document_number' => ['required', 'string', 'max:30', $documentUnique],
             'birth_date' => ['required', 'date', 'before:today'],
-            'minor_treatment_accepted' => [
-                Rule::requiredIf($this->requiresMinorAcceptance()),
-                'accepted',
-            ],
+            'minor_treatment_accepted' => Rule::when(
+                $this->requiresMinorAcceptance(),
+                ['required', 'accepted'],
+                ['nullable'],
+            ),
             'phone_primary' => ['nullable', 'string', 'max:20'],
             'phone_secondary' => ['nullable', 'string', 'max:20'],
             'email' => ['nullable', 'email', 'max:150'],

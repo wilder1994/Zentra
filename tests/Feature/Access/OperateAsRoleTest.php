@@ -6,6 +6,8 @@ namespace Tests\Feature\Access;
 
 use App\Models\Client;
 use App\Models\Location;
+use App\Models\MemberType;
+use App\Models\Structure;
 use App\Models\User;
 use App\Services\Access\PorteriaDoorService;
 use App\Support\Company\CompanyOperateContext;
@@ -62,6 +64,41 @@ final class OperateAsRoleTest extends TestCase
         $this->actingAs($admin)->withSession($session)->get(route('access.sites.index'))->assertOk();
         $this->actingAs($admin)->withSession($session)->get(route('client.dashboard'))->assertOk();
         $this->actingAs($admin)->withSession($session)->get(route('client.employees.index'))->assertForbidden();
+    }
+
+    public function test_operating_client_can_register_census_member(): void
+    {
+        $this->seedWithPilot();
+        $admin = User::query()->where('email', 'admin@control-acceso.test')->firstOrFail();
+        $client = $this->palmas();
+        $session = $this->operating($client, CompanyOperateContext::MODE_CLIENTE);
+        $node = Structure::query()->withoutGlobalScopes()->where('client_id', $client->id)->firstOrFail();
+        $type = MemberType::query()->withoutGlobalScopes()->where('client_id', $client->id)->where('is_active', true)->firstOrFail();
+
+        $response = $this->actingAs($admin)->withSession($session)->post(route('client.members.store'), [
+            'first_name' => 'Wilder',
+            'last_name' => 'Rivera',
+            'document_type' => 'CC',
+            'document_number' => '1112627546',
+            'birth_date' => '1994-06-02',
+            'structure_id' => $node->id,
+            'member_type_id' => $type->id,
+            'phone_primary' => '3154785605',
+            'email' => 'wilder@example.test',
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('structure_members', ['client_id' => $client->id, 'document_number' => '1112627546']);
+
+        $this->actingAs($admin)->withSession($session)->post(route('client.members.store'), [
+            'first_name' => 'Menor',
+            'last_name' => 'Sin Autorizacion',
+            'document_type' => 'TI',
+            'document_number' => '1112000001',
+            'birth_date' => now()->subYears(10)->toDateString(),
+            'structure_id' => $node->id,
+            'member_type_id' => $type->id,
+        ])->assertSessionHasErrors('minor_treatment_accepted');
     }
 
     public function test_operating_installation_hides_client_users_module(): void

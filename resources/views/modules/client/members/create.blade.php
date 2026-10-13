@@ -2,6 +2,14 @@
     <div class="max-w-2xl">
         <form action="{{ route('client.members.store') }}" method="POST" enctype="multipart/form-data" class="space-y-4 rounded-xl border border-slate-800 bg-slate-900 p-6">
             @csrf
+            @if ($errors->any())
+                <div class="rounded-lg border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+                    <p class="font-semibold">No se pudo guardar. Revisa:</p>
+                    <ul class="mt-1 list-disc pl-5 space-y-0.5">
+                        @foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach
+                    </ul>
+                </div>
+            @endif
             <x-client.member-photo-picker />
             <div class="grid sm:grid-cols-2 gap-4">
                 <div>
