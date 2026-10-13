@@ -152,7 +152,7 @@
                         </div>
 
                         <label class="mt-3 inline-flex cursor-pointer items-center gap-2 text-sm text-slate-200">
-                            <input type="checkbox" class="h-4 w-4 rounded border-slate-400 text-indigo-600 focus:ring-indigo-500/40" :checked="draft.range" @change="toggleRange()">
+                            <input type="checkbox" class="h-4 w-4 rounded border-slate-400 text-[var(--ui-accent)] focus:ring-[var(--ui-accent)]" :checked="draft.range" @change="toggleRange()">
                             Varios días (rango)
                             <span class="text-xs text-slate-500" x-show="draft.range" x-text="picking ? 'Elige el día final' : 'Elige desde y hasta'"></span>
                         </label>
@@ -187,7 +187,7 @@
                                 <div class="flex items-center justify-between gap-3">
                                     <span class="text-sm font-medium text-white">Horario de ingreso</span>
                                     <label class="inline-flex cursor-pointer items-center gap-2 text-sm text-slate-300">
-                                        <input type="checkbox" x-model="draft.allDay" class="h-4 w-4 rounded border-slate-400 text-indigo-600 focus:ring-indigo-500/40">
+                                        <input type="checkbox" x-model="draft.allDay" class="h-4 w-4 rounded border-slate-400 text-[var(--ui-accent)] focus:ring-[var(--ui-accent)]">
                                         Todo el día
                                     </label>
                                 </div>
@@ -202,7 +202,7 @@
                                 <p class="mt-1 text-xs text-slate-500" x-show="!draft.allDay" x-text="draft.range ? 'Aplica a cada día del rango.' : 'Aplica para ese día.'"></p>
                             </div>
                             <label class="flex cursor-pointer items-start gap-3">
-                                <input type="checkbox" x-model="draft.multi" class="mt-0.5 h-4 w-4 rounded border-slate-400 text-indigo-600 focus:ring-indigo-500/40">
+                                <input type="checkbox" x-model="draft.multi" class="mt-0.5 h-4 w-4 rounded border-slate-400 text-[var(--ui-accent)] focus:ring-[var(--ui-accent)]">
                                 <span>
                                     <span class="block text-sm font-medium text-white">Entrada múltiple</span>
                                     <span class="block text-xs text-slate-500">Puede entrar y salir varias veces durante la vigencia. Si no, cada persona entra una sola vez.</span>
