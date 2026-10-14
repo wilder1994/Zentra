@@ -9,6 +9,7 @@ use App\Http\Controllers\Platform\DocumentController;
 use App\Http\Controllers\Platform\DownloadsController;
 use App\Http\Controllers\Platform\IdentityDocumentTypeController;
 use App\Http\Controllers\Platform\PricingController;
+use App\Http\Controllers\Platform\ReviewRadiusController;
 use App\Http\Controllers\Platform\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -224,6 +225,17 @@ Route::middleware(['auth', 'password.changed', 'active', 'platform.admin', 'tena
         Route::post('/documents/expedientes/{company}/payments/local-checkout', [DocumentController::class, 'storeLocalCheckout'])
             ->middleware('permission:platform.documents.manage')
             ->name('documents.expedientes.payment.local-checkout');
+
+        Route::middleware('permission:platform.settings.manage')->group(function () {
+            Route::get('/settings', [ReviewRadiusController::class, 'index'])->name('settings.index');
+            Route::put('/settings/review-radius', [ReviewRadiusController::class, 'updateSettings'])
+                ->name('settings.review-radius.settings');
+            Route::post('/settings/review-radius', [ReviewRadiusController::class, 'store'])
+                ->name('settings.review-radius.store');
+            Route::delete('/settings/review-radius/{radius}', [ReviewRadiusController::class, 'destroy'])
+                ->whereNumber('radius')
+                ->name('settings.review-radius.destroy');
+        });
 
         Route::get('/settings/document-types', [IdentityDocumentTypeController::class, 'index'])
             ->middleware('permission:platform.settings.manage')

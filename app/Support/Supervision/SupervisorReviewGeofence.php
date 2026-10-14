@@ -12,8 +12,6 @@ use Illuminate\Validation\ValidationException;
 
 final class SupervisorReviewGeofence
 {
-    public const RADIUS_METERS = 80;
-
     public const FAR_FROM_INSTALLATION_METERS = 200;
 
     /**
@@ -35,18 +33,31 @@ final class SupervisorReviewGeofence
         return [$lat, $lng];
     }
 
+    public function radiusFor(SupervisorPost $post): int
+    {
+        $post->loadMissing('client');
+        $companyId = (int) ($post->client?->security_company_id ?? 0);
+
+        return app(ReviewRadiusResolver::class)->resolve(
+            $companyId,
+            $post->client_id !== null ? (int) $post->client_id : null,
+            $post->installation_id !== null ? (int) $post->installation_id : null,
+        )['meters'];
+    }
+
     public function assertWithinRadius(SupervisorPost $post, float $lat, float $lng): void
     {
         [$anchorLat, $anchorLng] = $this->anchor($post);
+        $radius = $this->radiusFor($post);
         $distance = app(GeoService::class)->distanceMeters($lat, $lng, $anchorLat, $anchorLng);
-        if ($distance === null || $distance <= self::RADIUS_METERS) {
+        if ($distance === null || $distance <= $radius) {
             return;
         }
 
         $meters = (int) round($distance);
 
         throw ValidationException::withMessages([
-            'latitude' => 'Debes estar a menos de '.self::RADIUS_METERS.' m del puesto (ahora estás a '.$meters.' m). Acércate para registrar la revista.',
+            'latitude' => 'Debes estar a menos de '.$radius.' m del puesto (ahora estás a '.$meters.' m). Acércate para registrar la revista.',
         ]);
     }
 
