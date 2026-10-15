@@ -55,3 +55,15 @@ Destino: `destination_structure_id` / `destination_text`. Autorizador del predio
 Personas / vehículos / mascotas / instalaciones leen el censo (no `employees`). Visitantes: pestaña personas y vehículos de visita. Autorizaciones: `visitor_pre_authorizations`. Reservas: zonas comunes; pestañas Hoy (incluye pendientes, sin «Dar uso»), Próximas, Historial y Calendario. En Calendario el vigilante ve días libres u ocupados y pulsa «Solicitar reserva»: queda por aprobar (`origin = porteria`, «vía portería») hasta que el admin de la instalación o del cliente la apruebe, modifique o rechace. No se puede solicitar un horario ya confirmado.
 
 Pánico: ver arriba. Tests: `PorteriaDoorAndPanicTest`, `PorteriaConsoleTest`.
+
+## Minuta (libro)
+
+`/access/guard_logs` es el libro de minuta de la puerta: encabezado «Minuta de servicio» con cliente, instalación, puerta, fecha y vigilante; renglones Fecha · Hora · Asunto · Anotación. Navega por día (sin días futuros), cambia de puerta si hay varias e imprime solo el libro.
+
+- **Nueva anotación:** línea al final del libro (solo hoy). Asuntos: General, Novedad, Incidente, Cambio de turno. Hora y turno (diurno 06–18) los pone el servidor; el vigilante que escribe firma la línea.
+- **Revista del supervisor:** modal; el supervisor digita su código de 6 dígitos (o uno del catálogo de portería). Solo la revista exige código.
+- **Correcciones:** nada se borra (no hay ruta de borrar ni editar). «Corregir» agrega una línea `correccion` enlazada (`corrects_guard_log_id`); la original muestra «Corregida a las HH:MM».
+- **GPS:** se captura si el navegador lo da; no bloquea ni valida distancia.
+- Novedad en puerta de colegio: casilla «También al Observatorio».
+
+Tests: `PorteriaRevistaTest`.

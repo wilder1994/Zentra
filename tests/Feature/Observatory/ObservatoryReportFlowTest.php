@@ -890,9 +890,10 @@ final class ObservatoryReportFlowTest extends TestCase
 
         $this->actingAs($vigilante)
             ->withSession($session)
-            ->get(route('access.guard_logs.create'))
+            ->get(route('access.guard_logs.index', ['door' => $door->id]))
             ->assertOk()
-            ->assertSee('Portería Santa Librada', false);
+            ->assertSee('Portería Santa Librada', false)
+            ->assertSee('También al Observatorio');
 
         $this->actingAs($vigilante)
             ->withSession($session)
@@ -910,7 +911,7 @@ final class ObservatoryReportFlowTest extends TestCase
                 'latitude' => 3.4516,
                 'longitude' => -76.5320,
             ])
-            ->assertRedirect(route('access.guard_logs.index'));
+            ->assertRedirect(route('access.guard_logs.index', ['door' => $door->id]));
 
         $report = ObservatoryReport::query()->firstOrFail();
         $this->assertSame('porteria', $report->source->value);
@@ -934,7 +935,7 @@ final class ObservatoryReportFlowTest extends TestCase
                     'latitude' => 3.4516,
                     'longitude' => -76.5320,
                 ])
-                ->assertRedirect(route('access.guard_logs.index'));
+                ->assertRedirect(route('access.guard_logs.index', ['door' => $conjuntoDoor->id]));
 
             $this->assertSame(1, ObservatoryReport::query()->count());
         }

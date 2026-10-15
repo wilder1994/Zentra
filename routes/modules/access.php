@@ -121,7 +121,7 @@ Route::middleware(['auth', 'password.changed', 'active', 'tenancy.access', 'clie
         Route::patch('correspondence/{correspondence}/void', [CorrespondenceController::class, 'void'])->name('correspondence.void');
     });
 
-    Route::resource('guard_logs', GuardLogController::class)->except(['edit', 'update'])
+    Route::resource('guard_logs', GuardLogController::class)->only(['index', 'store'])
         ->middleware(['shift.open', 'permission:access.manage.guard_logs']);
 
     // Supervision (módulo con acceso por código único de supervisor)

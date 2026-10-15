@@ -47,7 +47,7 @@ Un reporte nuevo abre overlay palpitante + sonido en bucle hasta **Enterado** (s
 
 ## Minuta
 
-En `/access/guard_logs/create`, tipo **Novedad** y ubicación de un **colegio con puerta**: check «También al Observatorio» + tipo + anónimo. Sin puerta de colegio, no se muestra. No es el pánico.
+En el libro de minuta (`/access/guard_logs`), asunto **Novedad** y ubicación de un **colegio con puerta**: check «También al Observatorio» + tipo + anónimo. Sin puerta de colegio, no se muestra. No es el pánico.
 
 ## Estados
 

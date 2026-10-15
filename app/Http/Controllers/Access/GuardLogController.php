@@ -11,64 +11,72 @@ use App\Models\GuardLog;
 use App\Models\Location;
 use App\Models\SupervisionCode;
 use App\Models\User;
+use App\Services\Access\AuditLogger;
+use App\Services\Access\PorteriaDoorService;
 use App\Services\Observatory\EnsureObservatoryReportTypesService;
 use App\Services\Observatory\SubmitObservatoryReportService;
-use App\Services\Access\AuditLogger;
-use App\Services\Access\GeoService;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class GuardLogController extends Controller
 {
-    public function index()
-    {
-        $logs = GuardLog::with(['user', 'location'])
-            ->latest('log_time')
-            ->paginate(15);
+    public function __construct(private readonly PorteriaDoorService $doors) {}
 
-        return view('modules.access.guard_logs.index', compact('logs'));
-    }
-
-    public function create()
+    public function index(Request $request)
     {
-        $locations = Location::where('is_active', true)->with('installation')->get();
-        $eligible = $locations->filter(fn (Location $location) => $this->observatoryEligible($location));
-        $kindsByClient = app(EnsureObservatoryReportTypesService::class)
-            ->optionsByClient($eligible->map(fn (Location $location) => $location->installation?->client_id));
-        $kindsByLocation = [];
-        foreach ($eligible as $location) {
-            $clientId = (int) $location->installation?->client_id;
-            $kindsByLocation[(string) $location->id] = $kindsByClient[$clientId] ?? [];
+        $doors = $this->doors->activeDoors();
+        $door = $doors->firstWhere('id', (int) $request->query('door'))
+            ?? $this->doors->operatingOrFirst($request);
+        $door?->loadMissing('installation.client');
+
+        $date = today();
+        if ($request->filled('date')) {
+            try {
+                $date = Carbon::parse((string) $request->query('date'))->startOfDay();
+            } catch (\Throwable) {
+            }
+        }
+        if ($date->isFuture()) {
+            $date = today();
         }
 
-        return view('modules.access.guard_logs.create', [
-            'locations' => $locations,
-            'observatoryLocationIds' => $eligible->pluck('id')->values()->all(),
-            'observatoryKinds' => $kindsByLocation[$locations->first()?->id] ?? [],
-            'observatoryKindsByLocation' => $kindsByLocation,
+        $entries = $door === null ? collect() : GuardLog::query()
+            ->with(['user:id,name', 'corrects:id,log_time', 'corrections:id,corrects_guard_log_id,log_time'])
+            ->where('location_id', $door->id)
+            ->whereDate('log_time', $date)
+            ->orderBy('log_time')
+            ->orderBy('id')
+            ->get();
+
+        $observatoryKinds = [];
+        if ($door !== null && $this->observatoryEligible($door)) {
+            $clientId = (int) $door->installation->client_id;
+            $observatoryKinds = app(EnsureObservatoryReportTypesService::class)
+                ->optionsByClient(collect([$clientId]))[$clientId] ?? [];
+        }
+
+        return view('modules.access.guard_logs.index', [
+            'doors' => $doors,
+            'door' => $door,
+            'date' => $date,
+            'entries' => $entries,
+            'observatoryKinds' => $observatoryKinds,
         ]);
     }
 
     public function store(Request $request)
     {
-        $geoRequired = config('access.geo.required', true);
-
-        $rules = [
-            'location_id' => 'required|exists:locations,id',
-            'log_time' => 'required|date',
-            'type' => 'required|in:novedad,turno,incidente,general,revista',
-            'shift_type' => 'required|in:diurno,nocturno',
-            'description' => 'required|string',
-            'latitude' => [$geoRequired ? 'required' : 'nullable', 'numeric', 'between:-90,90'],
-            'longitude' => [$geoRequired ? 'required' : 'nullable', 'numeric', 'between:-180,180'],
-            'signed' => 'accepted',
-            'supervision_code' => [
-                $request->input('requires_supervisor') || in_array($request->input('type'), ['incidente', 'novedad', 'revista'], true) ? 'required' : 'nullable',
-                'string',
-                'max:50',
-            ],
+        $validated = $request->validate([
+            'location_id' => ['required', 'integer'],
+            'type' => ['required', Rule::in(array_keys(GuardLog::LABELS))],
+            'description' => ['required', 'string', 'max:2000'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'supervision_code' => [Rule::requiredIf($request->input('type') === 'revista'), 'nullable', 'string', 'max:50'],
+            'corrects_guard_log_id' => [Rule::requiredIf($request->input('type') === 'correccion'), 'nullable', 'integer'],
             'to_observatory' => ['sometimes', 'boolean'],
             'observatory_kind' => [
                 $request->boolean('to_observatory') && $request->input('type') === 'novedad' ? 'required' : 'nullable',
@@ -76,99 +84,100 @@ class GuardLogController extends Controller
                 'max:80',
             ],
             'observatory_anonymous' => ['sometimes', 'boolean'],
-        ];
+        ], [
+            'description.required' => 'Escribe la anotación.',
+            'supervision_code.required' => 'El supervisor debe ingresar su código.',
+        ]);
 
-        $validated = $request->validate($rules);
-
-        $location = Location::find($validated['location_id']);
-
-        if ($location !== null && $geoRequired) {
-            $geoErrors = app(GeoService::class)->validateAgainstLocation(
-                $location,
-                $validated['latitude'] ?? null,
-                $validated['longitude'] ?? null
-            );
-
-            if (! empty($geoErrors)) {
-                return back()->withErrors(['geo' => implode(' ', $geoErrors)])->withInput();
-            }
+        $location = Location::query()->where('is_active', true)->find($validated['location_id']);
+        if ($location === null) {
+            throw ValidationException::withMessages(['location_id' => 'La puerta no está disponible.']);
         }
 
-        $toObservatory = $request->boolean('to_observatory') && $validated['type'] === 'novedad';
-        $observatoryKind = $validated['observatory_kind'] ?? null;
-        $observatoryAnonymous = $request->boolean('observatory_anonymous');
-        unset($validated['to_observatory'], $validated['observatory_kind'], $validated['observatory_anonymous']);
-
-        $validated['user_id'] = auth()->id();
-        $validated['signed_at'] = $request->boolean('signed') ? now() : null;
+        $correctsId = null;
+        if ($validated['type'] === 'correccion') {
+            $original = GuardLog::query()
+                ->where('location_id', $location->id)
+                ->where('type', '!=', 'correccion')
+                ->find($validated['corrects_guard_log_id']);
+            if ($original === null) {
+                throw ValidationException::withMessages(['corrects_guard_log_id' => 'La anotación a corregir no existe en este libro.']);
+            }
+            $correctsId = $original->id;
+        }
 
         $code = null;
         $supervisorName = null;
-        if (! empty($validated['supervision_code'])) {
+        if ($validated['type'] === 'revista') {
             $resolved = $this->resolveSupervisorSignature((string) $validated['supervision_code']);
-
             if ($resolved === null) {
-                return back()->withErrors(['supervision_code' => 'El código de supervisor no es válido o está inactivo.'])->withInput();
+                throw ValidationException::withMessages(['supervision_code' => 'El código de supervisor no es válido o está inactivo.']);
             }
-
             $code = $resolved['code'];
             $supervisorName = $resolved['name'];
         }
 
-        $log = GuardLog::create(array_merge($validated, [
+        $now = now();
+        $log = GuardLog::create([
+            'user_id' => auth()->id(),
+            'location_id' => $location->id,
+            'log_time' => $now,
+            'type' => $validated['type'],
+            'shift_type' => $now->hour >= 6 && $now->hour < 18 ? 'diurno' : 'nocturno',
+            'description' => $validated['description'],
+            'latitude' => $validated['latitude'] ?? null,
+            'longitude' => $validated['longitude'] ?? null,
+            'signed_at' => $now,
             'supervision_code_id' => $code?->id,
             'supervisor_name' => $supervisorName,
-        ]));
+            'corrects_guard_log_id' => $correctsId,
+        ]);
 
         app(AuditLogger::class)->record($log, 'guard_log.create', null, [
             'type' => $log->type,
             'location_id' => $log->location_id,
             'log_time' => $log->log_time->toDateTimeString(),
             'supervisor_name' => $log->supervisor_name,
+            'corrects_guard_log_id' => $correctsId,
         ]);
 
-        $message = 'Minuta registrada exitosamente.';
-        if ($toObservatory && $location !== null) {
-            $location->loadMissing('installation.client');
-            if ($this->observatoryEligible($location) && $location->installation?->client) {
-                try {
-                    $user = $request->user();
-                    app(SubmitObservatoryReportService::class)->execute($location->installation->client, [
-                        'installation_id' => (int) $location->installation_id,
-                        'kind' => (string) $observatoryKind,
-                        'body' => (string) $validated['description'],
-                        'is_anonymous' => $observatoryAnonymous,
-                        'source' => ObservatoryReportSource::Porteria,
-                        'reporter_role' => ObservatoryReporterRole::Vigilante,
-                        'reporter_name' => $observatoryAnonymous ? null : $user?->name,
-                        'reported_by' => $user,
-                        'latitude' => $validated['latitude'] ?? null,
-                        'longitude' => $validated['longitude'] ?? null,
-                    ], $request->ip());
-                    $message = 'Minuta registrada y enviada al Observatorio.';
-                } catch (ValidationException) {
-                    $message = 'Minuta registrada. No se pudo enviar al Observatorio.';
-                }
-            }
+        $message = $log->type === 'revista' ? 'Revista registrada en el libro.' : 'Anotación registrada.';
+        if ($request->boolean('to_observatory') && $log->type === 'novedad') {
+            $message = $this->sendToObservatory($request, $location, $log, (string) ($validated['observatory_kind'] ?? ''));
         }
 
-        return redirect()->route('access.guard_logs.index')
+        return redirect()->route('access.guard_logs.index', ['door' => $location->id])
             ->with('success', $message);
     }
 
-    public function show(GuardLog $guardLog)
+    private function sendToObservatory(Request $request, Location $location, GuardLog $log, string $kind): string
     {
-        $guardLog->load(['user', 'location']);
+        $location->loadMissing('installation.client');
+        if (! $this->observatoryEligible($location) || ! $location->installation?->client) {
+            return 'Anotación registrada.';
+        }
 
-        return view('modules.access.guard_logs.show', compact('guardLog'));
-    }
+        $anonymous = $request->boolean('observatory_anonymous');
+        $user = $request->user();
 
-    public function destroy(GuardLog $guardLog)
-    {
-        $guardLog->delete();
+        try {
+            app(SubmitObservatoryReportService::class)->execute($location->installation->client, [
+                'installation_id' => (int) $location->installation_id,
+                'kind' => $kind,
+                'body' => (string) $log->description,
+                'is_anonymous' => $anonymous,
+                'source' => ObservatoryReportSource::Porteria,
+                'reporter_role' => ObservatoryReporterRole::Vigilante,
+                'reporter_name' => $anonymous ? null : $user?->name,
+                'reported_by' => $user,
+                'latitude' => $log->latitude,
+                'longitude' => $log->longitude,
+            ], $request->ip());
+        } catch (ValidationException) {
+            return 'Anotación registrada. No se pudo enviar al Observatorio.';
+        }
 
-        return redirect()->route('access.guard_logs.index')
-            ->with('success', 'Minuta eliminada.');
+        return 'Anotación registrada y enviada al Observatorio.';
     }
 
     /** @return array{code: ?SupervisionCode, name: string}|null */
@@ -205,15 +214,8 @@ class GuardLogController extends Controller
         if ($installation === null || ! $installation->is_active) {
             return false;
         }
-        if ((string) $installation->kind !== InstallationKind::Colegio->value) {
-            return false;
-        }
 
-        return Location::query()
-            ->withoutGlobalScopes()
-            ->where('installation_id', $installation->id)
-            ->where('is_active', true)
-            ->exists();
+        return (string) $installation->kind === InstallationKind::Colegio->value;
     }
 
     private function porteriaCompanyId(): ?int

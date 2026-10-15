@@ -678,6 +678,7 @@ Integrado en `main` / `creawilder` (rama Manuel + Command Center). Roles en `con
 | Módulo | Rutas / piezas clave | Notas |
 |--------|----------------------|--------|
 | **Supervisión (minuta)** | `/access/supervision/*`, códigos `/access/supervision/codes` | Unlock por código, evidencias (`supervision_attachments`), firma en minuta |
+| **Minuta (libro)** | `/access/guard_logs` (index + store) | Libro por puerta y día; hora del servidor; revista con código; correcciones como línea nueva (`corrects_guard_log_id`), sin borrar; GPS opcional. [`PORTERIA.md`](docs/PORTERIA.md) |
 | **Turnos portería** | `/access/turnos` | Apertura/cierre; puerta obligatoria; `EnsureOpenShift` + `EnsurePorteriaDoor` |
 | **Pánico** | `POST /access/ops/panic`, `GET /access/ops/alerts.json` | Mismo overlay que cliente/supervisor. Sin minuta `is_panic`. [`PORTERIA.md`](docs/PORTERIA.md) |
 | **Reservas** | Panel cliente `/client/bookings` (calendario, aprobación, zonas con nombre libre y su configuración); portería `/access/zones` (Hoy, Próximas, Historial: dar uso / finalizar) y `/access/zones/calendar` (consulta y solicitud por aprobar) | `common_zones` por instalación (nombre único por instalación) + `common_zone_bookings`; solicitudes de portería con `origin = porteria`; invitados → autorización tipo Evento; permisos `client.bookings.manage` / `access.manage.zones` |
