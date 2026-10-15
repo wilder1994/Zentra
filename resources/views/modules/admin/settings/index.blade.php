@@ -33,7 +33,7 @@
 
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <button type="button" @click="openModal()"
-                    class="text-left rounded-xl border border-slate-800 bg-slate-900 p-5 hover:border-violet-500/60 transition">
+                    class="text-left rounded-xl border border-slate-800 bg-slate-900 p-5 hover:border-[var(--ui-accent)] transition">
                 <div class="flex items-start justify-between gap-3">
                     <div>
                         <h3 class="text-sm font-semibold text-white">Radio de revistas</h3>
@@ -48,7 +48,7 @@
             </button>
 
             <a href="{{ route('admin.settings.document-types.index') }}"
-               class="rounded-xl border border-slate-800 bg-slate-900 p-5 hover:border-violet-500/60 transition">
+               class="rounded-xl border border-slate-800 bg-slate-900 p-5 hover:border-[var(--ui-accent)] transition">
                 <h3 class="text-sm font-semibold text-white">Tipos de documento</h3>
                 <p class="mt-1 text-xs text-slate-400">CC, CE, NIT… usados en contratación y formularios de personas.</p>
             </a>
@@ -104,7 +104,7 @@
                                     <div class="relative" @click.outside="focus === '{{ $combo['key'] }}' && (focus = null)">
                                         <span class="block text-xs text-slate-400 mb-1">{{ $combo['label'] }}</span>
                                         <template x-if="sel.{{ $combo['key'] }}">
-                                            <div class="flex items-center justify-between gap-2 rounded-lg border border-violet-500/60 bg-slate-950 px-3 py-2 text-sm text-white">
+                                            <div class="flex items-center justify-between gap-2 rounded-lg border border-[var(--ui-accent)] bg-slate-950 px-3 py-2 text-sm text-white">
                                                 <span class="truncate" x-text="nameOf('{{ $combo['key'] }}', sel.{{ $combo['key'] }})"></span>
                                                 <button type="button" @click="clear('{{ $combo['key'] }}')" class="shrink-0 text-slate-400 hover:text-white" aria-label="Quitar">✕</button>
                                             </div>
