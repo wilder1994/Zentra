@@ -14,6 +14,7 @@ use App\Http\Controllers\Company\DashboardController;
 use App\Http\Controllers\Company\DeviceChangeController;
 use App\Http\Controllers\Company\DownloadsController;
 use App\Http\Controllers\Company\EmployeeController;
+use App\Http\Controllers\Company\InstallationGeoRequestController;
 use App\Http\Controllers\Company\JobTitleController;
 use App\Http\Controllers\Company\ObservatoryEventController;
 use App\Http\Controllers\Company\PanicAttentionController;
@@ -96,6 +97,15 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
             ->name('devices.approve');
         Route::post('/dispositivos/{deviceRequest}/rechazar', [DeviceChangeController::class, 'reject'])
             ->name('devices.reject');
+
+        Route::get('/supervision/georreferencias', [InstallationGeoRequestController::class, 'index'])
+            ->name('supervision.geo.index');
+        Route::get('/supervision/georreferencias/pendientes.json', [InstallationGeoRequestController::class, 'pending'])
+            ->name('supervision.geo.pending');
+        Route::post('/supervision/georreferencias/{geoRequest}/aprobar', [InstallationGeoRequestController::class, 'approve'])
+            ->name('supervision.geo.approve');
+        Route::post('/supervision/georreferencias/{geoRequest}/rechazar', [InstallationGeoRequestController::class, 'reject'])
+            ->name('supervision.geo.reject');
 
         Route::get('/billing', [BillingController::class, 'index'])
             ->middleware('permission:company.billing.manage')

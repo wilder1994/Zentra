@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\ObservatoryController;
 use App\Http\Controllers\Api\PreAuthorizationController;
 use App\Http\Controllers\Api\SupervisorFieldLogController;
 use App\Http\Controllers\Api\SupervisorFieldSheetController;
+use App\Http\Controllers\Api\SupervisorGeoController;
 use App\Http\Controllers\Api\SupervisorObservatoryController;
 use App\Http\Controllers\Api\SupervisorShiftController;
 use App\Http\Controllers\Api\VisitorController;
@@ -56,6 +57,8 @@ Route::middleware(['auth:sanctum', 'company.service'])->group(function () {
         Route::get('/observatory/sites', [SupervisorObservatoryController::class, 'sites']);
         Route::post('/observatory/reports', [SupervisorObservatoryController::class, 'store']);
         Route::get('/recommendations', [SupervisorFieldLogController::class, 'recommendations']);
+        Route::get('/geo/installations', [SupervisorGeoController::class, 'installations']);
+        Route::post('/geo/requests', [SupervisorGeoController::class, 'store'])->middleware('throttle:20,1');
         Route::get('/sheets', [SupervisorFieldSheetController::class, 'index']);
         Route::get('/sheets/{kind}/{id}', [SupervisorFieldSheetController::class, 'show']);
     });

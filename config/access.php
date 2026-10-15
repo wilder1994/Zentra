@@ -37,6 +37,7 @@ return [
         'company.installations.manage',
         'ops.panic.attend',
         'company.devices.approve',
+        'company.geo.approve',
         'ops.sig.view',
         'observatory.view',
         'observatory.events.update',

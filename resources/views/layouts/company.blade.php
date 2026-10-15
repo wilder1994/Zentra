@@ -114,12 +114,20 @@
                 </a>
                 @endcan
                 @endif
+                @php $canApproveGeo = ! empty($canMod['supervision']) && app(\App\Services\Supervision\InstallationGeoRequestService::class)->canApprove(auth()->user()); @endphp
                 @if (! empty($canMod['supervision']))
                 @can('company.supervision.view')
                 <a href="{{ route('company.supervision.index') }}"
                    class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium {{ request()->routeIs('company.supervision.*') ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-800' }}">
                     <span>Supervisión</span>
                 </a>
+                @else
+                @if ($canApproveGeo)
+                <a href="{{ route('company.supervision.geo.index') }}"
+                   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium {{ request()->routeIs('company.supervision.geo.*') ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-800' }}">
+                    <span>Georreferenciaciones</span>
+                </a>
+                @endif
                 @endcan
                 @endif
                 @if (! empty($canMod['panics']))
@@ -213,6 +221,9 @@
                     ])
                     @if (! empty($canMod['devices']) && $canApproveDevices)
                         @include('partials.device-change-alerts')
+                    @endif
+                    @if ($canApproveGeo)
+                        @include('partials.geo-request-alerts')
                     @endif
                     @include('partials.sidebar-user')
                 </div>

@@ -686,6 +686,7 @@ function showOpsHome() {
     document.getElementById('module-card').classList.add('hidden');
     document.getElementById('sheets-card')?.classList.add('hidden');
     document.getElementById('observatory-card')?.classList.add('hidden');
+    hideGeoCard();
 }
 
 function showReview() {
@@ -694,6 +695,7 @@ function showReview() {
     document.getElementById('module-card').classList.add('hidden');
     document.getElementById('sheets-card')?.classList.add('hidden');
     document.getElementById('observatory-card')?.classList.add('hidden');
+    hideGeoCard();
     document.getElementById('review-card').classList.remove('hidden');
 }
 
@@ -706,6 +708,7 @@ function openModule(key, from = 'home') {
     document.getElementById('review-card').classList.add('hidden');
     document.getElementById('sheets-card')?.classList.add('hidden');
     document.getElementById('observatory-card')?.classList.add('hidden');
+    hideGeoCard();
     const wrap = document.getElementById('module-client-wrap');
     wrap.classList.toggle('hidden', !currentModule.requires_client);
     document.getElementById('module-card').classList.remove('hidden');
@@ -1980,6 +1983,7 @@ function showObservatory() {
     document.getElementById('review-card').classList.add('hidden');
     document.getElementById('module-card').classList.add('hidden');
     document.getElementById('sheets-card')?.classList.add('hidden');
+    hideGeoCard();
     document.getElementById('observatory-card').classList.remove('hidden');
     loadObservatoryKinds();
     if (obsSite) placeObsPin(obsSite);
@@ -2236,12 +2240,221 @@ document.getElementById('btn-open-sheets').onclick = () => {
 };
 document.getElementById('btn-sheets-back').onclick = showOpsHome;
 
+var GEO_MAX_ACCURACY = 30;
+var geoWatchId = null;
+var geoFix = null;
+var geoClient = null;
+var geoInstallation = null;
+var geoInstallations = [];
+
+function hideGeoCard() {
+    document.getElementById('geo-card')?.classList.add('hidden');
+    if (geoWatchId !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(geoWatchId);
+    }
+    geoWatchId = null;
+}
+
+function geoMeters(a, b) {
+    const rad = (d) => (d * Math.PI) / 180;
+    const dLat = rad(b.lat - a.lat);
+    const dLng = rad(b.lng - a.lng);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+    return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+function geoDistanceLabel(m) {
+    return m >= 1000 ? `${(m / 1000).toFixed(1).replace('.', ',')} km` : `${Math.round(m)} m`;
+}
+
+function resetGeoForm() {
+    geoClient = null;
+    geoInstallation = null;
+    geoInstallations = [];
+    document.getElementById('geo-client-q').value = '';
+    document.getElementById('geo-inst-q').value = '';
+    document.getElementById('geo-inst-wrap').classList.add('hidden');
+    document.getElementById('geo-picked').textContent = '';
+    renderGeoFix();
+}
+
+function renderGeoFix() {
+    const box = document.getElementById('geo-fix');
+    const send = document.getElementById('btn-geo-send');
+    box.classList.toggle('hidden', !geoInstallation);
+    if (!geoInstallation) {
+        send.disabled = true;
+        return;
+    }
+    const acc = document.getElementById('geo-accuracy');
+    const dist = document.getElementById('geo-distance');
+    document.getElementById('geo-pending').textContent = geoInstallation.pending
+        ? 'Ya hay una solicitud pendiente para esta instalación. Si envía otra, reemplaza la anterior.'
+        : '';
+    if (!geoFix) {
+        acc.textContent = 'Buscando GPS…';
+        acc.className = '';
+        dist.textContent = 'Active la ubicación y espere unos segundos al aire libre.';
+        send.disabled = true;
+        return;
+    }
+    const accuracy = Math.round(geoFix.accuracy);
+    const good = accuracy <= GEO_MAX_ACCURACY;
+    acc.textContent = `Precisión del GPS: ±${accuracy} m${good ? '' : ` (necesita ±${GEO_MAX_ACCURACY} m o menos)`}`;
+    acc.className = good ? 'ok' : 'err';
+    if (geoInstallation.latitude != null && geoInstallation.longitude != null) {
+        const meters = geoMeters(
+            { lat: geoFix.latitude, lng: geoFix.longitude },
+            { lat: Number(geoInstallation.latitude), lng: Number(geoInstallation.longitude) },
+        );
+        dist.textContent = `Está a ${geoDistanceLabel(meters)} del punto registrado de la instalación.`;
+    } else {
+        dist.textContent = 'La instalación aún no tiene ubicación registrada.';
+    }
+    send.disabled = !good;
+}
+
+function startGeoWatch() {
+    if (!navigator.geolocation) {
+        setStatus('Este teléfono no permite leer el GPS.', false);
+        return;
+    }
+    if (geoWatchId !== null) return;
+    geoWatchId = navigator.geolocation.watchPosition(
+        (pos) => {
+            const next = {
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+                accuracy: pos.coords.accuracy,
+                at: Date.now(),
+            };
+            const stale = !geoFix || Date.now() - geoFix.at > 20000;
+            if (stale || next.accuracy <= geoFix.accuracy + 3) geoFix = next;
+            renderGeoFix();
+        },
+        () => {
+            renderGeoFix();
+        },
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
+    );
+}
+
+function showGeo() {
+    stopAllCams();
+    ['ops-home', 'review-card', 'module-card', 'sheets-card', 'observatory-card'].forEach((id) => {
+        document.getElementById(id)?.classList.add('hidden');
+    });
+    document.getElementById('geo-card').classList.remove('hidden');
+    geoFix = null;
+    resetGeoForm();
+    startGeoWatch();
+}
+
+function pickGeoInstallation(row) {
+    geoInstallation = row;
+    document.getElementById('geo-inst-q').value = row.name;
+    document.getElementById('geo-picked').textContent = `${geoClient.name} · ${row.name}`;
+    renderGeoFix();
+}
+
+async function pickGeoClient(row) {
+    geoClient = { id: row.id, name: row.name || row.label };
+    geoInstallation = null;
+    document.getElementById('geo-client-q').value = geoClient.name;
+    document.getElementById('geo-inst-wrap').classList.add('hidden');
+    document.getElementById('geo-picked').textContent = 'Cargando instalaciones…';
+    renderGeoFix();
+    try {
+        const data = await api(`/supervision/geo/installations?client_id=${geoClient.id}`);
+        geoInstallations = data.installations || [];
+    } catch (e) {
+        geoInstallations = [];
+        document.getElementById('geo-picked').textContent = '';
+        setStatus(e.offline ? 'Necesita conexión para enviar la georreferencia.' : e.message, false);
+        return;
+    }
+    if (!geoInstallations.length) {
+        document.getElementById('geo-picked').textContent = 'Este cliente no tiene instalaciones activas.';
+        return;
+    }
+    if (geoInstallations.length === 1) {
+        pickGeoInstallation(geoInstallations[0]);
+        return;
+    }
+    document.getElementById('geo-picked').textContent = `${geoInstallations.length} instalaciones. Elija dónde está.`;
+    document.getElementById('geo-inst-wrap').classList.remove('hidden');
+    document.getElementById('geo-inst-q').value = '';
+    document.getElementById('geo-inst-q').focus();
+}
+
+function filterGeoInstallations(query) {
+    const term = (query || '').trim().toLowerCase();
+    return geoInstallations
+        .filter((i) => term === '' || i.name.toLowerCase().includes(term))
+        .slice(0, 30)
+        .map((i) => Object.assign({}, i, { label: i.name + (i.pending ? ' · pendiente' : '') }));
+}
+
+async function sendGeo() {
+    if (!geoClient || !geoInstallation || !geoFix) return;
+    if (Math.round(geoFix.accuracy) > GEO_MAX_ACCURACY) {
+        setStatus(`Espere a que el GPS llegue a ±${GEO_MAX_ACCURACY} m o menos.`, false);
+        return;
+    }
+    await withBusy(document.getElementById('btn-geo-send'), 'Enviando…', async () => {
+        let data;
+        try {
+            data = await api('/supervision/geo/requests', {
+                method: 'POST',
+                body: JSON.stringify({
+                    client_id: geoClient.id,
+                    installation_id: geoInstallation.id,
+                    latitude: Number(geoFix.latitude.toFixed(7)),
+                    longitude: Number(geoFix.longitude.toFixed(7)),
+                    accuracy: geoFix.accuracy,
+                }),
+            });
+        } catch (e) {
+            if (e.offline) throw new Error('Sin conexión. La georreferencia necesita internet; no se guardó.');
+            throw e;
+        }
+        setStatus(data.message || 'Solicitud enviada a la empresa.');
+        hideGeoCard();
+        showOpsHome();
+    });
+}
+
+(function bindGeoUi() {
+    const clientQ = document.getElementById('geo-client-q');
+    const instQ = document.getElementById('geo-inst-q');
+    clientQ.oninput = () => debounceSearch('geo-client', () => {
+        geoClient = null;
+        geoInstallation = null;
+        renderGeoFix();
+        fillCombo('geo-client-list', filterSites(clientQ.value), 'Sin clientes con Supervisión', pickGeoClient);
+    });
+    clientQ.onfocus = () => fillCombo('geo-client-list', filterSites(clientQ.value), 'Sin clientes con Supervisión', pickGeoClient);
+    instQ.oninput = () => debounceSearch('geo-inst', () => {
+        geoInstallation = null;
+        renderGeoFix();
+        fillCombo('geo-inst-list', filterGeoInstallations(instQ.value), 'Sin coincidencias', pickGeoInstallation);
+    });
+    instQ.onfocus = () => fillCombo('geo-inst-list', filterGeoInstallations(instQ.value), 'Sin coincidencias', pickGeoInstallation);
+    document.getElementById('btn-open-geo').onclick = showGeo;
+    document.getElementById('btn-geo-back').onclick = () => { hideGeoCard(); showOpsHome(); };
+    document.getElementById('btn-geo-cancel').onclick = () => { hideGeoCard(); showOpsHome(); };
+    document.getElementById('btn-geo-send').onclick = () => {
+        sendGeo().finally(renderGeoFix);
+    };
+})();
+
 async function showSheets() {
     stopAllCams();
     document.getElementById('ops-home').classList.add('hidden');
     document.getElementById('review-card').classList.add('hidden');
     document.getElementById('module-card').classList.add('hidden');
     document.getElementById('observatory-card')?.classList.add('hidden');
+    hideGeoCard();
     document.getElementById('sheets-card').classList.remove('hidden');
     const list = document.getElementById('sheets-list');
     list.innerHTML = '<p class="hint">Cargando…</p>';

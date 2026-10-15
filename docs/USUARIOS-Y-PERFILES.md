@@ -239,6 +239,7 @@ Reglas:
 | `company.installations.view` / `manage` | Listado/ficha / alta-edición de instalaciones |
 | `ops.panic.attend` | Atender pánicos: módulo, ficha y botón Atender. Independiente de Supervisión y de Observatorio |
 | `company.devices.approve` | Cambio de dispositivo: alerta y Aceptar/Rechazar cuando un supervisor entra desde otro celular (vence en 10 min). El admin de empresa siempre puede |
+| `company.geo.approve` | Georreferenciaciones: alerta abajo a la derecha y Aprobar/Rechazar la ubicación que envía un supervisor para una instalación. Módulo «Aprobar georreferenciaciones» en la matriz. El admin de empresa siempre puede |
 | `ops.sig.view` | Resumen / tablero SIG (panel cliente) |
 | `company.settings.view` / `company.settings.manage` | Ajustes (cargos, tipos, catálogos) |
 | `client.users.manage` | Ver/editar administradores del cliente. **No** crear. |

@@ -241,6 +241,7 @@
             <button type="button" class="entry" id="btn-open-supports">Apoyos<span>Cliente, tipo, motivo y GPS</span></button>
             <button type="button" class="entry" id="btn-open-documents">Documentos<span>Entregados y pendientes del turno</span></button>
             <button type="button" class="entry" id="btn-open-observatory">Observatorio<span>Novedad en un colegio</span></button>
+            <button type="button" class="entry" id="btn-open-geo">Georreferencia<span>Fijar ubicación de la instalación</span></button>
             <button type="button" class="entry" id="btn-open-sheets">Mis fichas<span>Ver e imprimir lo registrado</span></button>
             <button type="button" class="entry panic" id="btn-panic">Pánico<span>Avisa a la empresa. Este teléfono no suena</span></button>
         </div>
@@ -329,6 +330,36 @@
             <button type="button" class="gold" id="btn-obs-send">Enviar reporte</button>
         </div>
 
+        <div class="card hidden" id="geo-card">
+            <div class="head-row">
+                <p class="sec-title" style="margin:0;">Georreferencia del cliente</p>
+                <button type="button" class="ghost btn-sm" id="btn-geo-back">Volver</button>
+            </div>
+            <p class="hint">Párese donde se pasa la revista (portería o puesto). La empresa debe aprobar el punto antes de que cambie.</p>
+            <label for="geo-client-q">Cliente</label>
+            <div class="combo">
+                <input id="geo-client-q" autocomplete="off" placeholder="Escriba para buscar">
+                <div id="geo-client-list" class="combo-list hidden"></div>
+            </div>
+            <div id="geo-inst-wrap" class="hidden">
+                <label for="geo-inst-q">Instalación</label>
+                <div class="combo">
+                    <input id="geo-inst-q" autocomplete="off" placeholder="Escriba la instalación">
+                    <div id="geo-inst-list" class="combo-list hidden"></div>
+                </div>
+            </div>
+            <p class="hint" id="geo-picked"></p>
+            <div id="geo-fix" class="rec hidden">
+                <strong id="geo-accuracy">Buscando GPS…</strong>
+                <p class="meta" id="geo-distance"></p>
+                <p class="hint" id="geo-pending" style="color:#fbbf24;"></p>
+            </div>
+            <div class="row" id="geo-actions">
+                <button type="button" class="ghost" id="btn-geo-cancel">Cancelar</button>
+                <button type="button" class="gold" id="btn-geo-send" disabled>Enviar georreferenciación actual</button>
+            </div>
+        </div>
+
         <div class="card hidden" id="sheets-card">
             <div class="head-row">
                 <p class="sec-title" style="margin:0;">Mis fichas</p>
@@ -377,7 +408,7 @@
         </div>
     </div>
 
-    <script src="offline.js?v=43"></script>
-    <script src="app.js?v=43"></script>
+    <script src="offline.js?v=44"></script>
+    <script src="app.js?v=44"></script>
 </body>
 </html>

@@ -117,6 +117,9 @@
             href="{{ route('company.supervision.index', $tabQuery + ['tab' => 'sheets']) }}"
             @class(['admin-header-tab', 'is-active' => $activeTab === 'sheets'])
         >Fichas</a>
+        @if (app(\App\Services\Supervision\InstallationGeoRequestService::class)->canApprove(auth()->user()))
+            <a href="{{ route('company.supervision.geo.index') }}" class="admin-header-tab">Georreferenciaciones</a>
+        @endif
     </x-slot:headerTabs>
 
     <div class="space-y-4">

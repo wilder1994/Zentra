@@ -74,6 +74,12 @@ final class GrantableModules
                     'manage' => ['company.devices.approve'],
                     'route' => 'company.devices.index',
                 ],
+                'geo' => [
+                    'label' => 'Aprobar georreferenciaciones',
+                    'view' => ['company.geo.approve'],
+                    'manage' => ['company.geo.approve'],
+                    'route' => 'company.supervision.geo.index',
+                ],
                 'downloads' => [
                     'label' => 'Descargas',
                     'view' => ['company.downloads.view'],

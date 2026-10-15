@@ -386,6 +386,7 @@ Sidebar: **Mi empresa** (dashboard) · Facturación · Clientes · **Instalacion
 | `POST /company/ops/panic` | Pánico por usuario de empresa (mismo canal que portería, cliente y APK) |
 | `GET /company/panics` | Atención de pánicos: fichas abiertas/cerradas (`ops.panic.attend`) |
 | `GET /company/dispositivos` | Cambio de dispositivo de supervisores: Aceptar/Rechazar (`company.devices.approve` o admin de empresa) |
+| `GET /company/supervision/georreferencias` | Georreferenciaciones: Pendientes / Historial; modal con dos mapas, Aprobar mueve la instalación (`company.geo.approve` o admin de empresa) |
 | `POST /company/panics/claim` | Tomar un pánico y abrir la ficha |
 | `GET /company/panics/{id}/ficha` | Carta imprimible / PDF |
 | `GET /company/observatory/events` | Observatorio: **Tablero** (filtro cliente; pines / calor instalación / calor riesgo; puntaje; líneas por tipo; leyenda/chips agrupados por slug) y **Eventos**. Tipos: solo lectura. API: `/docs/observatory` |
@@ -787,6 +788,8 @@ API autenticada con tokens Laravel Sanctum para consumo desde app móvil futura.
 | `/api/supervision/panic` | POST | Pánico del supervisor (turno abierto; GPS opcional). El teléfono emisor no oye |
 | `/api/supervision/observatory/sites` | GET | Colegios de la empresa para el Observatorio |
 | `/api/supervision/observatory/reports` | POST | Reporte Observatorio desde la PWA (supervisor) |
+| `/api/supervision/geo/installations` | GET | Instalaciones activas de un cliente (`client_id`) con su punto y si hay solicitud pendiente |
+| `/api/supervision/geo/requests` | POST | Solicitud de georreferencia (turno abierto, precisión ≤ 30 m); queda pendiente de aprobación |
 | `/api/supervision/offline-pack` | GET | Snapshot offline: sitios, puestos, vigilantes, catálogo |
 | `/api/supervision/logs` | POST | Inventario, libros, carpetas, armamento, recomendaciones, etc. `client_event_id` opcional |
 | `/api/supervision/sheets` | GET | Fichas del supervisor autenticado |

@@ -2,6 +2,10 @@
 
 **Última actualización:** 14 octubre 2026
 
+Georreferencia de instalaciones (14 oct 2026): migrate `2026_10_17_110000` (tabla `installation_geo_requests` + permiso `company.geo.approve`, lo crea la migración). El supervisor envía desde la app (turno abierto, GPS ±30 m, solo con red); la empresa aprueba en Supervisión → Georreferenciaciones. PWA `zentra-sup-v53`. APK v2.1. Pull + `migrate --force` + `npm run build` + caches. Sin seeder.
+
+Minuta libro (14 oct 2026): migrate `2026_10_17_100000` (`guard_logs.corrects_guard_log_id`). Pull + `migrate --force` + `npm run build` + caches.
+
 Radio de revistas (14 oct 2026): migrate `2026_10_16_100000` (`supervision_review_settings`, `supervision_review_radii`). El radio ya no es fijo: súper admin → Ajustes → «Radio de revistas» (global 80 m, tope 300 m, excepciones por empresa/cliente/instalación). Pull + `migrate --force` + `npm run build` + caches.
 
 Reservas en portería + zonas simples (14 oct 2026): portería tiene pestaña Calendario (`/access/zones/calendar`) y solicita reservas que quedan por aprobar; Hoy muestra también las pendientes. Zonas sin campo tipo (nombre libre, único por instalación) y se pueden eliminar si no tienen reservas. Corrige `GET /api/supervision/shift-photo/start-selfie` (500 por tipo de respuesta). Pull + `npm run build` + caches. Sin migrate ni APK.
