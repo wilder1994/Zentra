@@ -680,7 +680,8 @@ Integrado en `main` / `creawilder` (rama Manuel + Command Center). Roles en `con
 | **Supervisión (minuta)** | `/access/supervision/*`, códigos `/access/supervision/codes` | Unlock por código, evidencias (`supervision_attachments`), firma en minuta |
 | **Turnos portería** | `/access/turnos` | Apertura/cierre; puerta obligatoria; `EnsureOpenShift` + `EnsurePorteriaDoor` |
 | **Pánico** | `POST /access/ops/panic`, `GET /access/ops/alerts.json` | Mismo overlay que cliente/supervisor. Sin minuta `is_panic`. [`PORTERIA.md`](docs/PORTERIA.md) |
-| **Reservas** | Panel cliente `/client/bookings` (calendario, aprobación, zonas); portería `/access/zones` (dar uso / finalizar) | `common_zones` por instalación + `common_zone_bookings`; invitados → autorización tipo Evento; permisos `client.bookings.manage` / `access.manage.zones` |
+| **Reservas** | Panel cliente `/client/bookings` (calendario, aprobación, zonas con nombre libre y su configuración); portería `/access/zones` (Hoy, Próximas, Historial: dar uso / finalizar) y `/access/zones/calendar` (consulta y solicitud por aprobar) | `common_zones` por instalación (nombre único por instalación) + `common_zone_bookings`; solicitudes de portería con `origin = porteria`; invitados → autorización tipo Evento; permisos `client.bookings.manage` / `access.manage.zones` |
+| **Radio de revistas** | Súper admin `/admin/settings` → tarjeta «Radio de revistas» | Global + tope en `supervision_review_settings`; excepciones por empresa, cliente o instalación en `supervision_review_radii`; se aplica instalación → cliente → empresa → global, nunca por encima del tope |
 | **Auditoría** | `/access/audit` | `audit_logs` + `AuditLogger` |
 | **Geo / recurrencia** | Locations con geo; pre-autorizaciones con recurrencia | `GeoService`, `RecurrenceService` |
 | **Notificaciones** | Portal residente | `notifications` + `CorrespondenciaRecibida` / `AlertaOperativa` |

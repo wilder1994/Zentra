@@ -5,7 +5,7 @@
         $blank = [
             'id' => null,
             'installation_id' => $installations->count() === 1 ? (string) $installations->first()->id : '',
-            'name' => '', 'type' => 'salon', 'booking_mode' => 'exclusive', 'capacity' => 30,
+            'name' => '', 'booking_mode' => 'exclusive', 'capacity' => 30,
             'open_time' => '08:00', 'close_time' => '22:00', 'allow_full_day' => true,
             'weekdays' => array_keys($weekdays), 'min_hours' => 1, 'max_hours' => '', 'buffer_minutes' => 0,
             'max_advance_days' => 90, 'max_per_unit_month' => '', 'rules' => '', 'is_active' => true,
@@ -13,7 +13,7 @@
         $rows = $zones->map(fn ($z) => [
             'id' => $z->id,
             'installation_id' => (string) $z->installation_id,
-            'name' => $z->name, 'type' => $z->type, 'booking_mode' => $z->booking_mode, 'capacity' => $z->capacity,
+            'name' => $z->name, 'bookings' => (int) $z->bookings_count, 'booking_mode' => $z->booking_mode, 'capacity' => $z->capacity,
             'open_time' => $z->openTime(), 'close_time' => $z->closeTime(), 'allow_full_day' => $z->allow_full_day,
             'weekdays' => $z->allowedWeekdays(), 'min_hours' => $z->min_minutes / 60,
             'max_hours' => $z->max_minutes !== null ? $z->max_minutes / 60 : '', 'buffer_minutes' => $z->buffer_minutes,
@@ -30,7 +30,7 @@
             : null;
     @endphp
 
-    <div class="mx-auto max-w-6xl space-y-5" x-data="zoneManager(@js(['blank' => $blank, 'rows' => $rows, 'reopen' => $reopen]))">
+    <div class="mx-auto max-w-6xl space-y-5" x-data="zoneManager(@js(['blank' => $blank, 'rows' => $rows, 'reopen' => $reopen, 'baseUrl' => url('client/bookings/zones')]))">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
                 <a href="{{ route('client.bookings.index') }}" class="text-sm text-slate-400 hover:text-white">← Calendario de reservas</a>
@@ -39,10 +39,15 @@
             <button type="button" @click="edit()" class="inline-flex h-10 items-center rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white hover:bg-indigo-500">+ Nueva zona</button>
         </div>
 
+        @error('zone')
+            <div class="rounded-lg border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-200">{{ $message }}</div>
+        @enderror
+
         @if ($zones->isEmpty())
             <div class="rounded-2xl border border-dashed border-slate-700 bg-slate-900/50 px-6 py-14 text-center">
-                <p class="text-slate-300">Aún no hay zonas reservables.</p>
-                <p class="mt-1 text-sm text-slate-500">Crea el salón social, la zona BBQ, la piscina… con su horario y reglas.</p>
+                <p class="text-lg font-semibold text-white">Crea las zonas comunes que se pueden reservar</p>
+                <p class="mt-1 text-sm text-slate-500">Cada zona lleva su nombre y su configuración: cupo, horario, días y reglas.</p>
+                <button type="button" @click="edit()" class="mt-5 inline-flex h-10 items-center rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white hover:bg-indigo-500">Crear primera zona</button>
             </div>
         @else
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -51,7 +56,9 @@
                         <div class="flex items-start justify-between gap-2">
                             <div class="min-w-0">
                                 <p class="truncate text-base font-semibold text-white">{{ $z->name }}</p>
-                                <p class="truncate text-xs text-slate-500">{{ $z->typeLabel() }}@if ($installations->count() > 1) · {{ $z->installation?->name }}@endif</p>
+                                @if ($installations->count() > 1)
+                                    <p class="truncate text-xs text-slate-500">{{ $z->installation?->name }}</p>
+                                @endif
                             </div>
                             <span class="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 {{ $z->is_active ? 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/40' : 'bg-slate-700/40 text-slate-300 ring-slate-600' }}">{{ $z->is_active ? 'Activa' : 'Inactiva' }}</span>
                         </div>
@@ -99,17 +106,10 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div>
-                            <label class="{{ $label }}">Nombre</label>
-                            <input name="name" x-model="form.name" required maxlength="100" placeholder="Ej. Salón social torre 2" class="{{ $input }}">
-                        </div>
-                        <div>
-                            <label class="{{ $label }}">Tipo</label>
-                            <select name="type" x-model="form.type" class="{{ $input }}">
-                                @foreach ($types as $value => $typeLabel)
-                                    <option value="{{ $value }}">{{ $typeLabel }}</option>
-                                @endforeach
-                            </select>
+                        <div class="sm:col-span-2">
+                            <label class="{{ $label }}">Nombre de la zona</label>
+                            <input name="name" x-model="form.name" required maxlength="100" placeholder="Ej. Salón social, BBQ, Piscina zona 1" class="{{ $input }}">
+                            <p class="mt-1 text-xs text-slate-500">Si tienes dos iguales, distínguelas: «Piscina zona 1», «Piscina zona 2».</p>
                         </div>
                     </div>
 
@@ -195,10 +195,20 @@
                         <textarea name="rules" x-model="form.rules" rows="3" maxlength="2000" placeholder="Ej. Entregar aseado. Música hasta las 10 p. m." class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"></textarea>
                     </div>
 
-                    <div class="flex justify-end gap-2">
-                        <button type="button" @click="open = false" class="h-10 rounded-lg px-4 text-sm text-slate-400 hover:text-white">Cancelar</button>
-                        <button class="h-10 rounded-lg bg-indigo-600 px-5 text-sm font-semibold text-white hover:bg-indigo-500" x-text="form.id ? 'Guardar cambios' : 'Crear zona'"></button>
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <button type="button" x-show="form.id && !form.bookings" @click="destroy()" class="h-10 rounded-lg px-3 text-sm font-semibold text-red-400 hover:text-red-300">Eliminar zona</button>
+                            <p x-show="form.id && form.bookings" class="text-xs text-slate-500">Tiene reservas: desactívala en lugar de eliminarla.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="button" @click="open = false" class="h-10 rounded-lg px-4 text-sm text-slate-400 hover:text-white">Cancelar</button>
+                            <button class="h-10 rounded-lg bg-indigo-600 px-5 text-sm font-semibold text-white hover:bg-indigo-500" x-text="form.id ? 'Guardar cambios' : 'Crear zona'"></button>
+                        </div>
                     </div>
+                </form>
+                <form method="POST" id="zone-delete-form" class="hidden">
+                    @csrf
+                    @method('DELETE')
                 </form>
             </div>
         </template>
@@ -220,6 +230,12 @@
                         const row = id ? cfg.rows[id] : cfg.blank;
                         this.form = { ...row, weekdays: [...row.weekdays] };
                         this.open = true;
+                    },
+                    destroy() {
+                        if (!confirm(`¿Eliminar la zona «${this.form.name}»?`)) return;
+                        const f = document.getElementById('zone-delete-form');
+                        f.action = cfg.baseUrl + '/' + this.form.id;
+                        f.submit();
                     },
                 };
             }

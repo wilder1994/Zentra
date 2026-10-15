@@ -92,7 +92,6 @@ final class BookingController extends Controller
         return view('modules.client.bookings.zones', [
             'zones' => $this->bookings->zones($clientId, $scope),
             'installations' => $this->structures->censusPickerData($clientId, $scope)['installations'],
-            'types' => CommonZone::TYPES,
             'weekdays' => CommonZone::WEEKDAYS,
         ]);
     }
@@ -109,6 +108,14 @@ final class BookingController extends Controller
         $zone = $this->service->saveZone($request->user(), $zone, $request->validated());
 
         return redirect()->route('client.bookings.zones')->with('success', "Zona «{$zone->name}» actualizada.");
+    }
+
+    public function destroyZone(Request $request, CommonZone $zone): RedirectResponse
+    {
+        $name = $zone->name;
+        $this->service->deleteZone($request->user(), $zone);
+
+        return redirect()->route('client.bookings.zones')->with('success', "Zona «{$name}» eliminada.");
     }
 
     private function month(mixed $value): Carbon

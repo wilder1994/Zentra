@@ -52,6 +52,6 @@ Resumen · Ingreso y salida · Personas · Vehículos · Mascotas · Corresponde
 
 Destino: `destination_structure_id` / `destination_text`. Autorizador del predio: `authorized_member_id`. El vigilante queda en `host_id`. Puerta: turno/sesión o primera activa (`operatingOrFirst`). Bloqueados no entran.
 
-Personas / vehículos / mascotas / instalaciones leen el censo (no `employees`). Visitantes: pestaña personas y vehículos de visita. Autorizaciones: `visitor_pre_authorizations`. Reservas: zonas comunes.
+Personas / vehículos / mascotas / instalaciones leen el censo (no `employees`). Visitantes: pestaña personas y vehículos de visita. Autorizaciones: `visitor_pre_authorizations`. Reservas: zonas comunes; pestañas Hoy (incluye pendientes, sin «Dar uso»), Próximas, Historial y Calendario. En Calendario el vigilante ve días libres u ocupados y pulsa «Solicitar reserva»: queda por aprobar (`origin = porteria`, «vía portería») hasta que el admin de la instalación o del cliente la apruebe, modifique o rechace. No se puede solicitar un horario ya confirmado.
 
 Pánico: ver arriba. Tests: `PorteriaDoorAndPanicTest`, `PorteriaConsoleTest`.

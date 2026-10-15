@@ -10,7 +10,7 @@ final class StoreBookingRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('client.bookings.manage') ?? false;
+        return $this->user()?->canAny(['client.bookings.manage', 'access.manage.zones']) ?? false;
     }
 
     protected function prepareForValidation(): void

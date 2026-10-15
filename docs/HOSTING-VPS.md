@@ -1,6 +1,10 @@
 # Hosting VPS (Zentra)
 
-**Última actualización:** 11 octubre 2026
+**Última actualización:** 14 octubre 2026
+
+Radio de revistas (14 oct 2026): migrate `2026_10_16_100000` (`supervision_review_settings`, `supervision_review_radii`). El radio ya no es fijo: súper admin → Ajustes → «Radio de revistas» (global 80 m, tope 300 m, excepciones por empresa/cliente/instalación). Pull + `migrate --force` + `npm run build` + caches.
+
+Reservas en portería + zonas simples (14 oct 2026): portería tiene pestaña Calendario (`/access/zones/calendar`) y solicita reservas que quedan por aprobar; Hoy muestra también las pendientes. Zonas sin campo tipo (nombre libre, único por instalación) y se pueden eliminar si no tienen reservas. Corrige `GET /api/supervision/shift-photo/start-selfie` (500 por tipo de respuesta). Pull + `npm run build` + caches. Sin migrate ni APK.
 
 Migración a Zentra (10 oct 2026): el sitio CloudPanel `controla.wcodex.cloud` se reemplazó por `zentra.wcodex.cloud` (usuario `wcodex-zentra`, BD `zentra`). Reverb: `zentra-reverb.service` (`127.0.0.1:6001`). Solo existen los sitios `decowandy` y `zentra`. Respaldos del sitio viejo en `/root/zentra-migracion/`.
 

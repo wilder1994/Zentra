@@ -39,6 +39,16 @@ final class SupervisorReviewGeofenceTest extends TestCase
             ->assertJsonValidationErrors('latitude');
     }
 
+    public function test_start_selfie_is_served_after_opening_shift(): void
+    {
+        $this->seedWithPilot();
+        $this->grantSupervision();
+        $token = $this->loginCompanySupervisor();
+        $this->withToken($token)->post('/api/supervision/shifts/open', $this->supervisorShiftOpenPayload())->assertSuccessful();
+
+        $this->withToken($token)->get('/api/supervision/shift-photo/start-selfie')->assertOk();
+    }
+
     public function test_installation_exception_widens_radius_up_to_cap(): void
     {
         $this->seedWithPilot();

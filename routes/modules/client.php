@@ -191,6 +191,7 @@ Route::middleware(['auth', 'password.changed', 'active', 'tenancy.access', 'clie
             Route::get('/zones', [BookingController::class, 'zones'])->name('zones');
             Route::post('/zones', [BookingController::class, 'storeZone'])->name('zones.store');
             Route::put('/zones/{zone}', [BookingController::class, 'updateZone'])->whereNumber('zone')->name('zones.update');
+            Route::delete('/zones/{zone}', [BookingController::class, 'destroyZone'])->whereNumber('zone')->name('zones.destroy');
             Route::patch('/{booking}/approve', [BookingController::class, 'approve'])->whereNumber('booking')->name('approve');
             Route::put('/{booking}/approve', [BookingController::class, 'approveModified'])->whereNumber('booking')->name('approve.modified');
             Route::patch('/{booking}/reject', [BookingController::class, 'reject'])->whereNumber('booking')->name('reject');

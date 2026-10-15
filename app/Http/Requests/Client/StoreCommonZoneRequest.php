@@ -28,8 +28,13 @@ final class StoreCommonZoneRequest extends FormRequest
     {
         return [
             'installation_id' => ['required', 'integer'],
-            'name' => ['required', 'string', 'max:100'],
-            'type' => ['required', Rule::in(array_keys(CommonZone::TYPES))],
+            'name' => [
+                'required', 'string', 'max:100',
+                Rule::unique('common_zones', 'name')
+                    ->where('installation_id', $this->integer('installation_id'))
+                    ->whereNull('deleted_at')
+                    ->ignore($this->route('zone')),
+            ],
             'booking_mode' => ['required', Rule::in([CommonZone::MODE_EXCLUSIVE, CommonZone::MODE_SHARED])],
             'capacity' => ['required', 'integer', 'min:1', 'max:1000'],
             'open_time' => ['required', 'date_format:H:i'],
@@ -53,6 +58,7 @@ final class StoreCommonZoneRequest extends FormRequest
         return [
             'installation_id.required' => 'Elige la instalación de la zona.',
             'name.required' => 'Escribe el nombre de la zona.',
+            'name.unique' => 'Ya existe una zona con ese nombre en la instalación. Ej. «Piscina zona 2».',
             'close_time.after' => 'La hora de cierre debe ser posterior a la de apertura.',
             'weekdays.required' => 'Elige al menos un día en que se puede reservar.',
             'max_hours.gte' => 'La duración máxima no puede ser menor que la mínima.',

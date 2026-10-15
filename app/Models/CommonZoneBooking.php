@@ -112,9 +112,11 @@ class CommonZoneBooking extends Model
 
     public function requesterLabel(): string
     {
-        return $this->member !== null
+        $who = $this->member !== null
             ? trim($this->member->first_name.' '.$this->member->last_name)
             : ($this->user?->name ?? 'Administración');
+
+        return $this->origin === 'porteria' ? "{$who} · vía portería" : $who;
     }
 
     public function guestsCount(): int

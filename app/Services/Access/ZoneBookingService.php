@@ -48,7 +48,6 @@ final class ZoneBookingService
             'client_id' => $clientId,
             'installation_id' => $installationId,
             'name' => trim((string) $data['name']),
-            'type' => $data['type'],
             'booking_mode' => $data['booking_mode'],
             'capacity' => (int) $data['capacity'],
             'open_time' => $data['open_time'],
@@ -73,6 +72,17 @@ final class ZoneBookingService
         }
 
         return $zone;
+    }
+
+    public function deleteZone(User $actor, CommonZone $zone): void
+    {
+        $this->assertZoneScope($zone);
+        if ($zone->bookings()->exists()) {
+            throw ValidationException::withMessages(['zone' => 'La zona tiene reservas: desactívala en lugar de eliminarla.']);
+        }
+
+        $this->audit->record($zone, 'zone.delete', ['name' => $zone->name, 'installation_id' => $zone->installation_id], null);
+        $zone->delete();
     }
 
     /**
@@ -104,7 +114,7 @@ final class ZoneBookingService
     }
 
     /**
-     * Solicitud (residente, app): queda por aprobar y no ocupa la zona.
+     * Solicitud (residente o portería): queda por aprobar y no ocupa la zona.
      *
      * @param  array<string, mixed>  $data
      */
@@ -113,6 +123,7 @@ final class ZoneBookingService
         $this->assertZoneScope($zone);
         $slot = $this->slot($zone, $data);
         $this->assertRules($zone, $slot, null);
+        $this->assertAvailable($zone, $slot, null);
 
         $booking = CommonZoneBooking::query()->create([
             ...$this->attributes($zone, $slot),

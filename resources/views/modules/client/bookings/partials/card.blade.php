@@ -16,7 +16,7 @@
         <div class="flex justify-between gap-3"><dt class="text-slate-500">Horario</dt><dd class="text-right text-slate-200">{{ $booking->hoursLabel() }}</dd></div>
         <div class="flex justify-between gap-3"><dt class="text-slate-500">Personas</dt><dd class="text-right text-slate-200">{{ $booking->people_count }}</dd></div>
         @if ($booking->guestsCount() > 0)
-            <div class="flex justify-between gap-3"><dt class="text-slate-500">Invitados</dt><dd class="text-right text-slate-200">{{ $booking->guestsCount() }} en autorización</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Invitados</dt><dd class="text-right text-slate-200">{{ $booking->guestsCount() }} {{ $booking->authorization_id ? 'en autorización' : '· al aprobar' }}</dd></div>
         @endif
     </dl>
 

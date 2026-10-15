@@ -35,7 +35,6 @@ final class BookingModuleTest extends TestCase
             ->post(route('client.bookings.zones.store'), [
                 'installation_id' => $unit->installation_id,
                 'name' => 'Salón social',
-                'type' => 'salon',
                 'booking_mode' => 'exclusive',
                 'capacity' => 60,
                 'open_time' => '08:00',
@@ -100,6 +99,54 @@ final class BookingModuleTest extends TestCase
             ->assertRedirect();
         $this->assertSame(BookingStatus::Cancelled, $booking->fresh()->status);
         $this->assertSame(VisitorPreAuthorization::STATE_CANCELLED, $authorization->fresh()->state());
+    }
+
+    public function test_zone_names_are_unique_per_installation_and_unused_zones_can_be_deleted(): void
+    {
+        [$admin, $client] = $this->admin();
+        $unit = $this->unit($client);
+        $session = $this->clientSession($client);
+        $zone = $this->zone($client, $unit, ['name' => 'Piscina zona 1']);
+        $payload = [
+            'installation_id' => $unit->installation_id,
+            'name' => 'Piscina zona 1',
+            'booking_mode' => 'shared',
+            'capacity' => 20,
+            'open_time' => '08:00',
+            'close_time' => '20:00',
+            'weekdays' => [1, 2, 3, 4, 5, 6, 7],
+            'min_hours' => 1,
+            'buffer_minutes' => 0,
+            'max_advance_days' => 30,
+            'is_active' => '1',
+        ];
+
+        $this->actingAs($admin)->withSession($session)
+            ->post(route('client.bookings.zones.store'), $payload)
+            ->assertSessionHasErrors('name');
+
+        $this->actingAs($admin)->withSession($session)
+            ->put(route('client.bookings.zones.update', $zone), $payload)
+            ->assertSessionHasNoErrors();
+
+        $this->actingAs($admin)->withSession($session)
+            ->post(route('client.bookings.zones.store'), [...$payload, 'name' => 'Piscina zona 2'])
+            ->assertSessionHasNoErrors();
+
+        $this->service($client)->create($admin, $zone, $this->slot($unit, today()->addDay()->toDateString(), '10:00', '12:00'));
+        $this->actingAs($admin)->withSession($session)
+            ->delete(route('client.bookings.zones.destroy', $zone))
+            ->assertSessionHasErrors('zone');
+
+        $empty = CommonZone::query()->where('name', 'Piscina zona 2')->firstOrFail();
+        $this->actingAs($admin)->withSession($session)
+            ->delete(route('client.bookings.zones.destroy', $empty))
+            ->assertSessionHasNoErrors();
+        $this->assertSoftDeleted($empty);
+
+        $this->actingAs($admin)->withSession($session)
+            ->post(route('client.bookings.zones.store'), [...$payload, 'name' => 'Piscina zona 2'])
+            ->assertSessionHasNoErrors();
     }
 
     public function test_exclusive_zone_blocks_overlaps_and_respects_cleaning_buffer(): void
@@ -230,6 +277,68 @@ final class BookingModuleTest extends TestCase
         $this->assertSame(BookingStatus::Completed, $today->fresh()->status);
     }
 
+    public function test_guard_sees_calendar_and_requests_booking_pending_admin_approval(): void
+    {
+        $this->seedWithPilot();
+        config(['access.geo.required' => false, 'access.shifts.enforced' => true]);
+        $guard = User::query()->where('email', 'guardia@control-acceso.test')->firstOrFail();
+        $admin = User::query()->where('email', 'admin@palmasdelingenio.test')->firstOrFail();
+        $client = Client::query()->where('slug', 'palmas-del-ingenio')->firstOrFail();
+        $unit = $this->unit($client);
+        $zone = $this->zone($client, $unit);
+        $day = today()->addDays(2);
+        $this->service($client)->create($admin, $zone, $this->slot($unit, $day->toDateString(), '10:00', '12:00'));
+
+        $door = Location::query()->withoutGlobalScopes()->where('client_id', $client->id)->where('is_active', true)->firstOrFail();
+        $session = $this->porteriaSession($client, (int) $door->id);
+        $this->actingAs($guard)->withSession($session)->post(route('access.turnos.store'), ['location_id' => $door->id])->assertRedirect();
+        $session[PorteriaDoorService::SESSION_KEY] = $door->id;
+
+        $this->actingAs($guard)->withSession($session)
+            ->get(route('access.zones.calendar', ['zone' => $zone->id, 'month' => $day->format('Y-m')]))
+            ->assertOk()
+            ->assertSee('Solicitar reserva')
+            ->assertSee('10:00 · '.$unit->name)
+            ->assertDontSee('Aprobar con cambios');
+
+        $request = fn (string $start, string $end, string $date) => [
+            'common_zone_id' => $zone->id,
+            'structure_id' => $unit->id,
+            'date' => $date,
+            'full_day' => '0',
+            'start_time' => $start,
+            'end_time' => $end,
+            'people_count' => 8,
+        ];
+
+        $this->actingAs($guard)->withSession($session)
+            ->post(route('access.zones.request'), $request('11:00', '13:00', $day->toDateString()))
+            ->assertSessionHasErrors('date');
+
+        $this->actingAs($guard)->withSession($session)
+            ->post(route('access.zones.request'), $request('15:00', '17:00', $day->toDateString()))
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('access.zones.calendar', ['zone' => $zone->id, 'month' => $day->format('Y-m')]));
+
+        $pending = CommonZoneBooking::query()->where('origin', 'porteria')->firstOrFail();
+        $this->assertSame(BookingStatus::Pending, $pending->status);
+        $this->assertSame($guard->id, $pending->user_id);
+        $this->assertStringContainsString('vía portería', $pending->requesterLabel());
+
+        $this->actingAs($guard)->withSession($session)
+            ->post(route('access.zones.request'), $request('09:00', '10:00', today()->toDateString()))
+            ->assertSessionHasNoErrors();
+        $this->actingAs($guard)->withSession($session)
+            ->get(route('access.zones.index'))
+            ->assertOk()
+            ->assertSee('Por aprobar')
+            ->assertDontSee('Dar uso');
+
+        $this->actingAs($admin)->withSession($this->clientSession($client))
+            ->get(route('client.bookings.index', ['zone' => $zone->id]))
+            ->assertSee('09:00 · '.$unit->name);
+    }
+
     /** @return array{0: User, 1: Client} */
     private function admin(): array
     {
@@ -257,7 +366,6 @@ final class BookingModuleTest extends TestCase
             'client_id' => $client->id,
             'installation_id' => $unit->installation_id,
             'name' => 'Salón social',
-            'type' => 'salon',
             'booking_mode' => 'exclusive',
             'capacity' => 40,
             'open_time' => '08:00',

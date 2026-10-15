@@ -22,6 +22,7 @@ use App\Http\Controllers\Access\VehicleAccessController;
 use App\Http\Controllers\Access\VehicleController;
 use App\Http\Controllers\Access\VisitorController;
 use App\Http\Controllers\Access\ZoneController;
+use App\Http\Controllers\Client\AuthorizationController;
 use App\Http\Controllers\Ops\OperationalAlertController;
 use Illuminate\Support\Facades\Route;
 
@@ -189,6 +190,10 @@ Route::middleware(['auth', 'password.changed', 'active', 'tenancy.access', 'clie
     // Zonas comunes (portería)
     Route::middleware('permission:access.manage.zones')->group(function () {
         Route::get('/zones', [ZoneController::class, 'index'])->name('zones.index');
+        Route::get('/zones/calendar', [ZoneController::class, 'calendar'])->name('zones.calendar');
+        Route::post('/zones/request', [ZoneController::class, 'requestBooking'])->name('zones.request');
+        Route::get('/zones/members', [AuthorizationController::class, 'members'])->name('zones.members');
+        Route::get('/zones/visitor', [AuthorizationController::class, 'visitor'])->name('zones.visitor');
         Route::patch('/zones/{booking}/checkin', [ZoneController::class, 'checkin'])->whereNumber('booking')->name('zones.checkin');
         Route::patch('/zones/{booking}/complete', [ZoneController::class, 'complete'])->whereNumber('booking')->name('zones.complete');
     });

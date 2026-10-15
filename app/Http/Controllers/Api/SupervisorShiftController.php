@@ -20,8 +20,6 @@ use App\Models\SupervisorShiftTemplate;
 use App\Models\SupervisorZone;
 use App\Services\Auth\BindSupervisorDevice;
 use App\Services\Auth\FindUserByLogin;
-use App\Support\Company\CompanyServiceAccess;
-use App\Support\Auth\LoginUsernameRules;
 use App\Services\Company\BuildSupervisorOfflinePackService;
 use App\Services\Company\CloseSupervisorShiftService;
 use App\Services\Company\LookupSupervisorVisitService;
@@ -32,16 +30,17 @@ use App\Services\Company\RecordSupervisorProReviewService;
 use App\Services\Company\RefreshLateSyncedShiftService;
 use App\Services\Company\SeedSupervisorIntakeDefaultsService;
 use App\Services\Ops\TriggerPanicService;
+use App\Support\Auth\LoginUsernameRules;
+use App\Support\Company\CompanyServiceAccess;
 use App\Support\Supervision\SupervisorCaptureTime;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 final class SupervisorShiftController extends Controller
 {
@@ -232,7 +231,7 @@ final class SupervisorShiftController extends Controller
         ]);
     }
 
-    public function startSelfie(Request $request): StreamedResponse|Response
+    public function startSelfie(Request $request): BinaryFileResponse
     {
         $shift = $this->shiftService->currentFor($request->user());
         abort_if($shift === null || $shift->km_start_selfie_path === null, 404);

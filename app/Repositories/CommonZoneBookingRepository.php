@@ -26,6 +26,7 @@ final class CommonZoneBookingRepository
     {
         return CommonZone::query()
             ->with('installation:id,name')
+            ->withCount('bookings')
             ->where('client_id', $clientId)
             ->when($installationIds !== null, fn ($q) => $q->whereIn('installation_id', $installationIds))
             ->when($onlyActive, fn ($q) => $q->where('is_active', true))
@@ -84,7 +85,7 @@ final class CommonZoneBookingRepository
                 ->orWhereRaw('COALESCE(date_until, date) < ?', [$today]))
                 ->orderByDesc('date')->orderByDesc('start_time'),
             default => $this->coveringToday($query)
-                ->whereIn('status', [BookingStatus::Confirmed->value, BookingStatus::CheckedIn->value, BookingStatus::Completed->value])
+                ->whereIn('status', [BookingStatus::Pending->value, BookingStatus::Confirmed->value, BookingStatus::CheckedIn->value, BookingStatus::Completed->value])
                 ->orderBy('start_time'),
         };
 
@@ -111,7 +112,7 @@ final class CommonZoneBookingRepository
 
         return [
             'hoy' => $this->coveringToday($this->scoped($clientId, $installationIds))
-                ->whereIn('status', [BookingStatus::Confirmed->value, BookingStatus::CheckedIn->value, BookingStatus::Completed->value])
+                ->whereIn('status', [BookingStatus::Pending->value, BookingStatus::Confirmed->value, BookingStatus::CheckedIn->value, BookingStatus::Completed->value])
                 ->count(),
             'proximas' => $this->scoped($clientId, $installationIds)
                 ->whereIn('status', [BookingStatus::Pending->value, BookingStatus::Confirmed->value])
