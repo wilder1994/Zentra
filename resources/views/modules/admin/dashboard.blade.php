@@ -43,7 +43,7 @@
                             </div>
                         </div>
                     </div>
-                    <p class="text-[10px] text-slate-600">Fuente: empresas de seguridad y conjuntos · Colombia</p>
+                    <p class="text-[10px] text-slate-600">Fuente: empresas de seguridad y clientes · Colombia</p>
                 </div>
             </section>
 
@@ -54,7 +54,7 @@
                         <p class="mt-1 text-2xl font-bold text-white tabular-nums">{{ $kpis['active_companies'] }}</p>
                     </div>
                     <div class="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
-                        <p class="text-[10px] uppercase tracking-wide text-slate-500">Conjuntos operativos</p>
+                        <p class="text-[10px] uppercase tracking-wide text-slate-500">Clientes operativos</p>
                         <p class="mt-1 text-2xl font-bold text-emerald-400 tabular-nums">{{ $kpis['operational_clients'] }}</p>
                     </div>
                     <div class="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
@@ -199,7 +199,7 @@
                 <div class="relative h-[220px] w-full min-w-0">
                     <canvas id="mrrTrendChart"></canvas>
                 </div>
-                <p class="mt-2 text-[10px] text-slate-600">Eje izquierdo: MRR (millones COP) · Eje derecho: conjuntos activos</p>
+                <p class="mt-2 text-[10px] text-slate-600">Eje izquierdo: MRR (millones COP) · Eje derecho: clientes activos</p>
             </div>
         </section>
     </div>
@@ -300,7 +300,7 @@
                             yAxisID: 'y',
                         },
                         {
-                            label: 'Conjuntos activos',
+                            label: 'Clientes activos',
                             data: clientsTrend.map(p => p.value),
                             borderColor: '#34d399',
                             backgroundColor: 'transparent',

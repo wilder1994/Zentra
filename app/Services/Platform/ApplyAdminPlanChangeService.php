@@ -6,8 +6,10 @@ namespace App\Services\Platform;
 
 use App\Domain\Pricing\Data\PlanSelection;
 use App\Enums\BillingCycle;
+use App\Enums\CommercialProduct;
 use App\Enums\EvidenceEventType;
 use App\Models\SecurityCompany;
+use App\Services\Pricing\CompanyAgreedAmount;
 use App\Services\Pricing\CompanyPriceHistory;
 use App\Services\Tenant\AssignCompanyPackageService;
 use App\Services\Tenant\AssignCompanySupervisionPackageService;
@@ -27,9 +29,11 @@ final class ApplyAdminPlanChangeService
         private readonly AssignCompanySupervisionPackageService $assignSupervision,
         private readonly RecordLifecycleEvidenceService $evidenceService,
         private readonly CompanyPriceHistory $priceHistory,
+        private readonly CompanyAgreedAmount $agreedAmount,
     ) {}
 
     /**
+     * @param  float|null  $agreedAmount  Valor total pactado (null = el que da el catálogo).
      * @return array{applied: bool, effective_at: CarbonImmutable}
      */
     public function execute(
@@ -38,17 +42,21 @@ final class ApplyAdminPlanChangeService
         PlanSelection $selection,
         string $when,
         ?CarbonImmutable $onDate = null,
+        ?float $agreedAmount = null,
+        ?CommercialProduct $focus = null,
+        ?string $note = null,
+        string $reason = 'plan_change',
     ): array {
         $this->assertPlan($company, $cycle, $selection);
         $effectiveAt = $this->effectiveAt($company, $when, $onDate);
 
         if ($when === self::WHEN_NOW || $effectiveAt->startOfDay()->lte(CarbonImmutable::now()->startOfDay())) {
-            $this->applyNow($company, $cycle, $selection, $effectiveAt);
+            $this->applyNow($company, $cycle, $selection, $effectiveAt, $agreedAmount, $focus, $note, $reason);
 
             return ['applied' => true, 'effective_at' => $effectiveAt];
         }
 
-        $this->schedule($company, $cycle, $selection, $effectiveAt);
+        $this->schedule($company, $cycle, $selection, $effectiveAt, $agreedAmount, $focus, $note);
 
         return ['applied' => false, 'effective_at' => $effectiveAt];
     }
@@ -58,6 +66,10 @@ final class ApplyAdminPlanChangeService
         BillingCycle $cycle,
         PlanSelection $selection,
         CarbonImmutable $startsAt,
+        ?float $agreedAmount,
+        ?CommercialProduct $focus,
+        ?string $note,
+        string $reason,
     ): void {
         $before = $this->priceHistory->snapshot($company);
 
@@ -78,9 +90,16 @@ final class ApplyAdminPlanChangeService
             'scheduled_billing_cycle' => null,
             'scheduled_change_at' => null,
             'scheduled_change_payment_id' => null,
+            'scheduled_amount' => null,
+            'scheduled_amount_product' => null,
+            'scheduled_amount_note' => null,
         ]);
 
-        $this->priceHistory->record($company, $before, 'plan_change', null, null, $startsAt);
+        if ($agreedAmount !== null) {
+            $company = $this->agreedAmount->apply($company, $agreedAmount, $focus, $note);
+        }
+
+        $this->priceHistory->record($company, $before, $reason, null, $note, $startsAt);
 
         $this->evidenceService->record(
             EvidenceEventType::PackageChangeApplied,
@@ -91,6 +110,8 @@ final class ApplyAdminPlanChangeService
                 'plan' => $selection->label(),
                 'supervision' => $selection->supervisionSku()?->value,
                 'started_at' => $startsAt->toIso8601String(),
+                'agreed_amount' => $agreedAmount,
+                'note' => $note,
             ],
             $company->id,
         );
@@ -101,12 +122,18 @@ final class ApplyAdminPlanChangeService
         BillingCycle $cycle,
         PlanSelection $selection,
         CarbonImmutable $effectiveAt,
+        ?float $agreedAmount,
+        ?CommercialProduct $focus,
+        ?string $note,
     ): void {
         $payload = [
             'scheduled_change_at' => $effectiveAt,
             'scheduled_supervision_package_sku' => $selection->supervisionSku()?->value ?? 'none',
             'scheduled_indexing_seats' => $selection->indexing,
             'scheduled_observatory_seats' => $selection->observatory,
+            'scheduled_amount' => $agreedAmount,
+            'scheduled_amount_product' => $agreedAmount !== null ? $focus?->value : null,
+            'scheduled_amount_note' => $agreedAmount !== null && $note !== null ? mb_substr($note, 0, 255) : null,
         ];
 
         if (! $company->sameAccessAs($selection->access, $cycle)) {
@@ -127,6 +154,8 @@ final class ApplyAdminPlanChangeService
                 'to_plan' => $selection->label(),
                 'supervision' => $selection->supervisionSku()?->value ?? 'none',
                 'effective_at' => $effectiveAt->toIso8601String(),
+                'agreed_amount' => $agreedAmount,
+                'note' => $note,
             ],
             $company->id,
         );

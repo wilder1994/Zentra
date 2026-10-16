@@ -25,6 +25,8 @@ final class EnsurePorteriaDoor
         if ($request->routeIs(
             'access.turnos.open',
             'access.turnos.store',
+            'access.turnos.index',
+            'access.turnos.close',
             'access.ops.alerts',
             'access.ops.panic',
         )) {

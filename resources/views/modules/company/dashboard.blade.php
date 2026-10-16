@@ -13,11 +13,14 @@
     $revistaWeek = $ops['revista_week'] ?? ['labels' => [], 'done' => [], 'expected' => [], 'pending' => []];
     $accessByClient = $ops['access_by_client'] ?? [];
     $openShiftsTable = $ops['open_shifts_table'] ?? [];
+    $personnel = $ops['personnel'] ?? [];
+    $productQuotas = $ops['product_quotas'] ?? [];
     $mapMarkersJson = json_encode($mapMarkers, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
     $googleMapsJson = json_encode($ops['google_maps'] ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
     $revistaMonthlyJson = json_encode($revistaMonthly, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
     $revistaWeekJson = json_encode($revistaWeek, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
     $accessChartJson = json_encode($accessByClient, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
+    $personnelChartsJson = json_encode($personnel['charts'] ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
     $fieldSupervision = $fieldSupervision ?? null;
 
     $panicOpen = (int) ($k['panics_open'] ?? 0);
@@ -26,6 +29,10 @@
     $blockTotal = (int) ($k['blocklist_total'] ?? 0);
     $sinAsign = (int) ($workforce['without_assignment'] ?? 0);
     $shiftsCount = count($openShiftsTable);
+    $empActive = (int) ($personnel['employees_active'] ?? 0);
+    $parafiscal = $personnel['parafiscal'] ?? [];
+    $docs = $personnel['docs'] ?? [];
+    $coveragePct = $fieldSupervision['coverage_pct'] ?? null;
     $dashboardLiveUrl = route('company.dashboard.live');
     $dashboardLivePayload = [
         'metrics' => [
@@ -42,9 +49,13 @@
             'revista_week' => $revistaWeek,
             'access_by_client' => $accessByClient,
             'open_shifts_table' => $openShiftsTable,
+            'personnel' => $personnel,
+            'product_quotas' => $productQuotas,
         ],
         'field' => $fieldSupervision,
     ];
+    $canEmployees = auth()->user()?->can('company.employees.view') || auth()->user()?->can('company.employees.manage');
+    $canDocuments = auth()->user()?->can('company.documents.view') || auth()->user()?->can('company.documents.manage');
 @endphp
 
 <x-company-layout title="Mi empresa">
@@ -80,13 +91,13 @@
         @media (min-width: 768px) and (max-width: 1023px) {
             .company-cc { gap: 0.875rem; }
             .company-cc-row { gap: 0.875rem; }
-            .company-cc-row-1 .company-cc-card:first-child { height: 380px; }
+            .company-cc-row-1 .company-cc-card:first-child { min-height: 380px; height: auto; }
             .company-cc-side {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
                 grid-template-rows: auto;
                 height: auto;
             }
-            .company-cc-side .company-cc-card { height: 200px; }
+            .company-cc-side .company-cc-card { height: auto; min-height: 180px; }
             .company-cc-row-2 {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
@@ -106,7 +117,12 @@
             .company-cc-row { gap: 0.875rem; }
             .company-cc-row-1 {
                 grid-template-columns: minmax(0, 1.75fr) minmax(280px, 1fr);
-                height: 440px;
+                height: auto;
+                align-items: stretch;
+            }
+            .company-cc-row-1 > .company-cc-card:first-child {
+                min-height: 440px;
+                height: auto;
             }
             .company-cc-row-2 {
                 grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -118,8 +134,16 @@
             }
             .company-cc-side {
                 grid-template-columns: minmax(0, 1fr);
-                grid-template-rows: minmax(0, 1fr) minmax(0, 1.15fr);
-                height: 100%;
+                grid-template-rows: auto auto;
+                height: auto;
+                align-self: stretch;
+            }
+            .company-cc-side .company-cc-card {
+                height: auto;
+                min-height: 0;
+            }
+            .company-cc-side .company-cc-card:last-child {
+                min-height: 200px;
             }
         }
         /* XL */
@@ -128,8 +152,8 @@
             .company-cc-row { gap: 1rem; }
             .company-cc-row-1 {
                 grid-template-columns: minmax(0, 2.05fr) minmax(300px, 0.95fr);
-                height: 460px;
             }
+            .company-cc-row-1 > .company-cc-card:first-child { min-height: 460px; }
             .company-cc-row-2 { height: 280px; }
             .company-cc-row-3 { height: 290px; }
             .company-map-search-input { width: min(240px, 28vw); }
@@ -138,8 +162,8 @@
         @media (min-width: 1536px) {
             .company-cc-row-1 {
                 grid-template-columns: minmax(0, 2.25fr) minmax(320px, 0.85fr);
-                height: 500px;
             }
+            .company-cc-row-1 > .company-cc-card:first-child { min-height: 500px; }
             .company-cc-row-2 { height: 300px; }
             .company-cc-row-3 { height: 310px; }
             .company-map-search-input { width: min(280px, 22vw); }
@@ -153,7 +177,11 @@
             border-radius: 0.5rem;
             border: 1px solid rgb(30 41 59);
             background: rgba(15, 23, 42, 0.85);
+            overflow: visible;
+        }
+        .company-cc-card > .company-cc-card-body-flush {
             overflow: hidden;
+            border-radius: 0 0 0.5rem 0.5rem;
         }
         .company-cc-card-head {
             display: flex;
@@ -369,8 +397,20 @@
             display: grid;
             grid-template-columns: 1fr;
             gap: 0.5rem;
-            height: 100%;
-            align-content: space-evenly;
+            height: auto;
+            align-content: start;
+        }
+        .company-cc-card--plan .company-cc-card-body {
+            overflow: visible;
+        }
+        .company-field-kpi-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #64748b;
         }
         .company-workforce-list {
             display: grid;
@@ -378,6 +418,147 @@
             gap: 0.5rem;
             height: 100%;
             align-content: space-evenly;
+        }
+        .company-pulse {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.4rem;
+            position: relative;
+            z-index: 30;
+            width: 100%;
+            min-width: 0;
+        }
+        @media (min-width: 720px) {
+            .company-pulse { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        @media (min-width: 1024px) {
+            .company-pulse {
+                grid-template-columns: repeat(6, minmax(0, 1fr));
+                gap: 0.35rem;
+            }
+        }
+        .company-pulse-card {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.12rem;
+            min-width: 0;
+            min-height: 0;
+            border-radius: 0.55rem;
+            border: 1px solid rgba(51, 65, 85, 0.9);
+            border-left: 0;
+            background:
+                linear-gradient(var(--pulse-accent, #6366f1), var(--pulse-accent, #6366f1)) 0 0 / 3px 100% no-repeat,
+                linear-gradient(165deg, rgba(30, 41, 59, 0.55) 0%, rgba(15, 23, 42, 0.92) 55%),
+                rgba(15, 23, 42, 0.95);
+            padding: 0.4rem 0.4rem 0.4rem 0.65rem;
+            overflow: hidden;
+            text-decoration: none;
+            transition: border-color 0.15s ease, transform 0.15s ease;
+        }
+        a.company-pulse-card:hover {
+            border-color: rgba(99, 102, 241, 0.55);
+            transform: translateY(-1px);
+        }
+        .company-pulse-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            min-width: 0;
+            font-size: 0.52rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #94a3b8;
+            line-height: 1.15;
+            white-space: nowrap;
+        }
+        .company-pulse-value {
+            font-size: 1.05rem;
+            font-weight: 700;
+            line-height: 1;
+            color: #f8fafc;
+            font-variant-numeric: tabular-nums;
+        }
+        @media (min-width: 1280px) {
+            .company-pulse-value { font-size: 1.15rem; }
+        }
+        .company-pulse-meta {
+            font-size: 0.58rem;
+            color: #64748b;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .company-pulse-meta[data-tone="ok"] { color: #34d399; }
+        .company-pulse-meta[data-tone="warn"] { color: #fbbf24; }
+        .company-pulse-meta[data-tone="danger"] { color: #f87171; }
+        .company-section-label {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin: 0.15rem 0 0.15rem;
+        }
+        .company-section-label h2 {
+            margin: 0;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+        .company-quota-bars {
+            display: grid;
+            gap: 0.55rem;
+        }
+        .company-quota-row {
+            display: grid;
+            gap: 0.25rem;
+        }
+        .company-quota-track {
+            height: 0.35rem;
+            border-radius: 9999px;
+            background: #0f172a;
+            overflow: hidden;
+            border: 1px solid #1e293b;
+        }
+        .company-quota-fill {
+            height: 100%;
+            border-radius: 9999px;
+            background: linear-gradient(90deg, #6366f1, #22d3ee);
+        }
+        .company-quota-fill[data-over="1"] {
+            background: linear-gradient(90deg, #f59e0b, #f87171);
+        }
+        .company-personnel-grid {
+            display: grid;
+            gap: 0.75rem;
+            grid-template-columns: minmax(0, 1fr);
+        }
+        @media (min-width: 1024px) {
+            .company-personnel-grid {
+                grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.2fr) minmax(0, 1fr);
+                height: 300px;
+            }
+            .company-personnel-grid .company-cc-card { height: 100%; }
+        }
+        .company-stat-stack {
+            display: grid;
+            gap: 0.45rem;
+            align-content: start;
+        }
+        .company-stat-pill {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            border-radius: 0.55rem;
+            border: 1px solid #1e293b;
+            background: rgba(2, 6, 23, 0.45);
+            padding: 0.55rem 0.7rem;
         }
         /* Móvil */
         @media (max-width: 767px) {
@@ -395,7 +576,8 @@
                 grid-template-rows: auto auto;
             }
             .company-cc-side .company-cc-card {
-                height: 180px;
+                height: auto;
+                min-height: 160px;
             }
             .company-cc-row-2 .company-cc-card,
             .company-cc-row-3 .company-cc-card {
@@ -418,14 +600,99 @@
          x-data="companyDashboardLive"
          data-live-url="{{ $dashboardLiveUrl }}"
          data-payload='@json($dashboardLivePayload)'>
+
+        <div class="company-section-label">
+            <h2>Pulso de la empresa</h2>
+            <p class="text-[11px] text-slate-600">{{ now()->timezone(config('app.timezone'))->format('d M Y · H:i') }}</p>
+        </div>
+        <div class="company-pulse">
+            <div class="company-pulse-card" style="--pulse-accent:#22d3ee">
+                <p class="company-pulse-label">Cobertura hoy
+                    <x-ui.help-tip text="Supervisión de campo: porcentaje de puestos que hoy debían recibir revista (día operativo 06:00–06:00) y ya tienen al menos una. No es cupo comercial ni mapa geográfico." />
+                </p>
+                <p class="company-pulse-value">
+                    <span x-text="field && field.coverage_pct !== null ? field.coverage_pct + '%' : '—'">{{ $coveragePct !== null ? $coveragePct.'%' : '—' }}</span>
+                </p>
+                <p class="company-pulse-meta" :data-tone="(field?.coverage_pct ?? 0) >= 80 ? 'ok' : ((field?.coverage_pct ?? 0) >= 50 ? 'warn' : 'danger')">
+                    <span x-text="fieldVal('sites_visited')">{{ $fieldSupervision['sites_visited'] ?? 0 }}</span>/<span x-text="fieldVal('sites_contracted')">{{ $fieldSupervision['sites_contracted'] ?? 0 }}</span> puestos
+                </p>
+            </div>
+            @if ($canEmployees)
+                <a href="{{ route('company.employees.index') }}" class="company-pulse-card" style="--pulse-accent:#818cf8">
+            @else
+                <div class="company-pulse-card" style="--pulse-accent:#818cf8">
+            @endif
+                <p class="company-pulse-label">Personal activo
+                    <x-ui.help-tip text="Empleados activos del maestro de personal. «Sin puesto» = activos sin asignación a un puesto de servicio de Supervisión." />
+                </p>
+                <p class="company-pulse-value" x-text="personnel('employees_active')">{{ $empActive }}</p>
+                <p class="company-pulse-meta" :data-tone="personnel('without_post') > 0 ? 'warn' : 'ok'">
+                    <span x-text="personnel('without_post')">{{ $personnel['without_post'] ?? 0 }}</span> sin puesto
+                </p>
+            @if ($canEmployees)</a>@else</div>@endif
+
+            @if ($canDocuments)
+                <a href="{{ route('company.personnel-documents.index') }}" class="company-pulse-card" style="--pulse-accent:#34d399">
+            @else
+                <div class="company-pulse-card" style="--pulse-accent:#34d399">
+            @endif
+                <p class="company-pulse-label">Parafiscales
+                    <x-ui.help-tip align="center" text="Porcentaje de empleados activos con recorte PILA del mes calendario actual. Debajo: cuántos lo tienen y la fecha de la última carga masiva." />
+                </p>
+                <p class="company-pulse-value"><span x-text="personnelPath('parafiscal.pct')">{{ $parafiscal['pct'] ?? 0 }}</span>%</p>
+                <p class="company-pulse-meta" :data-tone="(personnelPath('parafiscal.pct') ?? 0) >= 90 ? 'ok' : ((personnelPath('parafiscal.pct') ?? 0) >= 60 ? 'warn' : 'danger')">
+                    <span x-text="personnelPath('period_label')">{{ $personnel['period_label'] ?? '—' }}</span>
+                    · <span x-text="personnelPath('parafiscal.with_month')">{{ $parafiscal['with_month'] ?? 0 }}</span>/<span x-text="personnel('employees_active')">{{ $empActive }}</span>
+                </p>
+            @if ($canDocuments)</a>@else</div>@endif
+
+            @if ($canDocuments)
+                <a href="{{ route('company.personnel-documents.index') }}" class="company-pulse-card" style="--pulse-accent:#fbbf24">
+            @else
+                <div class="company-pulse-card" style="--pulse-accent:#fbbf24">
+            @endif
+                <p class="company-pulse-label">Documentación
+                    <x-ui.help-tip align="right" text="Expediente base: Historia laboral, Contratación y Afiliaciones presentes (o marcadas N/A). «Vencidos» = documentos con fecha de vencimiento ya pasada." />
+                </p>
+                <p class="company-pulse-value"><span x-text="personnelPath('docs.base_pct')">{{ $docs['base_pct'] ?? 0 }}</span>%</p>
+                <p class="company-pulse-meta" :data-tone="(personnelPath('docs.expired') ?? 0) > 0 ? 'danger' : ((personnelPath('docs.base_pct') ?? 0) >= 80 ? 'ok' : 'warn')">
+                    Base · <span x-text="personnelPath('docs.expired')">{{ $docs['expired'] ?? 0 }}</span> vencidos
+                </p>
+            @if ($canDocuments)</a>@else</div>@endif
+
+            <div class="company-pulse-card" style="--pulse-accent:#a78bfa">
+                <p class="company-pulse-label">Clientes
+                    <x-ui.help-tip align="right" text="Clientes activos de la empresa. «En mapa» e «inst.» cuentan cuántos clientes e instalaciones tienen coordenadas para el mapa de cobertura." />
+                </p>
+                <p class="company-pulse-value" x-text="portfolio('active_total')">{{ $portfolio['active_total'] ?? 0 }}</p>
+                <p class="company-pulse-meta">
+                    <span x-text="portfolio('with_geo')">{{ $portfolio['with_geo'] ?? 0 }}</span> en mapa
+                    · <span x-text="portfolio('installations_geo')">{{ $portfolio['installations_geo'] ?? 0 }}</span> inst.
+                </p>
+            </div>
+            <div class="company-pulse-card" style="--pulse-accent:#f87171">
+                <p class="company-pulse-label">Riesgo hoy
+                    <x-ui.help-tip align="right" text="Suma de pánicos abiertos más novedades de minuta de vigilantes del día. No incluye revistas de supervisores." />
+                </p>
+                <p class="company-pulse-value" x-text="kpi('panics_open') + kpi('novedades_today')">{{ $panicOpen + $novedades }}</p>
+                <p class="company-pulse-meta" :data-tone="kpi('panics_open') > 0 ? 'danger' : (kpi('novedades_today') > 0 ? 'warn' : 'ok')">
+                    <span x-text="kpi('panics_open')">{{ $panicOpen }}</span> pánicos · <span x-text="kpi('novedades_today')">{{ $novedades }}</span> novedades
+                </p>
+            </div>
+        </div>
+
+        <div class="company-section-label">
+            <h2>Cobertura territorial</h2>
+        </div>
         {{-- Fila 1: Mapa + Cartera / Alertas --}}
         <div class="company-cc-row company-cc-row-1">
             <div class="company-cc-card">
                 <div class="company-cc-card-head">
                     <div class="min-w-0">
-                        <h3 class="text-sm font-semibold text-white">Mapa de conjuntos</h3>
+                        <h3 class="text-sm font-semibold text-white">Mapa de cobertura</h3>
                         <p class="text-xs text-slate-500">
-                            <span x-text="portfolio('with_geo')">{{ $portfolio['with_geo'] ?? 0 }}</span>/<span x-text="portfolio('active_total')">{{ $portfolio['active_total'] ?? 0 }}</span> con ubicación
+                            <span x-text="portfolio('with_geo')">{{ $portfolio['with_geo'] ?? 0 }}</span> clientes ·
+                            <span x-text="portfolio('installations_geo')">{{ $portfolio['installations_geo'] ?? 0 }}</span> instalaciones con pin
                         </p>
                     </div>
                     <div class="company-map-head-tools">
@@ -440,7 +707,7 @@
                         <input
                             id="company-map-search"
                             type="search"
-                            placeholder="Buscar conjunto..."
+                            placeholder="Buscar cliente o instalación…"
                             class="company-map-search-input rounded-md border border-slate-700 bg-slate-950/80 px-2.5 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                         />
                     </div>
@@ -452,7 +719,7 @@
                         <div id="company-map-empty" class="absolute inset-0 flex items-center justify-center text-center p-4 text-xs text-slate-500 hidden">
                             Sin clientes ni instalaciones con coordenadas
                         </div>
-                        <div id="company-map-bubble" class="company-map-bubble hidden" role="dialog" aria-label="Detalle del conjunto"></div>
+                        <div id="company-map-bubble" class="company-map-bubble hidden" role="dialog" aria-label="Detalle del cliente"></div>
                     </div>
                     <div class="grid grid-cols-2 gap-x-3 gap-y-1 px-3 py-2 text-[11px] text-slate-400 leading-tight">
                         <span class="inline-flex items-center gap-1.5"><span class="inline-block h-2.5 w-2.5 rounded-full bg-indigo-500 ring-1 ring-slate-900"></span>Cliente</span>
@@ -462,9 +729,11 @@
             </div>
 
             <div class="company-cc-side">
-                <div class="company-cc-card">
+                <div class="company-cc-card company-cc-card--plan">
                     <div class="company-cc-card-head">
-                        <h3 class="text-sm font-semibold text-white">Cartera de clientes</h3>
+                        <h3 class="text-sm font-semibold text-white inline-flex items-center gap-1.5">Plan y cupos
+                            <x-ui.help-tip text="Plan contratado con Zentra y uso de cupos (instalaciones, puestos, empleados). No es facturación de la empresa a sus clientes." />
+                        </h3>
                         @can('company.billing.manage')
                             <a href="{{ route('company.billing.index') }}" class="ui-chip-link">Facturación</a>
                         @endcan
@@ -473,23 +742,36 @@
                         <div class="company-portfolio-list text-sm">
                             <div class="flex items-center justify-between gap-2">
                                 <span class="text-slate-500">Plan activo</span>
-                                <span class="font-medium {{ $statusColor }} truncate max-w-[60%] text-right">{{ $metrics['package_label'] ?? '—' }}</span>
+                                <span class="font-medium {{ $statusColor }} truncate max-w-[60%] text-right" x-text="metrics.package_label || '—'">{{ $metrics['package_label'] ?? '—' }}</span>
                             </div>
                             <div class="flex items-center justify-between gap-2">
-                                <span class="text-slate-500">Activos</span>
+                                <span class="text-slate-500">Clientes activos</span>
                                 <span class="font-semibold text-white tabular-nums" x-text="portfolio('active_total')">{{ $portfolio['active_total'] ?? 0 }}</span>
                             </div>
                             <div class="flex items-center justify-between gap-2">
                                 <span class="text-slate-500">Archivados</span>
                                 <span class="font-semibold text-slate-300 tabular-nums" x-text="portfolio('archived')">{{ $portfolio['archived'] ?? 0 }}</span>
                             </div>
-                            <div class="flex items-center justify-between gap-2">
-                                <span class="text-slate-500">Disponibles Accesos</span>
-                                <span class="font-semibold text-indigo-300 tabular-nums" x-text="metrics.access_remaining ?? portfolio('available')">{{ $metrics['access_remaining'] ?? $portfolio['available'] ?? 0 }}</span>
-                            </div>
-                            <div class="flex items-center justify-between gap-2">
-                                <span class="text-slate-500">Disponibles Supervisión</span>
-                                <span class="font-semibold text-amber-300 tabular-nums" x-text="metrics.supervision_remaining_label ?? metrics.supervision_remaining ?? 0">{{ $metrics['supervision_remaining_label'] ?? $metrics['supervision_remaining'] ?? 0 }}</span>
+                            <div class="company-quota-bars pt-1 border-t border-slate-800">
+                                @forelse ($productQuotas as $pq)
+                                    @php
+                                        $cap = (int) ($pq['capacity'] ?? $pq['seats'] ?? 0);
+                                        $usedQ = (int) ($pq['used'] ?? 0);
+                                        $pct = $cap > 0 ? min(100, (int) round(($usedQ / $cap) * 100)) : 0;
+                                        $over = $cap > 0 && $usedQ > $cap;
+                                    @endphp
+                                    <div class="company-quota-row">
+                                        <div class="flex items-center justify-between gap-2 text-[11px]">
+                                            <span class="text-slate-500">{{ $pq['label'] }}</span>
+                                            <span class="tabular-nums text-slate-300">{{ number_format($usedQ, 0, ',', '.') }} / {{ number_format($cap, 0, ',', '.') }} <span class="text-slate-600">{{ $pq['unit'] }}</span></span>
+                                        </div>
+                                        <div class="company-quota-track">
+                                            <div class="company-quota-fill" data-over="{{ $over ? '1' : '0' }}" style="width: {{ $pct }}%"></div>
+                                        </div>
+                                    </div>
+                                @empty
+                                    <p class="text-xs text-slate-600">Sin productos contratados.</p>
+                                @endforelse
                             </div>
                             @if ($endsAt)
                                 <p class="text-xs text-slate-600 pt-1 border-t border-slate-800">
@@ -535,6 +817,101 @@
             </div>
         </div>
 
+        <div class="company-section-label">
+            <h2>Personal y cumplimiento</h2>
+            @if ($canDocuments)
+                <a href="{{ route('company.personnel-documents.index') }}" class="ui-chip-link text-[11px]">Documentos</a>
+            @endif
+        </div>
+        <div class="company-personnel-grid">
+            <div class="company-cc-card" style="height: auto; min-height: 260px;">
+                <div class="company-cc-card-head">
+                    <div class="min-w-0">
+                        <h3 class="text-sm font-semibold text-white">Fuerza laboral</h3>
+                        <p class="text-[11px] text-slate-500">Maestro de empleados + operación</p>
+                    </div>
+                    @if ($canEmployees)
+                        <a href="{{ route('company.employees.index') }}" class="ui-chip-link">Empleados</a>
+                    @endif
+                </div>
+                <div class="company-cc-card-body">
+                    <div class="company-stat-stack text-sm">
+                        <div class="company-stat-pill">
+                            <span class="text-slate-400">Empleados activos</span>
+                            <span class="font-semibold text-white tabular-nums" x-text="personnel('employees_active')">{{ $empActive }}</span>
+                        </div>
+                        <div class="company-stat-pill">
+                            <span class="text-slate-400">Sin puesto asignado</span>
+                            <span class="font-semibold tabular-nums" :class="personnel('without_post') > 0 ? 'text-amber-300' : 'text-white'" x-text="personnel('without_post')">{{ $personnel['without_post'] ?? 0 }}</span>
+                        </div>
+                        <div class="company-stat-pill">
+                            <span class="text-slate-400">Vigilantes / en turno</span>
+                            <span class="font-semibold text-indigo-300 tabular-nums">
+                                <span x-text="workforce('vigilantes_active')">{{ $workforce['vigilantes_active'] ?? 0 }}</span>
+                                /
+                                <span x-text="workforce('vigilantes_on_shift')">{{ $workforce['vigilantes_on_shift'] ?? 0 }}</span>
+                            </span>
+                        </div>
+                        <div class="company-stat-pill">
+                            <span class="text-slate-400">Supervisores activos</span>
+                            <span class="font-semibold text-white tabular-nums" x-text="workforce('supervisors_active')">{{ $workforce['supervisors_active'] ?? 0 }}</span>
+                        </div>
+                        <div class="company-stat-pill">
+                            <span class="text-slate-400">Usuarios sin cliente</span>
+                            <span class="font-semibold tabular-nums" :class="workforce('without_assignment') > 0 ? 'text-amber-400' : 'text-white'" x-text="workforce('without_assignment')">{{ $sinAsign }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="company-cc-card" style="height: auto; min-height: 260px;">
+                <div class="company-cc-card-head">
+                    <div class="min-w-0">
+                        <h3 class="text-sm font-semibold text-white">Parafiscales · <span x-text="personnelPath('period_label')">{{ $personnel['period_label'] ?? '—' }}</span></h3>
+                        <p class="text-[11px] text-slate-500">
+                            Última carga:
+                            <span x-text="personnelPath('parafiscal.last_label') || 'Sin cargas'">{{ $parafiscal['last_label'] ?? 'Sin cargas' }}</span>
+                            <span x-show="personnelPath('parafiscal.days_since') !== null && personnelPath('parafiscal.days_since') !== undefined">
+                                · hace <span x-text="personnelPath('parafiscal.days_since')">{{ $parafiscal['days_since'] ?? '' }}</span> d
+                            </span>
+                        </p>
+                    </div>
+                </div>
+                <div class="company-cc-card-body">
+                    <div class="grid grid-cols-2 gap-3 h-full min-h-0">
+                        <div class="company-cc-chart">
+                            <canvas id="companyParafiscalDonut" aria-label="Parafiscales del mes"></canvas>
+                        </div>
+                        <div class="company-cc-chart">
+                            <canvas id="companyParafiscalTrend" aria-label="Tendencia parafiscales"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="company-cc-card" style="height: auto; min-height: 260px;">
+                <div class="company-cc-card-head">
+                    <div class="min-w-0">
+                        <h3 class="text-sm font-semibold text-white">Expediente documental</h3>
+                        <p class="text-[11px] text-slate-500">HV · Contratación · Afiliaciones</p>
+                    </div>
+                </div>
+                <div class="company-cc-card-body">
+                    <div class="grid grid-cols-2 gap-3 h-full min-h-0">
+                        <div class="company-cc-chart">
+                            <canvas id="companyDocsDonut" aria-label="Expediente base"></canvas>
+                        </div>
+                        <div class="company-cc-chart">
+                            <canvas id="companyDocsFolders" aria-label="Cobertura por carpeta"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="company-section-label">
+            <h2>Operación del día</h2>
+        </div>
         @if ($fieldSupervision)
         <div class="company-cc-card" style="height: auto;">
             <div class="company-cc-card-head">
@@ -545,31 +922,43 @@
             </div>
             <div class="company-cc-card-body">
                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-sm">
-                    <div class="rounded-md border border-slate-800 bg-slate-950/40 px-3 py-2">
-                        <p class="text-[10px] text-slate-500 uppercase">En ruta</p>
+                    <div class="rounded-md border border-slate-800 bg-slate-950/40 px-3 py-2 overflow-visible">
+                        <p class="company-field-kpi-label">En ruta
+                            <x-ui.help-tip text="Turnos de supervisor abiertos ahora en la app (sesión activa)." />
+                        </p>
                         <p class="text-lg font-semibold text-white tabular-nums" x-text="fieldVal('open_shifts')">{{ $fieldSupervision['open_shifts'] }}</p>
                     </div>
-                    <div class="rounded-md border border-slate-800 bg-slate-950/40 px-3 py-2">
-                        <p class="text-[10px] text-slate-500 uppercase">Revistas app</p>
+                    <div class="rounded-md border border-slate-800 bg-slate-950/40 px-3 py-2 overflow-visible">
+                        <p class="company-field-kpi-label">Revistas app
+                            <x-ui.help-tip text="Cantidad de revistas registradas hoy en la app. Un puesto puede tener más de una revista." />
+                        </p>
                         <p class="text-lg font-semibold text-amber-300 tabular-nums" x-text="fieldVal('reviews_today')">{{ $fieldSupervision['reviews_today'] }}</p>
                     </div>
-                    <div class="rounded-md border border-slate-800 bg-slate-950/40 px-3 py-2">
-                        <p class="text-[10px] text-slate-500 uppercase">Cobertura</p>
+                    <div class="rounded-md border border-slate-800 bg-slate-950/40 px-3 py-2 overflow-visible">
+                        <p class="company-field-kpi-label">Cobertura
+                            <x-ui.help-tip text="Puestos distintos con al menos una revista hoy ÷ puestos programados para el día operativo. Distinto del conteo de revistas." />
+                        </p>
                         <p class="text-lg font-semibold text-white tabular-nums">
                             <span x-text="field && field.coverage_pct !== null ? field.coverage_pct + '%' : '—'">{{ $fieldSupervision['coverage_pct'] !== null ? $fieldSupervision['coverage_pct'].'%' : '—' }}</span>
                         </p>
                         <p class="text-[10px] text-slate-600"><span x-text="fieldVal('sites_visited')">{{ $fieldSupervision['sites_visited'] }}</span>/<span x-text="fieldVal('sites_contracted')">{{ $fieldSupervision['sites_contracted'] }}</span> puestos hoy</p>
                     </div>
-                    <div class="rounded-md border border-slate-800 bg-slate-950/40 px-3 py-2">
-                        <p class="text-[10px] text-slate-500 uppercase">Recomendaciones</p>
+                    <div class="rounded-md border border-slate-800 bg-slate-950/40 px-3 py-2 overflow-visible">
+                        <p class="company-field-kpi-label">Recomendaciones
+                            <x-ui.help-tip text="Tarjetas de riesgo que el supervisor registra en la revista (hasta 3 por puesto). No son tickets abiertos." />
+                        </p>
                         <p class="text-lg font-semibold tabular-nums" :class="fieldVal('recommendations_today') > 0 ? 'text-amber-300' : 'text-white'" x-text="fieldVal('recommendations_today')">{{ $fieldSupervision['recommendations_today'] }}</p>
                     </div>
-                    <div class="rounded-md border border-slate-800 bg-slate-950/40 px-3 py-2">
-                        <p class="text-[10px] text-slate-500 uppercase">Atenciones</p>
+                    <div class="rounded-md border border-slate-800 bg-slate-950/40 px-3 py-2 overflow-visible">
+                        <p class="company-field-kpi-label">Atenciones
+                            <x-ui.help-tip align="right" text="Registros de campo de la revista con resultado Atención o Crítico (no OK). No son atenciones del módulo de pánicos." />
+                        </p>
                         <p class="text-lg font-semibold tabular-nums" :class="fieldVal('attention_today') > 0 ? 'text-red-300' : 'text-white'" x-text="fieldVal('attention_today')">{{ $fieldSupervision['attention_today'] }}</p>
                     </div>
-                    <div class="rounded-md border border-slate-800 bg-slate-950/40 px-3 py-2">
-                        <p class="text-[10px] text-slate-500 uppercase">Km hoy</p>
+                    <div class="rounded-md border border-slate-800 bg-slate-950/40 px-3 py-2 overflow-visible">
+                        <p class="company-field-kpi-label">Km hoy
+                            <x-ui.help-tip align="right" text="Kilómetros del día: turnos ya cerrados más el recorrido GPS en vivo de los supervisores que van en ruta (misma traza que Supervisión → En vivo)." />
+                        </p>
                         <p class="text-lg font-semibold text-white tabular-nums" x-text="fieldVal('km_today')">{{ $fieldSupervision['km_today'] }}</p>
                     </div>
                 </div>
@@ -583,46 +972,20 @@
         </div>
         @endif
 
-        {{-- Fila 2: Fuerza laboral | Accesos | Turnos --}}
-        <div class="company-cc-row company-cc-row-2">
-            <div class="company-cc-card">
+        {{-- Fila 2: Accesos | Turnos | (espacio para equilibrio en desktop con 2 cols ampliadas) --}}
+        <div class="company-cc-row company-cc-row-2" style="grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); height: auto;">
+            <div class="company-cc-card" style="height: 280px;">
                 <div class="company-cc-card-head">
-                    <h3 class="text-sm font-semibold text-white">Fuerza laboral actual</h3>
-                </div>
-                <div class="company-cc-card-body">
-                    <div class="company-workforce-list text-sm">
-                        <div class="flex items-center justify-between gap-2 rounded-md border border-slate-800 bg-slate-950/40 px-3 py-2">
-                            <span class="text-slate-400">Vigilantes</span>
-                            <span class="font-semibold text-white tabular-nums" x-text="workforce('vigilantes_active')">{{ $workforce['vigilantes_active'] ?? 0 }}</span>
-                        </div>
-                        <div class="flex items-center justify-between gap-2 rounded-md border border-slate-800 bg-slate-950/40 px-3 py-2">
-                            <span class="text-slate-400">En turno</span>
-                            <span class="font-semibold text-indigo-300 tabular-nums" x-text="workforce('vigilantes_on_shift')">{{ $workforce['vigilantes_on_shift'] ?? 0 }}</span>
-                        </div>
-                        <div class="flex items-center justify-between gap-2 rounded-md border border-slate-800 bg-slate-950/40 px-3 py-2">
-                            <span class="text-slate-400">Supervisores</span>
-                            <span class="font-semibold text-white tabular-nums" x-text="workforce('supervisors_active')">{{ $workforce['supervisors_active'] ?? 0 }}</span>
-                        </div>
-                        <div class="flex items-center justify-between gap-2 rounded-md border border-slate-800 bg-slate-950/40 px-3 py-2">
-                            <span class="text-slate-400">Sin asignación</span>
-                            <span class="font-semibold tabular-nums" :class="workforce('without_assignment') > 0 ? 'text-amber-400' : 'text-white'" x-text="workforce('without_assignment')">{{ $sinAsign }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="company-cc-card">
-                <div class="company-cc-card-head">
-                    <h3 class="text-sm font-semibold text-white">Accesos por conjunto (hoy)</h3>
+                    <h3 class="text-sm font-semibold text-white">Accesos por cliente (hoy)</h3>
                 </div>
                 <div class="company-cc-card-body">
                     <div class="company-cc-chart">
-                        <canvas id="companyAccessChart" aria-label="Accesos por conjunto"></canvas>
+                        <canvas id="companyAccessChart" aria-label="Accesos por cliente"></canvas>
                     </div>
                 </div>
             </div>
 
-            <div class="company-cc-card">
+            <div class="company-cc-card" style="height: 280px;">
                 <div class="company-cc-card-head">
                     <h3 class="text-sm font-semibold text-white">Turnos abiertos · <span x-text="shifts().length">{{ $shiftsCount }}</span></h3>
                     <a href="{{ route('company.clients.index', ['modo' => 'operar']) }}" class="ui-chip-link">Ver detalle</a>
@@ -655,6 +1018,9 @@
             </div>
         </div>
 
+        <div class="company-section-label">
+            <h2>Tendencia de revistas</h2>
+        </div>
         {{-- Fila 3: Revistas mes | Revistas semana --}}
         <div class="company-cc-row company-cc-row-3">
             <div class="company-cc-card">
@@ -769,6 +1135,85 @@
                             : [{ label: 'Accesos', data: [0], backgroundColor: '#334155' }],
                     },
                     options: chartDefaults,
+                });
+            }
+
+            const personnelCharts = {!! $personnelChartsJson !!};
+            function donutChart(el, payload, colors) {
+                if (!el) return;
+                const labels = payload?.labels?.length ? payload.labels : ['—'];
+                const values = payload?.values?.length ? payload.values : [0];
+                new Chart(el, {
+                    type: 'doughnut',
+                    data: {
+                        labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: colors,
+                            borderWidth: 0,
+                            hoverOffset: 4,
+                        }],
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '68%',
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { color: '#94a3b8', boxWidth: 10, font: { size: 10 }, padding: 10 },
+                            },
+                        },
+                    },
+                });
+            }
+            donutChart(document.getElementById('companyParafiscalDonut'), personnelCharts.parafiscal_donut, ['#34d399', '#334155']);
+            donutChart(document.getElementById('companyDocsDonut'), personnelCharts.docs_donut, ['#818cf8', '#334155']);
+
+            const trendEl = document.getElementById('companyParafiscalTrend');
+            if (trendEl) {
+                const trend = personnelCharts.parafiscal_trend || {};
+                new Chart(trendEl, {
+                    type: 'line',
+                    data: {
+                        labels: trend.labels?.length ? trend.labels : ['—'],
+                        datasets: [{
+                            label: 'Con planilla',
+                            data: trend.values?.length ? trend.values : [0],
+                            borderColor: '#34d399',
+                            backgroundColor: 'rgba(52, 211, 153, 0.12)',
+                            fill: true,
+                            tension: 0.35,
+                            pointRadius: 3,
+                            pointBackgroundColor: '#34d399',
+                        }],
+                    },
+                    options: {
+                        ...chartDefaults,
+                        plugins: { legend: { display: false } },
+                    },
+                });
+            }
+
+            const foldersEl = document.getElementById('companyDocsFolders');
+            if (foldersEl) {
+                const folders = personnelCharts.folder_bars || {};
+                new Chart(foldersEl, {
+                    type: 'bar',
+                    data: {
+                        labels: folders.labels?.length ? folders.labels.map(l => l.length > 10 ? l.slice(0, 9) + '…' : l) : ['—'],
+                        datasets: [{
+                            label: 'Con soporte',
+                            data: folders.values?.length ? folders.values : [0],
+                            backgroundColor: ['#818cf8', '#22d3ee', '#fbbf24'],
+                            borderRadius: 3,
+                        }],
+                    },
+                    options: {
+                        ...chartDefaults,
+                        indexAxis: 'y',
+                        plugins: { legend: { display: false } },
+                    },
                 });
             }
 

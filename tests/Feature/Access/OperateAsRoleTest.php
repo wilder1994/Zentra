@@ -52,6 +52,7 @@ final class OperateAsRoleTest extends TestCase
         $this->actingAs($admin)->withSession($session)->get(route('access.reports.index'))->assertForbidden();
         $this->actingAs($admin)->withSession($session)->get(route('access.blocklist.index'))
             ->assertOk()
+            ->assertSee('Lista de Bloqueo')
             ->assertDontSee('Remover');
     }
 
@@ -137,6 +138,19 @@ final class OperateAsRoleTest extends TestCase
             $this->actingAs($guard)->withSession($session)->get(route($route))->assertForbidden();
         }
 
-        $this->actingAs($guard)->withSession($session)->get(route('access.blocklist.index'))->assertOk();
+        $this->actingAs($guard)->withSession($session)->get(route('access.blocklist.index'))
+            ->assertOk()
+            ->assertDontSee('Remover');
+    }
+
+    public function test_operating_client_can_manage_blocklist(): void
+    {
+        $this->seedWithPilot();
+        $admin = User::query()->where('email', 'admin@control-acceso.test')->firstOrFail();
+        $session = $this->operating($this->palmas(), CompanyOperateContext::MODE_CLIENTE);
+
+        $this->actingAs($admin)->withSession($session)->get(route('access.blocklist.index'))
+            ->assertOk()
+            ->assertSee('Agregar a bloqueo');
     }
 }

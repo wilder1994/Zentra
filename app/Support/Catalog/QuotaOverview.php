@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Support\Catalog;
 
+use App\Domain\Pricing\Data\PlanSelection;
 use App\Enums\ClientLifecycle;
+use App\Enums\CommercialProduct;
 use App\Models\Employee;
 use App\Models\Installation;
 use App\Models\SecurityCompany;
@@ -70,13 +72,45 @@ final class QuotaOverview
                 'note' => $p->max_employees_note,
             ]);
 
+        $selection = PlanSelection::fromCompany($company);
+        $employeesUsed = Employee::query()->where('security_company_id', $company->id)->where('is_active', true)->count();
+        $lineOf = [
+            CommercialProduct::Access->value => InstallationQuota::ACCESS,
+            CommercialProduct::Supervision->value => InstallationQuota::SUPERVISION,
+            CommercialProduct::Observatory->value => InstallationQuota::OBSERVATORY,
+        ];
+        $products = [];
+        foreach (CommercialProduct::cases() as $product) {
+            $seats = $selection->seats($product);
+            if ($seats < 1) {
+                continue;
+            }
+            $line = $lineOf[$product->value] ?? null;
+            $capacity = $line !== null ? $quota->capacity($line) : $seats;
+            $used = match ($product) {
+                CommercialProduct::Indexing => $employeesUsed,
+                default => $line !== null ? $quota->used($line) : 0,
+            };
+            $products[] = [
+                'key' => $product->value,
+                'label' => $product->label(),
+                'metal' => $selection->metal($product)?->value,
+                'metal_label' => $selection->metal($product)?->label(),
+                'seats' => $seats,
+                'unit' => $product->unitLabel($seats),
+                'used' => $used,
+                'capacity' => $capacity === PHP_INT_MAX ? null : $capacity,
+            ];
+        }
+
         return [
             'metal' => $entitlements->metal()?->label(),
+            'products' => $products,
             'capacity' => $quota->capacity(),
             'used' => $quota->used(),
             'breakdown' => $quota->breakdown(),
             'lines' => $lines,
-            'employees_used' => Employee::query()->where('security_company_id', $company->id)->where('is_active', true)->count(),
+            'employees_used' => $employeesUsed,
             'employee_cap' => $entitlements->employeeCap(),
             'plan_employee_cap' => $entitlements->planEmployeeCap(),
             'extra_employees' => (int) $company->extra_employees,

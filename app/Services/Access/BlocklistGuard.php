@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Access;
 
 use App\Models\Blocklist;
@@ -14,35 +16,62 @@ class BlocklistGuard
      */
     public function checkPerson(?Visitor $visitor = null, ?Resident $resident = null, ?string $documentNumber = null): ?Blocklist
     {
-        $documentNumber = $documentNumber
-            ?? $visitor?->document_number
-            ?? $resident?->document_number;
+        $documentNumber = $this->normalizeDocument(
+            $documentNumber
+                ?? $visitor?->document_number
+                ?? $resident?->document_number
+        );
 
         if ($documentNumber === null) {
             return null;
         }
 
-        return Blocklist::query()
+        $query = Blocklist::query()
             ->active()
             ->persons()
-            ->with('blockable')
+            ->with('blockable');
+
+        $byDocument = (clone $query)
+            ->whereNotNull('document_number')
+            ->where('document_number', $documentNumber)
+            ->first();
+
+        if ($byDocument !== null) {
+            return $byDocument;
+        }
+
+        if ($visitor !== null) {
+            $byMorph = (clone $query)
+                ->where('blockable_type', Blocklist::TYPE_VISITOR)
+                ->where('blockable_id', (int) $visitor->id)
+                ->first();
+            if ($byMorph !== null) {
+                return $byMorph;
+            }
+        }
+
+        if ($resident !== null) {
+            $byMorph = (clone $query)
+                ->where('blockable_type', Blocklist::TYPE_RESIDENT)
+                ->where('blockable_id', (int) $resident->id)
+                ->first();
+            if ($byMorph !== null) {
+                return $byMorph;
+            }
+        }
+
+        return $query
+            ->where(function ($inner) use ($documentNumber): void {
+                $inner->whereNull('document_number')
+                    ->orWhere('document_number', '');
+            })
             ->get()
-            ->first(function (Blocklist $entry) use ($visitor, $resident, $documentNumber): bool {
+            ->first(function (Blocklist $entry) use ($documentNumber): bool {
                 $blocked = $entry->blockable;
 
-                if ($blocked === null) {
-                    return false;
-                }
-
-                if ($visitor !== null && $entry->normalizedType() === Blocklist::TYPE_VISITOR && (int) $entry->blockable_id === (int) $visitor->id) {
-                    return true;
-                }
-
-                if ($resident !== null && $entry->normalizedType() === Blocklist::TYPE_RESIDENT && (int) $entry->blockable_id === (int) $resident->id) {
-                    return true;
-                }
-
-                return isset($blocked->document_number) && (string) $blocked->document_number === (string) $documentNumber;
+                return $blocked !== null
+                    && isset($blocked->document_number)
+                    && $this->normalizeDocument((string) $blocked->document_number) === $documentNumber;
             });
     }
 
@@ -51,25 +80,62 @@ class BlocklistGuard
      */
     public function checkVehicle(?Vehicle $vehicle = null, ?string $plate = null): ?Blocklist
     {
-        $plate = strtoupper((string) ($plate ?? $vehicle?->plate));
+        $plate = $this->normalizePlate($plate ?? $vehicle?->plate);
 
-        if ($plate === '') {
+        if ($plate === null) {
             return null;
         }
 
-        return Blocklist::query()
+        $query = Blocklist::query()
             ->active()
             ->vehicles()
-            ->with('blockable')
-            ->get()
-            ->first(function (Blocklist $entry) use ($vehicle, $plate): bool {
-                if ($vehicle !== null && (int) $entry->blockable_id === (int) $vehicle->id) {
-                    return true;
-                }
+            ->with('blockable');
 
+        $byPlate = (clone $query)
+            ->whereNotNull('plate')
+            ->where('plate', $plate)
+            ->first();
+
+        if ($byPlate !== null) {
+            return $byPlate;
+        }
+
+        if ($vehicle !== null) {
+            $byMorph = (clone $query)
+                ->where('blockable_type', Blocklist::TYPE_VEHICLE)
+                ->where('blockable_id', (int) $vehicle->id)
+                ->first();
+            if ($byMorph !== null) {
+                return $byMorph;
+            }
+        }
+
+        return $query
+            ->where(function ($inner): void {
+                $inner->whereNull('plate')->orWhere('plate', '');
+            })
+            ->get()
+            ->first(function (Blocklist $entry) use ($plate): bool {
                 $blocked = $entry->blockable;
 
-                return $blocked !== null && strtoupper((string) $blocked->plate) === $plate;
+                return $blocked !== null
+                    && $this->normalizePlate((string) ($blocked->plate ?? '')) === $plate;
             });
+    }
+
+    public function normalizeDocument(?string $value): ?string
+    {
+        $value = preg_replace('/\s+/', '', (string) $value) ?? '';
+        $value = strtoupper($value);
+
+        return $value !== '' ? $value : null;
+    }
+
+    public function normalizePlate(?string $value): ?string
+    {
+        $value = preg_replace('/[\s\-]+/', '', (string) $value) ?? '';
+        $value = strtoupper($value);
+
+        return $value !== '' ? $value : null;
     }
 }

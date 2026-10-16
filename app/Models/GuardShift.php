@@ -16,6 +16,7 @@ final class GuardShift extends Model
         'client_id',
         'user_id',
         'location_id',
+        'shift_template_id',
         'started_at',
         'ended_at',
         'start_notes',
@@ -38,6 +39,11 @@ final class GuardShift extends Model
     public function location(): BelongsTo
     {
         return $this->belongsTo(Location::class);
+    }
+
+    public function shiftTemplate(): BelongsTo
+    {
+        return $this->belongsTo(SupervisorShiftTemplate::class, 'shift_template_id');
     }
 
     public function isOpen(): bool

@@ -71,16 +71,7 @@
                             <button type="button" class="h-8 rounded-md px-3 text-xs font-medium" :class="cycle === 'monthly' ? 'bg-cyan-600 text-white' : 'text-slate-300'" @click="setCycle('monthly')">Mensual</button>
                             <button type="button" class="h-8 rounded-md px-3 text-xs font-medium" :class="cycle === 'annual' ? 'bg-cyan-600 text-white' : 'text-slate-300'" @click="setCycle('annual')">Anual</button>
                         </div>
-                        <span class="text-xs text-slate-500">Aplica:</span>
-                        <label class="inline-flex items-center gap-1.5"><input type="radio" name="apply_when" value="now" x-model="applyWhen"> Ya</label>
-                        <label class="inline-flex items-center gap-1.5">
-                            <input type="radio" name="apply_when" value="on_date" x-model="applyWhen"> El día
-                            <input type="date" name="effective_on" value="{{ old('effective_on') }}" class="h-8 px-2 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white" @focus="applyWhen = 'on_date'">
-                        </label>
-                        <label class="inline-flex items-center gap-1.5 {{ $company->package_ends_at ? '' : 'opacity-40' }}">
-                            <input type="radio" name="apply_when" value="period_end" x-model="applyWhen" @disabled(! $company->package_ends_at)>
-                            Al corte{{ $company->package_ends_at ? ' ('.$company->package_ends_at->format('d/m/Y').')' : '' }}
-                        </label>
+                        <x-admin.apply-when :period-end="$company->package_ends_at" />
                     </div>
                     <div class="flex items-center gap-2">
                         <x-ui.button type="button" variant="secondary" size="sm" @click="reset()" x-show="changed">Deshacer</x-ui.button>

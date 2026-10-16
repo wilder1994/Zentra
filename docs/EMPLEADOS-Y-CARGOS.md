@@ -126,6 +126,8 @@ No está en el Excel. En la ficha: `is_active = false` + `ceased_at`. Si tenía 
 
 **Parafiscales:** no van en Normoteca. En el listado, **Carga masiva planilla**: Excel PILA (hoja por `CC`+cédula). Overlay con % al leer y al guardar. El recorte es una copia del xlsx original (tema, fondo, logo) con solo las filas de ese colaborador; BJ15 = su total. **Ver** sirve el PDF generado con LibreOffice (igual a la descarga); si no hay `soffice`, tabla HTML. **Descargar** (xlsx o PDF) solo con Gestionar (`company.documents.manage`); Ver no baja archivos. Una carga nueva **reemplaza** la planilla previa de ese colaborador. No se guarda la planilla completa.
 
+**Peso en disco (medido 15 oct 2026, SJ, 1.060 empleados = 1,6 GB):** cada recorte pesa ~1,14 MB porque copia la imagen de fondo del xlsx original (`xl/media/image1.png`, 1,1 MB) en cada empleado. Sin esa imagen el recorte quedaría en ~50 KB (hoja + estilos + logos pequeños). Los PDF de afiliaciones y certificados suman aparte (~1,3 MB por archivo, solo quien los tenga). Ojo: el recorte conserva `sharedStrings.xml` del libro original, con textos de otros cotizantes aunque no se vean.
+
 Miniaturas del lote: el worker de pdf.js es un `.mjs`. CloudPanel lo sirve como `application/octet-stream` y Chrome lo bloquea. El indexador lo vuelve a servir como blob `application/javascript`. El PDF se pide de una vez (`disableRange`), no por rangos. **Ampliar** sigue siendo el iframe nativo. El formulario (izq.) usa `minmax(24rem, 32rem)`; las miniaturas van a ~220px (`scale` 0.48).
 
 Tablas: `employee_documents`, `employee_document_batches`. Disco: `storage/app/companies/{id}/employees/{id}/{carpeta}/`. Borrar PDF solo durante 12 h.

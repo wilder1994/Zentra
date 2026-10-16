@@ -290,9 +290,40 @@
                     </div>
                     <p class="text-sm text-slate-400" x-text="selected?.document"></p>
                     <p class="text-xs text-slate-500" x-text="selected ? typeLabel(selected) + (selected.node ? ' · ' + selected.node : '') : ''"></p>
-                    <p class="text-xs text-red-400" x-show="selected?.blocked" x-text="selected?.block_reason"></p>
+                    <p class="text-xs text-red-400 font-semibold" x-show="selected?.blocked"
+                       x-text="selected?.block_message || 'No puede ingresar.'"></p>
+                    <p class="text-xs text-red-300/80 mt-1" x-show="selected?.blocked && selected?.block_reason"
+                       x-text="'Motivo (admin): ' + selected.block_reason"></p>
                 </div>
             </div>
+
+            <template x-teleport="body">
+                <div x-show="selected?.blocked" x-cloak
+                     class="fixed inset-0 z-[80] flex items-center justify-center p-4"
+                     @keydown.escape.window="if (selected?.blocked) cancel()">
+                    <div class="absolute inset-0 bg-red-950/80"></div>
+                    <div class="relative w-full max-w-lg rounded-2xl border border-red-500 bg-slate-950 p-6 text-center shadow-2xl">
+                        <p class="text-xs uppercase tracking-widest text-red-400">Alerta · ingreso denegado</p>
+                        <div class="mt-4 flex flex-col items-center gap-3 sm:flex-row sm:text-left">
+                            <img x-show="selected?.photo_url" :src="selected?.photo_url" alt=""
+                                 class="h-24 w-24 rounded-xl object-cover bg-slate-800 ring-2 ring-red-500/50">
+                            <div class="h-24 w-24 rounded-xl bg-slate-800 ring-2 ring-red-500/50 flex items-center justify-center"
+                                 x-show="selected && !selected.photo_url">
+                                <svg class="h-10 w-10 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <h3 class="text-2xl font-semibold text-white" x-text="selected?.title"></h3>
+                                <p class="mt-1 text-sm text-slate-300 font-mono" x-text="selected?.document || selected?.plate || ''"></p>
+                                <p class="mt-2 text-sm font-semibold text-red-300"
+                                   x-text="selected?.block_message || 'No puede ingresar.'"></p>
+                            </div>
+                        </div>
+                        <button type="button"
+                                class="mt-6 inline-flex h-10 items-center rounded-lg bg-red-600 px-5 text-sm font-medium text-white hover:bg-red-500"
+                                @click="cancel()">Enterado</button>
+                    </div>
+                </div>
+            </template>
 
             <template x-if="selected?.auth && !selected.inside && !selected.blocked">
                 <div class="rounded-xl border p-3 text-sm"
@@ -312,7 +343,7 @@
                 </div>
             </template>
 
-            <form method="POST" action="{{ route('access.logs.move') }}" class="space-y-3">
+            <form method="POST" action="{{ route('access.logs.move') }}" class="space-y-3" x-show="selected && !selected.blocked">
                 @csrf
                 <input type="hidden" name="kind" :value="selected?.kind">
                 <input type="hidden" name="id" :value="selected?.id">
@@ -480,6 +511,7 @@
                     return matches.length === 1 ? matches[0] : null;
                 },
                 typeLabel(row) {
+                    if (row.kind === 'blocked_person') return 'Bloqueo · persona';
                     const who = row.census ? 'Censo' : 'Visitante';
                     return who + ' · ' + (row.kind === 'vehicle' ? 'vehículo' : 'persona');
                 },
@@ -503,6 +535,13 @@
                 pick(row) {
                     this.selected = row;
                     this.step = null;
+                    if (row.blocked) {
+                        this.destId = '';
+                        this.destText = '';
+                        this.authId = '';
+                        this.authText = '';
+                        return;
+                    }
                     this.destId = row.last?.destination_structure_id ? String(row.last.destination_structure_id) : '';
                     this.destText = row.last?.destination_text || '';
                     this.authId = row.last?.authorized_member_id ? String(row.last.authorized_member_id) : '';

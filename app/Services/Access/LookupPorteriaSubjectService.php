@@ -57,6 +57,8 @@ final class LookupPorteriaSubjectService
             $hits[] = $row;
         }
 
+        $hits = $this->appendOrphanBlockHits($hits, $q);
+
         return ['q' => $q, 'hits' => $hits];
     }
 
@@ -129,7 +131,7 @@ final class LookupPorteriaSubjectService
                     photo: $member->photo_path,
                     node: $member->structure?->name,
                     blocked: $block !== null,
-                    blockReason: $block?->reason,
+                    blockReason: $this->blockReasonFor($block),
                     inside: $inside,
                 );
             })
@@ -168,7 +170,7 @@ final class LookupPorteriaSubjectService
                 census: false,
                 photo: $visitor->photo_path,
                 blocked: $block !== null,
-                blockReason: $block?->reason,
+                blockReason: $this->blockReasonFor($block),
                 inside: $this->activeLog('visitor_id', (int) $visitor->id),
                 last: $this->lastVisit('visitor_id', (int) $visitor->id),
             ),
@@ -311,7 +313,7 @@ final class LookupPorteriaSubjectService
                     node: $census ? $vehicle->structure?->name : $vehicle->visitor?->full_name,
                     visitorId: $vehicle->visitor_id ? (int) $vehicle->visitor_id : null,
                     blocked: $block !== null,
-                    blockReason: $block?->reason,
+                    blockReason: $this->blockReasonFor($block),
                     inside: $inside,
                     last: $last,
                 );
@@ -384,10 +386,83 @@ final class LookupPorteriaSubjectService
             'visitor_id' => $visitorId,
             'blocked' => $blocked,
             'block_reason' => $blockReason,
+            'block_message' => $blocked
+                ? ($kind === 'vehicle' ? 'Este vehículo no puede ingresar.' : 'Esta persona no puede ingresar.')
+                : null,
             'inside' => $inside !== null,
             'active_log_id' => $inside?->id,
             'last' => $last,
         ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $hits
+     * @return list<array<string, mixed>>
+     */
+    private function appendOrphanBlockHits(array $hits, string $q): array
+    {
+        $doc = $this->blocklist->normalizeDocument($q);
+        $plate = $this->blocklist->normalizePlate($q);
+
+        if ($doc !== null) {
+            $already = collect($hits)->contains(fn (array $h): bool => ($h['blocked'] ?? false) === true
+                && ($h['kind'] ?? '') !== 'vehicle');
+            if (! $already) {
+                $block = $this->blocklist->checkPerson(documentNumber: $doc);
+                if ($block !== null) {
+                    $hits[] = $this->card(
+                        kind: 'blocked_person',
+                        id: (int) $block->id,
+                        title: $block->subjectLabel(),
+                        document: $block->identifierLabel(),
+                        census: false,
+                        photo: null,
+                        inside: null,
+                        blocked: true,
+                        blockReason: $this->blockReasonFor($block),
+                    );
+                }
+            }
+        }
+
+        if ($plate !== null) {
+            $already = collect($hits)->contains(fn (array $h): bool => ($h['blocked'] ?? false) === true
+                && (($h['kind'] ?? '') === 'vehicle' || filled($h['plate'] ?? null)));
+            if (! $already) {
+                $block = $this->blocklist->checkVehicle(plate: $plate);
+                if ($block !== null) {
+                    $hits[] = $this->card(
+                        kind: 'vehicle',
+                        id: (int) ($block->blockable_id ?: $block->id),
+                        title: $block->subjectLabel(),
+                        document: $block->identifierLabel(),
+                        census: false,
+                        photo: null,
+                        inside: null,
+                        blocked: true,
+                        blockReason: $this->blockReasonFor($block),
+                        plate: $block->plate,
+                    );
+                }
+            }
+        }
+
+        return $hits;
+    }
+
+    private function blockReasonFor(?\App\Models\Blocklist $block): ?string
+    {
+        if ($block === null) {
+            return null;
+        }
+
+        $user = auth()->user();
+        // Motivo solo admin (quien puede remover). El vigilante ve la lista pero no el motivo.
+        if ($user === null || ! $user->can('access.blocklist.remove')) {
+            return null;
+        }
+
+        return $block->reason;
     }
 
     private function photoUrl(?string $path): ?string

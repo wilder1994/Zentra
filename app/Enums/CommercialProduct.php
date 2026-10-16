@@ -24,16 +24,26 @@ enum CommercialProduct: string
         };
     }
 
-    /** Indexación se cobra por empleado; los demás por instalación. */
+    /** Indexación se cobra por empleado. */
     public function countsEmployees(): bool
     {
         return $this === self::Indexing;
+    }
+
+    /** Supervisión se cobra por puesto de servicio. */
+    public function countsPosts(): bool
+    {
+        return $this === self::Supervision;
     }
 
     public function unitLabel(int $quantity = 2): string
     {
         if ($this->countsEmployees()) {
             return $quantity === 1 ? 'empleado' : 'empleados';
+        }
+
+        if ($this->countsPosts()) {
+            return $quantity === 1 ? 'puesto' : 'puestos';
         }
 
         return $quantity === 1 ? 'instalación' : 'instalaciones';

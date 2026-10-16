@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
+use App\Services\Access\TurnoService;
 use App\Services\Auth\ClaimSingleUserSession;
 use App\Services\Auth\ResolveUserHomeRoute;
 use App\Support\Platform\SupportCompanyContext;
@@ -19,6 +20,7 @@ class AuthenticatedSessionController extends Controller
 {
     public function __construct(
         private readonly ResolveUserHomeRoute $resolveUserHomeRoute,
+        private readonly TurnoService $turnoService,
     ) {}
 
     public function create(): View
@@ -72,12 +74,28 @@ class AuthenticatedSessionController extends Controller
             return redirect()->to($intended);
         }
 
+        if ($user->hasRole('guardia')
+            && ! $this->turnoService->isShiftOptionalFor($user)
+            && ! $this->turnoService->hasOpenShiftFor($user)
+            && config('access.shifts.enforced', false)
+        ) {
+            return redirect()->route('access.turnos.open')
+                ->with('success', 'Inicia tu turno para operar la portería.');
+        }
+
         return redirect()->intended($home);
     }
 
     public function destroy(Request $request): RedirectResponse
     {
         $user = $request->user();
+
+        if ($user !== null && $this->turnoService->mustCloseShiftBeforeLogout($user)) {
+            return redirect()
+                ->route('access.turnos.index')
+                ->with('error', 'Cierra tu turno (queda en la minuta) antes de cerrar sesión.');
+        }
+
         if ($user !== null) {
             app(ClaimSingleUserSession::class)->release($user);
         }

@@ -260,4 +260,28 @@ abstract class TestCase extends BaseTestCase
             PorteriaDoorService::SESSION_KEY => $doorId,
         ];
     }
+
+    /** Payload para abrir turno de guarda real (plantilla del catálogo de empresa). */
+    protected function guardShiftOpenPayload(Location|int $door, array $overrides = []): array
+    {
+        $doorId = $door instanceof Location ? (int) $door->id : $door;
+        $location = $door instanceof Location
+            ? $door
+            : Location::query()->withoutGlobalScopes()->findOrFail($doorId);
+        $companyId = (int) (Client::query()->whereKey($location->client_id)->value('security_company_id') ?? 0);
+        if ($companyId > 0) {
+            app(SeedSupervisorIntakeDefaultsService::class)->execute($companyId);
+        }
+
+        $templateId = (int) (SupervisorShiftTemplate::query()
+            ->where('security_company_id', $companyId)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->value('id') ?? 0);
+
+        return array_merge([
+            'location_id' => $doorId,
+            'shift_template_id' => $templateId,
+        ], $overrides);
+    }
 }

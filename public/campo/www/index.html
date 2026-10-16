@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0b1220">
+    <title>Zentra Supervisión</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        :root { color-scheme: dark; --navy:#0b1220; --card:#121a2b; --line:#243049; --gold:#fbbf24; --ink:#f8fafc; --muted:#94a3b8; --ok:#34d399; --err:#f87171; }
+        * { box-sizing: border-box; }
+        body { font-family: ui-sans-serif, system-ui, sans-serif; background: #07101c; color: var(--ink); margin: 0; padding: 1rem 1rem 2.6rem; }
+        h1 { font-size: 1.15rem; margin: 0; font-weight: 700; }
+        .sub { font-size: .75rem; color: var(--muted); margin: .2rem 0 .85rem; }
+        label { display: block; font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-top: .7rem; }
+        input, select, textarea, button { width: 100%; margin: .22rem 0 0; height: 2.25rem; padding: 0 .7rem; border-radius: .5rem; border: 1px solid var(--line); background: var(--navy); color: #fff; font: inherit; font-size: .84rem; }
+        textarea { height: auto; min-height: 3.4rem; padding: .5rem .7rem; resize: vertical; }
+        button { display: inline-flex; align-items: center; justify-content: center; background: #4f46e5; border: 0; font-weight: 700; margin-top: .55rem; cursor: pointer; }
+        button.gold { background: var(--gold); color: #111827; }
+        button.secondary { background: #1e293b; }
+        button.ghost { background: transparent; border: 1px solid var(--line); color: #cbd5e1; }
+        button:disabled { opacity: .55; pointer-events: none; cursor: wait; }
+        .card { background: var(--card); border: 1px solid var(--line); border-radius: .9rem; padding: .85rem; margin-bottom: .7rem; }
+        .row { display: flex; gap: .45rem; } .row > * { flex: 1; }
+        .ok { color: var(--ok); } .err { color: var(--err); }
+        #status { min-height: 1.15rem; font-size: .82rem; margin: 0 0 .75rem; }
+        .hint { font-size: .72rem; color: #64748b; line-height: 1.4; margin: .35rem 0; }
+        .check { display: flex; gap: .55rem; align-items: flex-start; padding: .4rem .55rem; border: 1px solid var(--line); border-radius: .5rem; background: var(--navy); margin-top: .28rem; font-size: .8rem; }
+        .check input { width: auto; height: auto; margin: .15rem 0 0; }
+        .cam { background: #000; border-radius: .75rem; overflow: hidden; aspect-ratio: 4/3; margin-top: .4rem; position: relative; }
+        .cam video, .cam img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .cam img { position: absolute; inset: 0; }
+        .shift { color: var(--gold); font-size: .78rem; font-weight: 650; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; }
+        .mod { text-align: left; margin: 0; padding: .75rem .8rem; background: var(--navy); border: 1px solid var(--line); border-radius: .8rem; min-height: 3.4rem; overflow: hidden; }
+        .mod b { display: block; font-size: .88rem; }
+        .mod .n { color: var(--gold); font-size: .7rem; margin-top: .2rem; font-weight: 600; }
+        .entry { height: auto; min-height: 3.1rem; margin-top: .45rem; padding: .7rem .85rem; justify-content: space-between; }
+        .entry:first-child { margin-top: 0; }
+        .entry span { font-size: .72rem; color: var(--muted); font-weight: 600; }
+        button.gold.entry span { color: #3f3f46; }
+        button.entry.panic { background: #b91c1c; color: #fff; }
+        button.entry.panic span { color: #fecaca; }
+        .opts { display: grid; gap: .35rem; margin-top: .35rem; }
+        .opt { display: flex; align-items: center; gap: .5rem; padding: .5rem .65rem; border: 1px solid var(--line); border-radius: .55rem; background: var(--navy); font-size: .85rem; }
+        .opt input { width: auto; margin: 0; }
+        .rec { border: 1px solid var(--line); border-radius: .55rem; padding: .65rem; margin-top: .5rem; background: var(--navy); }
+        .rec strong { display: block; font-size: .85rem; }
+        .rec .meta { font-size: .7rem; color: var(--muted); margin: .2rem 0 .45rem; }
+        .hidden { display: none !important; }
+        .sec-title { font-size: .8rem; font-weight: 700; color: var(--gold); margin: 0 0 .15rem; }
+        .collapse { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: .5rem; height: 2.25rem; margin: 0; padding: 0 .1rem; background: transparent; border: 0; color: var(--gold); font-size: .8rem; font-weight: 700; text-align: left; }
+        .chev { display: inline-block; width: 1rem; transition: transform .15s; font-size: 1rem; line-height: 1; }
+        .collapse.is-open .chev { transform: rotate(180deg); }
+        .profile { display: flex; gap: .7rem; align-items: center; }
+        .avatar { width: 3.1rem; height: 3.1rem; border-radius: 999px; object-fit: cover; background: #0b1220; border: 1px solid var(--line); flex-shrink: 0; }
+        .head-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .35rem; }
+        .head-row .shift { margin: 0; }
+        .btn-sm { width: auto; margin: 0; height: 2.25rem; padding: 0 .75rem; flex-shrink: 0; }
+        .combo { position: relative; }
+        .combo-list { position: absolute; z-index: 30; left: 0; right: 0; max-height: 10rem; overflow: auto; background: var(--navy); border: 1px solid var(--line); border-radius: .5rem; margin-top: .15rem; }
+        .combo-list button { width: 100%; height: auto; margin: 0; border-radius: 0; background: transparent; text-align: left; font-weight: 500; font-size: .8rem; padding: .4rem .65rem; }
+        .thumb { width: 4.4rem; height: 4.4rem; border-radius: .5rem; object-fit: cover; border: 1px solid var(--line); background: #000; }
+        .item-card { border: 1px solid var(--line); border-radius: .7rem; padding: .7rem; margin-top: .55rem; background: var(--navy); }
+        .item-card:first-child { margin-top: 0; }
+        .item-card .head-row { margin-bottom: 0; }
+        button[data-rep-add] { margin-top: .55rem; }
+        .photo-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .45rem; margin-top: .45rem; }
+        .photo-slot { margin: 0; padding: 0; height: auto; aspect-ratio: 1; border-radius: .7rem; border: 1px dashed var(--line); background: var(--navy); display: flex; align-items: flex-end; justify-content: center; overflow: hidden; position: relative; }
+        .photo-slot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+        .photo-slot span { position: relative; z-index: 1; font-size: .6rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--muted); text-align: center; padding: .35rem; line-height: 1.2; }
+        .photo-slot.has-photo span { width: 100%; background: linear-gradient(transparent, rgba(0,0,0,.78)); color: #fff; padding: .45rem .3rem .4rem; }
+        #obs-map { height: 12.5rem; margin-top: .4rem; border-radius: .75rem; overflow: hidden; background: #0b1220; border: 1px solid var(--line); }
+        #obs-map-hint { font-size: .72rem; color: #64748b; line-height: 1.4; margin: .35rem 0; }
+        .risk-level { margin: .2rem 0 .65rem; padding: .45rem .65rem; border-radius: .6rem; background: var(--navy); border: 1px solid var(--line); font-weight: 700; font-size: .85rem; }
+        .risk-level[data-level="low"] { color: #86efac; }
+        .risk-level[data-level="medium"] { color: #fbbf24; }
+        .risk-level[data-level="high"] { color: #fb923c; }
+        .risk-level[data-level="extreme"] { color: #f87171; }
+        .photo-editor { position: fixed; inset: 0; z-index: 80; background: rgba(7,16,28,.92); display: flex; align-items: flex-end; padding: 1rem; }
+        .photo-editor-inner { width: 100%; max-width: 28rem; margin: 0 auto; background: var(--card); border: 1px solid var(--line); border-radius: 1rem; padding: .85rem; }
+        .crop-stage { width: 100%; aspect-ratio: 1; overflow: hidden; border-radius: .7rem; background: #000; touch-action: none; }
+        #crop-canvas { width: 100%; height: 100%; display: block; }
+        .sync-bar { font-size: .78rem; color: #fbbf24; background: #1c1917; border: 1px solid #854d0e; border-radius: .6rem; padding: .55rem .7rem; margin: 0 0 .75rem; }
+        .pw-wrap { position: relative; }
+        .pw-wrap input { padding-right: 2.4rem; }
+        .pw-toggle { position: absolute; right: 0; top: .22rem; width: 2.25rem !important; height: 2.25rem; margin: 0 !important; padding: 0; background: transparent !important; border: 0; color: var(--muted); }
+        .pw-toggle svg { width: 1rem; height: 1rem; }
+        #feedback { pointer-events: none; position: fixed; inset: 0; z-index: 90; display: none; align-items: center; justify-content: center; padding: 1rem; }
+        #feedback.show { display: flex; }
+        #feedback p { max-width: 22rem; margin: 0; padding: .85rem 1.1rem; border-radius: .85rem; text-align: center; font-size: .88rem; font-weight: 700; line-height: 1.35; box-shadow: 0 16px 40px rgba(0,0,0,.45); }
+        #feedback.ok p { background: #064e3b; border: 1px solid #34d399; color: #ecfdf5; }
+        #feedback.err p { background: #7f1d1d; border: 1px solid #f87171; color: #fef2f2; }
+    </style>
+</head>
+<body>
+    <h1>Zentra Supervisión</h1>
+    <p class="sub">Captura de campo. La fuente de verdad es Zentra.</p>
+    <div id="feedback" class="err" aria-live="assertive"><p></p></div>
+    <p id="status" class="ok"></p>
+    <p id="sync-bar" class="sync-bar hidden"></p>
+
+    <div id="login" class="card">
+        <label for="login-user">Usuario</label>
+        <input id="login-user" type="text" placeholder="nombre.apellido.1234 o correo" autocomplete="username">
+        <p class="hint">Usuario de acceso (nombre.apellido.1234). No use el correo personal de la ficha.</p>
+        <label for="password">Contraseña</label>
+        <div class="pw-wrap">
+            <input id="password" type="password" autocomplete="current-password">
+            <button type="button" class="pw-toggle" data-pw-toggle aria-label="Mostrar contraseña" aria-pressed="false">
+                <svg class="pw-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12s-3.75 6.75-9.75 6.75S2.25 12 2.25 12Z"/><circle cx="12" cy="12" r="2.75"/></svg>
+                <svg class="pw-eye-off hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18M9.9 9.9A3 3 0 0012 15a3 3 0 002.1-.9M6.6 6.6C4.4 8 2.75 12 2.75 12s3.75 6.75 9.75 6.75c1.7 0 3.23-.4 4.55-1.05M17.4 17.4C19.6 16 21.25 12 21.25 12s-3.75-6.75-9.75-6.75c-.86 0-1.68.1-2.45.3"/></svg>
+            </button>
+        </div>
+        <button type="button" id="btn-login" class="gold">Entrar</button>
+    </div>
+
+    <div id="change-password" class="card hidden">
+        <p class="sec-title">Primer ingreso</p>
+        <p class="hint">Cambie el usuario temporal y defina una clave nueva.</p>
+        <p class="hint">Usuario temporal: <span id="temp-username"></span></p>
+        <label for="new-username">Nuevo usuario</label>
+        <input id="new-username" type="text" autocomplete="username" placeholder="nombre.apellido.1234">
+        <label for="new-password">Nueva contraseña</label>
+        <div class="pw-wrap">
+            <input id="new-password" type="password" autocomplete="new-password">
+            <button type="button" class="pw-toggle" data-pw-toggle aria-label="Mostrar contraseña" aria-pressed="false">
+                <svg class="pw-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12s-3.75 6.75-9.75 6.75S2.25 12 2.25 12Z"/><circle cx="12" cy="12" r="2.75"/></svg>
+                <svg class="pw-eye-off hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18M9.9 9.9A3 3 0 0012 15a3 3 0 002.1-.9M6.6 6.6C4.4 8 2.75 12 2.75 12s3.75 6.75 9.75 6.75c1.7 0 3.23-.4 4.55-1.05M17.4 17.4C19.6 16 21.25 12 21.25 12s-3.75-6.75-9.75-6.75c-.86 0-1.68.1-2.45.3"/></svg>
+            </button>
+        </div>
+        <label for="new-password-confirm">Confirmar</label>
+        <div class="pw-wrap">
+            <input id="new-password-confirm" type="password" autocomplete="new-password">
+            <button type="button" class="pw-toggle" data-pw-toggle aria-label="Mostrar contraseña" aria-pressed="false">
+                <svg class="pw-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12s-3.75 6.75-9.75 6.75S2.25 12 2.25 12Z"/><circle cx="12" cy="12" r="2.75"/></svg>
+                <svg class="pw-eye-off hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18M9.9 9.9A3 3 0 0012 15a3 3 0 002.1-.9M6.6 6.6C4.4 8 2.75 12 2.75 12s3.75 6.75 9.75 6.75c1.7 0 3.23-.4 4.55-1.05M17.4 17.4C19.6 16 21.25 12 21.25 12s-3.75-6.75-9.75-6.75c-.86 0-1.68.1-2.45.3"/></svg>
+            </button>
+        </div>
+        <button type="button" id="btn-change-password" class="gold">Guardar y continuar</button>
+    </div>
+
+    <div id="open-shift" class="hidden">
+        <div class="card">
+            <p class="sec-title">1. Turno</p>
+            <p class="hint">Obligatorio antes de operar módulos.</p>
+            <label for="shift-template">Turno</label>
+            <select id="shift-template"></select>
+            <label for="shift-schedule">Horario</label>
+            <input id="shift-schedule" readonly>
+            <label for="route-zone">Ruta / zona</label>
+            <select id="route-zone"></select>
+        </div>
+        <div class="card">
+            <button type="button" class="collapse is-open" data-collapse="ppe-body" id="ppe-toggle">
+                <span>2. Preoperacional · EPP</span>
+                <span class="chev">▾</span>
+            </button>
+            <div id="ppe-body" class="collapse-body">
+                <p class="hint">Confirme cada elemento de protección y equipo.</p>
+                <div id="ppe-list"></div>
+            </div>
+        </div>
+        <div class="card">
+            <p class="sec-title">3. Vehículo de flota</p>
+            <p class="hint" id="vehicle-hint">Si es la primera vez, diligencie ficha completa. No es el vehículo de Accesos.</p>
+            <div id="vehicle-select-wrap">
+                <label for="fleet-vehicle">Vehículo</label>
+                <select id="fleet-vehicle"></select>
+            </div>
+            <div id="vehicle-form"></div>
+            <button type="button" class="collapse is-open" data-collapse="vcheck-body" id="vcheck-toggle">
+                <span>Preoperacional vehículo</span>
+                <span class="chev">▾</span>
+            </button>
+            <div id="vcheck-body" class="collapse-body">
+                <div id="vehicle-check-list"></div>
+            </div>
+        </div>
+        <div class="card">
+            <p class="sec-title">4. Constancia de inicio</p>
+            <label for="km-start">Kilometraje de inicio</label>
+            <input id="km-start" type="number" min="0" step="1">
+            <p class="hint" id="last-km"></p>
+            <label>Foto del odómetro (solo cámara)</label>
+            <div class="cam"><video id="cam-odo" playsinline autoplay muted></video><img id="snap-odo" class="hidden" alt=""></div>
+            <div class="row">
+                <button type="button" class="gold" id="btn-snap-odo">Tomar foto</button>
+                <button type="button" class="secondary" data-live-cam="cam-odo" data-facing="environment" data-snap="snap-odo" data-blob="odo">Trasera</button>
+                <button type="button" class="secondary" data-live-cam="cam-odo" data-facing="user" data-snap="snap-odo" data-blob="odo">Frontal</button>
+            </div>
+            <label>Selfie de inicio</label>
+            <div class="cam"><video id="cam-self" playsinline autoplay muted></video><img id="snap-self" class="hidden" alt=""></div>
+            <div class="row">
+                <button type="button" class="gold" id="btn-snap-self">Tomar selfie</button>
+                <button type="button" class="secondary" data-live-cam="cam-self" data-facing="environment" data-snap="snap-self" data-blob="self">Trasera</button>
+                <button type="button" class="secondary" data-live-cam="cam-self" data-facing="user" data-snap="snap-self" data-blob="self">Frontal</button>
+            </div>
+            <p class="hint">Cámara real solo en HTTPS (Tailscale Serve). En http://IP:8085 el navegador no permite la cámara.</p>
+            <button type="button" class="gold" id="btn-start">Iniciar turno</button>
+        </div>
+        <button type="button" class="ghost" id="btn-logout-open">Salir</button>
+    </div>
+
+    <div id="ops" class="hidden">
+        <div class="card">
+            <div class="head-row">
+                <p class="shift" id="shift-label">Turno abierto</p>
+                <button type="button" class="secondary btn-sm" id="btn-go-close">Cerrar</button>
+            </div>
+            <div class="profile">
+                <img id="sup-avatar" class="avatar" alt="">
+                <div>
+                    <p id="sup-name" style="margin:0;font-weight:700;font-size:.9rem;"></p>
+                    <p class="hint" id="shift-meta" style="margin:.15rem 0 0;"></p>
+                    <p class="hint" id="gps-hint" style="margin:.35rem 0 0;">APK: el GPS sigue con la pantalla apagada (notificación de turno). PWA: al apagar la pantalla se pausa. El mapa distingue En línea, Pantalla apagada y Sin señal.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" id="ops-home">
+            <button type="button" class="entry gold" id="btn-open-review">Revista<span>Cliente, puesto y vigilante</span></button>
+            <button type="button" class="entry" id="btn-open-alarms">Alarmas<span>Prueba en sitio</span></button>
+            <button type="button" class="entry" id="btn-open-supports">Apoyos<span>Cliente, tipo, motivo y GPS</span></button>
+            <button type="button" class="entry" id="btn-open-documents">Documentos<span>Entregados y pendientes del turno</span></button>
+            <button type="button" class="entry" id="btn-open-observatory">Observatorio<span>Novedad en un colegio</span></button>
+            <button type="button" class="entry" id="btn-open-sheets">Mis fichas<span>Ver e imprimir lo registrado</span></button>
+            <button type="button" class="entry panic" id="btn-panic">Pánico<span>Avisa a la empresa. Este teléfono no suena</span></button>
+        </div>
+
+        <div class="card hidden" id="review-card">
+            <div class="head-row">
+                <p class="sec-title" style="margin:0;">Revista</p>
+                <button type="button" class="ghost btn-sm" id="btn-review-back">Volver</button>
+            </div>
+            <p class="hint" id="review-context"></p>
+            <label for="rev-client-q">Cliente</label>
+            <div class="combo">
+                <input id="rev-client-q" autocomplete="off" placeholder="Escriba para buscar">
+                <div id="rev-client-list" class="combo-list hidden"></div>
+            </div>
+            <label for="rev-post-q">Puesto</label>
+            <div class="combo">
+                <input id="rev-post-q" autocomplete="off" placeholder="Primero el cliente" disabled>
+                <div id="rev-post-list" class="combo-list hidden"></div>
+            </div>
+            <label for="rev-guard-doc">Cédula del vigilante</label>
+            <div class="combo">
+                <input id="rev-guard-doc" autocomplete="off" inputmode="numeric" placeholder="Escriba la cédula">
+                <div id="rev-guard-list" class="combo-list hidden"></div>
+            </div>
+            <label for="rev-guard-name">Nombre del vigilante</label>
+            <input id="rev-guard-name" readonly>
+            <label>Foto del vigilante</label>
+            <div class="cam" style="aspect-ratio:1;max-width:12rem;"><video id="cam-guard" playsinline autoplay muted></video><img id="snap-guard" class="hidden" alt=""></div>
+            <div class="row">
+                <button type="button" class="gold" id="btn-snap-guard">Tomar foto</button>
+                <button type="button" class="secondary" data-live-cam="cam-guard" data-facing="environment" data-snap="snap-guard" data-blob="guard">Trasera</button>
+                <button type="button" class="secondary" data-live-cam="cam-guard" data-facing="user" data-snap="snap-guard" data-blob="guard">Frontal</button>
+            </div>
+            <label for="rev-notes">Observaciones</label>
+            <textarea id="rev-notes"></textarea>
+            <label class="check"><input type="checkbox" id="rev-novelty"><span>Con novedad</span></label>
+            <p class="sec-title" style="margin-top:1rem;">En este puesto</p>
+            <p class="hint">Registre los módulos que necesite. Nada se envía hasta Guardar revista.</p>
+            <div class="grid" id="hub-grid"></div>
+            <button type="button" class="gold" id="btn-save-review">Guardar revista</button>
+        </div>
+
+        <div class="card hidden" id="module-card">
+            <p class="sec-title" id="module-title">Módulo</p>
+            <p class="hint" id="module-hint"></p>
+            <div id="module-client-wrap" class="hidden">
+                <label for="mod-client">Cliente</label>
+                <select id="mod-client"></select>
+            </div>
+            <form id="module-form"></form>
+            <button type="button" id="btn-submit">Registrar</button>
+            <button type="button" class="ghost" id="btn-mod-back">Volver</button>
+        </div>
+
+        <div class="card hidden" id="observatory-card">
+            <div class="head-row">
+                <p class="sec-title" style="margin:0;">Observatorio</p>
+                <button type="button" class="ghost btn-sm" id="btn-obs-back">Volver</button>
+            </div>
+            <p class="hint">Reporte de novedad en un colegio. No es la revista ni la minuta.</p>
+            <label for="obs-q">Colegio</label>
+            <div class="combo">
+                <input id="obs-q" autocomplete="off" placeholder="Nombre o DANE">
+                <div id="obs-list" class="combo-list hidden"></div>
+            </div>
+            <p class="hint" id="obs-picked"></p>
+            <label>Dónde pasó</label>
+            <div id="obs-map" class="hidden"></div>
+            <p class="hint" id="obs-map-hint">Elija el colegio para ver el mapa. Arrastre el pin; si no lo mueve, queda en el colegio.</p>
+            <label for="obs-kind">Tipo</label>
+            <select id="obs-kind">
+                <option value="">Seleccione…</option>
+            </select>
+            <label for="obs-body">Qué pasó</label>
+            <textarea id="obs-body"></textarea>
+            <label>Fotos (1 obligatoria, hasta 3)</label>
+            <div id="obs-photos" class="photo-grid">
+                <button type="button" class="photo-slot" data-photo-slot="obs-0"><span>Cámara 1</span></button>
+                <button type="button" class="photo-slot" data-photo-slot="obs-1"><span>Cámara 2</span></button>
+                <button type="button" class="photo-slot" data-photo-slot="obs-2"><span>Cámara 3</span></button>
+            </div>
+            <p class="hint">Toque el recuadro para abrir la cámara. La primera foto es obligatoria.</p>
+            <label class="check"><input type="checkbox" id="obs-anonymous"><span>Enviar en anónimo</span></label>
+            <p class="hint hidden" id="obs-anon-warn">En este reporte se oculta tu nombre y teléfono. Solo se muestra la denuncia.</p>
+            <button type="button" class="gold" id="btn-obs-send">Enviar reporte</button>
+        </div>
+
+        <div class="card hidden" id="sheets-card">
+            <div class="head-row">
+                <p class="sec-title" style="margin:0;">Mis fichas</p>
+                <button type="button" class="ghost btn-sm" id="btn-sheets-back">Volver</button>
+            </div>
+            <p class="hint">Se abre la carta en otra ventana para imprimir o guardar PDF.</p>
+            <div id="sheets-list"></div>
+        </div>
+    </div>
+
+    <div id="close-shift" class="hidden">
+        <div class="card">
+            <p class="sec-title">Cerrar turno</p>
+            <label for="km-end">Kilometraje final</label>
+            <input id="km-end" type="number" min="0" step="1">
+            <label>Foto del odómetro final</label>
+            <div class="cam"><video id="cam-odo-end" playsinline autoplay muted></video><img id="snap-odo-end" class="hidden" alt=""></div>
+            <div class="row">
+                <button type="button" class="gold" id="btn-snap-odo-end">Tomar foto</button>
+                <button type="button" class="secondary" data-live-cam="cam-odo-end" data-facing="environment" data-snap="snap-odo-end" data-blob="odoEnd">Trasera</button>
+                <button type="button" class="secondary" data-live-cam="cam-odo-end" data-facing="user" data-snap="snap-odo-end" data-blob="odoEnd">Frontal</button>
+            </div>
+            <label>Selfie de cierre</label>
+            <div class="cam"><video id="cam-self-end" playsinline autoplay muted></video><img id="snap-self-end" class="hidden" alt=""></div>
+            <div class="row">
+                <button type="button" class="gold" id="btn-snap-self-end">Tomar selfie</button>
+                <button type="button" class="secondary" data-live-cam="cam-self-end" data-facing="environment" data-snap="snap-self-end" data-blob="selfEnd">Trasera</button>
+                <button type="button" class="secondary" data-live-cam="cam-self-end" data-facing="user" data-snap="snap-self-end" data-blob="selfEnd">Frontal</button>
+            </div>
+            <button type="button" class="gold" id="btn-close">Confirmar cierre</button>
+            <button type="button" class="ghost" id="btn-close-back">Volver</button>
+        </div>
+    </div>
+
+    <input id="photo-file" class="hidden" type="file" accept="image/*" capture="environment">
+    <div id="photo-editor" class="photo-editor hidden">
+        <div class="photo-editor-inner">
+            <p class="sec-title" id="crop-title">Encuadrar foto</p>
+            <p class="hint">Arrastre para recortar. Rote si hace falta y confirme.</p>
+            <div class="crop-stage"><canvas id="crop-canvas"></canvas></div>
+            <div class="row">
+                <button type="button" class="secondary" id="btn-crop-rot">Rotar</button>
+                <button type="button" class="gold" id="btn-crop-ok">Usar foto</button>
+            </div>
+            <button type="button" class="ghost" id="btn-crop-cancel">Cancelar</button>
+        </div>
+    </div>
+
+    <script src="offline.js?v=43"></script>
+    <script src="app.js?v=43"></script>
+</body>
+</html>

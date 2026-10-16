@@ -8,9 +8,9 @@ Pricing B2B para empresas de seguridad. Vigente desde el 12 oct 2026.
 
 | Quién compra | Qué compra | Qué limita |
 |--------------|------------|------------|
-| Empresa de seguridad | Accesos, Supervisión, Indexación y Observatorio (cualquiera, solos o combinados) | Instalaciones por producto, puestos por instalación, empleados por puesto y empleados totales |
+| Empresa de seguridad | Accesos, Supervisión, Indexación y Observatorio (cualquiera, solos o combinados) | Instalaciones (Accesos/Observatorio), puestos (Supervisión), puestos por instalación, empleados por puesto y empleados totales |
 
-Los **4 productos se cobran por instalación**. Cada uno tiene su cantidad (`max_clients`, `max_supervision_clients`, `indexing_seats`, `observatory_seats`) y su propio plan según esa cantidad. Se compra cualquier cantidad (1 … 10.000); no hay packs fijos.
+Accesos y Observatorio se cobran **por instalación**; Supervisión **por puesto** de servicio; Indexación **por empleado**. Cada uno tiene su cantidad (`max_clients`, `max_supervision_clients` = puestos, `indexing_seats`, `observatory_seats`) y su propio plan según esa cantidad. Se compra cualquier cantidad (1 … 10.000); no hay packs fijos. N puestos de Supervisión permiten hasta N instalaciones con Supervisión (mín. 1 puesto por instalación) y siguen el tope de puestos por instalación del metal.
 
 ---
 
@@ -29,7 +29,7 @@ Los límites de la empresa salen del **plan más alto** entre sus productos (`Co
 
 ```
 precio_producto  = unidad × cantidad × (1 − descuento de su plan)
-                   (cantidad = instalaciones; en Indexación, empleados)
+                   (cantidad = instalaciones; Supervisión = puestos; Indexación = empleados)
 combinar         = los productos se ordenan de mayor a menor valor;
                    el primero va completo, cada uno de los siguientes × (1 − combo_discount)
 mensual          = suma de productos tras combinar
@@ -48,6 +48,8 @@ Motor PHP: `App\Domain\Pricing\Data\PlanSelection` (cantidades), `App\Services\P
 
 - Crear instalación, puesto o asignar empleado pide cupo libre del producto y del plan. El mensaje dice qué falta y remite a archivar o ampliar en Facturación, donde está **Solicitar ampliación**.
 - **Ampliaciones del súper admin** (ficha empresa, bloque Cupos): empleados extra de la empresa (`extra_employees`), puestos por instalación y empleados por puesto (por empresa, por instalación `max_posts` o por puesto `max_employees`), con nota.
+- **Ampliar producto del plan** (modal Ampliar cupo, `POST /admin/companies/{company}/expand`): solo los productos contratados. Cantidad a sumar; el producto salta solo de metal si cruza el rango. Precio sugerido = lo que paga hoy + diferencia de catálogo entre el plan actual y el ampliado; el súper admin lo edita y el **motivo es obligatorio**. Al aplicar, el valor total queda como precio pactado (la diferencia se carga primero al producto ampliado) y en Movimientos como «Ampliación de cupo». Aplica ya, el día (calendario) o al corte; si se programa, el valor viaja en `scheduled_amount*` y se aplica con el cambio.
+- Bloque Cupos: una barra por producto contratado (usado / contratado, con el metal), y casillas de puestos por instalación, empleados por puesto y empleados totales. «Precio pactado» vive en este bloque (no en la tarjeta del plan). «Cambiar plan» y «Ampliar» usan la misma lista: Aplicar ya · Aplicar el día… · Aplicar al corte.
 - **Solicitar ampliación** (empresa → súper admin): `POST /company/billing/quota-requests` crea un `quota_request`; el súper admin aprueba o rechaza desde la ficha.
 - La migración `2026_10_13_100000` deja lo que hoy excede los nuevos límites como cupo adicional: ninguna empresa se bloquea.
 
@@ -146,10 +148,14 @@ Migraciones del 13 oct 2026:
 - `2026_10_13_120000_rename_site_permission_to_installation_permission` — renombra la columna.
 - `2026_10_13_130000_indexing_per_employee` — Indexación por empleado: `indexing_seats` (y el programado) de cada empresa con Indexación pasa a sus empleados activos; `units.indexing` del catálogo guardado pasa a 1.000. No toca `indexing_price_*`: no se cobra nada nuevo hasta el próximo recálculo.
 
+Documentos de venta (PDF/PPTX) para el súper admin: [`COMERCIAL-DOCUMENTOS.md`](COMERCIAL-DOCUMENTOS.md) (`/admin/comercial`).
+
 ## Changelog
 
 | Fecha | Cambio |
 |-------|--------|
+| 2026-10-15 | Hub `/admin/comercial`: propuesta PDF, cotización PDF (total pactado) y presentación PPTX 11 slides; ver `COMERCIAL-DOCUMENTOS.md` |
+| 2026-10-15 | Supervisión se cobra por puesto; cupos y cotizador en puestos; migración alinea cupos al uso sin subir precio pactado; `/admin/companies` tarjetas 3×2 y tabla por producto; Resumen «clientes» |
 | 2026-10-13 | Ficha de empresa: 5 KPIs en una fila, cupos a la altura del plan, buscador de instalación/puesto en «Ampliar cupo» y aviso «Entrar de nuevo» solo una vez al salir del modo soporte (3 s) |
 | 2026-10-13 | Ficha de empresa (superadmin) rediseñada: KPIs, tarjeta del plan, cambio de plan con tarjetas de metal, cupos compactos, movimientos unificados y menú «Más acciones» |
 | 2026-10-13 | `/planes`: título «Selecciona tu plan o ármalo a tu gusto» y guía «¿Cómo funciona?» en modal (automática la primera visita) |

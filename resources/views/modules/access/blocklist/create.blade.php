@@ -6,61 +6,86 @@
     <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
             <div class="px-6 py-4 border-b border-slate-800">
-                <h3 class="text-lg font-semibold text-white">Bloquear Ingreso</h3>
-                <p class="text-sm text-slate-500 mt-0.5">Restrinja el acceso a una persona o vehículo</p>
+                <h3 class="text-lg font-semibold text-white">Bloquear ingreso</h3>
+                <p class="text-sm text-slate-500 mt-0.5">Bloquea por cédula o placa. El motivo lo ven solo los administradores; el vigilante solo verá que no puede ingresar.</p>
             </div>
             <div class="px-6 py-5">
                 <form method="POST" action="{{ route('access.blocklist.store') }}" x-data="blocklistForm()">
                     @csrf
 
                     <div class="mb-4">
-                        <label class="block text-sm font-semibold text-slate-300 mb-2">Tipo</label>
-                        <select x-model="type" name="blockable_type" required class="block w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-indigo-500 focus:ring-indigo-500">
-                            @foreach ($types as $value => $label)
-                                <option value="{{ $value }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
+                        <label class="block text-sm font-semibold text-slate-300 mb-2">Qué bloquear</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="flex items-center gap-2 rounded-lg border px-3 py-2.5 cursor-pointer"
+                                   :class="kind === 'person' ? 'border-red-500 bg-red-950/30' : 'border-slate-700 bg-slate-950'">
+                                <input type="radio" name="kind" value="person" x-model="kind" class="text-red-500 focus:ring-red-500">
+                                <span class="text-sm text-white">Persona (cédula)</span>
+                            </label>
+                            <label class="flex items-center gap-2 rounded-lg border px-3 py-2.5 cursor-pointer"
+                                   :class="kind === 'vehicle' ? 'border-red-500 bg-red-950/30' : 'border-slate-700 bg-slate-950'">
+                                <input type="radio" name="kind" value="vehicle" x-model="kind" class="text-red-500 focus:ring-red-500">
+                                <span class="text-sm text-white">Vehículo (placa)</span>
+                            </label>
+                        </div>
                     </div>
 
-                    <div class="bg-red-900/20 rounded-xl p-4 mb-6">
-                        <label class="block text-sm font-semibold text-slate-300 mb-2">Buscar</label>
-                        <div class="relative">
-                            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                            <input type="text" x-model="search" @input.debounce="searchItems()" placeholder="Buscar por nombre, documento o placa..." class="block w-full pl-10 rounded-lg bg-slate-950 border-slate-700 text-white focus:border-indigo-500 focus:ring-indigo-500">
+                    <div class="bg-red-900/20 rounded-xl p-4 mb-6 space-y-3">
+                        <div x-show="kind === 'person'">
+                            <label class="block text-sm font-semibold text-slate-300 mb-2">Cédula / documento</label>
+                            <input type="text" name="document_number" x-model="documentNumber" @input.debounce="searchItems()"
+                                   class="block w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-indigo-500 focus:ring-indigo-500"
+                                   placeholder="Ej: 1234567890" autocomplete="off">
+                            @error('document_number') <p class="mt-1 text-xs text-red-400">{{ $message }}</p> @enderror
                         </div>
-                        <input type="hidden" name="blockable_id" x-model="selectedId">
-                        <div x-show="results.length > 0 && !selectedId" class="mt-2 bg-slate-900 border border-slate-700 rounded-xl overflow-hidden divide-y divide-slate-800">
-                            <template x-for="item in results" :key="item.id">
-                                <div @click="selectItem(item)" class="px-4 py-3 hover:bg-indigo-900/30 cursor-pointer flex items-center justify-between transition-colors">
-                                    <div>
-                                        <p class="text-sm font-medium text-white" x-text="item.document_number || item.plate || item.first_name"></p>
-                                        <p class="text-xs text-slate-500" x-text="item.first_name ? ' ' + item.last_name : (item.brand ? ' ' + item.brand + ' ' + item.model : '')"></p>
-                                    </div>
-                                </div>
+                        <div x-show="kind === 'vehicle'">
+                            <label class="block text-sm font-semibold text-slate-300 mb-2">Placa</label>
+                            <input type="text" name="plate" x-model="plate" @input.debounce="searchItems()"
+                                   class="block w-full rounded-lg bg-slate-950 border-slate-700 text-white uppercase focus:border-indigo-500 focus:ring-indigo-500"
+                                   placeholder="Ej: ABC123" autocomplete="off">
+                            @error('plate') <p class="mt-1 text-xs text-red-400">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Buscar en censo / fichas (opcional)</label>
+                            <input type="text" x-model="search" @input.debounce="searchItems()"
+                                   class="block w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                   :placeholder="kind === 'person' ? 'Nombre o documento…' : 'Placa…'">
+                        </div>
+
+                        <input type="hidden" name="blockable_type" :value="selectedType || ''">
+                        <input type="hidden" name="blockable_id" :value="selectedId || ''">
+                        <input type="hidden" name="display_name" :value="displayName || ''">
+
+                        <div x-show="results.length > 0" class="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden divide-y divide-slate-800">
+                            <template x-for="item in results" :key="(item.blockable_type || 'x') + '-' + (item.id || item.document_number || item.plate)">
+                                <button type="button" @click="selectItem(item)" class="w-full px-4 py-3 hover:bg-indigo-900/30 text-left transition-colors">
+                                    <p class="text-sm font-medium text-white" x-text="item.label"></p>
+                                </button>
                             </template>
                         </div>
-                        <div x-show="selectedItem" class="mt-3 p-3 bg-emerald-900/30 border border-emerald-700 rounded-xl flex items-center justify-between">
-                            <p class="text-sm font-medium text-emerald-200" x-text="selectedLabel"></p>
-                            <button type="button" @click="clearSelection()" class="text-xs text-red-400 hover:text-red-300 font-medium">Cambiar</button>
+                        <div x-show="displayName" class="p-3 bg-emerald-900/30 border border-emerald-700 rounded-xl flex items-center justify-between">
+                            <p class="text-sm font-medium text-emerald-200" x-text="displayName"></p>
+                            <button type="button" @click="clearSelection()" class="text-xs text-red-400 hover:text-red-300 font-medium">Quitar nombre</button>
                         </div>
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-slate-300">Razón del bloqueo</label>
-                        <textarea name="reason" rows="3" required class="mt-1 block w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-indigo-500 focus:ring-indigo-500" placeholder="Ej: Ingreso denegado por comportamiento inapropiado"></textarea>
+                        <label class="block text-sm font-medium text-slate-300">Motivo del bloqueo</label>
+                        <textarea name="reason" rows="3" required class="mt-1 block w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-indigo-500 focus:ring-indigo-500" placeholder="Ej: No pago de administración · Restricción de ingreso">{{ old('reason') }}</textarea>
+                        <p class="mt-1 text-xs text-slate-500">Visible solo para administradores. El vigilante no verá este texto.</p>
+                        @error('reason') <p class="mt-1 text-xs text-red-400">{{ $message }}</p> @enderror
                     </div>
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-slate-300">Expira (opcional)</label>
-                        <input type="datetime-local" name="expires_at" class="mt-1 block w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-indigo-500 focus:ring-indigo-500">
-                        <p class="mt-1 text-xs text-slate-500">Si no se especifica fecha, el bloqueo será permanente hasta que se remueva manualmente.</p>
+                        <input type="datetime-local" name="expires_at" value="{{ old('expires_at') }}" class="mt-1 block w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-indigo-500 focus:ring-indigo-500">
+                        <p class="mt-1 text-xs text-slate-500">Sin fecha = permanente hasta removerlo manualmente.</p>
                     </div>
 
                     <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-800">
                         <a href="{{ route('access.blocklist.index') }}" class="inline-flex items-center px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg font-semibold text-xs text-slate-300 hover:bg-slate-700 transition-colors">Cancelar</a>
                         <button type="submit" class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-700 transition-colors shadow-sm">
-                            <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
-                            Bloquear Ingreso
+                            Bloquear ingreso
                         </button>
                     </div>
                 </form>
@@ -72,33 +97,39 @@
     <script>
         function blocklistForm() {
             return {
-                type: 'visitor',
+                kind: 'person',
+                documentNumber: @js(old('document_number', '')),
+                plate: @js(old('plate', '')),
                 search: '',
                 results: [],
                 selectedId: null,
-                selectedItem: null,
-                get selectedLabel() {
-                    if (!this.selectedItem) return '';
-                    return this.selectedItem.document_number || this.selectedItem.plate || (this.selectedItem.first_name + ' ' + this.selectedItem.last_name);
-                },
+                selectedType: null,
+                displayName: '',
                 async searchItems() {
-                    if (this.search.length < 2) { this.results = []; return; }
+                    const q = this.search || (this.kind === 'person' ? this.documentNumber : this.plate);
+                    if (!q || q.length < 2) { this.results = []; return; }
                     try {
-                        const res = await fetch('{{ route("access.blocklist.search") }}?type=' + this.type + '&q=' + encodeURIComponent(this.search));
+                        const res = await fetch('{{ route("access.blocklist.search") }}?type=' + this.kind + '&q=' + encodeURIComponent(q));
                         this.results = await res.json();
-                    } catch(e) { this.results = []; }
+                    } catch (e) { this.results = []; }
                 },
                 selectItem(item) {
-                    this.selectedItem = item;
-                    this.selectedId = item.id;
-                    this.search = this.selectedLabel;
+                    this.displayName = item.display_name || '';
+                    this.selectedId = item.id || null;
+                    this.selectedType = item.blockable_type || null;
+                    if (this.kind === 'person' && item.document_number) {
+                        this.documentNumber = item.document_number;
+                    }
+                    if (this.kind === 'vehicle' && item.plate) {
+                        this.plate = item.plate;
+                    }
                     this.results = [];
+                    this.search = '';
                 },
                 clearSelection() {
-                    this.selectedItem = null;
+                    this.displayName = '';
                     this.selectedId = null;
-                    this.search = '';
-                    this.results = [];
+                    this.selectedType = null;
                 }
             }
         }

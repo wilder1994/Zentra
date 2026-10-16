@@ -84,6 +84,33 @@ final class PlanQuotaArchiveTest extends TestCase
             ->assertSessionHas('success');
     }
 
+    public function test_company_supervision_post_quota_blocks_when_seats_full(): void
+    {
+        [$admin, $company, $client, $installation] = $this->pilot();
+        $used = SupervisorPost::query()
+            ->where('is_active', true)
+            ->whereHas('client', fn ($q) => $q->where('security_company_id', $company->id)->where('has_supervision', true))
+            ->count();
+        $this->assertGreaterThan(0, $used);
+
+        $company->update([
+            'max_supervision_clients' => $used,
+            'supervision_package_size' => $used,
+            'supervision_package_sku' => 'sup_'.$used,
+        ]);
+        $installation->update(['max_posts' => $used + 5, 'max_posts_note' => 'Solo tope empresa']);
+
+        $this->actingAs($admin)
+            ->post(route('company.clients.posts.store', $client), [
+                'installation_id' => $installation->id,
+                'name' => 'Puesto sin cupo empresa',
+                'modality' => 12,
+            ])
+            ->assertSessionHas('error', fn (string $m) => str_contains($m, 'plan de Supervisión cubre '.$used.' puestos'));
+
+        $this->assertNull(SupervisorPost::query()->where('name', 'Puesto sin cupo empresa')->first());
+    }
+
     public function test_employees_per_post_limit_blocks_assignment(): void
     {
         [$admin, $company, $client, $installation] = $this->pilot();
@@ -189,10 +216,11 @@ final class PlanQuotaArchiveTest extends TestCase
         $this->assertSame(2, $installation->supervisorPosts()->where('is_active', true)->count());
     }
 
-    public function test_supervision_counts_per_installation(): void
+    public function test_supervision_counts_posts_not_installations(): void
     {
-        [, $company, $client] = $this->pilot();
+        [$admin, $company, $client, $installation] = $this->pilot();
         $before = $company->supervisionSeatsCount();
+        $this->assertTrue($client->has_supervision);
 
         Installation::query()->create([
             'client_id' => $client->id,
@@ -200,8 +228,19 @@ final class PlanQuotaArchiveTest extends TestCase
             'is_active' => true,
             'city' => 'Cali',
         ]);
+        $this->assertSame($before, $company->fresh()->supervisionSeatsCount());
 
-        $this->assertTrue($client->has_supervision);
+        $installation->update(['max_posts' => 10, 'max_posts_note' => 'Test']);
+        $this->capInstallations($company, max(5, $before + 1));
+
+        $this->actingAs($admin)
+            ->post(route('company.clients.posts.store', $client), [
+                'installation_id' => $installation->id,
+                'name' => 'Puesto nuevo cupo',
+                'modality' => 12,
+            ])
+            ->assertSessionHas('success');
+
         $this->assertSame($before + 1, $company->fresh()->supervisionSeatsCount());
     }
 

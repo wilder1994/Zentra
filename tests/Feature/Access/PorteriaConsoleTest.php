@@ -24,6 +24,11 @@ final class PorteriaConsoleTest extends TestCase
     {
         [$vigilante, $client] = $this->vigilante();
         $session = $this->porteriaSession($client);
+        $door = Location::query()->withoutGlobalScopes()->findOrFail($session[PorteriaDoorService::SESSION_KEY]);
+
+        $this->actingAs($vigilante)->withSession($session)
+            ->post(route('access.turnos.store'), $this->guardShiftOpenPayload($door))
+            ->assertRedirect();
 
         $this->actingAs($vigilante)->withSession($session)
             ->get(route('access.dashboard'))
@@ -53,7 +58,7 @@ final class PorteriaConsoleTest extends TestCase
         $session = $this->porteriaSession($client, (int) $door->id);
 
         $this->actingAs($vigilante)->withSession($session)
-            ->post(route('access.turnos.store'), ['location_id' => $door->id])
+            ->post(route('access.turnos.store'), $this->guardShiftOpenPayload($door))
             ->assertRedirect();
 
         $session[PorteriaDoorService::SESSION_KEY] = $door->id;
@@ -124,7 +129,7 @@ final class PorteriaConsoleTest extends TestCase
         $session = $this->porteriaSession($client, (int) $door->id);
 
         $this->actingAs($vigilante)->withSession($session)
-            ->post(route('access.turnos.store'), ['location_id' => $door->id])
+            ->post(route('access.turnos.store'), $this->guardShiftOpenPayload($door))
             ->assertRedirect();
         $session[PorteriaDoorService::SESSION_KEY] = $door->id;
 
@@ -165,7 +170,7 @@ final class PorteriaConsoleTest extends TestCase
         $session = $this->porteriaSession($client, (int) $door->id);
 
         $this->actingAs($vigilante)->withSession($session)
-            ->post(route('access.turnos.store'), ['location_id' => $door->id])
+            ->post(route('access.turnos.store'), $this->guardShiftOpenPayload($door))
             ->assertRedirect();
         $session[PorteriaDoorService::SESSION_KEY] = $door->id;
 
@@ -211,7 +216,7 @@ final class PorteriaConsoleTest extends TestCase
         $session = $this->porteriaSession($client, (int) $door->id);
 
         $this->actingAs($vigilante)->withSession($session)
-            ->post(route('access.turnos.store'), ['location_id' => $door->id])
+            ->post(route('access.turnos.store'), $this->guardShiftOpenPayload($door))
             ->assertRedirect();
         $session[PorteriaDoorService::SESSION_KEY] = $door->id;
 
@@ -282,7 +287,7 @@ final class PorteriaConsoleTest extends TestCase
         $session = $this->porteriaSession($client, (int) $door->id);
 
         $this->actingAs($vigilante)->withSession($session)
-            ->post(route('access.turnos.store'), ['location_id' => $door->id])
+            ->post(route('access.turnos.store'), $this->guardShiftOpenPayload($door))
             ->assertRedirect();
         $session[PorteriaDoorService::SESSION_KEY] = $door->id;
 
@@ -339,7 +344,7 @@ final class PorteriaConsoleTest extends TestCase
         $session = $this->porteriaSession($client, (int) $door->id);
 
         $this->actingAs($vigilante)->withSession($session)
-            ->post(route('access.turnos.store'), ['location_id' => $door->id])
+            ->post(route('access.turnos.store'), $this->guardShiftOpenPayload($door))
             ->assertRedirect();
         $session[PorteriaDoorService::SESSION_KEY] = $door->id;
 

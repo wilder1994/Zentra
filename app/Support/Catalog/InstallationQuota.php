@@ -9,12 +9,15 @@ use App\Models\Client;
 use App\Models\Installation;
 use App\Models\Scopes\ClientScope;
 use App\Models\SecurityCompany;
+use App\Models\SupervisorPost;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Bolsa de instalaciones de la empresa. Cada instalación activa de un cliente activo
- * ocupa un cupo de la bolsa y uno de cada línea que tenga el cliente (Accesos, Supervisión, Observatorio).
+ * Bolsa de la empresa. Accesos y Observatorio cuentan instalaciones.
+ * Supervisión cuenta puestos de servicio (clientes con has_supervision).
+ * Al marcar Supervisión en un cliente, el tope de instalaciones con Supervisión
+ * es el mismo número de puestos contratados (mín. 1 puesto por instalación).
  */
 final class InstallationQuota
 {
@@ -58,9 +61,35 @@ final class InstallationQuota
         };
     }
 
+    /** Uso para barras y mensajes: Supervisión = puestos; el resto = instalaciones. */
     public function used(string $line = self::POOL, ?int $exceptInstallationId = null, ?int $exceptClientId = null): int
     {
-        return $this->query($line)
+        if ($line === self::SUPERVISION) {
+            return $this->usedPosts($exceptClientId);
+        }
+
+        return $this->usedInstallations($line, $exceptInstallationId, $exceptClientId);
+    }
+
+    public function usedPosts(?int $exceptClientId = null): int
+    {
+        return SupervisorPost::query()
+            ->withoutGlobalScopes()
+            ->whereNull('supervisor_posts.deleted_at')
+            ->where('is_active', true)
+            ->whereHas('client', function (Builder $q) use ($exceptClientId): void {
+                $q->where('security_company_id', $this->company->id)
+                    ->where('is_active', true)
+                    ->where('lifecycle', ClientLifecycle::Active)
+                    ->where('has_supervision', true)
+                    ->when($exceptClientId !== null, fn (Builder $c) => $c->whereKeyNot($exceptClientId));
+            })
+            ->count();
+    }
+
+    public function usedInstallations(string $line = self::POOL, ?int $exceptInstallationId = null, ?int $exceptClientId = null): int
+    {
+        return $this->installationsQuery($line)
             ->when($exceptInstallationId !== null, fn (Builder $q) => $q->whereKeyNot($exceptInstallationId))
             ->when($exceptClientId !== null, fn (Builder $q) => $q->where('client_id', '!=', $exceptClientId))
             ->count();
@@ -79,11 +108,27 @@ final class InstallationQuota
     /** "Cliente A 6, Cliente B 4" de las instalaciones que ocupan cupo. */
     public function breakdown(string $line = self::POOL, int $limit = 6): string
     {
-        $rows = $this->query($line)
-            ->selectRaw('client_id, COUNT(*) as total')
-            ->groupBy('client_id')
-            ->orderByDesc('total')
-            ->get();
+        if ($line === self::SUPERVISION) {
+            $rows = SupervisorPost::query()
+                ->withoutGlobalScopes()
+                ->whereNull('supervisor_posts.deleted_at')
+                ->where('is_active', true)
+                ->whereHas('client', fn (Builder $q) => $q
+                    ->where('security_company_id', $this->company->id)
+                    ->where('is_active', true)
+                    ->where('lifecycle', ClientLifecycle::Active)
+                    ->where('has_supervision', true))
+                ->selectRaw('client_id, COUNT(*) as total')
+                ->groupBy('client_id')
+                ->orderByDesc('total')
+                ->get();
+        } else {
+            $rows = $this->installationsQuery($line)
+                ->selectRaw('client_id, COUNT(*) as total')
+                ->groupBy('client_id')
+                ->orderByDesc('total')
+                ->get();
+        }
 
         $names = Client::query()->withoutGlobalScopes()->whereIn('id', $rows->pluck('client_id'))->pluck('name', 'id');
 
@@ -97,6 +142,7 @@ final class InstallationQuota
 
     /**
      * Valida que caben $count instalaciones más en la bolsa y en cada línea indicada.
+     * Supervisión: tope de instalaciones con Supervisión = puestos contratados.
      *
      * @param  list<string>  $lines
      */
@@ -108,13 +154,16 @@ final class InstallationQuota
                 continue;
             }
 
-            $used = $this->used($line, $exceptInstallationId, $exceptClientId);
+            $used = $line === self::SUPERVISION
+                ? $this->usedInstallations(self::SUPERVISION, $exceptInstallationId, $exceptClientId)
+                : $this->used($line, $exceptInstallationId, $exceptClientId);
+
             if ($used + $count <= $capacity) {
                 continue;
             }
 
             throw ValidationException::withMessages([
-                $line === self::POOL ? 'package' : self::COLUMNS[$line] => $this->fullMessage($line, $action, $used, $capacity),
+                $line === self::POOL ? 'package' : self::COLUMNS[$line] => $this->fullMessage($line, $action, $used, $capacity, installations: $line === self::SUPERVISION),
             ]);
         }
     }
@@ -137,11 +186,17 @@ final class InstallationQuota
         return self::LABELS[$line] ?? $line;
     }
 
-    private function fullMessage(string $line, string $action, int $used, int $capacity): string
+    private function fullMessage(string $line, string $action, int $used, int $capacity, bool $installations = false): string
     {
+        $unit = match (true) {
+            $line === self::POOL || $installations => 'instalaciones',
+            $line === self::SUPERVISION => 'puestos',
+            default => 'instalaciones',
+        };
+
         $what = $line === self::POOL
             ? 'Tu plan es de '.$capacity.' instalaciones y ya usas '.$used
-            : 'Tu plan de '.self::label($line).' cubre '.$capacity.' instalaciones y ya usas '.$used;
+            : 'Tu plan de '.self::label($line).' cubre '.$capacity.' '.$unit.' y ya usas '.$used;
 
         $breakdown = $this->breakdown($line);
         $detail = $breakdown !== '' ? ': '.$breakdown.'.' : '.';
@@ -153,7 +208,7 @@ final class InstallationQuota
         return $action.' '.$what.$detail.$how;
     }
 
-    private function query(string $line): Builder
+    private function installationsQuery(string $line): Builder
     {
         return Installation::query()
             ->withoutGlobalScope(ClientScope::class)

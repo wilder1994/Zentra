@@ -21,6 +21,41 @@ enum CommercialMetal: string
         };
     }
 
+    /**
+     * Paleta PDF (RGB) alineada a los chips de plan de la UI.
+     *
+     * @return array{header: array{0: int, 1: int, 2: int}, soft: array{0: int, 1: int, 2: int}, border: array{0: int, 1: int, 2: int}, ink: array{0: int, 1: int, 2: int}}
+     */
+    public function pdfColors(): array
+    {
+        return match ($this) {
+            self::Bronce => [
+                'header' => [181, 101, 42],
+                'soft' => [255, 247, 237],
+                'border' => [224, 162, 106],
+                'ink' => [120, 53, 15],
+            ],
+            self::Plata => [
+                'header' => [100, 116, 139],
+                'soft' => [248, 250, 252],
+                'border' => [185, 193, 204],
+                'ink' => [30, 41, 59],
+            ],
+            self::Oro => [
+                'header' => [184, 138, 18],
+                'soft' => [255, 251, 235],
+                'border' => [229, 192, 76],
+                'ink' => [113, 63, 18],
+            ],
+            self::Platino => [
+                'header' => [79, 156, 192],
+                'soft' => [240, 249, 255],
+                'border' => [156, 205, 227],
+                'ink' => [12, 74, 110],
+            ],
+        };
+    }
+
     public function packSize(): int
     {
         return match ($this) {

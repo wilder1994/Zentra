@@ -23,14 +23,16 @@ final class PlatformCompaniesIndexTest extends TestCase
         $response->assertOk();
         $response->assertSee('Riesgo comercial');
         $response->assertSee('Total empresas');
-        $response->assertSee('Total conjuntos');
+        $response->assertSee('Clientes');
         $response->assertSee('Suspendidas');
+        $response->assertSee('Vencidas');
         $response->assertSee('Activas');
-        $response->assertSee('Operativos');
-        $response->assertSee('Eliminadas');
+        $response->assertSee('Archivados');
         $response->assertSee('SJ Seguridad');
+        $response->assertSee('Accesos');
         $response->assertDontSee('Empresas de seguridad');
         $response->assertDontSee('Cartera por recuperar');
+        $response->assertDontSee('Total conjuntos');
     }
 
     public function test_guard_cannot_access_companies_index(): void

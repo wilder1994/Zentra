@@ -15,6 +15,10 @@ use App\Support\Supervision\SupervisionOperationalDay;
 
 final class BuildFieldSupervisionStripService
 {
+    public function __construct(
+        private readonly BuildSupervisorTrailService $trail,
+    ) {}
+
     /** @return array<string, mixed>|null */
     public function forToday(SecurityCompany $company): ?array
     {
@@ -35,17 +39,26 @@ final class BuildFieldSupervisionStripService
         $openShifts = SupervisorShift::query()
             ->where('security_company_id', $companyId)
             ->where('status', SupervisorShiftStatus::Open)
-            ->count();
+            ->with(['locations' => fn ($q) => $q->orderBy('recorded_at')])
+            ->get();
 
         $reviews = SupervisorShiftReview::query()
             ->whereHas('shift', fn ($q) => $q->where('security_company_id', $companyId))
             ->whereBetween('recorded_at', [$from, $to])
             ->count();
 
-        $km = (int) SupervisorShift::query()
+        $closedKm = (int) SupervisorShift::query()
             ->where('security_company_id', $companyId)
+            ->where('status', SupervisorShiftStatus::Closed)
             ->whereBetween('started_at', [$from, $to])
             ->sum('km_traveled');
+
+        $liveKm = 0.0;
+        foreach ($openShifts as $shift) {
+            $liveKm += (float) $this->trail->execute($shift->locations, true)['km'];
+        }
+
+        $kmToday = (int) round($closedKm + $liveKm);
 
         $recsToday = SupervisorRecommendation::query()
             ->where('security_company_id', $companyId)
@@ -61,14 +74,14 @@ final class BuildFieldSupervisionStripService
         $coverage = $contracted > 0 ? (int) round(($visited / $contracted) * 100) : null;
 
         return [
-            'open_shifts' => $openShifts,
+            'open_shifts' => $openShifts->count(),
             'reviews_today' => $reviews,
             'sites_contracted' => $contracted,
             'sites_visited' => $visited,
             'coverage_pct' => $coverage,
             'recommendations_today' => $recsToday,
             'attention_today' => $attention,
-            'km_today' => $km,
+            'km_today' => $kmToday,
             'posts_count' => count($rows),
         ];
     }

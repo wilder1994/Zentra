@@ -261,7 +261,7 @@ final class BookingModuleTest extends TestCase
 
         $door = Location::query()->withoutGlobalScopes()->where('client_id', $client->id)->where('is_active', true)->firstOrFail();
         $session = $this->porteriaSession($client, (int) $door->id);
-        $this->actingAs($guard)->withSession($session)->post(route('access.turnos.store'), ['location_id' => $door->id])->assertRedirect();
+        $this->actingAs($guard)->withSession($session)->post(route('access.turnos.store'), $this->guardShiftOpenPayload($door))->assertRedirect();
         $session[PorteriaDoorService::SESSION_KEY] = $door->id;
 
         $this->actingAs($guard)->withSession($session)
@@ -291,7 +291,7 @@ final class BookingModuleTest extends TestCase
 
         $door = Location::query()->withoutGlobalScopes()->where('client_id', $client->id)->where('is_active', true)->firstOrFail();
         $session = $this->porteriaSession($client, (int) $door->id);
-        $this->actingAs($guard)->withSession($session)->post(route('access.turnos.store'), ['location_id' => $door->id])->assertRedirect();
+        $this->actingAs($guard)->withSession($session)->post(route('access.turnos.store'), $this->guardShiftOpenPayload($door))->assertRedirect();
         $session[PorteriaDoorService::SESSION_KEY] = $door->id;
 
         $this->actingAs($guard)->withSession($session)

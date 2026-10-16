@@ -89,6 +89,8 @@ final class CompanyDashboardService
                 'revista_week' => $ops['revista_week'] ?? ['labels' => [], 'done' => [], 'expected' => [], 'pending' => []],
                 'access_by_client' => $ops['access_by_client'] ?? [],
                 'open_shifts_table' => $ops['open_shifts_table'] ?? [],
+                'personnel' => $ops['personnel'] ?? [],
+                'product_quotas' => $ops['product_quotas'] ?? [],
             ],
             'field' => $full['fieldSupervision'],
         ];

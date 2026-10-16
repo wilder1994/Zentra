@@ -3,7 +3,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <h2 class="text-2xl font-bold text-white">Bienvenido, {{ auth()->user()?->name }}</h2>
-                <p class="text-sm text-slate-400 mt-1">Panel de residente — resumen de actividad del conjunto.</p>
+                <p class="text-sm text-slate-400 mt-1">Panel de residente — resumen de actividad.</p>
             </div>
             <div class="flex gap-2">
                 <a href="{{ route('resident.pre-authorizations.create') }}" class="rounded-lg bg-teal-600 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-500">

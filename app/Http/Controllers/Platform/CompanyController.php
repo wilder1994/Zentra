@@ -16,6 +16,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Platform\ApplyAdminPlanChangeRequest;
 use App\Http\Requests\Platform\ArchiveCompanyRequest;
 use App\Http\Requests\Platform\CancelCompanyMembershipRequest;
+use App\Http\Requests\Platform\ExpandCompanyProductRequest;
 use App\Http\Requests\Platform\SchedulePackageChangeRequest;
 use App\Http\Requests\Platform\StoreCompanyFirstAdminRequest;
 use App\Http\Requests\Platform\StoreCompanyRequest;
@@ -463,6 +464,39 @@ final class CompanyController extends Controller
                     ? "Plan aplicado. El cupo rige desde el {$when}."
                     : "Plan programado. Aplica el {$when}.",
             );
+    }
+
+    public function expandProduct(ExpandCompanyProductRequest $request, SecurityCompany $company): RedirectResponse
+    {
+        $product = $request->product();
+
+        try {
+            $result = $this->applyAdminPlanChangeService->execute(
+                $company,
+                $company->billing_cycle ?? BillingCycle::Monthly,
+                $request->expandedSelection($company),
+                (string) $request->validated('apply_when'),
+                $request->filled('effective_on') ? CarbonImmutable::parse($request->validated('effective_on')) : null,
+                (float) $request->validated('agreed_amount'),
+                $product,
+                (string) $request->validated('expand_note'),
+                'quota_expansion',
+            );
+        } catch (\InvalidArgumentException $e) {
+            return redirect()
+                ->route('admin.companies.show', $company)
+                ->withInput()
+                ->with('warning', $e->getMessage());
+        }
+
+        $qty = number_format((int) $request->validated('quantity'), 0, ',', '.');
+        $when = $result['effective_at']->format('d/m/Y');
+
+        return redirect()
+            ->route('admin.companies.show', $company)
+            ->with('success', $result['applied']
+                ? "{$product->label()} ampliado en {$qty}. Rige desde el {$when}."
+                : "Ampliación de {$product->label()} (+{$qty}) programada para el {$when}.");
     }
 
     public function schedulePackageChange(

@@ -23,26 +23,30 @@ final class CompanyDashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Mi empresa');
-        $response->assertSee('Mapa de conjuntos');
+        $response->assertSee('Pulso de la empresa');
+        $response->assertSee('Mapa de cobertura');
         $response->assertSee('Cliente');
         $response->assertSee('Instalación');
-        $response->assertSee('Cartera de clientes');
+        $response->assertSee('Plan y cupos');
         $response->assertSee('Plan activo');
-        $response->assertSee('Activos');
+        $response->assertSee('Clientes activos');
         $response->assertSee('Archivados');
-        $response->assertSee('Disponibles Accesos');
-        $response->assertSee('Disponibles Supervisión');
+        $response->assertSee('Personal y cumplimiento');
+        $response->assertSee('Parafiscales');
+        $response->assertSee('Expediente documental');
         $response->assertSee('Resumen de alertas y registros (hoy)');
+        $response->assertDontSee('Cartera de clientes');
         $response->assertSee('Novedades');
         $response->assertSee('Correspondencia');
         $response->assertSee('Pánico');
         $response->assertSee('Bloqueos');
-        $response->assertSee('Fuerza laboral actual');
-        $response->assertSee('Accesos por conjunto (hoy)');
+        $response->assertSee('Accesos por cliente (hoy)');
         $response->assertSee('Turnos abiertos');
         $response->assertSee('Revistas mensuales');
         $response->assertSee('Revistas de supervisión (7 días)');
         $response->assertSee('Supervisión de campo (hoy)');
+        $response->assertDontSee('Mapa de conjuntos');
+        $response->assertDontSee('Accesos por conjunto');
         $response->assertDontSee('Cumplimiento por conjunto');
         $response->assertDontSee('Próximamente');
     }
@@ -59,7 +63,7 @@ final class CompanyDashboardTest extends TestCase
             ->assertOk()
             ->assertJsonStructure([
                 'metrics' => ['access_remaining', 'package_label'],
-                'ops' => ['kpis', 'workforce', 'portfolio', 'open_shifts_table', 'revista_monthly', 'revista_week'],
+                'ops' => ['kpis', 'workforce', 'portfolio', 'open_shifts_table', 'revista_monthly', 'revista_week', 'personnel'],
             ]);
 
         $this->actingAs($admin)

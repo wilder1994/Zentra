@@ -37,12 +37,12 @@ final class EnterPorteriaService
         if ($clients->count() === 1) {
             return redirect()
                 ->route('company.clients.show', $clients->first())
-                ->with('success', 'Abre «Operar portería» desde el expediente del conjunto.');
+                ->with('success', 'Abre «Operar portería» desde el expediente del cliente.');
         }
 
         return redirect()
             ->route('company.clients.index')
-            ->with('success', 'Elige un conjunto y usa «Operar portería» en su expediente.');
+            ->with('success', 'Elige un cliente y usa «Operar portería» en su expediente.');
     }
 
     private function emptyClientsRedirect(User $user): RedirectResponse
@@ -50,11 +50,11 @@ final class EnterPorteriaService
         if ($user->hasRole('super-admin')) {
             return redirect()
                 ->route('admin.dashboard')
-                ->with('warning', 'No hay conjuntos activos para operar portería.');
+                ->with('warning', 'No hay clientes activos para operar portería.');
         }
 
         return redirect()
             ->route('company.clients.index')
-            ->with('warning', 'No hay conjuntos activos para operar. Crea o activa un conjunto en cartera.');
+            ->with('warning', 'No hay clientes activos para operar. Crea o activa un cliente en cartera.');
     }
 }

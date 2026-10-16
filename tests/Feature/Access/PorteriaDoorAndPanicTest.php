@@ -60,18 +60,18 @@ final class PorteriaDoorAndPanicTest extends TestCase
             ->from(route('access.turnos.open'))
             ->post(route('access.turnos.store'), [])
             ->assertRedirect(route('access.turnos.open'))
-            ->assertSessionHasErrors('location_id');
+            ->assertSessionHasErrors(['location_id', 'shift_template_id']);
 
+        $payload = $this->guardShiftOpenPayload($door);
         $this->actingAs($vigilante)
             ->withSession($this->tenancy($client))
-            ->post(route('access.turnos.store'), [
-                'location_id' => $door->id,
-            ])
-            ->assertRedirect(route('access.turnos.index'));
+            ->post(route('access.turnos.store'), $payload)
+            ->assertRedirect(route('access.dashboard'));
 
         $this->assertDatabaseHas('guard_shifts', [
             'user_id' => $vigilante->id,
             'location_id' => $door->id,
+            'shift_template_id' => $payload['shift_template_id'],
             'ended_at' => null,
         ]);
 
@@ -116,15 +116,13 @@ final class PorteriaDoorAndPanicTest extends TestCase
             ->withSession($this->tenancy($client))
             ->get(route('access.turnos.open'))
             ->assertOk()
-            ->assertSee('Hay una sola puerta')
+            ->assertSee('Iniciar turno')
             ->assertSee($door->name);
 
         $this->actingAs($vigilante)
             ->withSession($this->tenancy($client))
-            ->post(route('access.turnos.store'), [
-                'location_id' => $door->id,
-            ])
-            ->assertRedirect(route('access.turnos.index'));
+            ->post(route('access.turnos.store'), $this->guardShiftOpenPayload($door))
+            ->assertRedirect(route('access.dashboard'));
     }
 
     /** @return array{0: User, 1: Client} */

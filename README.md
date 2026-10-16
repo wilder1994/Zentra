@@ -20,7 +20,7 @@ Plataforma SaaS B2B de **control de accesos y vigilancia** para empresas de segu
 | **2** | Operación portería (MVP) — Hub operaciones, lista bloqueo, salida masiva | ✅ Implementada |
 | **3** | BI + vigilancia — Reportes mejorados con exportación | ✅ Implementada |
 | **4** | API REST (Sanctum) + Portal Residente web | ✅ Implementada |
-| **Comercial** | Planes Bronce/Plata/Oro/Platino por cantidad + facturación mensual/anual | ✅ Implementada |
+| **Comercial** | Planes Bronce/Plata/Oro/Platino por cantidad + facturación mensual/anual; hub súper admin `/admin/comercial` (propuesta PDF, cotización PDF, presentación PPTX 11 slides) | ✅ Implementada |
 | **UI Empresa** | Design system `x-ui.*`, Command Center, header tabs colgantes, toasts flash | ✅ Implementada (v4) |
 | **Ops empresa** | Turnos (`guard_shifts`), revistas (`supervisor_reviews`), KPIs pánico/bloqueo/revista | ✅ Implementada (v1) |
 | **Ops portería+** | Minuta supervisión + evidencias, turnos, zonas comunes, auditoría, reportes imprimibles | ✅ Implementada (v1) |
@@ -38,7 +38,7 @@ Plataforma SaaS B2B de **control de accesos y vigilancia** para empresas de segu
 | **Supervisión campo** | PWA captura (8 módulos, rito de turno, catálogos). Mapa En vivo/Historial, cierre automático, cola offline por usuario. Fuente de verdad: Zentra | ✅ Implementada |
 | **Árbol del cliente** | Una tarjeta **Instalaciones y puestos**; otra **Puertas** (solo Accesos). Modalidad + vigilantes en el puesto | ✅ Implementada |
 
-Documentación detallada: [`docs/INFORME-VISION-PRODUCTO-W-CODEX.md`](docs/INFORME-VISION-PRODUCTO-W-CODEX.md) · [`docs/PLAN-INICIO-PROYECTO-ZENTRA.md`](docs/PLAN-INICIO-PROYECTO-ZENTRA.md) · [`docs/REFERENCIA-PLATAFORMA-CONTROL-ACCESOS.md`](docs/REFERENCIA-PLATAFORMA-CONTROL-ACCESOS.md) · [`docs/MODELO-COMERCIAL-PAQUETES.md`](docs/MODELO-COMERCIAL-PAQUETES.md) · [**Paquetes Accesos y Supervisión**](docs/PAQUETES-ACCESOS-Y-SUPERVISION.md) · [**Supervisión de campo**](docs/SUPERVISION-CAMPO.md) · [**Portería**](docs/PORTERIA.md) · [**Observatorio**](docs/OBSERVATORIO.md) · [**Landing y contratación**](docs/LANDING-Y-CONTRATACION.md) · [**Usuarios y perfiles**](docs/USUARIOS-Y-PERFILES.md) · [**Empleados y cargos**](docs/EMPLEADOS-Y-CARGOS.md) · [**Clientes y estructura**](docs/CLIENTES-Y-ESTRUCTURA.md) · [**Billing local**](docs/BILLING-LOCAL-Y-MIGRACION.md) · [**Diseño UI**](docs/DISENO-UI-ZENTRA.md) · [**Panel Plataforma**](docs/PLATAFORMA-ADMIN.md) · [**Módulo Documentos**](docs/MODULO-DOCUMENTOS.md) (v1.1 normoteca por SKU + inmutabilidad; fases futuras §12) · [**Hosting VPS**](docs/HOSTING-VPS.md)
+Documentación detallada: [`docs/INFORME-VISION-PRODUCTO-W-CODEX.md`](docs/INFORME-VISION-PRODUCTO-W-CODEX.md) · [`docs/PLAN-INICIO-PROYECTO-ZENTRA.md`](docs/PLAN-INICIO-PROYECTO-ZENTRA.md) · [`docs/REFERENCIA-PLATAFORMA-CONTROL-ACCESOS.md`](docs/REFERENCIA-PLATAFORMA-CONTROL-ACCESOS.md) · [`docs/MODELO-COMERCIAL-PAQUETES.md`](docs/MODELO-COMERCIAL-PAQUETES.md) · [**Documentos comerciales (PDF/PPTX)**](docs/COMERCIAL-DOCUMENTOS.md) · [**Paquetes Accesos y Supervisión**](docs/PAQUETES-ACCESOS-Y-SUPERVISION.md) · [**Supervisión de campo**](docs/SUPERVISION-CAMPO.md) · [**Portería**](docs/PORTERIA.md) · [**Observatorio**](docs/OBSERVATORIO.md) · [**Landing y contratación**](docs/LANDING-Y-CONTRATACION.md) · [**Usuarios y perfiles**](docs/USUARIOS-Y-PERFILES.md) · [**Empleados y cargos**](docs/EMPLEADOS-Y-CARGOS.md) · [**Clientes y estructura**](docs/CLIENTES-Y-ESTRUCTURA.md) · [**Billing local**](docs/BILLING-LOCAL-Y-MIGRACION.md) · [**Diseño UI**](docs/DISENO-UI-ZENTRA.md) · [**Panel Plataforma**](docs/PLATAFORMA-ADMIN.md) · [**Módulo Documentos**](docs/MODULO-DOCUMENTOS.md) (v1.1 normoteca por SKU + inmutabilidad; fases futuras §12) · [**Hosting VPS**](docs/HOSTING-VPS.md) · [**Pendientes**](docs/PENDIENTES.md)
 
 ---
 
@@ -46,7 +46,7 @@ Documentación detallada: [`docs/INFORME-VISION-PRODUCTO-W-CODEX.md`](docs/INFOR
 
 | Panel | Prefijo | Rol(es) | Descripción |
 |-------|---------|---------|-------------|
-| **Plataforma** | `/admin` | `super-admin` | Dashboard, **Descargas**, precios, empresas, documentos, **Ajustes** (tipos de documento) |
+| **Plataforma** | `/admin` | `super-admin` | Dashboard, **Comercial** (propuesta/cotización PDF + PPTX), **Descargas**, precios, empresas, documentos, **Ajustes** (tipos de documento) |
 | **Empresa** | `/company` | `company-admin` | Command Center (**Mi empresa**), cartera, **Empleados**, **Documentos**, **Mis datos**, **Ajustes** (cargos/tipos + zonas/turnos/preoperacional), usuarios, billing, **Observatorio**, Supervisión, **Descargas** |
 | **Cliente** | `/client` | `client-admin`, `client-installation-admin` | Censo: nodos (`structures`, tipo heredado del cliente), personas, vehículos, mascotas, autorizaciones. **Observatorio**. Admin instalaciones: solo sus instalaciones (cierran estados, unen folios, sacan reportes); Ajustes solo ver |
 | **Portería** | `/access` | `guardia` (Vigilante), `supervisor` (Supervisor de vigilancia), `client-admin` | Ops diarias + **accesos** (puertas de una instalación del cliente) |
@@ -324,6 +324,10 @@ Documentación completa: [`docs/PLATAFORMA-ADMIN.md`](docs/PLATAFORMA-ADMIN.md)
 | Ruta | Función |
 |------|---------|
 | `GET /admin/dashboard` | Dashboard analítico: mapa, KPIs, cartera, paquetes, TOP facturación, tendencia MRR |
+| `GET /admin/comercial` | Hub comercial: propuesta PDF, cotización PDF, presentación PPTX ([`docs/COMERCIAL-DOCUMENTOS.md`](docs/COMERCIAL-DOCUMENTOS.md)) |
+| `GET/POST /admin/comercial/propuesta…` | Formulario + descarga PDF propuesta (catálogo Bronce–Platino) |
+| `GET/POST /admin/comercial/cotizacion…` | Formulario + descarga PDF cotización (plan personalizado + total pactado) |
+| `GET/POST /admin/comercial/presentacion…` | Formulario + descarga PPTX 16:9 (11 diapositivas, capturas panel empresa) |
 | `GET /admin/descargas` | **Descargas**: APK de Supervisión + web de respaldo |
 | `GET /admin/companies` | Listado empresas + KPIs (riesgo, totales empresas/conjuntos) |
 | `GET/POST /admin/companies/create` | Alta empresa (datos fiscales, paquete, ubicación geo) |

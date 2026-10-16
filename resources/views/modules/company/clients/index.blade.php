@@ -95,7 +95,7 @@
         @endif
 
         <div class="flex items-center justify-between gap-2">
-            <h3 class="text-sm font-semibold text-white">{{ $operateMode ? 'Conjuntos disponibles' : 'Cartera' }}</h3>
+            <h3 class="text-sm font-semibold text-white">{{ $operateMode ? 'Clientes disponibles' : 'Cartera' }}</h3>
             @if (! $operateMode && $metrics)
                 <a href="{{ route('company.dashboard') }}" class="text-xs text-indigo-400 hover:text-indigo-300">
                     Ir a Mi empresa

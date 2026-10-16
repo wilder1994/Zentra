@@ -2,7 +2,7 @@
 
 Documentación del panel `/admin`: dashboard operativo, ciclo comercial, archivo de cartera y retención legal de datos.
 
-**Última actualización:** 24 septiembre 2026
+**Última actualización:** 15 octubre 2026
 
 ---
 
@@ -14,6 +14,8 @@ Documentación del panel `/admin`: dashboard operativo, ciclo comercial, archivo
 
 Layout: `resources/views/layouts/admin.blade.php` (acento **violet**).  
 Shell: altura de viewport fija (`h-screen`); nav del sidebar con scroll interno; pie (nombre + Cerrar sesión) anclado abajo; flecha a media altura para ocultar/mostrar el menú.  
+Nav: Dashboard, Empresas, **Comercial**, Precios, Documentos, Descargas, Ajustes.  
+**Comercial** (`/admin/comercial`): propuesta PDF, cotización PDF y presentación PPTX — [`COMERCIAL-DOCUMENTOS.md`](COMERCIAL-DOCUMENTOS.md).  
 Módulo Documentos (definición + v1 implementado; fases futuras §12): [`MODULO-DOCUMENTOS.md`](MODULO-DOCUMENTOS.md).  
 Guía visual: [`DISENO-UI-ZENTRA.md`](DISENO-UI-ZENTRA.md) §13.
 

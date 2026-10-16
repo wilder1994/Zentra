@@ -13,12 +13,16 @@ export const PRODUCTS = [
     { key: 'observatory', label: 'Observatorio' },
 ];
 
-/** Indexación se cobra por empleado; los demás por instalación. */
+/** Indexación se cobra por empleado; Supervisión por puesto; el resto por instalación. */
 export const countsEmployees = (product) => product === 'indexing';
+export const countsPosts = (product) => product === 'supervision';
 
 export function unitLabel(product, n) {
     if (countsEmployees(product)) {
         return Number(n) === 1 ? 'empleado' : 'empleados';
+    }
+    if (countsPosts(product)) {
+        return Number(n) === 1 ? 'puesto' : 'puestos';
     }
 
     return Number(n) === 1 ? 'instalación' : 'instalaciones';

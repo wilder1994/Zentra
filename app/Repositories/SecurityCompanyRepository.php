@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Repositories;
 
 use App\Enums\ClientLifecycle;
+use App\Enums\CompanyAlertBucket;
 use App\Enums\SubscriptionStatus;
 use App\Models\Client;
 use App\Models\SecurityCompany;
 use App\Models\User;
+use App\Support\Tenancy\CompanySubscriptionState;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -48,7 +50,11 @@ final class SecurityCompanyRepository
             ->whereNull('archived_at')
             ->where('subscription_status', SubscriptionStatus::Suspended)
             ->count();
-        $companiesDeleted = SecurityCompany::onlyTrashed()->count();
+        $companiesOverdue = SecurityCompany::query()
+            ->whereNull('archived_at')
+            ->get()
+            ->filter(fn (SecurityCompany $c) => CompanySubscriptionState::bucket($c) === CompanyAlertBucket::Overdue)
+            ->count();
         $companiesActive = SecurityCompany::query()
             ->whereNull('archived_at')
             ->where('is_active', true)
@@ -64,8 +70,8 @@ final class SecurityCompanyRepository
             'companies_active' => $companiesActive,
             'companies_archived' => $companiesArchived,
             'companies_suspended' => $companiesSuspended,
-            'companies_deleted' => $companiesDeleted,
-            'companies_risk_total' => $companiesSuspended + $companiesArchived + $companiesDeleted,
+            'companies_overdue' => $companiesOverdue,
+            'companies_risk_total' => $companiesSuspended + $companiesOverdue,
             'clients_total' => $clientsTotal,
             'clients_operational' => $clientsOperational,
             'clients_archived' => $clientsTotal - $clientsOperational,
@@ -88,6 +94,7 @@ final class SecurityCompanyRepository
             ->withCount('clients')
             ->withCount([
                 'clients as operational_clients_count' => fn ($q) => $q->where('lifecycle', ClientLifecycle::Active),
+                'employees as employees_active_count' => fn ($q) => $q->where('is_active', true),
             ])
             ->orderBy('trade_name')
             ->paginate($perPage);

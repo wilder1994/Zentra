@@ -547,7 +547,7 @@ final class RegisterPorteriaMovementService
     {
         $block = $this->blocklist->checkPerson(documentNumber: $documentNumber);
         if ($block !== null) {
-            throw ValidationException::withMessages(['q' => 'Ingreso bloqueado: '.$block->reason]);
+            throw ValidationException::withMessages(['q' => 'Ingreso bloqueado — esta persona no puede ingresar.']);
         }
     }
 
@@ -555,7 +555,7 @@ final class RegisterPorteriaMovementService
     {
         $block = $this->blocklist->checkPerson(visitor: $visitor);
         if ($block !== null) {
-            throw ValidationException::withMessages(['q' => 'Ingreso bloqueado: '.$block->reason]);
+            throw ValidationException::withMessages(['q' => 'Ingreso bloqueado — esta persona no puede ingresar.']);
         }
     }
 
@@ -563,7 +563,7 @@ final class RegisterPorteriaMovementService
     {
         $block = $this->blocklist->checkVehicle(vehicle: $vehicle);
         if ($block !== null) {
-            throw ValidationException::withMessages(['plate' => 'Vehículo bloqueado: '.$block->reason]);
+            throw ValidationException::withMessages(['plate' => 'Ingreso bloqueado — este vehículo no puede ingresar.']);
         }
     }
 }

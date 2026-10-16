@@ -21,7 +21,7 @@
                 <label class="block text-sm font-medium text-slate-300">Buscar documento, nombre o placa</label>
                 <input type="search" x-model="q" @input.debounce.400ms="lookup()" placeholder="Cédula, nombre o placa"
                        class="w-full rounded-lg bg-slate-950 border-slate-700 text-white">
-                <p class="text-xs text-slate-500" x-show="blocked" x-text="blockReason"></p>
+                <p class="text-xs text-red-400 font-semibold" x-show="blocked" x-text="blockReason || 'No puede ingresar.'"></p>
                 <div class="space-y-1" x-show="results.length">
                     <template x-for="row in results" :key="row.kind + '-' + row.id">
                         <button type="button" @click="pick(row)" class="w-full text-left px-3 py-2 rounded-lg bg-slate-800 hover:bg-indigo-900/40 text-sm">
@@ -167,7 +167,7 @@ function porteriaEntry() {
         pick(row) {
             if (row.blocked) {
                 this.blocked = true;
-                this.blockReason = 'Bloqueado: ' + (row.block_reason || '');
+                this.blockReason = row.block_message || 'No puede ingresar.';
                 return;
             }
             this.blocked = false;

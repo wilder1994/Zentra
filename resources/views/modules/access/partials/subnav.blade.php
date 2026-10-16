@@ -51,7 +51,7 @@
                 </div>
                 <div>
                     <p class="text-sm font-semibold text-white group-hover:text-teal-300">Residentes</p>
-                    <p class="text-xs text-slate-500">Personas que viven en el conjunto</p>
+                    <p class="text-xs text-slate-500">Personas que viven en la instalación</p>
                 </div>
             </div>
         </a>
@@ -65,7 +65,7 @@
                 </div>
                 <div>
                     <p class="text-sm font-semibold text-white group-hover:text-orange-300">Apartamentos</p>
-                    <p class="text-xs text-slate-500">Unidades de vivienda del conjunto</p>
+                    <p class="text-xs text-slate-500">Unidades de vivienda de la instalación</p>
                 </div>
             </div>
         </a>
@@ -79,7 +79,7 @@
                 </div>
                 <div>
                     <p class="text-sm font-semibold text-white group-hover:text-slate-300">Torres/Bloques</p>
-                    <p class="text-xs text-slate-500">Edificios del conjunto residencial</p>
+                    <p class="text-xs text-slate-500">Edificios de la instalación residencial</p>
                 </div>
             </div>
         </a>
@@ -163,7 +163,7 @@
                 </div>
                 <div>
                     <p class="text-sm font-semibold text-white group-hover:text-sky-300">Puntos de acceso</p>
-                    <p class="text-xs text-slate-500">Puertas y porterías del conjunto</p>
+                    <p class="text-xs text-slate-500">Puertas y porterías de la instalación</p>
                 </div>
             </div>
         </a>

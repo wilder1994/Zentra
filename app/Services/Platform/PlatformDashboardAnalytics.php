@@ -311,7 +311,7 @@ final class PlatformDashboardAnalytics
                     'lng' => $coords['lng'],
                     'title' => $company->trade_name,
                     'subtitle' => sprintf(
-                        '%d conjuntos · %s',
+                        '%d clientes · %s',
                         $company->clients->where('lifecycle', ClientLifecycle::Active)->count(),
                         $bucket->label()
                     ),

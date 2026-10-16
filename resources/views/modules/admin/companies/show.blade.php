@@ -8,7 +8,8 @@
     $perCycle = $company->billing_cycle?->value === 'annual' ? '/ año' : '/ mes';
     $q = $quotaOverview;
     $installPct = (int) $q['capacity'] > 0 ? (int) min(100, round($q['used'] / $q['capacity'] * 100)) : 0;
-    $planErrors = $errors->hasAny(['manual_seats', 'hardware_seats', 'supervision_seats', 'indexing_seats', 'observatory_seats', 'billing_cycle', 'apply_when', 'effective_on']);
+    $expandContext = old('action_context') === 'expand';
+    $planErrors = ! $expandContext && $errors->hasAny(['manual_seats', 'hardware_seats', 'supervision_seats', 'indexing_seats', 'observatory_seats', 'billing_cycle', 'apply_when', 'effective_on']);
 
     $alerts = [];
     if ($company->archived_at !== null) {
@@ -71,10 +72,9 @@
             cutOpen: false,
             reactivateServiceOpen: false,
             planOpen: {{ $planErrors ? 'true' : 'false' }},
-            quotaOpen: {{ $errors->hasAny(['extra_employees', 'posts_per_installation', 'employees_per_post', 'quota_note', 'max_posts', 'max_employees']) ? 'true' : 'false' }},
+            quotaOpen: {{ ($expandContext && $errors->any()) || $errors->hasAny(['extra_employees', 'posts_per_installation', 'employees_per_post', 'quota_note', 'max_posts', 'max_employees', 'product', 'quantity', 'agreed_amount', 'expand_note']) ? 'true' : 'false' }},
             lockOpen: {{ $errors->hasAny(['price_locked_until', 'price_lock_note']) ? 'true' : 'false' }},
             menuOpen: false,
-            applyWhen: @js(old('apply_when', 'now')),
         }"
     >
         @if ($alerts !== [])
@@ -140,11 +140,6 @@
                             @endif
                         </p>
                     </div>
-                    @if ($company->isPriceLocked())
-                        <span class="ui-chip ui-chip-success" title="{{ $company->price_lock_note }}">
-                            Precio pactado{{ $company->price_locked_until ? ' · hasta '.$company->price_locked_until->format('d/m/Y') : '' }}
-                        </span>
-                    @endif
                 </div>
 
                 <table class="min-w-full text-sm">
@@ -191,8 +186,6 @@
                     <div class="flex flex-wrap items-center gap-2">
                         <x-ui.button type="button" size="sm" @click="planOpen = true">Cambiar plan</x-ui.button>
                         <x-ui.button type="button" variant="secondary" size="sm" @click="payOpen = true">Pagar factura</x-ui.button>
-                        <x-ui.button type="button" variant="secondary" size="sm" @click="lockOpen = true">Precio pactado</x-ui.button>
-
                         <div class="relative ml-auto" @click.outside="menuOpen = false">
                             <x-ui.button type="button" variant="secondary" size="sm" @click="menuOpen = ! menuOpen" x-bind:aria-expanded="menuOpen">
                                 Más acciones

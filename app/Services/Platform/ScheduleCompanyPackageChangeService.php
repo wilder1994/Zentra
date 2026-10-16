@@ -7,6 +7,7 @@ namespace App\Services\Platform;
 use App\Domain\Pricing\Data\AccessSeatSplit;
 use App\Domain\Pricing\Data\PlanSelection;
 use App\Enums\BillingCycle;
+use App\Enums\CommercialProduct;
 use App\Enums\CompanyPackageSku;
 use App\Enums\EvidenceEventType;
 use App\Enums\ManualPaymentIntent;
@@ -14,6 +15,7 @@ use App\Enums\SupervisionPackageSku;
 use App\Models\CommercialPayment;
 use App\Models\SecurityCompany;
 use App\Models\User;
+use App\Services\Pricing\CompanyAgreedAmount;
 use App\Services\Pricing\CompanyPriceHistory;
 use App\Services\Pricing\PlanQuoter;
 use App\Services\Tenant\AssignCompanyPackageService;
@@ -31,6 +33,7 @@ final class ScheduleCompanyPackageChangeService
         private readonly AssignCompanyPackageService $assignCompanyPackageService,
         private readonly AssignCompanySupervisionPackageService $assignCompanySupervisionPackageService,
         private readonly CompanyPriceHistory $priceHistory,
+        private readonly CompanyAgreedAmount $agreedAmount,
     ) {}
 
     public function scheduleWithManualPayment(
@@ -180,9 +183,12 @@ final class ScheduleCompanyPackageChangeService
         $scheduledSup = $company->scheduled_supervision_package_sku;
         $indexing = $company->scheduled_indexing_seats;
         $observatory = $company->scheduled_observatory_seats;
+        $agreed = $company->scheduled_amount !== null ? (float) $company->scheduled_amount : null;
+        $agreedProduct = CommercialProduct::tryFrom((string) $company->scheduled_amount_product);
+        $agreedNote = $company->scheduled_amount_note;
         $before = $this->priceHistory->snapshot($company);
 
-        return DB::transaction(function () use ($company, $sku, $cycle, $startsAt, $seats, $scheduledSup, $hasAccessChange, $indexing, $observatory, $before) {
+        return DB::transaction(function () use ($company, $sku, $cycle, $startsAt, $seats, $scheduledSup, $hasAccessChange, $indexing, $observatory, $before, $agreed, $agreedProduct, $agreedNote) {
             if ($scheduledSup !== null) {
                 $supSku = $scheduledSup === 'none' ? null : SupervisionPackageSku::tryFrom($scheduledSup);
                 $company = $this->assignCompanySupervisionPackageService->execute($company, $supSku);
@@ -210,9 +216,16 @@ final class ScheduleCompanyPackageChangeService
                 'scheduled_billing_cycle' => null,
                 'scheduled_change_at' => null,
                 'scheduled_change_payment_id' => null,
+                'scheduled_amount' => null,
+                'scheduled_amount_product' => null,
+                'scheduled_amount_note' => null,
             ]);
 
-            $this->priceHistory->record($company, $before, 'plan_change', null, null, $startsAt);
+            if ($agreed !== null) {
+                $company = $this->agreedAmount->apply($company, $agreed, $agreedProduct, $agreedNote);
+            }
+
+            $this->priceHistory->record($company, $before, $agreed !== null ? 'quota_expansion' : 'plan_change', null, $agreedNote, $startsAt);
 
             $this->evidenceService->record(
                 EvidenceEventType::PackageChangeApplied,

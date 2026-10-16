@@ -11,7 +11,7 @@ use App\Models\SecurityCompany;
 use InvalidArgumentException;
 
 /**
- * Cantidad contratada por producto: instalaciones (Accesos, Supervisión, Observatorio) o empleados (Indexación).
+ * Cantidad contratada por producto: instalaciones (Accesos, Observatorio), puestos (Supervisión) o empleados (Indexación).
  * Cada producto se cotiza con el plan (metal) de su cantidad.
  */
 final readonly class PlanSelection
@@ -77,7 +77,7 @@ final readonly class PlanSelection
         return $this->supervision > 0 ? SupervisionPackageSku::fromSize($this->supervision) : null;
     }
 
-    /** Mayor cantidad entre productos por instalación: tamaño del cupo compartido. Indexación cuenta empleados. */
+    /** Mayor cantidad entre Accesos, Supervisión (puestos) y Observatorio: tamaño del cupo compartido de instalaciones. */
     public function capacity(): int
     {
         return max($this->access->size(), $this->supervision, $this->observatory);
@@ -141,7 +141,7 @@ final readonly class PlanSelection
             $seats = $this->seats($product);
             if ($seats > 0) {
                 $parts[] = $product->label().($custom ? ' '.$this->metal($product)?->label() : '').' '.number_format($seats, 0, ',', '.')
-                    .($product->countsEmployees() ? ' '.$product->unitLabel($seats) : '');
+                    .(($product->countsEmployees() || $product->countsPosts()) ? ' '.$product->unitLabel($seats) : '');
             }
         }
 

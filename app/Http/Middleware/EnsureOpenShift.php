@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Middleware;
 
 use App\Services\Access\TurnoService;
@@ -27,9 +29,27 @@ class EnsureOpenShift
             return $next($request);
         }
 
+        if ($request->routeIs(
+            'access.turnos.open',
+            'access.turnos.store',
+            'access.turnos.index',
+            'access.turnos.close',
+            'access.ops.alerts',
+            'access.ops.panic',
+            'logout',
+        )) {
+            return $next($request);
+        }
+
         if (! $this->turnoService->hasOpenShiftFor($user)) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Debes iniciar tu turno antes de operar en la portería.',
+                ], 422);
+            }
+
             return redirect()->route('access.turnos.open')
-                ->with('error', 'Debes abrir tu turno antes de operar en la portería.');
+                ->with('error', 'Debes iniciar tu turno antes de operar en la portería.');
         }
 
         return $next($request);

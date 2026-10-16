@@ -271,7 +271,7 @@ final class AuthorizationModuleTest extends TestCase
         $session = $this->porteriaSession($client, (int) $door->id);
 
         $this->actingAs($guard)->withSession($session)
-            ->post(route('access.turnos.store'), ['location_id' => $door->id])
+            ->post(route('access.turnos.store'), $this->guardShiftOpenPayload($door))
             ->assertRedirect();
         $session[PorteriaDoorService::SESSION_KEY] = $door->id;
 

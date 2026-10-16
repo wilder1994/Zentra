@@ -1,6 +1,10 @@
 # Hosting VPS (Zentra)
 
-**Última actualización:** 14 octubre 2026
+**Última actualización:** 15 octubre 2026
+
+Disco (15 oct 2026): 13 GB de 96 GB. Se borró `/root/zentra-migracion` (respaldo de `controla`, 1,8 GB). Lo grande: sistema ~4,8 GB, swap 2 GB, `storage/app` 1,8 GB (1,6 GB son recortes de planilla PILA por empleado, ver `EMPLEADOS-Y-CARGOS.md`), respaldos CloudPanel 3 × 475 MB, MySQL 1,3 GB (BD 124 MB + redo 1,1 GB fijo).
+
+Comercial Super Admin (15 oct 2026): hub `/admin/comercial` — propuesta PDF, cotización PDF (plan personalizado + total pactado) y presentación PPTX 16:9 (11 diapositivas, paleta clara, capturas panel empresa con stitch de scroll en Supervisión/Observatorio). Capturas en `resources/images/commercial/deck/`. Migrates del mismo corte: `2026_10_15_*` (blocklist ids, plantilla turno guarda), `2026_10_18_*` (`scheduled_amount*`, sync cupos Supervisión por puesto). Pull + `composer install` + `migrate --force` + `npm ci && npm run build` + caches. Sin seeder nuevo (permiso `platform.companies.view`). Comprobar enlace `public/images` → `../resources/images` si falta. Detalle: [`COMERCIAL-DOCUMENTOS.md`](COMERCIAL-DOCUMENTOS.md).
 
 Georreferencia de instalaciones (14 oct 2026): migrate `2026_10_17_110000` (tabla `installation_geo_requests` + permiso `company.geo.approve`, lo crea la migración). El supervisor envía desde la app (turno abierto, GPS ±30 m, solo con red); la empresa aprueba en Supervisión → Georreferenciaciones. PWA `zentra-sup-v53`. APK v2.1. Pull + `migrate --force` + `npm run build` + caches. Sin seeder.
 

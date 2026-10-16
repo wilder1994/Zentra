@@ -46,6 +46,7 @@ class CompanyPriceChange extends Model
         return match ($this->reason) {
             'signup' => 'Alta',
             'plan_change' => 'Cambio de plan',
+            'quota_expansion' => 'Ampliación de cupo',
             'catalog' => 'Cambio de catálogo',
             'annual_increase' => 'Incremento anual',
             'plans_migration' => 'Migración a planes',

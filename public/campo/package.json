@@ -1,0 +1,15 @@
+{
+    "name": "zentra-supervision",
+    "private": true,
+    "description": "App de campo Zentra (PWA + APK Android)",
+    "scripts": {
+        "www": "node scripts/copy-www.js",
+        "sync": "node scripts/copy-www.js && cap sync android",
+        "apk": "cd android && gradlew.bat assembleDebug"
+    },
+    "dependencies": {
+        "@capacitor/android": "^8.5.2",
+        "@capacitor/cli": "^8.5.2",
+        "@capacitor/core": "^8.5.2"
+    }
+}

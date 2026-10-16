@@ -1,0 +1,9 @@
+---
+alwaysApply: true
+---
+
+# Pendientes
+
+- Todo lo definido con el usuario y **no implementado** va a `docs/PENDIENTES.md` (sección «Abiertos»), con fecha, archivos y lo que falta confirmar.
+- Al implementar uno, moverlo a «Hecho» con fecha y commit.
+- Cuando el usuario pregunte «qué tenemos pendiente», responder desde `docs/PENDIENTES.md`.

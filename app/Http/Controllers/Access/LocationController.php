@@ -36,7 +36,7 @@ final class LocationController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $clientId = $this->tenantContext->clientId();
-        abort_if($clientId === null, 422, 'Seleccione un cliente/conjunto activo.');
+        abort_if($clientId === null, 422, 'Seleccione un cliente activo.');
 
         $validated = $request->validate([
             'installation_id' => [

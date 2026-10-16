@@ -41,7 +41,25 @@ final class PostQuota
             ]);
         }
 
-        $limit = self::postsLimit($installation);
+        $company = self::companyOf($installation->client_id);
+        $client = $installation->client()->withoutGlobalScopes()->first();
+        if ($client && $client->has_supervision && $company->hasSupervisionPackage() && ! $company->hasUnlimitedSupervision()) {
+            $cap = CompanyEntitlements::for($company)->supervisionSeats();
+            $usedCompany = InstallationQuota::for($company)->usedPosts();
+            if ($exceptPostId !== null) {
+                $except = SupervisorPost::query()->withoutGlobalScopes()->find($exceptPostId);
+                if ($except && $except->is_active) {
+                    $usedCompany = max(0, $usedCompany - 1);
+                }
+            }
+            if ($usedCompany >= $cap) {
+                throw ValidationException::withMessages([
+                    'installation_id' => $action.' el plan de Supervisión cubre '.$cap.' puestos y ya usas '.$usedCompany.'. Archiva un puesto o amplía Supervisión en Facturación.',
+                ]);
+            }
+        }
+
+        $limit = self::postsLimit($installation, $company);
         if ($limit <= 0) {
             return;
         }

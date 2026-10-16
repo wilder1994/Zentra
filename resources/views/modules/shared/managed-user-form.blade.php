@@ -102,8 +102,8 @@
     @if (isset($clients) && $clients->isNotEmpty())
         <div id="client-assignment-block" class="{{ $requiresClients ? '' : 'hidden' }}">
             <x-ui.label id="client-assignment-label">
-                <span data-single class="{{ $singleClient ? '' : 'hidden' }}">Conjunto asignado (vigilante)</span>
-                <span data-multi class="{{ $singleClient ? 'hidden' : '' }}">Conjuntos asignados</span>
+                <span data-single class="{{ $singleClient ? '' : 'hidden' }}">Cliente asignado (vigilante)</span>
+                <span data-multi class="{{ $singleClient ? 'hidden' : '' }}">Clientes asignados</span>
             </x-ui.label>
             <div class="mt-2 space-y-2 rounded-lg border border-slate-800 bg-slate-950/50 p-3 max-h-48 overflow-y-auto">
                 @foreach ($clients as $client)

@@ -14,7 +14,7 @@
             <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
                 <div>
                     <h3 class="text-lg font-semibold text-white">Vehículos Dentro</h3>
-                    <p class="text-sm text-slate-500 mt-0.5">Vehículos actualmente en el conjunto</p>
+                    <p class="text-sm text-slate-500 mt-0.5">Vehículos actualmente en la instalación</p>
                 </div>
                 <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-900/30 text-emerald-300 ring-1 ring-emerald-700">
                     <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1.5"></span>

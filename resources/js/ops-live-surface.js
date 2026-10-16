@@ -147,7 +147,7 @@ export function companyDashboardLive() {
     return {
         url: '',
         metrics: {},
-        ops: { kpis: {}, workforce: {}, portfolio: {}, open_shifts_table: [] },
+        ops: { kpis: {}, workforce: {}, portfolio: {}, open_shifts_table: [], personnel: {} },
         field: null,
         init() {
             this.url = this.$el.dataset.liveUrl || '';
@@ -191,6 +191,20 @@ export function companyDashboardLive() {
         workforce(key) {
             return this.ops.workforce?.[key] ?? 0;
         },
+        personnel(key) {
+            return this.ops.personnel?.[key] ?? 0;
+        },
+        personnelPath(path) {
+            const parts = String(path || '').split('.');
+            let cur = this.ops.personnel;
+            for (const part of parts) {
+                if (cur == null || typeof cur !== 'object') {
+                    return null;
+                }
+                cur = cur[part];
+            }
+            return cur ?? null;
+        },
         shifts() {
             return this.ops.open_shifts_table || [];
         },
@@ -226,6 +240,98 @@ export function companyDashboardLive() {
             this.stackedBar('companyRevistaMonthlyChart', this.ops.revista_monthly, ChartLib, defaults);
             this.stackedBar('companyRevistaWeekChart', this.ops.revista_week, ChartLib, defaults);
             this.accessBar('companyAccessChart', this.ops.access_by_client || [], ChartLib, defaults);
+            const charts = this.ops.personnel?.charts || {};
+            this.donut('companyParafiscalDonut', charts.parafiscal_donut, ['#34d399', '#334155'], ChartLib);
+            this.donut('companyDocsDonut', charts.docs_donut, ['#818cf8', '#334155'], ChartLib);
+            this.line('companyParafiscalTrend', charts.parafiscal_trend, ChartLib, defaults);
+            this.folderBars('companyDocsFolders', charts.folder_bars, ChartLib, defaults);
+        },
+        donut(id, payload, colors, ChartLib) {
+            const el = document.getElementById(id);
+            if (!el) {
+                return;
+            }
+            ChartLib.getChart(el)?.destroy();
+            const data = payload || {};
+            new ChartLib(el, {
+                type: 'doughnut',
+                data: {
+                    labels: data.labels?.length ? data.labels : ['—'],
+                    datasets: [{
+                        data: data.values?.length ? data.values : [0],
+                        backgroundColor: colors,
+                        borderWidth: 0,
+                        hoverOffset: 4,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '68%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#94a3b8', boxWidth: 10, font: { size: 10 }, padding: 10 },
+                        },
+                    },
+                },
+            });
+        },
+        line(id, payload, ChartLib, defaults) {
+            const el = document.getElementById(id);
+            if (!el) {
+                return;
+            }
+            ChartLib.getChart(el)?.destroy();
+            const data = payload || {};
+            new ChartLib(el, {
+                type: 'line',
+                data: {
+                    labels: data.labels?.length ? data.labels : ['—'],
+                    datasets: [{
+                        label: 'Con planilla',
+                        data: data.values?.length ? data.values : [0],
+                        borderColor: '#34d399',
+                        backgroundColor: 'rgba(52, 211, 153, 0.12)',
+                        fill: true,
+                        tension: 0.35,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#34d399',
+                    }],
+                },
+                options: {
+                    ...defaults,
+                    plugins: { legend: { display: false } },
+                },
+            });
+        },
+        folderBars(id, payload, ChartLib, defaults) {
+            const el = document.getElementById(id);
+            if (!el) {
+                return;
+            }
+            ChartLib.getChart(el)?.destroy();
+            const data = payload || {};
+            const labels = data.labels?.length
+                ? data.labels.map((l) => (l && l.length > 10 ? l.slice(0, 9) + '…' : (l || '—')))
+                : ['—'];
+            new ChartLib(el, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Con soporte',
+                        data: data.values?.length ? data.values : [0],
+                        backgroundColor: ['#818cf8', '#22d3ee', '#fbbf24'],
+                        borderRadius: 3,
+                    }],
+                },
+                options: {
+                    ...defaults,
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                },
+            });
         },
         stackedBar(id, payload, ChartLib, defaults) {
             const el = document.getElementById(id);

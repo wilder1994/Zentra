@@ -3,7 +3,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <h2 class="text-2xl font-bold text-white">Notificaciones</h2>
-                <p class="text-sm text-slate-400 mt-1">Alertas y avisos del conjunto.</p>
+                <p class="text-sm text-slate-400 mt-1">Alertas y avisos del cliente.</p>
             </div>
             <form method="POST" action="{{ route('resident.notifications.read-all') }}">
                 @csrf

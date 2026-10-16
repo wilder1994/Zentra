@@ -18,6 +18,7 @@ use App\Models\OperationalAlert;
 use App\Models\SecurityCompany;
 use App\Models\SupervisorReview;
 use App\Models\User;
+use App\Support\Catalog\QuotaOverview;
 use App\Support\Supervision\SupervisionOperationalDay;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -26,6 +27,10 @@ use Illuminate\Support\Str;
 
 final class CompanyDashboardAnalytics
 {
+    public function __construct(
+        private readonly BuildCompanyPersonnelPulseService $personnelPulse,
+    ) {}
+
     /** @return array<string, mixed> */
     public function build(SecurityCompany $company): array
     {
@@ -122,6 +127,8 @@ final class CompanyDashboardAnalytics
             'revista_week' => $this->revistaTrend($history['days'], $opDate),
             'access_by_client' => $this->accessByClientToday($activeClients),
             'open_shifts_table' => $this->openShiftsTable($openShifts, $reviewsToday),
+            'personnel' => $this->personnelPulse->for($company),
+            'product_quotas' => QuotaOverview::for($company)['products'],
             'portfolio' => [
                 'with_geo' => $activeClients->filter(
                     fn (Client $c) => ($c->latitude !== null && $c->longitude !== null)
@@ -133,6 +140,14 @@ final class CompanyDashboardAnalytics
                 'archived' => $archivedCount,
                 'max_clients' => $maxClients,
                 'available' => max(0, $maxClients - $activeCount),
+                'installations_geo' => Installation::query()
+                    ->withoutGlobalScopes()
+                    ->whereNull('deleted_at')
+                    ->where('is_active', true)
+                    ->whereNotNull('latitude')
+                    ->whereNotNull('longitude')
+                    ->whereIn('client_id', $activeClientIds)
+                    ->count(),
             ],
         ];
     }
@@ -460,7 +475,7 @@ final class CompanyDashboardAnalytics
             $items[] = [
                 'priority' => 'Archivado',
                 'tone' => 'neutral',
-                'signal' => sprintf('%d conjunto(s) archivado(s) · no consumen cupo', $archivedCount),
+                'signal' => sprintf('%d cliente(s) archivado(s) · no consumen cupo', $archivedCount),
                 'context' => 'Cartera',
             ];
         }
@@ -475,7 +490,7 @@ final class CompanyDashboardAnalytics
                     $blockCounts['vehicles'],
                     $blockCounts['persons']
                 ),
-                'context' => 'Todos los conjuntos',
+                'context' => 'Todos los clientes',
             ];
         }
 

@@ -35,7 +35,7 @@
 
                         <ol class="space-y-3 text-sm text-slate-300">
                             <li class="flex gap-3"><span class="plan-help-step">1</span><span><strong class="text-white">Marca un producto</strong> en cualquier tarjeta: Accesos, Supervisión, Indexación u Observatorio.</span></li>
-                            <li class="flex gap-3"><span class="plan-help-step">2</span><span><strong class="text-white">Ajusta la cantidad</strong> con ▲▼ o escribiéndola. Se cuentan instalaciones por producto; Indexación se cuenta por empleado.</span></li>
+                            <li class="flex gap-3"><span class="plan-help-step">2</span><span><strong class="text-white">Ajusta la cantidad</strong> con ▲▼ o escribiéndola. Accesos y Observatorio por instalación; Supervisión por puesto; Indexación por empleado.</span></li>
                             <li class="flex gap-3"><span class="plan-help-step">3</span>
                                 <div class="flex-1 space-y-2">
                                     <p><strong class="text-white">El plan se acomoda solo.</strong> Si te pasas del rango, el producto salta a la tarjeta siguiente.</p>

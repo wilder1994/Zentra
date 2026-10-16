@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Platform\CommercialController;
 use App\Http\Controllers\Platform\CompanyController;
 use App\Http\Controllers\Platform\CompanyQuotaController;
 use App\Http\Controllers\Platform\DashboardController;
@@ -45,6 +46,28 @@ Route::middleware(['auth', 'password.changed', 'active', 'platform.admin', 'tena
         Route::post('/companies/{company}/clients/{client}/release', [DashboardController::class, 'releaseClient'])
             ->middleware('permission:platform.companies.manage')
             ->name('companies.clients.release');
+
+        Route::get('/comercial', [CommercialController::class, 'index'])
+            ->middleware('permission:platform.companies.view')
+            ->name('commercial.index');
+        Route::get('/comercial/propuesta', [CommercialController::class, 'brochureForm'])
+            ->middleware('permission:platform.companies.view')
+            ->name('commercial.brochure.create');
+        Route::post('/comercial/propuesta/pdf', [CommercialController::class, 'brochurePdf'])
+            ->middleware('permission:platform.companies.view')
+            ->name('commercial.brochure.pdf');
+        Route::get('/comercial/cotizacion', [CommercialController::class, 'quoteForm'])
+            ->middleware('permission:platform.companies.view')
+            ->name('commercial.quotes.create');
+        Route::post('/comercial/cotizacion/pdf', [CommercialController::class, 'quotePdf'])
+            ->middleware('permission:platform.companies.view')
+            ->name('commercial.quotes.pdf');
+        Route::get('/comercial/presentacion', [CommercialController::class, 'deckForm'])
+            ->middleware('permission:platform.companies.view')
+            ->name('commercial.deck.create');
+        Route::post('/comercial/presentacion/pptx', [CommercialController::class, 'deckPptx'])
+            ->middleware('permission:platform.companies.view')
+            ->name('commercial.deck.pptx');
 
         Route::get('/pricing', [PricingController::class, 'edit'])
             ->middleware('permission:platform.companies.view')
@@ -121,6 +144,10 @@ Route::middleware(['auth', 'password.changed', 'active', 'platform.admin', 'tena
         Route::post('/companies/{company}/plan', [CompanyController::class, 'applyPlan'])
             ->middleware('permission:platform.companies.manage')
             ->name('companies.plan.apply');
+
+        Route::post('/companies/{company}/expand', [CompanyController::class, 'expandProduct'])
+            ->middleware('permission:platform.companies.manage')
+            ->name('companies.plan.expand');
 
         Route::post('/companies/{company}/package/schedule', [CompanyController::class, 'schedulePackageChange'])
             ->middleware('permission:platform.companies.manage')

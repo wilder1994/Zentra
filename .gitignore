@@ -12,6 +12,7 @@
 /public/build
 /public/hot
 /public/images
+/public/campo/node_modules
 /public/storage
 /storage/*.key
 /vendor
