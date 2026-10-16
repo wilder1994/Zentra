@@ -1,8 +1,19 @@
 # Hosting VPS (Zentra)
 
-**Última actualización:** 15 octubre 2026
+**Última actualización:** 16 octubre 2026
 
 Disco (15 oct 2026): 13 GB de 96 GB. Se borró `/root/zentra-migracion` (respaldo de `controla`, 1,8 GB). Lo grande: sistema ~4,8 GB, swap 2 GB, `storage/app` 1,8 GB (1,6 GB son recortes de planilla PILA por empleado, ver `EMPLEADOS-Y-CARGOS.md`), respaldos CloudPanel 3 × 475 MB, MySQL 1,3 GB (BD 124 MB + redo 1,1 GB fijo).
+
+MySQL / Percona — resiliencia post-reboot (16 oct 2026): tras un reinicio del VPS, `mysql.service` quedó `inactive` con `Dependency failed` (`Requires=local-fs.target remote-fs.target` del unit Percona). El sitio respondía **500** (`SQLSTATE[HY000] [2002] Connection refused`). Arranque manual: `systemctl start mysql`. Para que no se repita, en el VPS quedó:
+
+| Pieza | Ruta | Qué hace |
+|-------|------|----------|
+| Drop-in systemd | `/etc/systemd/system/mysql.service.d/zentra-resilience.conf` | Suaviza dependencias + `RestartSec=5` (el unit Percona sigue listando fs; la red de seguridad es el ensure) |
+| Script ensure | `/usr/local/sbin/zentra-mysql-ensure.sh` | Si MySQL no está activo o no escucha `:3306`, hace `systemctl start mysql`; log `/var/log/zentra-mysql-ensure.log` |
+| Timer systemd | `zentra-mysql-ensure.timer` (+ `.service`) | Arranca a los ~45 s del boot y cada 2 min |
+| Cron | `/etc/cron.d/zentra-mysql-ensure` | Respaldo: cada 2 min + `@reboot` (sleep 45) |
+
+Comprobar: `systemctl is-active mysql`, `systemctl list-timers zentra-mysql-ensure.timer`, `ss -lntp \| grep 3306`, `tail /var/log/zentra-mysql-ensure.log`. Tras editar drop-in/units: `systemctl daemon-reload && systemctl enable --now zentra-mysql-ensure.timer`.
 
 Comercial Super Admin (15 oct 2026): hub `/admin/comercial` — propuesta PDF, cotización PDF (plan personalizado + total pactado) y presentación PPTX 16:9 (11 diapositivas, paleta clara, capturas panel empresa con stitch de scroll en Supervisión/Observatorio). Capturas en `resources/images/commercial/deck/`. Migrates del mismo corte: `2026_10_15_*` (blocklist ids, plantilla turno guarda), `2026_10_18_*` (`scheduled_amount*`, sync cupos Supervisión por puesto). Pull + `composer install` + `migrate --force` + `npm ci && npm run build` + caches. Sin seeder nuevo (permiso `platform.companies.view`). Comprobar enlace `public/images` → `../resources/images` si falta. Detalle: [`COMERCIAL-DOCUMENTOS.md`](COMERCIAL-DOCUMENTOS.md).
 
