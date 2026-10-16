@@ -29,6 +29,7 @@ final class SupervisorPost extends Model
         'max_employees_note',
         'archived_at',
         'archived_with_parent',
+        'archived_by_service_line',
         'latitude',
         'longitude',
     ];
@@ -50,6 +51,7 @@ final class SupervisorPost extends Model
             'max_employees' => 'integer',
             'archived_at' => 'datetime',
             'archived_with_parent' => 'boolean',
+            'archived_by_service_line' => 'boolean',
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
         ];

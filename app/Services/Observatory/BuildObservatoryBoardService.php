@@ -84,6 +84,7 @@ final class BuildObservatoryBoardService
     public function scoped(?int $companyId, ?int $clientId, ?array $installationIds, ?string $from, ?string $to): Builder
     {
         return ObservatoryEvent::query()
+            ->whereNull('archived_at')
             ->when($clientId !== null, fn (Builder $q) => $q->where('client_id', $clientId))
             ->when($companyId !== null, fn (Builder $q) => $q->whereHas(
                 'client',

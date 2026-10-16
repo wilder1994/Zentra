@@ -117,9 +117,13 @@ final class ObservatoryIntakeController extends Controller
 
     private function client(string $slug): Client
     {
-        return Client::query()
+        $row = Client::query()
             ->where('slug', $slug)
             ->where('is_active', true)
             ->firstOrFail();
+
+        abort_unless((bool) $row->has_observatory, 404);
+
+        return $row;
     }
 }

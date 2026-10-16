@@ -354,6 +354,7 @@ final class ObservatoryEventController extends Controller
         return ObservatoryEvent::query()
             ->where('client_id', $event->client_id)
             ->where('installation_id', $event->installation_id)
+            ->whereNull('archived_at')
             ->whereKeyNot($event->id)
             ->withCount('reports')
             ->orderByDesc('opened_at')

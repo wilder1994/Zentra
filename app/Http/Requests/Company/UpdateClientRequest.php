@@ -59,6 +59,9 @@ final class UpdateClientRequest extends FormRequest
             'has_access' => ['sometimes', 'boolean'],
             'has_supervision' => ['sometimes', 'boolean'],
             'has_observatory' => ['sometimes', 'boolean'],
+            'line_deactivate_mode_access' => ['nullable', 'in:temporary,archive'],
+            'line_deactivate_mode_supervision' => ['nullable', 'in:temporary,archive'],
+            'line_deactivate_mode_observatory' => ['nullable', 'in:temporary,archive'],
             'show_personnel_folders' => ['sometimes', 'boolean'],
         ];
     }

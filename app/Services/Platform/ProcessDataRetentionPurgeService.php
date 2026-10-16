@@ -13,10 +13,11 @@ final class ProcessDataRetentionPurgeService
 {
     public function __construct(
         private readonly PurgeClientTenantDataService $purgeClientTenantDataService,
+        private readonly PurgeArchivedServiceLineDataService $purgeArchivedServiceLineDataService,
     ) {}
 
     /**
-     * @return array{clients_purged: int, companies_anonymized: int}
+     * @return array{clients_purged: int, companies_anonymized: int, service_lines: array{access: int, supervision: int, observatory: int}}
      */
     public function execute(?CarbonImmutable $now = null): array
     {
@@ -25,6 +26,7 @@ final class ProcessDataRetentionPurgeService
         return [
             'clients_purged' => $this->purgeEligibleClients($now),
             'companies_anonymized' => $this->anonymizeEligibleCompanies($now),
+            'service_lines' => $this->purgeArchivedServiceLineDataService->execute($now),
         ];
     }
 

@@ -14,6 +14,12 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 16 oct 2026 · Desactivar líneas Accesos / Supervisión / Observatorio (temporal vs archivar)
+- En Editar cliente, al desmarcar una línea el sistema exige elegir: **temporal** (libera cupo, datos intactos) o **archivar** (archivo operativo + retención `service_line_retention_days`, luego purga en `data:purge-retention`).
+- Reactivar exige cupo; si estaba archivada, restaura puertas/puestos/folios marcados `archived_by_service_line`.
+- Intake `/o/{slug}` exige `has_observatory`. Tablero Observatorio ignora folios con `archived_at`.
+- Migración `2026_10_16_163000`. Tests: `ClientServiceLineDeactivateTest`.
+
 ### 15 oct 2026 · Comercial Super Admin (propuesta + cotización PDF + presentación PPTX)
 Detalle: [`COMERCIAL-DOCUMENTOS.md`](COMERCIAL-DOCUMENTOS.md).
 

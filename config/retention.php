@@ -15,6 +15,13 @@ return [
     'commercial_retention_years' => (int) env('RETENTION_COMMERCIAL_YEARS', 5),
 
     /*
+    | Líneas de servicio archivadas en el cliente (Accesos / Supervisión / Observatorio):
+    | tras estos días se purgan puertas, puestos o folios marcados archived_by_service_line.
+    | Mismo plazo que el censo por defecto.
+    */
+    'service_line_retention_days' => (int) env('RETENTION_SERVICE_LINE_DAYS', env('RETENTION_CENSUS_DAYS', 365)),
+
+    /*
     | Tablas con client_id a purgar (orden: dependientes primero).
     */
     'purge_tables' => [

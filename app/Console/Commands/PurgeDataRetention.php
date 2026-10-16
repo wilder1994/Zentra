@@ -19,6 +19,10 @@ final class PurgeDataRetention extends Command
 
         $this->info("Conjuntos purgados: {$result['clients_purged']}");
         $this->info("Empresas anonimizadas: {$result['companies_anonymized']}");
+        $lines = $result['service_lines'] ?? [];
+        $this->info('Líneas archivadas purgadas: Accesos '.($lines['access'] ?? 0)
+            .', Supervisión '.($lines['supervision'] ?? 0)
+            .', Observatorio '.($lines['observatory'] ?? 0));
 
         return self::SUCCESS;
     }

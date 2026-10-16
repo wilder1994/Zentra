@@ -20,6 +20,8 @@ final class ObservatoryEvent extends Model
         'opened_at',
         'closed_at',
         'closed_by_user_id',
+        'archived_at',
+        'archived_by_service_line',
     ];
 
     protected function casts(): array
@@ -28,6 +30,8 @@ final class ObservatoryEvent extends Model
             'status' => ObservatoryEventStatus::class,
             'opened_at' => 'datetime',
             'closed_at' => 'datetime',
+            'archived_at' => 'datetime',
+            'archived_by_service_line' => 'boolean',
         ];
     }
 

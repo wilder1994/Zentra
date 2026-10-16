@@ -112,6 +112,7 @@ final class SubmitObservatoryReportService
         $existing = ObservatoryEvent::query()
             ->where('client_id', $client->id)
             ->where('installation_id', $installation->id)
+            ->whereNull('archived_at')
             ->whereIn('status', [
                 ObservatoryEventStatus::Nuevo->value,
                 ObservatoryEventStatus::EnAtencion->value,

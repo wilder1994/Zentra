@@ -150,6 +150,8 @@ Migraciones del 13 oct 2026:
 
 Documentos de venta (PDF/PPTX) para el súper admin: [`COMERCIAL-DOCUMENTOS.md`](COMERCIAL-DOCUMENTOS.md) (`/admin/comercial`).
 
+**Desactivar línea en un cliente** (Editar → Líneas de servicio): al quitar Accesos, Supervisión u Observatorio el sistema pregunta **temporal** (libera cupo; datos intactos; reactivar exige cupo) o **archivar** (archivo operativo de puertas / puestos / folios; retención `config/retention.php` → `service_line_retention_days`; purga con `data:purge-retention`). No confundir con «Gestión de módulos» de la ficha (solo UI del panel cliente).
+
 ## Changelog
 
 | Fecha | Cambio |

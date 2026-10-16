@@ -25,6 +25,7 @@
                 'proDefault' => $client->has_supervision,
                 'observatoryDefault' => $client->has_observatory,
                 'foldersDefault' => $client->show_personnel_folders,
+                'lineImpact' => $lineImpact ?? [],
             ])
 
             <div>

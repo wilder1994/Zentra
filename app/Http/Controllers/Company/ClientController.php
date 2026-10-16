@@ -25,6 +25,7 @@ use App\Services\Company\PreviewClientImportService;
 use App\Services\Company\SeedSupervisorIntakeDefaultsService;
 use App\Services\Tenant\BuildClientExpedienteService;
 use App\Services\Tenant\CreateClientService;
+use App\Services\Tenant\DeactivateClientServiceLineService;
 use App\Services\Tenant\UpdateClientService;
 use App\Support\Company\CompanyOperateContext;
 use App\Support\Company\InstallationSiteAdmins;
@@ -319,6 +320,7 @@ final class ClientController extends Controller
         return view('modules.company.clients.edit', [
             'client' => $client,
             'metrics' => $metrics,
+            'lineImpact' => app(DeactivateClientServiceLineService::class)->impactCounts($client),
             'documentTypes' => IdentityDocumentType::optionsForSelect(),
             'structureTypes' => StructureType::optionsForSelect((int) $client->security_company_id),
             'canOperate' => $client->has_access && $request->user()->can('operate', $client),

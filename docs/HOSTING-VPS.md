@@ -2,6 +2,8 @@
 
 **Última actualización:** 16 octubre 2026
 
+Líneas de servicio temporal/archivo (16 oct 2026): migrate `2026_10_16_163000` (columnas de archivo por línea + `observatory_events.archived_at` + flags `archived_by_service_line`). Pull + `migrate --force` + `npm ci && npm run build` + caches. La purga de líneas archivadas corre con `data:purge-retention` (`service_line_retention_days`). Sin seeder.
+
 Disco (15 oct 2026): 13 GB de 96 GB. Se borró `/root/zentra-migracion` (respaldo de `controla`, 1,8 GB). Lo grande: sistema ~4,8 GB, swap 2 GB, `storage/app` 1,8 GB (1,6 GB son recortes de planilla PILA por empleado, ver `EMPLEADOS-Y-CARGOS.md`), respaldos CloudPanel 3 × 475 MB, MySQL 1,3 GB (BD 124 MB + redo 1,1 GB fijo).
 
 MySQL / Percona — resiliencia post-reboot (16 oct 2026): tras un reinicio del VPS, `mysql.service` quedó `inactive` con `Dependency failed` (`Requires=local-fs.target remote-fs.target` del unit Percona). El sitio respondía **500** (`SQLSTATE[HY000] [2002] Connection refused`). Arranque manual: `systemctl start mysql`. Para que no se repita, en el VPS quedó:

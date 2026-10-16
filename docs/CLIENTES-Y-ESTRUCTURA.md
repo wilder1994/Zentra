@@ -1,6 +1,6 @@
 # Clientes, instalaciones, Accesos y Supervisión
 
-**Última actualización:** 28 septiembre 2026
+**Última actualización:** 16 octubre 2026
 
 Fuente de verdad del **cliente comercial** y de los dos árboles operativos. El censo (nodos `structures`) cuelga de la **instalación**, no del cliente suelto.
 
@@ -162,7 +162,7 @@ Tipos de persona: tabla `member_types` (`client_id`, nombre, slug, activo). `str
 | `representative_name`, `representative_email` | Representante (exigido si jurídica) |
 | `structure_type_id` | Tipo de estructura fijado |
 | `address`, `city`, `department` | Ubicación (ciudad ≠ instalación) |
-| `has_access`, `has_supervision` | Líneas de servicio (cupo) |
+| `has_access`, `has_supervision`, `has_observatory` | Líneas de servicio (cupo). Al desactivar en Editar: **temporal** (libera cupo, datos intactos) o **archivar** (archivo operativo + retención `service_line_retention_days`, purga en `data:purge-retention`). Reactivar exige cupo. Distinto de «Gestión de módulos» (solo qué ve el panel). |
 | `show_personnel_folders` | Si Accesos: el cliente ve carpetas de empleados asignados a un puesto. Solo lectura. |
 | `panel_modules` | JSON opcional: `vehicles`, `pets`, `authorizations`, `doors`. Null = todos on. `doors` exige `locations` activas. |
 | `slug`, `login_suffix` | Internos; auto |
