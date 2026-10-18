@@ -47,7 +47,8 @@ final class SigBoardAndPanicTest extends TestCase
             ->assertSee('Novedades de servicio')
             ->assertSee('Servicios hoy')
             ->assertSee('Revistas del supervisor')
-            ->assertSee('Servicios actuales')
+            ->assertSee('Instalaciones y servicios')
+            ->assertSee('Satélite')
             ->assertDontSee('Personal operativo');
     }
 

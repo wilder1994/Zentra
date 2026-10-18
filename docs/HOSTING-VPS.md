@@ -2,6 +2,8 @@
 
 **Última actualización:** 17 octubre 2026
 
+Instalaciones rediseño (17 oct 2026): sin migrate. Pull + `npm ci && npm run build` + `view:cache` + `route:cache`.
+
 Revistas por puesto (17 oct 2026): migrate `2026_10_17_200000` (`supervisor_posts.reviews_per_day`, default 1: no cambia el cumplimiento de los puestos actuales). Filtros en modal (Historial/Resumen/Fichas) y tema a la derecha. Pull + `migrate --force` + `npm ci && npm run build` + caches. Sin seeder.
 
 Líneas de servicio temporal/archivo (16 oct 2026): migrate `2026_10_16_163000` (columnas de archivo por línea + `observatory_events.archived_at` + flags `archived_by_service_line`). Pull + `migrate --force` + `npm ci && npm run build` + caches. La purga de líneas archivadas corre con `data:purge-retention` (`service_line_retention_days`). Sin seeder.

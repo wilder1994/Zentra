@@ -14,6 +14,13 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 17 oct 2026 · Rediseño de Instalaciones (empresa)
+- Selector de cliente en el header (`x-ui.filter-picker`: lista al abrir, filtra al escribir) que filtra toda la vista y el refresco en vivo.
+- KPIs con ícono y contexto (sin ubicación, vigilantes, revistas cumplidas/esperadas con barra, hora de la última novedad).
+- Mapa al estilo de Supervisión (Satélite/Terreno, pines SVG con número de servicios, tarjeta al clic).
+- «Servicios actuales» → **Instalaciones y servicios** (fila por instalación, puestos desplegables, buscador interno). Se quitó la tabla paginada y el buscador de abajo. Tarjetas a 320 px.
+- El panel de cliente conserva su tablero (`sig-board`). Tests: `CompanyInstallationDirectoryTest`, `SigBoardAndPanicTest`.
+
 ### 17 oct 2026 · Revistas contratadas por puesto, filtros en modal y tema a la derecha
 - Puesto: «Revistas contratadas por día» (`supervisor_posts.reviews_per_day`, 1–12, por defecto 1). Cumplimiento cuenta la cantidad en el día operativo, a cualquier hora; las de más no suman. Migración `2026_10_17_200000`.
 - Resumen/PPTX: «N de M revistas esperadas» + explicación (antes «puesto-día»). Mi empresa: ayuda de Cobertura actualizada.

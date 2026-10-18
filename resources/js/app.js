@@ -20,6 +20,8 @@ import { postEmployeePicker } from './post-employee-picker';
 import { employeeReassignForm } from './employee-reassign-form';
 import { supervisionPeriodPicker } from './supervision-period';
 import { supervisionFilters } from './supervision-filters';
+import { filterPicker } from './filter-picker';
+import { installationsBoard } from './installations-board';
 import { authorizationValidityPicker } from './authorization-validity';
 import { panelSidebar } from './panel-sidebar';
 import { opsLiveAlerts } from './ops-live-alerts';
@@ -64,6 +66,8 @@ Alpine.data('postEmployeePicker', postEmployeePicker);
 Alpine.data('employeeReassignForm', employeeReassignForm);
 Alpine.data('supervisionPeriodPicker', supervisionPeriodPicker);
 Alpine.data('supervisionFilters', supervisionFilters);
+Alpine.data('filterPicker', filterPicker);
+Alpine.data('installationsBoard', installationsBoard);
 Alpine.data('authorizationValidityPicker', authorizationValidityPicker);
 
 Alpine.start();

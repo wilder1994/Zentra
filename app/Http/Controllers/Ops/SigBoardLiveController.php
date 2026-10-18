@@ -18,8 +18,9 @@ final class SigBoardLiveController extends Controller
         abort_unless($request->user()?->can('company.installations.view') || $request->user()?->can('company.dashboard'), 403);
 
         $companyId = app(ActingCompanyResolver::class)->requireId($request->user());
+        $clientId = $request->integer('client_id') ?: null;
 
-        return response()->json(app(BuildSigBoardService::class)->forCompany($companyId));
+        return response()->json(app(BuildSigBoardService::class)->forCompany($companyId, $clientId));
     }
 
     public function client(Request $request): JsonResponse

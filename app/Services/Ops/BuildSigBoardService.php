@@ -13,6 +13,7 @@ use App\Models\Installation;
 use App\Models\OperationalAlert;
 use App\Models\SupervisorPost;
 use App\Models\SupervisorShiftReview;
+use App\Services\Company\BuildPostComplianceService;
 use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 
@@ -36,10 +37,22 @@ final class BuildSigBoardService
     }
 
     /**
+     * Tablero de la empresa; con $clientId solo ese cliente (debe ser de la empresa).
+     *
      * @return array<string, mixed>
      */
-    public function forCompany(int $companyId): array
+    public function forCompany(int $companyId, ?int $clientId = null): array
     {
+        if ($clientId !== null) {
+            $client = Client::query()
+                ->withoutGlobalScopes()
+                ->where('security_company_id', $companyId)
+                ->whereKey($clientId)
+                ->firstOrFail();
+
+            return $this->forClient($client);
+        }
+
         $sites = Installation::query()
             ->withoutGlobalScopes()
             ->where('is_active', true)
@@ -123,15 +136,47 @@ final class BuildSigBoardService
             ->latest('recorded_at')
             ->limit(40);
 
+        $postsBySite = $posts->groupBy(fn (SupervisorPost $post) => (int) $post->installation_id);
+        $todayRows = collect(app(BuildPostComplianceService::class)->day($companyId))
+            ->filter(fn (array $row) => $row['expected'] && $posts->contains('id', $row['post']->id));
+        $reviewsExpectedToday = (int) $todayRows->sum('target');
+        $reviewsDoneToday = (int) $todayRows->sum(fn (array $row) => min($row['target'], $row['reviews']));
+
+        $installationsList = [];
         $markers = [];
         foreach ($sites as $site) {
-            if ($site->latitude === null || $site->longitude === null) {
+            $sitePosts = $postsBySite->get((int) $site->id, collect());
+            $hasLocation = $site->latitude !== null && $site->longitude !== null;
+            $guards = (int) $sitePosts->sum(fn (SupervisorPost $post) => $post->employees->count());
+            $installationsList[] = [
+                'id' => (int) $site->id,
+                'name' => $site->name,
+                'client' => $client?->name ?? $site->client?->name,
+                'code' => $site->code,
+                'dane' => $site->dane_code,
+                'city' => $site->city,
+                'kind' => $site->kindLabel(),
+                'has_location' => $hasLocation,
+                'posts_count' => $sitePosts->count(),
+                'guards_count' => $guards,
+                'posts' => $sitePosts->map(fn (SupervisorPost $post): array => [
+                    'name' => $post->name,
+                    'modality' => $post->modalityLabel(),
+                    'guards' => $post->employees->count(),
+                    'reviews_per_day' => $post->reviewsPerDay(),
+                ])->values()->all(),
+            ];
+            if (! $hasLocation) {
                 continue;
             }
             $markers[] = [
                 'kind' => 'installation',
+                'id' => (int) $site->id,
                 'name' => $site->name,
-                'client' => $site->client?->name ?? $client?->name,
+                'client' => $client?->name ?? $site->client?->name,
+                'code' => $site->code,
+                'posts' => $sitePosts->count(),
+                'guards' => $guards,
                 'lat' => (float) $site->latitude,
                 'lng' => (float) $site->longitude,
             ];
@@ -147,15 +192,21 @@ final class BuildSigBoardService
         }
 
         $servicesToday = $posts->count();
+        $lastNovelty = (clone $feedBase)->where('created_at', '>=', $todayStart)->latest('id')->value('created_at');
 
         return [
             'show_installations_kpi' => $sites->count() > 1,
             'installations_count' => $sites->count(),
+            'installations_without_location' => count(array_filter($installationsList, fn (array $row) => ! $row['has_location'])),
             'services_today' => $servicesToday,
             'novedades_today' => $novedadesToday,
+            'last_novelty_at' => $lastNovelty !== null ? CarbonImmutable::parse($lastNovelty)->timezone(config('app.timezone'))->format('H:i') : null,
             'reviews_today' => $reviewsToday,
+            'reviews_expected_today' => $reviewsExpectedToday,
+            'reviews_done_today' => $reviewsDoneToday,
             'posts_count' => $servicesToday,
             'staff_count' => $employees->count(),
+            'installations' => $installationsList,
             'markers' => $markers,
             'maps' => [
                 'api_key' => (string) config('google-maps.api_key', ''),

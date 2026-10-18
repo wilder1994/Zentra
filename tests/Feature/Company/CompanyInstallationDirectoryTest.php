@@ -21,14 +21,55 @@ final class CompanyInstallationDirectoryTest extends TestCase
         $this->actingAs($admin)
             ->get(route('company.installations.index'))
             ->assertOk()
-            ->assertSee('Instalaciones', false)
+            ->assertSee('Instalaciones y servicios', false)
+            ->assertSee('Todos los clientes', false)
             ->assertSee($site->name, false)
-            ->assertSee($client->name, false);
+            ->assertSee($client->name, false)
+            ->assertDontSee('Buscar por nombre, código, DANE', false);
 
         $this->actingAs($admin)
-            ->get(route('company.installations.index', ['q' => 'no-existe-xyz']))
+            ->get(route('company.installations.index', ['client_id' => $client->id]))
             ->assertOk()
-            ->assertDontSee($site->name, false);
+            ->assertSee('Filtrado por cliente', false)
+            ->assertSee($site->name, false);
+
+        $other = Client::query()
+            ->where('security_company_id', $admin->security_company_id)
+            ->whereKeyNot($client->id)
+            ->first();
+        if ($other !== null) {
+            $this->actingAs($admin)
+                ->getJson(route('company.sig.live', ['client_id' => $other->id]))
+                ->assertOk()
+                ->assertJsonMissing(['name' => $site->name]);
+        }
+
+        $this->actingAs($admin)
+            ->getJson(route('company.sig.live', ['client_id' => $client->id]))
+            ->assertOk()
+            ->assertJsonStructure([
+                'installations' => [['id', 'name', 'client', 'posts_count', 'guards_count', 'posts', 'has_location']],
+                'reviews_expected_today',
+                'reviews_done_today',
+                'installations_without_location',
+                'last_novelty_at',
+            ])
+            ->assertJsonFragment(['name' => $site->name]);
+    }
+
+    public function test_client_filter_rejects_unknown_client(): void
+    {
+        [$admin, , $site] = $this->palmas();
+
+        $this->actingAs($admin)
+            ->getJson(route('company.sig.live', ['client_id' => 999999]))
+            ->assertNotFound();
+
+        $this->actingAs($admin)
+            ->get(route('company.installations.index', ['client_id' => 999999]))
+            ->assertOk()
+            ->assertDontSee('Filtrado por cliente', false)
+            ->assertSee($site->name, false);
     }
 
     public function test_company_creates_installation_with_context_and_rector(): void

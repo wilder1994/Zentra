@@ -32,32 +32,25 @@ final class CompanyInstallationController extends Controller
         abort_unless($request->user()?->can('company.installations.view'), 403);
 
         $companyId = $this->companyId($request);
-        $search = $request->string('q')->trim()->toString();
 
-        $rows = Installation::query()
-            ->with(['client', 'rector', 'assignedAdmins'])
-            ->whereHas('client', fn ($q) => $q->where('security_company_id', $companyId))
-            ->when($search !== '', function ($q) use ($search) {
-                $q->where(function ($inner) use ($search) {
-                    $inner->where('installations.name', 'like', '%'.$search.'%')
-                        ->orWhere('installations.code', 'like', '%'.$search.'%')
-                        ->orWhere('installations.dane_code', 'like', '%'.$search.'%')
-                        ->orWhere('installations.commune', 'like', '%'.$search.'%')
-                        ->orWhereHas('client', fn ($c) => $c->where('name', 'like', '%'.$search.'%'))
-                        ->orWhereHas('assignedAdmins', fn ($u) => $u->where('users.name', 'like', '%'.$search.'%')
-                            ->orWhere('users.job_title', 'like', '%'.$search.'%'))
-                        ->orWhereHas('rector', fn ($r) => $r->where('name', 'like', '%'.$search.'%')
-                            ->orWhere('job_title', 'like', '%'.$search.'%'));
-                });
-            })
-            ->orderBy('installations.name')
-            ->paginate(20)
-            ->withQueryString();
+        $clients = Client::query()
+            ->withoutGlobalScopes()
+            ->where('security_company_id', $companyId)
+            ->where('is_active', true)
+            ->whereHas('installations', fn ($q) => $q->withoutGlobalScopes()->where('is_active', true))
+            ->orderBy('name')
+            ->get(['id', 'name', 'city']);
+
+        $clientId = $request->integer('client_id') ?: null;
+        $selectedClient = $clientId !== null ? $clients->firstWhere('id', $clientId) : null;
+        if ($selectedClient === null) {
+            $clientId = null;
+        }
 
         return view('modules.company.installations.index', [
-            'installations' => $rows,
-            'search' => $search,
-            'sigBoard' => app(BuildSigBoardService::class)->forCompany($companyId),
+            'clients' => $clients,
+            'selectedClient' => $selectedClient,
+            'sigBoard' => app(BuildSigBoardService::class)->forCompany($companyId, $clientId),
         ]);
     }
 
