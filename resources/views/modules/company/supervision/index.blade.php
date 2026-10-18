@@ -301,52 +301,75 @@
                     return;
                 }
 
-                const svgIcon = (svg, size, anchor) => ({
+                // Pines en gota 32×42 (punta abajo): se anclan en la punta.
+                const PIN_SIZE = 26;
+                const PIN_H = PIN_SIZE * 42 / 32;
+                const dropMarkerIcon = (svg, width = PIN_SIZE) => ({
                     url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
-                    scaledSize: new google.maps.Size(size, size),
-                    anchor: new google.maps.Point(anchor, anchor),
+                    scaledSize: new google.maps.Size(width, width * 42 / 32),
+                    anchor: new google.maps.Point(width / 2, width * 42 / 32 - 1),
                 });
-
-                const PIN_SIZE = 24;
                 @php
                     $pinSvgs = [];
-                    foreach (['start', 'flag', 'review', 'novelty', 'alarm', 'stop', 'support', 'coverage'] as $pinKind) {
+                    foreach (['start', 'flag', 'review', 'novelty', 'alarm', 'stop', 'support', 'coverage', 'client', 'installation'] as $pinKind) {
                         $pinSvgs[$pinKind] = trim(view('modules.company.supervision.partials.pin-icon', ['kind' => $pinKind])->render());
                     }
                 @endphp
                 const pinSvgs = @json($pinSvgs);
                 const pinIcon = (key, count) => {
-                    let svg = pinSvgs[key];
+                    let svg = pinSvgs[key] || pinSvgs.client;
                     if (count > 1) {
+                        // Varios eventos en el mismo punto: la gota lleva un globo con el total.
                         const text = count > 99 ? '99+' : String(count);
-                        svg = svg.replace('viewBox="0 0 32 32"', 'viewBox="0 0 36 36"').replace(/<svg([^>]*)>/, '<svg$1><g transform="translate(0 4)">')
-                            .replace(/<\/svg>$/, '</g><circle cx="29" cy="7" r="6.5" fill="#0b1220" stroke="#f8fafc" stroke-width="1.2"/>'
-                                + '<text x="29" y="9.8" text-anchor="middle" font-family="system-ui,sans-serif" font-size="' + (text.length > 2 ? 6 : 8) + '" font-weight="700" fill="#ffffff">' + text + '</text></svg>');
-                        const box = PIN_SIZE * 36 / 32;
+                        svg = svg.replace('viewBox="0 0 32 42"', 'viewBox="0 0 38 46"').replace(/<svg([^>]*)>/, '<svg$1><g transform="translate(0 4)">')
+                            .replace(/<\/svg>$/, '</g><circle cx="31" cy="7" r="6.5" fill="#0b1220" stroke="#f8fafc" stroke-width="1.2"/>'
+                                + '<text x="31" y="9.8" text-anchor="middle" font-family="system-ui,sans-serif" font-size="' + (text.length > 2 ? 6 : 8) + '" font-weight="700" fill="#ffffff">' + text + '</text></svg>');
+                        const s = PIN_SIZE / 32;
                         return {
                             url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
-                            scaledSize: new google.maps.Size(box, box),
-                            anchor: new google.maps.Point(box * 16 / 36, box * 20 / 36),
+                            scaledSize: new google.maps.Size(38 * s, 46 * s),
+                            anchor: new google.maps.Point(16 * s, 44 * s),
                         };
                     }
-                    return svgIcon(svg, PIN_SIZE, PIN_SIZE / 2);
+                    return dropMarkerIcon(svg);
                 };
+
+                // Agrupación por zoom (gotas con número); moto, inicio y cierre de turno no se agrupan.
+                const TONE_RANK = ['red', 'orange', 'amber', 'sky', 'emerald', 'teal', 'wine', 'violet', 'indigo', 'cyan', 'slate'];
+                const UNGROUPED = ['moto', 'start', 'flag'];
+                let zclusterer = null;
+                function toneOf(pin) {
+                    if (!pin) return 'slate';
+                    if (pin.kind === 'cluster') {
+                        return (pin.items || []).map(toneOf).sort((a, b) => TONE_RANK.indexOf(a) - TONE_RANK.indexOf(b))[0] || 'slate';
+                    }
+                    if (pin.kind === 'coverage') {
+                        const c = coverageColor(pin.row);
+                        return c === '#16a34a' ? 'emerald' : (c === '#f59e0b' ? 'amber' : 'red');
+                    }
+                    return ({
+                        review: pin.novelty ? 'orange' : 'emerald',
+                        alarm: 'red',
+                        support: 'sky',
+                        stop: 'wine',
+                        client: 'indigo',
+                        installation: 'cyan',
+                    })[pin.kind] || 'slate';
+                }
+                function groupable(pin) {
+                    return Boolean(zclusterer) && !UNGROUPED.includes(pin.kind);
+                }
+                function mountPin(marker, pin) {
+                    marker.zentraTone = toneOf(pin);
+                    marker.zentraPin = pin;
+                    zclusterer.addMarker(marker, true);
+                }
                 const iconMoto = () => ({
                     url: @json(asset('images/ui/supervisor-moto.png').'?v='.(string) filemtime(public_path('images/ui/supervisor-moto.png'))),
                     scaledSize: new google.maps.Size(50, 36),
                     anchor: new google.maps.Point(25, 34),
                     labelOrigin: new google.maps.Point(25, -6),
                 });
-                function circleIcon(color, scale) {
-                    return {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        scale: scale || 10.5,
-                        fillColor: color,
-                        fillOpacity: 1,
-                        strokeColor: '#0b1220',
-                        strokeWeight: 1,
-                    };
-                }
 
                 let googleMap = null;
                 let overlays = [];
@@ -426,6 +449,7 @@
 
                 function clearOverlays() {
                     closePinPreview(true);
+                    zclusterer?.clearMarkers();
                     overlays.forEach((item) => item.setMap(null));
                     overlays = [];
                 }
@@ -524,7 +548,7 @@
                         .replace('__RING__', ring)
                         .replace('__FONT__', text.length > 2 ? '9.5' : (text.length > 1 ? '11.5' : '13'))
                         .replace('__TEXT__', esc(text));
-                    return svgIcon(svg, PIN_SIZE, PIN_SIZE / 2);
+                    return dropMarkerIcon(svg);
                 }
 
                 function collectCoveragePins() {
@@ -547,16 +571,32 @@
                 function drawCoveragePins(map, bounds, pins) {
                     let any = false;
                     pins.forEach((pin) => {
+                        const grouped = groupable(pin);
                         const marker = addOverlay(new google.maps.Marker({
-                            map,
+                            map: grouped ? null : map,
                             position: { lat: Number(pin.lat), lng: Number(pin.lng) },
                             zIndex: 3,
                             icon: coverageIcon(pin.row, pin.count),
                         }));
                         bindPinOpen(marker, pin);
+                        if (grouped) mountPin(marker, pin);
                         any = extend(bounds, pin) || any;
                     });
+                    zclusterer?.render();
                     return any;
+                }
+
+                function shareFor(place) {
+                    const ZM = window.ZentraMaps;
+                    return ZM && place.lat != null && place.lng != null ? ZM.shareButton(place) : '';
+                }
+
+                function cardHead(kind, share) {
+                    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">'
+                        + '<span class="zmap-card-kind">' + esc(kind) + '</span>'
+                        + '<span style="display:inline-flex;align-items:center;gap:6px">' + share
+                        + '<button type="button" class="sup-card-close zmap-card-close">×</button></span>'
+                        + '</div>';
                 }
 
                 function coverageCardHtml(pin) {
@@ -572,10 +612,13 @@
                     return '<div class="zmap-card" style="width:250px">'
                         + '<div style="height:3px;background:' + coverageColor(row) + '"></div>'
                         + '<div style="padding:8px 10px 10px">'
-                        + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">'
-                        + '<span class="zmap-card-kind">' + kind + '</span>'
-                        + '<button type="button" class="sup-card-close zmap-card-close">×</button>'
-                        + '</div>'
+                        + cardHead(kind, shareFor({
+                            title: row.name,
+                            subtitle: pin.scope === 'installation' ? row.client : '',
+                            address: row.address,
+                            lat: pin.lat,
+                            lng: pin.lng,
+                        }))
                         + '<p class="zmap-card-title" style="margin:6px 0 0">' + esc(row.name) + '</p>'
                         + '<p class="zmap-card-meta" style="margin:3px 0 0">' + esc(meta) + '</p>'
                         + '<p style="margin:6px 0 0"><span class="zmap-card-ok">' + row.done + ' revisados</span>'
@@ -690,13 +733,15 @@
                     const link = row.sheet_url
                         ? '<a href="' + esc(row.sheet_url) + '" target="_blank" rel="noopener" class="zmap-card-link">Ver ficha' + (row.folio ? ' ' + esc(row.folio) : '') + '</a>'
                         : '';
+                    const place = pin.kind === 'client' || pin.kind === 'installation'
+                        ? { title: headline, subtitle: pin.kind === 'installation' ? (row.client || '') : '', address: row.address }
+                        : { title: kind + ' · ' + headline, subtitle: row.at_label || '', address: '' };
+                    // La moto es la ubicación en vivo del supervisor: no se comparte.
+                    const share = pin.kind === 'moto' ? '' : shareFor({ ...place, lat: pin.lat, lng: pin.lng });
                     return '<div class="zmap-card" style="width:236px">'
                         + '<div style="height:3px;background:' + pinAccent(pin) + '"></div>'
                         + '<div style="padding:8px 10px 10px">'
-                        + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">'
-                        + '<span class="zmap-card-kind">' + esc(kind) + '</span>'
-                        + '<button type="button" class="sup-card-close zmap-card-close">×</button>'
-                        + '</div>'
+                        + cardHead(kind, share)
                         + '<p class="zmap-card-title" style="margin:6px 0 0">' + esc(headline) + '</p>'
                         + (meta ? '<p class="zmap-card-meta" style="margin:3px 0 0">' + esc(meta) + '</p>' : '')
                         + (extra ? '<p style="margin:6px 0 0">' + extra + '</p>' : '')
@@ -752,11 +797,11 @@
                             const h = this.div.offsetHeight;
                             if (this.place === 'above') {
                                 this.div.style.left = (point.x - w / 2) + 'px';
-                                this.div.style.top = (point.y - h - 14) + 'px';
+                                this.div.style.top = (point.y - h - PIN_H - 4) + 'px';
                                 return;
                             }
-                            this.div.style.left = (point.x + 16) + 'px';
-                            this.div.style.top = (point.y - h / 2) + 'px';
+                            this.div.style.left = (point.x + 18) + 'px';
+                            this.div.style.top = (point.y - h / 2 - PIN_H / 2) + 'px';
                         }
 
                         onRemove() {
@@ -926,17 +971,18 @@
                     if (pin.kind === 'review') return pinIcon(pin.novelty ? 'novelty' : 'review', count);
                     if (pin.kind === 'moto') return iconMoto();
                     if (pinSvgs[pin.kind]) return pinIcon(pin.kind, count);
-                    return circleIcon('#6366f1');
+                    return pinIcon('client', count);
                 }
 
                 function placePin(map, pin) {
                     if (pin?.lat == null || pin?.lng == null) return;
                     const pos = { lat: Number(pin.lat), lng: Number(pin.lng) };
+                    const grouped = groupable(pin);
                     if (pin.kind === 'cluster') {
                         const listed = listPins(pin.items);
                         const face = clusterFace(pin.items);
                         const marker = addOverlay(new google.maps.Marker({
-                            map,
+                            map: grouped ? null : map,
                             position: pos,
                             zIndex: 22,
                             title: pin.title,
@@ -944,14 +990,15 @@
                             opacity: 1,
                         }));
                         bindPinOpen(marker, pin);
+                        if (grouped) mountPin(marker, pin);
                         return;
                     }
                     if (pin.kind === 'client' || pin.kind === 'installation') {
-                        const color = pin.kind === 'installation' ? '#22d3ee' : '#6366f1';
                         const marker = addOverlay(new google.maps.Marker({
-                            map, position: pos, title: pin.title, zIndex: 1, icon: circleIcon(color),
+                            map: grouped ? null : map, position: pos, title: pin.title, zIndex: 1, icon: pinIcon(pin.kind),
                         }));
                         bindPinOpen(marker, pin);
+                        if (grouped) mountPin(marker, pin);
                         return;
                     }
                     const extras = {};
@@ -960,7 +1007,7 @@
                         extras.label = pin.label;
                     }
                     const marker = addOverlay(new google.maps.Marker({
-                        map,
+                        map: grouped ? null : map,
                         position: pos,
                         zIndex: pin.kind === 'review' || pin.kind === 'alarm' || pin.kind === 'support' ? 14
                             : (pin.kind === 'moto' ? 5 : 6),
@@ -969,6 +1016,7 @@
                         ...extras,
                     }));
                     bindPinOpen(marker, pin);
+                    if (grouped) mountPin(marker, pin);
                 }
 
                 function collectClientPins() {
@@ -977,14 +1025,14 @@
                         lat: row.lat,
                         lng: row.lng,
                         title: row.name,
-                        row: { client: row.name },
+                        row: { client: row.name, address: row.address || '', sheet_url: row.url || '' },
                     }));
                     const sitePins = installations.filter((row) => row.lat != null && row.lng != null).map((row) => ({
                         kind: 'installation',
                         lat: row.lat,
                         lng: row.lng,
                         title: row.name,
-                        row: { client: row.client || row.name, sheet_url: row.url || '' },
+                        row: { client: row.client || row.name, address: row.address || '', sheet_url: row.url || '' },
                     }));
 
                     return clientPins.concat(sitePins);
@@ -1083,6 +1131,7 @@
                         placePin(map, pin);
                         any = extend(bounds, pin) || any;
                     });
+                    zclusterer?.render();
                     return any;
                 }
 
@@ -1201,6 +1250,25 @@
                         }
                         closePinPreview(true);
                     });
+                    googleMap.addListener('zoom_changed', () => closePinPreview(true));
+                    // app.js (módulo) ya cargó cuando Google llama a este callback.
+                    const ZM = window.ZentraMaps || null;
+                    if (ZM) {
+                        zclusterer = ZM.createClusterer(googleMap, {
+                            maxZoom: 15,
+                            radius: 56,
+                            onSamePlace: (markers, position, clusterMarker) => {
+                                const items = markers.flatMap((m) => listPins(m.zentraPin?.items || [m.zentraPin]));
+                                if (!items.length || !clusterMarker) return;
+                                ignoreMapClick = true;
+                                pinSticky = false;
+                                hidePinCard();
+                                listSticky = true;
+                                listAnchor = clusterMarker;
+                                showPinList(items, clusterMarker);
+                            },
+                        });
+                    }
                     syncMapTypeButtons('satellite');
                     document.querySelectorAll('.supervision-map-type-btn').forEach((btn) => {
                         btn.addEventListener('click', () => {

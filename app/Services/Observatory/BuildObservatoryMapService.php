@@ -10,6 +10,7 @@ use App\Models\ObservatoryEvent;
 use App\Models\ObservatoryReport;
 use App\Models\ObservatoryReportType;
 use App\Support\Geo\CaliComunaLayer;
+use App\Support\Geo\PlaceLabel;
 
 final class BuildObservatoryMapService
 {
@@ -58,6 +59,7 @@ final class BuildObservatoryMapService
                     'id' => (int) $site->id,
                     'name' => $site->name,
                     'client' => $site->client?->name,
+                    'address' => PlaceLabel::of($site),
                     'dane_code' => $site->dane_code,
                     'lat' => (float) $site->latitude,
                     'lng' => (float) $site->longitude,
@@ -97,6 +99,8 @@ final class BuildObservatoryMapService
                             'status' => $event->status->value,
                             'status_label' => $event->statusLabel(),
                             'title' => $site->name,
+                            'client' => $site->client?->name,
+                            'address' => PlaceLabel::of($site),
                             'kind' => $report->kindLabel(),
                             'kind_slug' => $report->typeSlug(),
                             'color' => $report->typeColor(),

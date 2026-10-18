@@ -19,6 +19,7 @@ use App\Models\SecurityCompany;
 use App\Models\SupervisorReview;
 use App\Models\User;
 use App\Support\Catalog\QuotaOverview;
+use App\Support\Geo\PlaceLabel;
 use App\Support\Supervision\SupervisionOperationalDay;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -530,6 +531,7 @@ final class CompanyDashboardAnalytics
                     'lat' => (float) $client->latitude,
                     'lng' => (float) $client->longitude,
                     'title' => $client->name,
+                    'address' => PlaceLabel::of($client),
                     'tone' => $tone,
                     'tone_label' => match ($tone) {
                         'ok' => 'Salud OK',
@@ -564,6 +566,7 @@ final class CompanyDashboardAnalytics
                     'lng' => (float) $installation->longitude,
                     'title' => $installation->name,
                     'client_name' => $client->name,
+                    'address' => PlaceLabel::of($installation),
                     'tone' => 'site',
                     'tone_label' => 'Instalación',
                     'url' => route('company.installations.show', $installation),

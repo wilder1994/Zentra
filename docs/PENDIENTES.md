@@ -14,6 +14,12 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 17 oct 2026 · Mapas: pines en gota y agrupación por zoom (todos los módulos)
+- Gota única para pines y grupos (número en la cabeza), colores e íconos de cada convención intactos. `map-pins.js` + `map-cluster.js` (`@googlemaps/markerclusterer`).
+- Instalaciones: Mapa + «Instalaciones y servicios» arriba, Novedades + Revistas abajo; tarjetas a 192 px; tarjeta del pin fija en la esquina del mapa.
+- Aplicado en Instalaciones, Mi empresa, Supervisión, Observatorio, Plataforma y panel cliente. Detalle: `DISENO-UI-ZENTRA.md` §10.1.
+- Tarjeta en el mapa de Plataforma (Ver empresa, Entrar como empresa) y del panel cliente. Botón **Compartir ubicación** (copiar, WhatsApp, Google Maps, menú del celular) en todas las tarjetas. Sin íconos de lugares de Google en los mapas.
+
 ### 17 oct 2026 · Rediseño de Instalaciones (empresa)
 - Selector de cliente en el header (`x-ui.filter-picker`: lista al abrir, filtra al escribir) que filtra toda la vista y el refresco en vivo.
 - KPIs con ícono y contexto (sin ubicación, vigilantes, revistas cumplidas/esperadas con barra, hora de la última novedad).

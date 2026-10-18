@@ -36,7 +36,7 @@
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div class="rounded-lg border border-slate-800 bg-slate-900/80 overflow-hidden {{ $box }}">
+        <div class="rounded-lg border border-slate-800 bg-slate-900/80 overflow-hidden relative isolate {{ $box }}">
             <div id="sig-map" class="w-full h-full min-h-[16rem]"></div>
         </div>
         <div class="rounded-lg border border-slate-800 bg-slate-900/80 p-4 flex flex-col {{ $box }}">
@@ -229,14 +229,53 @@
     function drawMap() {
         const el = document.getElementById('sig-map');
         if (!el || typeof google === 'undefined' || !google.maps) return;
-        const map = new google.maps.Map(el, { zoom: 11, center, mapTypeId: 'hybrid' });
-        const bounds = new google.maps.LatLngBounds();
-        (markers || []).forEach((m) => {
-            const pos = { lat: m.lat, lng: m.lng };
-            new google.maps.Marker({ map, position: pos, title: m.name });
-            bounds.extend(pos);
+        const map = new google.maps.Map(el, {
+            zoom: 11, center, mapTypeId: 'hybrid', disableDefaultUI: true, zoomControl: true, gestureHandling: 'greedy',
+            clickableIcons: false, styles: window.ZentraMaps?.MAP_STYLES,
         });
-        if (markers.length) map.fitBounds(bounds);
+        const ZM = window.ZentraMaps;
+        const card = ZM ? ZM.createCornerCard(el.parentElement) : null;
+        const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const openCard = (m) => {
+            if (!card) return;
+            const isSite = m.kind !== 'client';
+            card.open(
+                '<span class="zmap-card-kind">' + (isSite ? 'Instalación' : 'Cliente') + '</span>'
+                + '<p class="zmap-card-title" style="margin:6px 18px 0 0">' + esc(m.name) + '</p>'
+                + (isSite && m.client ? '<p class="zmap-card-meta" style="margin:3px 0 0">' + esc(m.client) + '</p>' : '')
+                + (m.address ? '<p class="zmap-card-meta" style="margin:3px 0 0">' + esc(m.address) + '</p>' : '')
+                + (isSite && m.posts != null ? '<p class="zmap-card-meta" style="margin:3px 0 0">' + Number(m.posts) + ' servicios · ' + Number(m.guards || 0) + ' vigilantes</p>' : '')
+                + '<div style="margin-top:8px;display:flex;justify-content:flex-end">'
+                + ZM.shareButton({ title: m.name, subtitle: isSite ? (m.client || '') : '', address: m.address || '', lat: m.lat, lng: m.lng }, { label: true })
+                + '</div>'
+            );
+        };
+        const clusterer = ZM ? ZM.createClusterer(map, { onSamePlace: (list) => list[0]?.zentraPin && openCard(list[0].zentraPin) }) : null;
+        map.addListener('click', () => card?.close());
+        const bounds = new google.maps.LatLngBounds();
+        const pins = (markers || []).map((m) => {
+            const pos = { lat: m.lat, lng: m.lng };
+            const isSite = m.kind !== 'client';
+            const color = isSite ? '#0d9488' : '#6366f1';
+            const marker = new google.maps.Marker({
+                map: clusterer ? null : map,
+                position: pos,
+                title: m.name,
+                icon: ZM ? ZM.dropIcon(ZM.dropSvg(color, isSite ? ZM.GLYPHS.building : ZM.GLYPHS.client), 26) : undefined,
+            });
+            marker.zentraTone = isSite ? 'teal' : 'indigo';
+            marker.zentraPin = m;
+            marker.addListener('click', () => openCard(m));
+            bounds.extend(pos);
+            return marker;
+        });
+        clusterer?.addMarkers(pins);
+        if (pins.length === 1) {
+            map.setCenter(bounds.getCenter());
+            map.setZoom(16);
+        } else if (pins.length) {
+            map.fitBounds(bounds, 32);
+        }
     }
 
     if (key) {

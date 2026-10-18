@@ -22,6 +22,9 @@ import { supervisionPeriodPicker } from './supervision-period';
 import { supervisionFilters } from './supervision-filters';
 import { filterPicker } from './filter-picker';
 import { installationsBoard } from './installations-board';
+import { createClusterer, CLUSTER_TONES } from './map-cluster';
+import { dropSvg, dropIcon, numberDropIcon, GLYPHS, MAP_STYLES } from './map-pins';
+import { installMapShare, shareButton, createCornerCard } from './map-share';
 import { authorizationValidityPicker } from './authorization-validity';
 import { panelSidebar } from './panel-sidebar';
 import { opsLiveAlerts } from './ops-live-alerts';
@@ -34,6 +37,9 @@ import { initFormFeedback } from './form-feedback';
 import Alpine from 'alpinejs';
 
 window.Alpine = Alpine;
+// Mapas con script en línea (Supervisión, Mi empresa, Plataforma) usan las mismas gotas y agrupación.
+window.ZentraMaps = { createClusterer, CLUSTER_TONES, dropSvg, dropIcon, numberDropIcon, GLYPHS, MAP_STYLES, shareButton, createCornerCard };
+installMapShare();
 Alpine.data('panelSidebar', panelSidebar);
 Alpine.data('opsLiveAlerts', opsLiveAlerts);
 Alpine.data('deviceChangeAlerts', deviceChangeAlerts);

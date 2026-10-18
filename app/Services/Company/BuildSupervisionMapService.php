@@ -13,6 +13,7 @@ use App\Models\SecurityCompany;
 use App\Models\SupervisorFieldLog;
 use App\Models\SupervisorShift;
 use App\Models\SupervisorShiftReview;
+use App\Support\Geo\PlaceLabel;
 use App\Support\Supervision\SupervisionOperationalDay;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
@@ -60,6 +61,7 @@ final class BuildSupervisionMapService
                 'name' => $installation->name,
                 'client' => $client->name,
                 'client_id' => $client->id,
+                'address' => PlaceLabel::of($installation),
                 'lat' => $installation->latitude !== null ? (float) $installation->latitude : null,
                 'lng' => $installation->longitude !== null ? (float) $installation->longitude : null,
                 'posts' => 0,
@@ -78,6 +80,7 @@ final class BuildSupervisionMapService
             $owner ??= [
                 'id' => $client->id,
                 'name' => $client->name,
+                'address' => PlaceLabel::of($client),
                 'lat' => $client->latitude !== null ? (float) $client->latitude : null,
                 'lng' => $client->longitude !== null ? (float) $client->longitude : null,
                 'installations' => [],
@@ -249,7 +252,7 @@ final class BuildSupervisionMapService
                 ->whereNotNull('longitude')
                 ->orderBy('name')])
             ->orderBy('name')
-            ->get(['id', 'name', 'latitude', 'longitude']);
+            ->get(['id', 'name', 'latitude', 'longitude', 'address', 'city']);
 
         $clientPins = [];
         $installationPins = [];
@@ -259,8 +262,10 @@ final class BuildSupervisionMapService
                 $clientPins[] = [
                     'id' => $client->id,
                     'name' => $client->name,
+                    'address' => PlaceLabel::of($client),
                     'lat' => (float) $client->latitude,
                     'lng' => (float) $client->longitude,
+                    'url' => route('company.clients.show', $client),
                 ];
             }
 
@@ -277,6 +282,7 @@ final class BuildSupervisionMapService
                     'id' => $installation->id,
                     'name' => $installation->name,
                     'client' => $client->name,
+                    'address' => PlaceLabel::of($installation),
                     'lat' => (float) $installation->latitude,
                     'lng' => (float) $installation->longitude,
                     'url' => route('company.installations.show', $installation),

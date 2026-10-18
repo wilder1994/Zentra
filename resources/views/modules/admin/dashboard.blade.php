@@ -35,6 +35,7 @@
                             </button>
                         @endforeach
                     </div>
+                    <div class="relative isolate">
                     <div id="platform-map" class="w-full h-[300px] rounded-lg border border-slate-800 bg-slate-950/60 overflow-hidden relative">
                         <div id="platform-map-fallback" class="absolute inset-0 flex items-center justify-center text-center p-6 text-sm text-slate-500 hidden">
                             <div>
@@ -42,6 +43,7 @@
                                 <p>Configura <code class="text-violet-300">GOOGLE_MAPS_API_KEY</code> en tu archivo <code class="text-slate-400">.env</code>.</p>
                             </div>
                         </div>
+                    </div>
                     </div>
                     <p class="text-[10px] text-slate-600">Fuente: empresas de seguridad y clientes · Colombia</p>
                 </div>
@@ -325,26 +327,66 @@
             const fallbackEl = document.getElementById('platform-map-fallback');
             let mapInstance = null;
             let markerLayers = { empresa: [], clientes: [] };
+            let pinClusterer = null;
+            let pinCard = null;
+            const canEnterCompany = @json((bool) auth()->user()?->can('platform.companies.manage'));
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            const escHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+            function openPinCard(pin, layer) {
+                const ZM = window.ZentraMaps;
+                if (!ZM || !pinCard) return;
+                const isCompany = layer === 'empresa';
+                const share = ZM.shareButton({
+                    title: pin.title,
+                    subtitle: isCompany ? '' : (pin.company || ''),
+                    address: pin.address || '',
+                    lat: pin.lat,
+                    lng: pin.lng,
+                }, { label: true });
+                const enter = canEnterCompany && pin.enter_url
+                    ? '<form method="POST" action="' + escHtml(pin.enter_url) + '" style="margin:0">'
+                        + '<input type="hidden" name="_token" value="' + escHtml(csrfToken) + '">'
+                        + '<button type="submit" class="zmap-card-link" style="margin:0;border:0;background:none;padding:0;cursor:pointer">Entrar como empresa</button></form>'
+                    : '';
+                pinCard.open(
+                    '<span class="zmap-card-kind">' + (isCompany ? 'Empresa' : 'Cliente') + '</span>'
+                    + '<p class="zmap-card-title" style="margin:6px 18px 0 0">' + escHtml(pin.title) + '</p>'
+                    + (pin.subtitle ? '<p class="zmap-card-meta" style="margin:3px 0 0">' + escHtml(pin.subtitle) + '</p>' : '')
+                    + (pin.address ? '<p class="zmap-card-meta" style="margin:3px 0 0">' + escHtml(pin.address) + '</p>' : '')
+                    + '<div style="margin-top:8px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px">'
+                    + (pin.url ? '<a href="' + escHtml(pin.url) + '" class="zmap-card-link" style="margin:0">Ver empresa</a>' : '')
+                    + enter
+                    + '<span style="margin-left:auto">' + share + '</span>'
+                    + '</div>'
+                );
+            }
 
             function renderMarkers(layer) {
                 if (!mapInstance || !window.google?.maps) return;
+                pinClusterer?.clearMarkers();
+                pinCard?.close();
                 markerLayers.empresa.forEach(m => m.setMap(null));
                 markerLayers.clientes.forEach(m => m.setMap(null));
                 const pins = mapMarkers[layer] || [];
-                const color = layer === 'empresa' ? '#8b5cf6' : '#38bdf8';
-                markerLayers[layer] = pins.map(pin => new google.maps.Marker({
-                    position: { lat: pin.lat, lng: pin.lng },
-                    map: mapInstance,
-                    title: pin.title,
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        scale: 7,
-                        fillColor: color,
-                        fillOpacity: 1,
-                        strokeColor: '#0f172a',
-                        strokeWeight: 1.5,
-                    },
-                }));
+                const color = layer === 'empresa' ? '#8b5cf6' : '#0284c7';
+                const ZM = window.ZentraMaps;
+                const icon = ZM
+                    ? ZM.dropIcon(ZM.dropSvg(color, layer === 'empresa' ? ZM.GLYPHS.company : ZM.GLYPHS.client), 26)
+                    : { path: google.maps.SymbolPath.CIRCLE, scale: 7, fillColor: color, fillOpacity: 1, strokeColor: '#0f172a', strokeWeight: 1.5 };
+                markerLayers[layer] = pins.map(pin => {
+                    const marker = new google.maps.Marker({
+                        position: { lat: pin.lat, lng: pin.lng },
+                        map: pinClusterer ? null : mapInstance,
+                        title: pin.title,
+                        icon,
+                    });
+                    marker.zentraTone = layer === 'empresa' ? 'violet' : 'sky';
+                    marker.zentraPin = pin;
+                    marker.addListener('click', () => openPinCard(pin, layer));
+                    return marker;
+                });
+                pinClusterer?.addMarkers(markerLayers[layer]);
             }
 
             window.platformMapSetLayer = renderMarkers;
@@ -360,7 +402,19 @@
                     mapTypeId: google.maps.MapTypeId.HYBRID,
                     disableDefaultUI: true,
                     zoomControl: true,
+                    clickableIcons: false,
+                    styles: window.ZentraMaps?.MAP_STYLES,
                 });
+                if (window.ZentraMaps) {
+                    pinCard = window.ZentraMaps.createCornerCard(mapEl.parentElement);
+                    pinClusterer = window.ZentraMaps.createClusterer(mapInstance, {
+                        onSamePlace: (markers) => {
+                            const pin = markers[0]?.zentraPin;
+                            if (pin) openPinCard(pin, markerLayers.empresa.includes(markers[0]) ? 'empresa' : 'clientes');
+                        },
+                    });
+                    mapInstance.addListener('click', () => pinCard?.close());
+                }
                 renderMarkers('empresa');
             }
 

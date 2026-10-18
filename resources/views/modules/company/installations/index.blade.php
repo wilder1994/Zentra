@@ -42,17 +42,17 @@
 
         {{-- KPIs --}}
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div class="{{ $card }} relative overflow-hidden px-4 py-4">
+            <div class="{{ $card }} relative overflow-hidden px-4 py-3">
                 <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-indigo-500 to-sky-400"></div>
                 <div class="flex items-start justify-between gap-3">
                     <p class="text-[11px] uppercase tracking-wide text-slate-500">Instalaciones
                         <x-ui.help-tip text="Instalaciones activas en este alcance. Sin ubicación = no tienen pin en el mapa." />
                     </p>
-                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-300">
+                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-300">
                         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linejoin="round" d="M4 20V9l8-5 8 5v11"/><path d="M9 20v-6h6v6"/></svg>
                     </span>
                 </div>
-                <p class="mt-1 text-3xl font-semibold text-white tabular-nums" x-text="board.installations_count ?? 0">{{ $board['installations_count'] ?? 0 }}</p>
+                <p class="mt-0.5 text-2xl font-semibold text-white tabular-nums" x-text="board.installations_count ?? 0">{{ $board['installations_count'] ?? 0 }}</p>
                 <p class="mt-1 text-xs" :class="(board.installations_without_location || 0) > 0 ? 'text-amber-300' : 'text-emerald-300'">
                     <span x-text="(board.installations_without_location || 0) > 0 ? (board.installations_without_location + ' sin ubicación') : 'Todas ubicadas en el mapa'">
                         {{ ($board['installations_without_location'] ?? 0) > 0 ? $board['installations_without_location'].' sin ubicación' : 'Todas ubicadas en el mapa' }}
@@ -60,31 +60,31 @@
                 </p>
             </div>
 
-            <div class="{{ $card }} relative overflow-hidden px-4 py-4">
+            <div class="{{ $card }} relative overflow-hidden px-4 py-3">
                 <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-teal-500 to-emerald-400"></div>
                 <div class="flex items-start justify-between gap-3">
                     <p class="text-[11px] uppercase tracking-wide text-slate-500">Servicios hoy
                         <x-ui.help-tip text="Puestos activos (un puesto es un servicio) y vigilantes asignados a ellos." />
                     </p>
-                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-teal-500/15 text-teal-300">
+                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-300">
                         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linejoin="round" d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/></svg>
                     </span>
                 </div>
-                <p class="mt-1 text-3xl font-semibold text-white tabular-nums" x-text="board.services_today ?? 0">{{ $board['services_today'] ?? 0 }}</p>
+                <p class="mt-0.5 text-2xl font-semibold text-white tabular-nums" x-text="board.services_today ?? 0">{{ $board['services_today'] ?? 0 }}</p>
                 <p class="mt-1 text-xs text-slate-400"><span class="tabular-nums" x-text="board.staff_count ?? 0">{{ $board['staff_count'] ?? 0 }}</span> vigilantes asignados</p>
             </div>
 
-            <div class="{{ $card }} relative overflow-hidden px-4 py-4">
+            <div class="{{ $card }} relative overflow-hidden px-4 py-3">
                 <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-amber-500 to-yellow-300"></div>
                 <div class="flex items-start justify-between gap-3">
                     <p class="text-[11px] uppercase tracking-wide text-slate-500">Revistas hoy
                         <x-ui.help-tip text="Revistas cumplidas de las esperadas hoy (06:00 a 06:00), según las revistas contratadas en cada puesto." />
                     </p>
-                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/15 text-amber-300">
+                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/15 text-amber-300">
                         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="6" y="4" width="12" height="17" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M9.5 12.5l2 2 3.5-4"/></svg>
                     </span>
                 </div>
-                <p class="mt-1 text-3xl font-semibold text-white tabular-nums">
+                <p class="mt-0.5 text-2xl font-semibold text-white tabular-nums">
                     <span x-text="board.reviews_done_today ?? 0">{{ $board['reviews_done_today'] ?? 0 }}</span><span class="text-base font-normal text-slate-500"> de <span x-text="board.reviews_expected_today ?? 0">{{ $board['reviews_expected_today'] ?? 0 }}</span></span>
                 </p>
                 <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
@@ -97,18 +97,18 @@
                 </p>
             </div>
 
-            <div class="{{ $card }} relative overflow-hidden px-4 py-4">
+            <div class="{{ $card }} relative overflow-hidden px-4 py-3">
                 <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-orange-500 to-rose-400"></div>
                 <div class="flex items-start justify-between gap-3">
                     <p class="text-[11px] uppercase tracking-wide text-slate-500">Novedades hoy
                         <x-ui.help-tip align="right" text="Cambios de servicio de hoy: altas, bajas, modalidad y vigilantes." />
                     </p>
-                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg"
+                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg"
                           :class="(board.novedades_today || 0) > 0 ? 'bg-orange-500/20 text-orange-300' : 'bg-slate-800 text-slate-400'">
                         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linejoin="round" d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path stroke-linecap="round" d="M10 20.5a2 2 0 0 0 4 0"/></svg>
                     </span>
                 </div>
-                <p class="mt-1 text-3xl font-semibold tabular-nums" :class="(board.novedades_today || 0) > 0 ? 'text-orange-300' : 'text-white'" x-text="board.novedades_today ?? 0">{{ $board['novedades_today'] ?? 0 }}</p>
+                <p class="mt-0.5 text-2xl font-semibold tabular-nums" :class="(board.novedades_today || 0) > 0 ? 'text-orange-300' : 'text-white'" x-text="board.novedades_today ?? 0">{{ $board['novedades_today'] ?? 0 }}</p>
                 <p class="mt-1 text-xs text-slate-400">
                     <span x-text="board.last_novelty_at ? ('Última a las ' + board.last_novelty_at) : 'Sin cambios hoy'">{{ ! empty($board['last_novelty_at']) ? 'Última a las '.$board['last_novelty_at'] : 'Sin cambios hoy' }}</span>
                 </p>
@@ -117,9 +117,9 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {{-- Mapa --}}
-            <div class="{{ $card }} relative overflow-hidden h-80">
+            <div class="{{ $card }} relative isolate overflow-hidden h-48">
                 <div x-ref="map" class="h-full w-full"></div>
-                <div class="pointer-events-none absolute left-3 right-3 top-3 z-10 flex items-center justify-between gap-2">
+                <div class="pointer-events-none absolute left-3 right-3 top-3 z-[2] flex items-center justify-between gap-2">
                     <div class="pointer-events-auto inline-flex rounded-md border border-slate-700 bg-slate-950/90 p-0.5 text-xs" x-show="mapReady">
                         <button type="button" @click="setMapType('satellite')" class="rounded px-2 py-1 font-medium"
                                 :class="mapType === 'satellite' ? 'bg-indigo-600/80 text-white' : 'text-slate-400 hover:text-slate-200'">Satélite</button>
@@ -127,58 +127,53 @@
                                 :class="mapType === 'terrain' ? 'bg-indigo-600/80 text-white' : 'text-slate-400 hover:text-slate-200'">Terreno</button>
                     </div>
                 </div>
-                <div class="pointer-events-none absolute bottom-3 left-3 z-10 flex flex-wrap items-center gap-3 rounded-md border border-slate-700 bg-slate-950/90 px-2.5 py-1.5 text-[11px] text-slate-300" x-show="mapReady">
+                <div class="pointer-events-none absolute bottom-3 left-3 z-[2] flex flex-wrap items-center gap-3 rounded-md border border-slate-700 bg-slate-950/90 px-2.5 py-1.5 text-[11px] text-slate-300" x-show="mapReady">
                     <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-teal-600 ring-1 ring-slate-950"></span>Con servicios</span>
                     <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-slate-600 ring-1 ring-slate-950"></span>Sin servicios</span>
-                    <span class="text-slate-500">El número = servicios</span>
+                    <span class="text-slate-500">Gota con número = grupo</span>
+                </div>
+                <div x-show="card" x-cloak x-transition.opacity
+                     class="zmap-card absolute right-14 top-3 z-[3] w-60 max-w-[calc(100%-4.5rem)] max-h-[calc(100%-1.5rem)] overflow-y-auto">
+                    <div class="px-3 py-2.5">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="zmap-card-kind" x-text="card?.kind === 'list' ? (card.rows.length + ' instalaciones en este punto') : 'Instalación'"></span>
+                            <button type="button" class="zmap-card-close" @click="closeCard()" aria-label="Cerrar">×</button>
+                        </div>
+                        <template x-if="card?.kind === 'one'">
+                            <div>
+                                <p class="zmap-card-title mt-1.5 leading-snug" x-text="card.row.name"></p>
+                                <p class="zmap-card-meta mt-0.5" x-text="[card.row.client, card.row.code].filter(Boolean).join(' · ')"></p>
+                                <p class="mt-1.5">
+                                    <span :class="card.row.posts > 0 ? 'zmap-card-ok' : 'zmap-card-faint'" x-text="card.row.posts + (card.row.posts === 1 ? ' servicio' : ' servicios')"></span>
+                                    <span class="zmap-card-faint"> · </span>
+                                    <span class="zmap-card-meta" x-text="card.row.guards + (card.row.guards === 1 ? ' vigilante' : ' vigilantes')"></span>
+                                </p>
+                                <p class="zmap-card-meta mt-1" x-show="card.row.address" x-text="card.row.address"></p>
+                                <div class="mt-2 flex items-center justify-between gap-2">
+                                    <a :href="installationUrl(card.row.id)" class="zmap-card-link !mt-0">Ver instalación →</a>
+                                    <span x-html="shareHtml(card.row)"></span>
+                                </div>
+                            </div>
+                        </template>
+                        <template x-if="card?.kind === 'list'">
+                            <ul class="mt-1.5 space-y-1">
+                                <template x-for="row in card.rows" :key="row.id">
+                                    <li class="flex items-baseline justify-between gap-2">
+                                        <a :href="installationUrl(row.id)" class="zmap-card-title truncate hover:underline" x-text="row.name"></a>
+                                        <span class="zmap-card-faint shrink-0" x-text="row.posts + ' serv.'"></span>
+                                    </li>
+                                </template>
+                            </ul>
+                        </template>
+                    </div>
                 </div>
                 <div x-show="mapError" x-cloak class="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-slate-500">
                     Mapa no disponible: falta la clave de Google Maps.
                 </div>
             </div>
 
-            {{-- Novedades de servicio --}}
-            <div class="{{ $card }} p-4 flex flex-col h-80">
-                <div class="flex items-baseline justify-between gap-2 shrink-0">
-                    <h3 class="text-sm font-semibold text-white">Novedades de servicio</h3>
-                    <span class="text-[11px] text-slate-500">Altas, bajas, modalidad y vigilantes</span>
-                </div>
-                <div class="mt-3 flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
-                    <template x-for="row in (board.feed || [])" :key="row.id">
-                        <div class="rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-2">
-                            <p class="text-[10px] text-slate-500 tabular-nums" x-text="row.at"></p>
-                            <p class="text-sm text-slate-200 leading-snug" x-text="row.body"></p>
-                        </div>
-                    </template>
-                    <p class="py-8 text-center text-sm text-slate-500" x-show="!(board.feed || []).length">Aún no hay cambios de servicio.</p>
-                </div>
-            </div>
-
-            {{-- Revistas del supervisor --}}
-            <div class="{{ $card }} p-4 flex flex-col h-80">
-                <div class="flex items-baseline justify-between gap-2 shrink-0">
-                    <h3 class="text-sm font-semibold text-white">Revistas del supervisor</h3>
-                    <span class="text-[11px] text-slate-500">Últimas 40</span>
-                </div>
-                <div class="mt-3 flex-1 min-h-0 overflow-y-auto flex flex-wrap content-start gap-2 pr-1">
-                    <template x-for="row in (board.reviews || [])" :key="row.id">
-                        <article class="w-full sm:w-[calc(50%-0.25rem)] rounded-xl border px-3 py-2"
-                                 :class="row.novelty ? 'border-amber-500/40 bg-amber-950/20' : 'border-slate-800 bg-slate-950/70'">
-                            <div class="flex items-center justify-between gap-2">
-                                <p class="text-[10px] text-slate-500 tabular-nums" x-text="row.at"></p>
-                                <span x-show="row.novelty" class="text-[10px] font-semibold text-amber-300">Novedad</span>
-                            </div>
-                            <p class="text-sm text-white leading-snug" x-text="row.supervisor"></p>
-                            <p class="text-[11px] text-slate-400 mt-0.5"><span x-text="row.post"></span><span class="text-slate-600"> · </span><span x-text="row.guard"></span></p>
-                            <p class="text-xs text-slate-300 mt-1 leading-snug" x-text="row.record"></p>
-                        </article>
-                    </template>
-                    <p class="w-full py-8 text-center text-sm text-slate-500" x-show="!(board.reviews || []).length">Sin revistas en este alcance.</p>
-                </div>
-            </div>
-
-            {{-- Instalaciones y servicios --}}
-            <div class="{{ $card }} p-4 flex flex-col h-80">
+            {{-- Instalaciones y servicios (junto al mapa) --}}
+            <div class="{{ $card }} p-3 flex flex-col h-48">
                 <div class="flex flex-wrap items-center justify-between gap-2 shrink-0">
                     <h3 class="text-sm font-semibold text-white">Instalaciones y servicios
                         <span class="ml-1 text-xs font-normal text-slate-500 tabular-nums" x-text="'(' + installations.length + ')'"></span>
@@ -186,10 +181,10 @@
                     <input type="search" x-model="query" placeholder="Nombre, código o DANE…"
                            class="h-8 w-48 px-2.5 text-xs rounded-lg border border-slate-700 bg-slate-950 text-white placeholder:text-slate-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30">
                 </div>
-                <div class="mt-3 flex-1 min-h-0 overflow-y-auto pr-1 space-y-1.5">
+                <div class="mt-2 flex-1 min-h-0 overflow-y-auto pr-1 space-y-1.5">
                     <template x-for="row in installations" :key="row.id">
                         <div class="rounded-lg border border-slate-800 bg-slate-950/60">
-                            <div class="flex items-center gap-2 px-3 py-2">
+                            <div class="flex items-center gap-2 px-3 py-1.5">
                                 <button type="button" @click="toggle(row.id)" class="flex min-w-0 flex-1 items-center gap-2 text-left">
                                     <svg class="h-4 w-4 shrink-0 text-slate-500 transition-transform" :class="expanded[row.id] ? 'rotate-90' : ''" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg>
                                     <span class="min-w-0">
@@ -199,7 +194,7 @@
                                     </span>
                                 </button>
                                 <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] tabular-nums"
-                                      :class="row.posts_count > 0 ? 'bg-teal-500/15 text-teal-300' : 'bg-slate-800 text-slate-500'"
+                                      :class="row.posts_count > 0 ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-800 text-slate-500'"
                                       x-text="row.posts_count + ' serv.'"></span>
                                 <span class="hidden sm:inline shrink-0 rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-300 tabular-nums" x-text="row.guards_count + ' vig.'"></span>
                                 <button type="button" x-show="row.has_location" @click="focusInstallation(row)" title="Ubicar en el mapa"
@@ -236,12 +231,52 @@
                             </div>
                         </div>
                     </template>
-                    <div x-show="!installations.length" class="py-8 text-center">
+                    <div x-show="!installations.length" class="py-4 text-center">
                         <p class="text-sm text-slate-400" x-text="query ? 'Ninguna instalación coincide con la búsqueda.' : 'Aún no hay instalaciones.'">Aún no hay instalaciones.</p>
                         @can('company.installations.manage')
                             <a x-show="!query" href="{{ route('company.installations.create', array_filter(['client_id' => $clientId])) }}" class="mt-3 inline-block text-xs font-semibold text-indigo-300 hover:text-indigo-200">Crear instalación</a>
                         @endcan
                     </div>
+                </div>
+            </div>
+
+            {{-- Novedades de servicio --}}
+            <div class="{{ $card }} p-3 flex flex-col h-48">
+                <div class="flex items-baseline justify-between gap-2 shrink-0">
+                    <h3 class="text-sm font-semibold text-white">Novedades de servicio</h3>
+                    <span class="text-[11px] text-slate-500">Altas, bajas, modalidad y vigilantes</span>
+                </div>
+                <div class="mt-2 flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-1">
+                    <template x-for="row in (board.feed || [])" :key="row.id">
+                        <div class="rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-1.5">
+                            <p class="text-[10px] text-slate-500 tabular-nums" x-text="row.at"></p>
+                            <p class="text-sm text-slate-200 leading-snug" x-text="row.body"></p>
+                        </div>
+                    </template>
+                    <p class="py-4 text-center text-sm text-slate-500" x-show="!(board.feed || []).length">Aún no hay cambios de servicio.</p>
+                </div>
+            </div>
+
+            {{-- Revistas del supervisor --}}
+            <div class="{{ $card }} p-3 flex flex-col h-48">
+                <div class="flex items-baseline justify-between gap-2 shrink-0">
+                    <h3 class="text-sm font-semibold text-white">Revistas del supervisor</h3>
+                    <span class="text-[11px] text-slate-500">Últimas 40</span>
+                </div>
+                <div class="mt-2 flex-1 min-h-0 overflow-y-auto flex flex-wrap content-start gap-1.5 pr-1">
+                    <template x-for="row in (board.reviews || [])" :key="row.id">
+                        <article class="w-full sm:w-[calc(50%-0.2rem)] rounded-xl border px-3 py-1.5"
+                                 :class="row.novelty ? 'border-amber-500/40 bg-amber-950/20' : 'border-slate-800 bg-slate-950/70'">
+                            <div class="flex items-center justify-between gap-2">
+                                <p class="text-[10px] text-slate-500 tabular-nums" x-text="row.at"></p>
+                                <span x-show="row.novelty" class="text-[10px] font-semibold text-amber-300">Novedad</span>
+                            </div>
+                            <p class="text-sm text-white leading-snug" x-text="row.supervisor"></p>
+                            <p class="text-[11px] text-slate-400 mt-0.5"><span x-text="row.post"></span><span class="text-slate-600"> · </span><span x-text="row.guard"></span></p>
+                            <p class="text-xs text-slate-300 mt-0.5 leading-snug line-clamp-2" x-text="row.record"></p>
+                        </article>
+                    </template>
+                    <p class="w-full py-4 text-center text-sm text-slate-500" x-show="!(board.reviews || []).length">Sin revistas en este alcance.</p>
                 </div>
             </div>
         </div>

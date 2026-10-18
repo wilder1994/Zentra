@@ -18,8 +18,9 @@
         <span class="inline-flex items-center gap-1.5">@include('modules.company.supervision.partials.pin-icon', $coverage + ['color' => '#f59e0b', 'text' => '2'])Revisión parcial</span>
         <span class="inline-flex items-center gap-1.5 col-span-2">@include('modules.company.supervision.partials.pin-icon', $coverage + ['color' => '#dc2626', 'text' => '4'])Pendiente por revista (número = puestos)</span>
     @else
-        <span class="inline-flex items-center gap-1.5"><span class="inline-flex h-5 w-5 shrink-0 items-center justify-center"><span class="h-[18px] w-[18px] rounded-full bg-indigo-500 ring-1 ring-slate-900"></span></span>Cliente</span>
-        <span class="inline-flex items-center gap-1.5"><span class="inline-flex h-5 w-5 shrink-0 items-center justify-center"><span class="h-[18px] w-[18px] rounded-full bg-cyan-400 ring-1 ring-slate-900"></span></span>Instalación</span>
+        <span class="inline-flex items-center gap-1.5">@include('modules.company.supervision.partials.pin-icon', ['kind' => 'client', 'class' => $icon])Cliente</span>
+        <span class="inline-flex items-center gap-1.5">@include('modules.company.supervision.partials.pin-icon', ['kind' => 'installation', 'class' => $icon])Instalación</span>
     @endif
+    <span class="inline-flex items-center gap-1.5 col-span-2">@include('modules.company.supervision.partials.pin-icon', ['kind' => 'coverage', 'class' => $icon, 'ring' => '', 'fontSize' => '13', 'color' => '#475569', 'text' => '9'])Grupo de pines (al acercar se separan; toma el color más grave)</span>
 </div>
 <p class="mt-1.5 text-[11px] text-slate-500">Señal: <span class="text-emerald-400">En línea</span> · <span class="text-amber-400">Pantalla apagada</span> · <span class="text-red-400">Sin señal</span> (más de 90 s sin GPS)</p>

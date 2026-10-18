@@ -14,6 +14,7 @@ use App\Models\OperationalAlert;
 use App\Models\SupervisorPost;
 use App\Models\SupervisorShiftReview;
 use App\Services\Company\BuildPostComplianceService;
+use App\Support\Geo\PlaceLabel;
 use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 
@@ -155,6 +156,7 @@ final class BuildSigBoardService
                 'code' => $site->code,
                 'dane' => $site->dane_code,
                 'city' => $site->city,
+                'address' => PlaceLabel::of($site),
                 'kind' => $site->kindLabel(),
                 'has_location' => $hasLocation,
                 'posts_count' => $sitePosts->count(),
@@ -175,6 +177,7 @@ final class BuildSigBoardService
                 'name' => $site->name,
                 'client' => $client?->name ?? $site->client?->name,
                 'code' => $site->code,
+                'address' => PlaceLabel::of($site),
                 'posts' => $sitePosts->count(),
                 'guards' => $guards,
                 'lat' => (float) $site->latitude,
@@ -186,6 +189,7 @@ final class BuildSigBoardService
                 'kind' => 'client',
                 'name' => $client->name,
                 'client' => $client->name,
+                'address' => PlaceLabel::of($client),
                 'lat' => (float) $client->latitude,
                 'lng' => (float) $client->longitude,
             ];

@@ -127,7 +127,7 @@ final class BuildPostComplianceService
                 ->where('has_supervision', true)
                 ->where('is_active', true))
             ->with([
-                'client' => fn ($q) => $q->withoutGlobalScopes()->select(['id', 'name', 'latitude', 'longitude']),
+                'client' => fn ($q) => $q->withoutGlobalScopes()->select(['id', 'name', 'latitude', 'longitude', 'address', 'city']),
                 'installation' => fn ($q) => $q->withoutGlobalScopes(),
             ])
             ->orderBy('client_id')

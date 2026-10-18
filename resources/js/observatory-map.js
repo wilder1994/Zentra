@@ -1,5 +1,20 @@
+import { createClusterer } from './map-cluster';
+import { dropIcon, dropSvg, GLYPHS, MAP_STYLES } from './map-pins';
+import { shareButton } from './map-share';
+
+/** Tono del grupo según el riesgo abierto (los colores del catálogo los define cada cliente). */
+function riskTone(open, weight) {
+    if (!open) {
+        return 'slate';
+    }
+    const w = Number(weight) || 1;
+
+    return w >= 3 ? 'red' : (w >= 2 ? 'orange' : 'amber');
+}
+
 export function observatoryMap(cfg) {
     const layerUrl = '/geo/cali-comunas.geojson';
+    let clusterer = null;
 
     return {
         mode: 'pins',
@@ -44,35 +59,39 @@ export function observatoryMap(cfg) {
                 streetViewControl: false,
                 fullscreenControl: false,
                 mapTypeControl: false,
+                clickableIcons: false,
+                styles: MAP_STYLES,
                 zoomControl: true,
                 zoomControlOptions: {
                     position: google.maps.ControlPosition.RIGHT_BOTTOM,
                 },
             });
 
-            const info = new google.maps.InfoWindow();
+            const info = new google.maps.InfoWindow({ pixelOffset: new google.maps.Size(0, -4) });
+            clusterer = createClusterer(this.map, {
+                onSamePlace: (markers) => {
+                    if (markers[0]) {
+                        google.maps.event.trigger(markers[0], 'click');
+                    }
+                },
+            });
 
             sites.forEach((site) => {
                 const pos = { lat: Number(site.lat), lng: Number(site.lng) };
-                const pinIcon = {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: site.open_count > 0 ? 8 : 6,
-                    fillColor: site.color || '#94a3b8',
-                    fillOpacity: 0.9,
-                    strokeColor: '#0f172a',
-                    strokeWeight: 1,
-                };
+                const open = site.open_count > 0;
+                const pinIcon = dropIcon(dropSvg(site.color || '#94a3b8', GLYPHS.building), open ? 28 : 24);
                 const marker = new google.maps.Marker({
                     position: pos,
-                    map: this.map,
+                    map: null,
                     title: site.name,
                     zIndex: 1,
                     icon: pinIcon,
                     kindSlugs: site.type_slugs || (site.kind_slug ? [site.kind_slug] : []),
                     pinIcon,
-                    heatWeight: site.open_count > 0 ? Number(site.heat_weight || 1) : 0,
-                    riskWeight: site.open_count > 0 ? Number(site.risk_weight || 1) : 0,
+                    heatWeight: open ? Number(site.heat_weight || 1) : 0,
+                    riskWeight: open ? Number(site.risk_weight || 1) : 0,
                 });
+                marker.zentraTone = riskTone(open, site.risk_weight);
                 marker.addListener('click', () => {
                     const mix = (site.summary || [])
                         .map((row) => `${this.esc(row.name)} (${row.count})`)
@@ -80,12 +99,14 @@ export function observatoryMap(cfg) {
                     const link = site.show_url
                         ? `<a href="${this.esc(site.show_url)}">Ver evento</a>`
                         : '<span>Sin eventos</span>';
+                    const share = shareButton({ title: site.name, subtitle: site.client || '', address: site.address || '', lat: pos.lat, lng: pos.lng }, { label: true });
                     info.setContent(
-                        `<div style="color:#0f172a;font:13px/1.4 sans-serif;max-width:240px">`
+                        `<div class="zmap-share-light" style="color:#0f172a;font:13px/1.4 sans-serif;max-width:240px">`
                         + `<strong>${this.esc(site.name)}</strong><br>`
                         + `${site.client ? this.esc(site.client) + '<br>' : ''}`
+                        + `${site.address ? '<span style="color:#475569">' + this.esc(site.address) + '</span><br>' : ''}`
                         + `${mix || this.esc(site.status_label)}`
-                        + `<br>${link}</div>`,
+                        + `<div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between;gap:8px">${link}${share}</div></div>`,
                     );
                     info.open(this.map, marker);
                 });
@@ -94,17 +115,10 @@ export function observatoryMap(cfg) {
 
             points.forEach((point) => {
                 const pos = { lat: Number(point.lat), lng: Number(point.lng) };
-                const pinIcon = {
-                    path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
-                    scale: 5,
-                    fillColor: point.color || '#94a3b8',
-                    fillOpacity: 1,
-                    strokeColor: '#ffffff',
-                    strokeWeight: 1,
-                };
+                const pinIcon = dropIcon(dropSvg(point.color || '#94a3b8', GLYPHS.alert, { stroke: '#ffffff' }), 22);
                 const marker = new google.maps.Marker({
                     position: pos,
-                    map: this.map,
+                    map: null,
                     title: point.kind || point.title,
                     zIndex: 2,
                     icon: pinIcon,
@@ -113,16 +127,18 @@ export function observatoryMap(cfg) {
                     heatWeight: point.open ? 1 : 0,
                     riskWeight: point.open ? Number(point.level || 1) : 0,
                 });
+                marker.zentraTone = riskTone(point.open, point.level);
                 marker.addListener('click', () => {
                     const link = point.show_url
                         ? `<a href="${this.esc(point.show_url)}">Ver evento</a>`
                         : '';
+                    const share = shareButton({ title: (point.kind ? point.kind + ' · ' : '') + point.title, subtitle: point.client || '', address: point.address || '', lat: pos.lat, lng: pos.lng }, { label: true });
                     info.setContent(
-                        `<div style="color:#0f172a;font:13px/1.4 sans-serif;max-width:220px">`
+                        `<div class="zmap-share-light" style="color:#0f172a;font:13px/1.4 sans-serif;max-width:220px">`
                         + `<strong>${this.esc(point.title)}</strong><br>`
                         + `<span style="color:${this.esc(point.color || '#334155')}">${this.esc(point.kind)}</span>`
                         + ` · ${this.esc(point.status_label)}`
-                        + (link ? `<br>${link}` : '')
+                        + `<div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between;gap:8px">${link}${share}</div>`
                         + `</div>`,
                     );
                     info.open(this.map, marker);
@@ -293,17 +309,26 @@ export function observatoryMap(cfg) {
         applyMode() {
             const pins = this.mode === 'pins';
             const risk = this.mode === 'heat_risk';
+            const grouped = [];
+            clusterer?.clearMarkers();
             this.markers.forEach((marker) => {
                 const slugs = marker.kindSlugs || [];
                 const ok = !this.typeFilter || slugs.length === 0 || slugs.includes(this.typeFilter);
                 const weight = risk ? marker.riskWeight : marker.heatWeight;
                 const show = ok && (pins || weight > 0);
-                marker.setMap(show ? this.map : null);
                 if (!show) {
+                    marker.setMap(null);
                     return;
                 }
                 marker.setIcon(pins ? marker.pinIcon : this.heatIcon(weight, risk));
+                // Pines: agrupados por zoom. Calor: círculos sueltos (el tamaño es el dato).
+                if (pins && clusterer) {
+                    grouped.push(marker);
+                } else {
+                    marker.setMap(this.map);
+                }
             });
+            clusterer?.addMarkers(grouped);
         },
     };
 }

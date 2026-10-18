@@ -1229,6 +1229,8 @@
             const toneColor = { ok: '#34d399', warn: '#fbbf24', danger: '#f87171', site: '#22d3ee' };
             let googleMap = null;
             let googleMarkers = [];
+            let pinClusterer = null;
+            const pinTone = { ok: 'emerald', warn: 'amber', danger: 'red' };
             let bubbleOverlay = null;
             let activePinId = null;
             let activePinLatLng = null;
@@ -1259,6 +1261,18 @@
                 return toneColor[pin.tone] || '#6366f1';
             }
 
+            function shareHtml(pin) {
+                const ZM = window.ZentraMaps;
+                if (!ZM) return '';
+                return ZM.shareButton({
+                    title: pin.title,
+                    subtitle: pin.kind === 'installation' ? (pin.client_name || '') : '',
+                    address: pin.address || '',
+                    lat: pin.lat,
+                    lng: pin.lng,
+                }, { label: true });
+            }
+
             function bubbleHtml(pin) {
                 if (pin.kind === 'installation') {
                     return `
@@ -1267,6 +1281,7 @@
                     <span class="company-iw-badge" data-tone="warn">${escapeHtml(pin.client_name || 'Instalación')}</span>
                     <div class="company-iw-actions">
                         <a class="company-iw-ver" href="${escapeHtml(pin.url)}">Ver ficha</a>
+                        ${shareHtml(pin)}
                     </div>
                     `;
                 }
@@ -1288,6 +1303,7 @@
                             <input type="hidden" name="_token" value="${escapeHtml(csrfToken)}">
                             <button type="submit" class="company-iw-operar">Operar</button>
                         </form>
+                        ${shareHtml(pin)}
                     </div>
                 `;
             }
@@ -1341,7 +1357,8 @@
                         if (!projection) return;
                         const point = projection.fromLatLngToContainerPixel(activePinLatLng);
                         if (!point) return;
-                        placeBubbleAt(point.x, point.y);
+                        // La gota se ancla en la punta: la burbuja va sobre la cabeza.
+                        placeBubbleAt(point.x, point.y - (window.ZentraMaps ? 30 : 0));
                     }
                 }
                 bubbleOverlay = new PinBubbleOverlay();
@@ -1424,9 +1441,19 @@
             }
 
             function clearGoogleOverlays() {
+                pinClusterer?.clearMarkers();
                 googleMarkers.forEach(m => m.setMap(null));
                 googleMarkers = [];
                 closeBubble();
+            }
+
+            function pinIconFor(pin) {
+                const ZM = window.ZentraMaps;
+                if (!ZM) {
+                    return { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: pinFill(pin), fillOpacity: 1, strokeColor: '#0f172a', strokeWeight: 2 };
+                }
+                const glyph = pin.kind === 'installation' ? ZM.GLYPHS.building : ZM.GLYPHS.client;
+                return ZM.dropIcon(ZM.dropSvg(pinFill(pin), glyph), 26);
             }
 
             function applyFilter(query) {
@@ -1441,19 +1468,14 @@
                     const position = { lat: pin.lat, lng: pin.lng };
                     const marker = new google.maps.Marker({
                         position,
-                        map: googleMap,
+                        map: pinClusterer ? null : googleMap,
                         title: pin.title,
                         zIndex: 2,
                         optimized: false,
-                        icon: {
-                            path: google.maps.SymbolPath.CIRCLE,
-                            scale: 8,
-                            fillColor: pinFill(pin),
-                            fillOpacity: 1,
-                            strokeColor: '#0f172a',
-                            strokeWeight: 2,
-                        },
+                        icon: pinIconFor(pin),
                     });
+                    marker.zentraTone = pin.kind === 'installation' ? 'cyan' : (pinTone[pin.tone] || 'indigo');
+                    marker.zentraPin = pin;
                     marker.addListener('click', (event) => {
                         if (event?.domEvent) {
                             event.domEvent.stopPropagation();
@@ -1464,6 +1486,7 @@
                     googleMarkers.push(marker);
                     bounds.extend(position);
                 });
+                pinClusterer?.addMarkers(googleMarkers);
                 if (filtered.length === 1) {
                     googleMap.setCenter({ lat: filtered[0].lat, lng: filtered[0].lng });
                     googleMap.setZoom(14);
@@ -1485,6 +1508,8 @@
                     mapTypeControl: false,
                     scrollwheel: true,
                     gestureHandling: 'greedy',
+                    clickableIcons: false,
+                    styles: window.ZentraMaps?.MAP_STYLES,
                 });
                 googleMap.addListener('click', () => {
                     if (Date.now() < ignoreMapClickUntil) return;
@@ -1492,6 +1517,14 @@
                 });
                 googleMap.addListener('bounds_changed', () => bubbleOverlay?.draw());
                 googleMap.addListener('zoom_changed', () => bubbleOverlay?.draw());
+                if (window.ZentraMaps) {
+                    pinClusterer = window.ZentraMaps.createClusterer(googleMap, {
+                        onSamePlace: (markers) => {
+                            ignoreMapClickUntil = Date.now() + 400;
+                            if (markers[0]?.zentraPin) openGoogleBubble(markers[0].zentraPin);
+                        },
+                    });
+                }
                 applyFilter('');
                 syncMapTypeButtons('satellite');
                 return true;

@@ -10,6 +10,7 @@ use App\Enums\CommercialMetal;
 use App\Enums\CompanyAlertBucket;
 use App\Models\Client;
 use App\Models\SecurityCompany;
+use App\Support\Geo\PlaceLabel;
 use App\Support\Tenancy\CompanySubscriptionState;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -315,6 +316,9 @@ final class PlatformDashboardAnalytics
                         $company->clients->where('lifecycle', ClientLifecycle::Active)->count(),
                         $bucket->label()
                     ),
+                    'address' => PlaceLabel::of($company),
+                    'url' => route('admin.companies.show', $company),
+                    'enter_url' => route('admin.companies.enter', $company),
                 ];
             }
 
@@ -333,6 +337,10 @@ final class PlatformDashboardAnalytics
                         $company->trade_name,
                         $client->lifecycle?->label() ?? '—'
                     ),
+                    'company' => $company->trade_name,
+                    'address' => PlaceLabel::of($client),
+                    'url' => route('admin.companies.show', $company),
+                    'enter_url' => route('admin.companies.enter', $company),
                 ];
             }
         }
