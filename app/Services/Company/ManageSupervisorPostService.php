@@ -42,6 +42,7 @@ final class ManageSupervisorPostService
                 'modality' => $hours,
                 'service_days' => $this->validDays((int) ($data['service_days'] ?? SupervisorPost::ALL_DAYS)),
                 'serves_holidays' => (bool) ($data['serves_holidays'] ?? true),
+                'reviews_per_day' => $this->validReviewsPerDay((int) ($data['reviews_per_day'] ?? 1)),
                 'is_active' => $active,
                 'archived_at' => $active ? null : now(),
                 'latitude' => $data['latitude'] ?? null,
@@ -61,7 +62,7 @@ final class ManageSupervisorPostService
                 $client,
                 $installation,
                 $post,
-                'Alta de puesto «'.$post->name.'» · '.$post->modalityLabel().' · '.$post->serviceDaysLabel().' · '.$installation->name,
+                'Alta de puesto «'.$post->name.'» · '.$post->modalityLabel().' · '.$post->serviceDaysLabel().' · '.$post->reviewsPerDayLabel().' · '.$installation->name,
                 $data['observations'] ?? null,
                 ['action' => 'created'],
             );
@@ -85,6 +86,7 @@ final class ManageSupervisorPostService
             $oldHours = (int) $post->modality;
             $oldActive = (bool) $post->is_active;
             $oldSchedule = $post->serviceDaysLabel();
+            $oldReviewsPerDay = $post->reviewsPerDay();
             $oldInstallationId = (int) $post->installation_id;
             $oldInstallationName = $post->installation?->name ?? '—';
             $oldStaff = $post->employees->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all();
@@ -131,6 +133,10 @@ final class ManageSupervisorPostService
                 $post->serves_holidays = (bool) $data['serves_holidays'];
             }
 
+            if (array_key_exists('reviews_per_day', $data)) {
+                $post->reviews_per_day = $this->validReviewsPerDay((int) $data['reviews_per_day']);
+            }
+
             if (array_key_exists('latitude', $data) || array_key_exists('longitude', $data)) {
                 $post->latitude = $data['latitude'] ?? null;
                 $post->longitude = $data['longitude'] ?? null;
@@ -159,6 +165,9 @@ final class ManageSupervisorPostService
             }
             if ($post->serviceDaysLabel() !== $oldSchedule) {
                 $parts[] = 'Días '.$oldSchedule.' → '.$post->serviceDaysLabel();
+            }
+            if ($post->reviewsPerDay() !== $oldReviewsPerDay) {
+                $parts[] = 'Revistas por día '.$oldReviewsPerDay.' → '.$post->reviewsPerDay();
             }
             if (array_key_exists('is_active', $data) && (bool) $post->is_active !== $oldActive) {
                 $parts[] = $post->is_active ? 'Restaurado' : 'Archivado';
@@ -259,6 +268,17 @@ final class ManageSupervisorPostService
         }
 
         return $mask;
+    }
+
+    private function validReviewsPerDay(int $count): int
+    {
+        if ($count < 1 || $count > SupervisorPost::MAX_REVIEWS_PER_DAY) {
+            throw ValidationException::withMessages([
+                'reviews_per_day' => 'Las revistas por día van de 1 a '.SupervisorPost::MAX_REVIEWS_PER_DAY.'.',
+            ]);
+        }
+
+        return $count;
     }
 
     private function assertClientCanHavePosts(Client $client): void

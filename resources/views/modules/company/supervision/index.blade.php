@@ -18,24 +18,36 @@
         'novelty' => $filter->hasNovelty === null ? null : ($filter->hasNovelty ? '1' : '0'),
     ], fn ($value) => $value !== null && $value !== '');
     $sheetKindLabels = ['review' => 'Revista', 'alarm' => 'Alarma', 'support' => 'Apoyo', 'document' => 'Documentos'];
-    $sheetChips = [];
-    if ($activeTab === 'sheets') {
-        $chipLabels = [
-            'zone_id' => ['Zona', collect($zones ?? [])->firstWhere('id', $filter->zoneId)?->name],
-            'supervisor_id' => ['Supervisor', collect($supervisors ?? [])->firstWhere('id', $filter->supervisorId)?->name],
-            'kind' => ['Tipo', $sheetKindLabels[$filter->sheetKind ?? ''] ?? null],
-            'client_id' => ['Cliente', collect($clients ?? [])->firstWhere('id', $filter->clientId)?->name],
-            'novelty' => ['Novedad', $filter->hasNovelty === null ? null : ($filter->hasNovelty ? 'Con novedad' : 'Sin novedad')],
-        ];
-        foreach ($chipLabels as $key => [$label, $value]) {
-            if (isset($tabQuery[$key]) && $value !== null) {
-                $sheetChips[] = [
-                    'label' => $label.': '.$value,
-                    'url' => route('company.supervision.index', array_diff_key($tabQuery, [$key => true]) + ['tab' => 'sheets']),
-                ];
-            }
+    $filterFields = match ($activeTab) {
+        'history' => ['supervisor_id'],
+        'summary' => ['zone_id', 'supervisor_id'],
+        'sheets' => ['zone_id', 'supervisor_id', 'kind', 'novelty', 'client_id'],
+        default => [],
+    };
+    $filterTitle = match ($activeTab) {
+        'history' => 'Filtrar historial',
+        'summary' => 'Filtrar resumen',
+        'sheets' => 'Filtrar fichas',
+        default => 'Filtrar',
+    };
+    $filterChips = [];
+    $chipLabels = [
+        'zone_id' => ['Zona', collect($zones ?? [])->firstWhere('id', $filter->zoneId)?->name],
+        'supervisor_id' => ['Supervisor', collect($supervisors ?? [])->firstWhere('id', $filter->supervisorId)?->name],
+        'kind' => ['Tipo', $sheetKindLabels[$filter->sheetKind ?? ''] ?? null],
+        'client_id' => ['Cliente', collect($clients ?? [])->firstWhere('id', $filter->clientId)?->name],
+        'novelty' => ['Novedad', $filter->hasNovelty === null ? null : ($filter->hasNovelty ? 'Con novedad' : 'Sin novedad')],
+    ];
+    foreach ($filterFields as $key) {
+        [$label, $value] = $chipLabels[$key];
+        if (isset($tabQuery[$key]) && $value !== null) {
+            $filterChips[] = [
+                'label' => $label.': '.$value,
+                'url' => route('company.supervision.index', array_diff_key($tabQuery, [$key => true]) + ['tab' => $activeTab]),
+            ];
         }
     }
+    $clearFiltersUrl = route('company.supervision.index', array_intersect_key($tabQuery, ['from' => true, 'to' => true]) + ['tab' => $activeTab]);
     $semaphoreClass = match ($summary->semaphore) {
         'green' => 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
         'yellow' => 'bg-amber-500/20 text-amber-300 border-amber-500/40',
@@ -50,42 +62,16 @@
         <form method="GET" action="{{ route('company.supervision.index') }}" class="flex flex-wrap items-end gap-2" id="supervision-filter">
             <input type="hidden" name="tab" value="{{ $activeTab }}">
             @include('modules.company.supervision.partials.period-picker', ['from' => $summary->from, 'to' => $summary->to])
-            @if ($activeTab === 'sheets')
-                @include('modules.company.supervision.partials.sheet-filters', ['kindLabels' => $sheetKindLabels])
-            @else
-            @if ($activeTab === 'summary')
-            <div>
-                <label for="zone_id" class="text-xs text-slate-500">Zona</label>
-                <select id="zone_id" name="zone_id"
-                        class="mt-1 block h-9 min-w-[9.5rem] px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                    <option value="">Todas</option>
-                    @foreach ($zones ?? [] as $zone)
-                        <option value="{{ $zone->id }}" @selected($filter->zoneId === (int) $zone->id)>
-                            {{ $zone->name }}{{ $zone->is_active ? '' : ' (inactiva)' }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-            @endif
-            <div>
-                <label for="supervisor_id" class="text-xs text-slate-500">Supervisor</label>
-                <select id="supervisor_id" name="supervisor_id"
-                        class="mt-1 block h-9 min-w-[9.5rem] px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                    <option value="">Todos</option>
-                    @foreach ($supervisors ?? [] as $supervisor)
-                        <option value="{{ $supervisor->id }}" @selected($filter->supervisorId === (int) $supervisor->id)>
-                            {{ $supervisor->name }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-            <x-ui.button type="submit" size="sm" variant="secondary">Filtrar</x-ui.button>
+            @include('modules.company.supervision.partials.filters-panel', [
+                'fields' => $filterFields,
+                'title' => $filterTitle,
+                'kindLabels' => $sheetKindLabels,
+            ])
             @if ($activeTab === 'summary')
             <a href="{{ route('company.supervision.report', $tabQuery) }}"
                class="inline-flex items-center h-9 px-3 text-sm rounded-lg border border-amber-500/40 text-amber-200 hover:bg-amber-500/10">
                 Descargar PPTX
             </a>
-            @endif
             @endif
         </form>
         @endif
@@ -114,6 +100,19 @@
     </x-slot:headerTabs>
 
     <div class="space-y-4">
+        @if ($filterChips !== [])
+            <div class="flex flex-wrap items-center gap-2">
+                @foreach ($filterChips as $chip)
+                    <a href="{{ $chip['url'] }}"
+                       class="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs text-amber-200 hover:bg-amber-500/20"
+                       title="Quitar filtro">
+                        {{ $chip['label'] }}
+                        <span aria-hidden="true">✕</span>
+                    </a>
+                @endforeach
+                <a href="{{ $clearFiltersUrl }}" class="text-xs text-slate-400 hover:text-white">Limpiar todo</a>
+            </div>
+        @endif
         @if ($activeTab !== 'summary' && $activeTab !== 'sheets')
             <div @class(['grid gap-4 lg:grid-cols-12 lg:items-stretch' => in_array($activeTab, ['live', 'history'], true)])>
                 <div @class(['relative' => true, 'lg:col-span-7 xl:col-span-8' => in_array($activeTab, ['live', 'history'], true)])>
@@ -226,20 +225,6 @@
         @endif
 
         @if ($activeTab === 'sheets')
-            @if ($sheetChips !== [])
-                <div class="flex flex-wrap items-center gap-2">
-                    @foreach ($sheetChips as $chip)
-                        <a href="{{ $chip['url'] }}"
-                           class="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs text-amber-200 hover:bg-amber-500/20"
-                           title="Quitar filtro">
-                            {{ $chip['label'] }}
-                            <span aria-hidden="true">✕</span>
-                        </a>
-                    @endforeach
-                    <a href="{{ route('company.supervision.index', array_intersect_key($tabQuery, ['from' => true, 'to' => true]) + ['tab' => 'sheets']) }}"
-                       class="text-xs text-slate-400 hover:text-white">Limpiar todo</a>
-                </div>
-            @endif
             <section class="rounded-lg border border-slate-800 bg-slate-900/80 overflow-hidden">
                 <div class="px-4 py-3 border-b border-slate-800">
                     <h3 class="text-sm font-semibold text-white">Fichas de campo</h3>

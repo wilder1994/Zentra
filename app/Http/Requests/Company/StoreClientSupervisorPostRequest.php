@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Company;
 
 use App\Models\Client;
+use App\Models\SupervisorPost;
 use App\Models\SupervisorPostModality;
 use App\Services\Company\SeedSupervisorIntakeDefaultsService;
 use Illuminate\Foundation\Http\FormRequest;
@@ -52,6 +53,7 @@ final class StoreClientSupervisorPostRequest extends FormRequest
             'service_days' => ['sometimes', 'array', 'min:1'],
             'service_days.*' => ['integer', 'between:1,7'],
             'serves_holidays' => ['sometimes', 'boolean'],
+            'reviews_per_day' => ['sometimes', 'integer', 'between:1,'.SupervisorPost::MAX_REVIEWS_PER_DAY],
             'employee_ids' => ['nullable', 'array'],
             'employee_ids.*' => ['integer', 'exists:employees,id'],
             'is_active' => ['sometimes', 'boolean'],
@@ -71,6 +73,7 @@ final class StoreClientSupervisorPostRequest extends FormRequest
             'modality' => 'modalidad',
             'service_days' => 'días de servicio',
             'serves_holidays' => 'servicio en festivos',
+            'reviews_per_day' => 'revistas por día',
             'employee_ids' => 'vigilantes',
             'observations' => 'observaciones',
         ];

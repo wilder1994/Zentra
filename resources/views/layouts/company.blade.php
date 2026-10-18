@@ -274,7 +274,6 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-                            @include('partials.theme-toggle')
                             <div class="flex items-center gap-2 flex-wrap justify-end {{ ! empty($companyServiceSuspended) ? 'pointer-events-none opacity-40' : '' }}">
                             @isset($actions)
                                 {{ $actions }}
@@ -286,6 +285,7 @@
                                 @endcan
                             @endif
                             </div>
+                            @include('partials.theme-toggle')
                         </div>
                     </div>
                 </div>

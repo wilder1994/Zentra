@@ -50,6 +50,9 @@ final class BuildSupervisionMapService
                 continue;
             }
             $label = $post->name;
+            if (($row['target'] ?? 1) > 1 && ! $row['done']) {
+                $label .= ' ('.($row['reviews'] ?? 0).'/'.$row['target'].')';
+            }
 
             $site = &$installations[$installation->id];
             $site ??= [

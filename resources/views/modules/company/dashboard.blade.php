@@ -936,7 +936,7 @@
                     </div>
                     <div class="rounded-md border border-slate-800 bg-slate-950/40 px-3 py-2 overflow-visible">
                         <p class="company-field-kpi-label">Cobertura
-                            <x-ui.help-tip text="Puestos distintos con al menos una revista hoy ÷ puestos programados para el día operativo. Distinto del conteo de revistas." />
+                            <x-ui.help-tip text="Puestos que ya tienen hoy todas sus revistas contratadas (por defecto 1) ÷ puestos programados para el día operativo. Distinto del conteo de revistas." />
                         </p>
                         <p class="text-lg font-semibold text-white tabular-nums">
                             <span x-text="field && field.coverage_pct !== null ? field.coverage_pct + '%' : '—'">{{ $fieldSupervision['coverage_pct'] !== null ? $fieldSupervision['coverage_pct'].'%' : '—' }}</span>
@@ -963,7 +963,7 @@
                     </div>
                 </div>
                 <p class="text-[11px] text-slate-600 mt-2">
-                    Cobertura: puestos con al menos una revista en el día operativo (06:00 a 06:00), según sus días de servicio y festivos.
+                    Cobertura: puestos con todas sus revistas contratadas (por defecto 1) en el día operativo (06:00 a 06:00), según sus días de servicio y festivos.
                     @if (($fieldSupervision['posts_count'] ?? 0) > 0)
                         · {{ $fieldSupervision['posts_count'] }} puesto{{ $fieldSupervision['posts_count'] === 1 ? '' : 's' }} activos.
                     @endif

@@ -13,8 +13,9 @@ use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
 /**
- * Cumplimiento de revistas por puesto: cada puesto activo espera al menos una revista
- * en cada día operativo (06:00–06:00) en que presta servicio.
+ * Cumplimiento de revistas por puesto: cada puesto activo espera `reviews_per_day` revistas
+ * (por defecto 1, a cualquier hora) en cada día operativo (06:00–06:00) en que presta servicio.
+ * Las cifras expected/done de range() son revistas; las de más en un día no suman.
  */
 final class BuildPostComplianceService
 {
@@ -55,18 +56,19 @@ final class BuildPostComplianceService
                 if (! $this->expectedOn($post, $date, $start, $end)) {
                     continue;
                 }
-                $hit = isset($reviewed[$post->id][$key]);
-                $dayExpected++;
-                $dayDone += $hit ? 1 : 0;
+                $target = $post->reviewsPerDay();
+                $hit = min($target, $reviewed[$post->id][$key] ?? 0);
+                $dayExpected += $target;
+                $dayDone += $hit;
 
                 $perPost[$post->id] ??= ['post' => $post, 'expected' => 0, 'done' => 0];
-                $perPost[$post->id]['expected']++;
-                $perPost[$post->id]['done'] += $hit ? 1 : 0;
+                $perPost[$post->id]['expected'] += $target;
+                $perPost[$post->id]['done'] += $hit;
 
                 $clientId = (int) $post->client_id;
                 $perClient[$clientId] ??= ['id' => $clientId, 'name' => (string) $post->client?->name, 'expected' => 0, 'done' => 0];
-                $perClient[$clientId]['expected']++;
-                $perClient[$clientId]['done'] += $hit ? 1 : 0;
+                $perClient[$clientId]['expected'] += $target;
+                $perClient[$clientId]['done'] += $hit;
             }
             $days[] = ['date' => $key, 'expected' => $dayExpected, 'done' => $dayDone];
             $expected += $dayExpected;
@@ -84,9 +86,9 @@ final class BuildPostComplianceService
     }
 
     /**
-     * Estado de cada puesto en un día operativo.
+     * Estado de cada puesto en un día operativo. done = hizo todas las revistas contratadas.
      *
-     * @return list<array{post: SupervisorPost, expected: bool, done: bool}>
+     * @return list<array{post: SupervisorPost, expected: bool, done: bool, target: int, reviews: int}>
      */
     public function day(int $companyId, ?CarbonInterface $date = null): array
     {
@@ -97,11 +99,18 @@ final class BuildPostComplianceService
         $key = $date->format('Y-m-d');
 
         return $posts
-            ->map(fn (SupervisorPost $post) => [
-                'post' => $post,
-                'expected' => $this->expectedOn($post, $date, $start, $end),
-                'done' => isset($reviewed[$post->id][$key]),
-            ])
+            ->map(function (SupervisorPost $post) use ($reviewed, $key, $date, $start, $end): array {
+                $target = $post->reviewsPerDay();
+                $reviews = (int) ($reviewed[$post->id][$key] ?? 0);
+
+                return [
+                    'post' => $post,
+                    'expected' => $this->expectedOn($post, $date, $start, $end),
+                    'done' => $reviews >= $target,
+                    'target' => $target,
+                    'reviews' => $reviews,
+                ];
+            })
             ->values()
             ->all();
     }
@@ -142,7 +151,7 @@ final class BuildPostComplianceService
     /**
      * @param  Collection<int, SupervisorPost>  $posts
      * @param  list<CarbonImmutable>  $dates
-     * @return array<int, array<string, true>> post_id => [Y-m-d => true]
+     * @return array<int, array<string, int>> post_id => [Y-m-d => revistas]
      */
     private function reviewedPostDays(Collection $posts, array $dates, ?SupervisionQueryFilter $filter = null): array
     {
@@ -162,7 +171,8 @@ final class BuildPostComplianceService
             ->get(['supervisor_post_id', 'recorded_at'])
             ->each(function (SupervisorShiftReview $review) use (&$out): void {
                 $key = SupervisionOperationalDay::dateFor($review->recorded_at)->format('Y-m-d');
-                $out[(int) $review->supervisor_post_id][$key] = true;
+                $postId = (int) $review->supervisor_post_id;
+                $out[$postId][$key] = ($out[$postId][$key] ?? 0) + 1;
             });
 
         return $out;

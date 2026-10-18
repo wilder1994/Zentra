@@ -1,7 +1,7 @@
-/** Panel «Filtros» de Fichas: edita un borrador y escribe los valores en el formulario al aplicar. */
-export function supervisionSheetFilters(config) {
-    const keys = ['zone_id', 'supervisor_id', 'kind', 'client_id', 'novelty'];
-    const initial = Object.fromEntries(keys.map((key) => [key, String(config.values?.[key] ?? '')]));
+/** Panel «Filtros» de Supervisión: edita un borrador y escribe los valores en el formulario al aplicar. */
+export function supervisionFilters(config) {
+    const keys = Object.keys(config.values || {});
+    const initial = Object.fromEntries(keys.map((key) => [key, String(config.values[key] ?? '')]));
 
     return {
         open: false,

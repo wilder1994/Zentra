@@ -9,6 +9,7 @@
     }
     $selectedDays = array_map('intval', (array) old('service_days', $post?->serviceDayList() ?? [1, 2, 3, 4, 5, 6, 7]));
     $servesHolidays = (bool) old('serves_holidays', $post?->serves_holidays ?? true);
+    $reviewsPerDay = (int) old('reviews_per_day', $post?->reviewsPerDay() ?? 1);
     $installations = $installations ?? collect();
     $installation = $installation ?? null;
     $returnTo = $returnTo ?? null;
@@ -98,7 +99,13 @@
                 <input type="radio" name="serves_holidays" value="0" @checked(! $servesHolidays) class="border-slate-700 {{ $check }}"> No
             </label>
         </div>
-        <p class="mt-1 text-[11px] text-slate-500">Cada día de servicio espera al menos una revista (de 06:00 a 06:00). Los días sin servicio no cuentan para el cumplimiento.</p>
+        <div class="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-300">
+            <label for="reviews_per_day_{{ $post?->id ?? 'new' }}" class="text-slate-500">Revistas contratadas por día</label>
+            <input type="number" id="reviews_per_day_{{ $post?->id ?? 'new' }}" name="reviews_per_day" value="{{ $reviewsPerDay }}"
+                   min="1" max="{{ \App\Models\SupervisorPost::MAX_REVIEWS_PER_DAY }}" required
+                   class="w-16 rounded-lg bg-slate-950 border border-slate-700 px-2 py-1 text-xs text-white tabular-nums">
+        </div>
+        <p class="mt-1 text-[11px] text-slate-500">Cada día de servicio (de 06:00 a 06:00) espera esa cantidad de revistas, a cualquier hora. Por defecto 1; súbelo si el contrato con el cliente pide más (p. ej. 2: una de día y una de noche). Los días sin servicio no cuentan para el cumplimiento.</p>
     </div>
 
     <div class="sm:col-span-2 space-y-2" x-data="postEmployeePicker(@js($pickerConfig))" @click.outside="open = false">

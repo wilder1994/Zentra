@@ -71,6 +71,7 @@ final class CompanySupervisionMapTest extends TestCase
         $history->assertDontSee('Reproducir');
         $history->assertDontSee('>Zona<', false);
         $history->assertDontSee('Descargar PPTX');
+        $history->assertSee('Filtrar historial');
 
         SupervisorShift::query()->create([
             'security_company_id' => $user->security_company_id,
@@ -89,6 +90,9 @@ final class CompanySupervisionMapTest extends TestCase
         $summary = $this->actingAs($user)->get(route('company.supervision.index', ['tab' => 'summary']));
         $summary->assertOk();
         $summary->assertSee('Cumplimiento por puesto');
+        $summary->assertSee('revistas esperadas');
+        $summary->assertSee('Filtrar resumen');
+        $summary->assertDontSee('puesto-día');
         $summary->assertSee('Revistas');
         $summary->assertSee('Puestos cumplidos');
         $summary->assertSee('Clientes ·', false);

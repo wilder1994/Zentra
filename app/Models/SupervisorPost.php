@@ -24,6 +24,7 @@ final class SupervisorPost extends Model
         'modality',
         'service_days',
         'serves_holidays',
+        'reviews_per_day',
         'is_active',
         'max_employees',
         'max_employees_note',
@@ -36,6 +37,8 @@ final class SupervisorPost extends Model
 
     public const ALL_DAYS = 127;
 
+    public const MAX_REVIEWS_PER_DAY = 12;
+
     public const WEEKDAYS = 31;
 
     /** @var array<int, string> ISO 1 = lunes */
@@ -47,6 +50,7 @@ final class SupervisorPost extends Model
             'modality' => 'integer',
             'service_days' => 'integer',
             'serves_holidays' => 'boolean',
+            'reviews_per_day' => 'integer',
             'is_active' => 'boolean',
             'max_employees' => 'integer',
             'archived_at' => 'datetime',
@@ -113,6 +117,19 @@ final class SupervisorPost extends Model
         }
 
         return $this->serves_holidays !== false || ! ColombiaHolidays::isHoliday($date);
+    }
+
+    /** Revistas contratadas por día de servicio (acuerdo con el cliente). */
+    public function reviewsPerDay(): int
+    {
+        return max(1, min(self::MAX_REVIEWS_PER_DAY, (int) ($this->reviews_per_day ?? 1)));
+    }
+
+    public function reviewsPerDayLabel(): string
+    {
+        $n = $this->reviewsPerDay();
+
+        return $n.' '.($n === 1 ? 'revista' : 'revistas').' por día';
     }
 
     public function serviceDaysLabel(): string

@@ -9,7 +9,8 @@
         <div class="rounded-lg border p-3 {{ $semaphoreClass }}">
             <p class="text-[10px] uppercase tracking-wide">Cumplimiento por puesto</p>
             <p class="text-2xl font-semibold tabular-nums">{{ $summary->coveragePercent !== null ? number_format($summary->coveragePercent, 1).'%' : '—' }}</p>
-            <p class="text-[11px] opacity-80">{{ $summary->sitesVisited }} de {{ $summary->sitesContracted }} puesto-día con revista</p>
+            <p class="text-[11px] opacity-80">{{ $summary->sitesVisited }} de {{ $summary->sitesContracted }} revistas esperadas</p>
+            <p class="mt-0.5 text-[10px] opacity-70 leading-snug">Revistas contratadas por puesto en cada día de servicio (06:00 a 06:00). Por defecto 1.</p>
         </div>
         <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
             <p class="text-[10px] uppercase tracking-wide text-slate-500">Puestos cumplidos</p>
@@ -182,7 +183,7 @@
                                                 <span class="text-slate-500">{{ $pending['installation'] }} ·</span>
                                                 <span class="text-slate-200">{{ $pending['post'] }}</span>
                                                 @if ($pending['expected'] > 1)
-                                                    <span class="text-amber-300/90">· faltan {{ $pending['missing'] }} de {{ $pending['expected'] }} días</span>
+                                                    <span class="text-amber-300/90">· faltan {{ $pending['missing'] }} de {{ $pending['expected'] }} revistas</span>
                                                 @endif
                                             </li>
                                         @endforeach

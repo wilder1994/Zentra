@@ -110,7 +110,7 @@ final class ClientSupervisorPostController extends Controller
         return $this->backToClient($client, $request, $message);
     }
 
-    /** @return array{service_days?: int, serves_holidays?: bool} */
+    /** @return array{service_days?: int, serves_holidays?: bool, reviews_per_day?: int} */
     private function schedule(StoreClientSupervisorPostRequest $request): array
     {
         $out = [];
@@ -119,6 +119,9 @@ final class ClientSupervisorPostController extends Controller
         }
         if ($request->has('serves_holidays')) {
             $out['serves_holidays'] = $request->boolean('serves_holidays');
+        }
+        if ($request->has('reviews_per_day')) {
+            $out['reviews_per_day'] = (int) $request->validated('reviews_per_day');
         }
 
         return $out;

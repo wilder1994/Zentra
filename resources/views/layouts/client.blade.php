@@ -94,10 +94,10 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-                            @include('partials.theme-toggle')
                             @isset($actions)
                                 {{ $actions }}
                             @endisset
+                            @include('partials.theme-toggle')
                         </div>
                     </div>
                 </div>

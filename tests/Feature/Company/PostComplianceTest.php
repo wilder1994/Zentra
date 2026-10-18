@@ -70,6 +70,74 @@ final class PostComplianceTest extends TestCase
         $this->assertSame(SupervisorPost::WEEKDAYS, $post->service_days);
         $this->assertFalse($post->serves_holidays);
         $this->assertSame('Lun a Vie · sin festivos', $post->serviceDaysLabel());
+        $this->assertSame(1, $post->reviewsPerDay());
+
+        $this->actingAs($user)->post(route('company.clients.posts.store', $client), [
+            'installation_id' => $installation->id,
+            'name' => 'Portería 24 h',
+            'modality' => 12,
+            'service_days' => [1, 2, 3, 4, 5, 6, 7],
+            'serves_holidays' => '1',
+            'reviews_per_day' => 2,
+            'vista' => 'sitio',
+        ])->assertRedirect();
+
+        $this->assertSame(2, SupervisorPost::query()->where('name', 'Portería 24 h')->firstOrFail()->reviewsPerDay());
+    }
+
+    public function test_compliance_counts_contracted_reviews_per_day(): void
+    {
+        $this->seedWithPilot();
+        $tz = (string) config('app.timezone');
+        Carbon::setTestNow(Carbon::parse('2026-10-14 10:00', $tz));
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-14 10:00', $tz));
+
+        $client = Client::query()->where('slug', 'palmas-del-ingenio')->firstOrFail();
+        $installation = $client->installations()->firstOrFail();
+        $companyId = (int) $client->security_company_id;
+        $post = SupervisorPost::query()->create([
+            'client_id' => $client->id,
+            'installation_id' => $installation->id,
+            'name' => 'Dos revistas',
+            'modality' => 24,
+            'service_days' => SupervisorPost::ALL_DAYS,
+            'serves_holidays' => true,
+            'reviews_per_day' => 2,
+            'is_active' => true,
+            'created_at' => now()->subDays(3),
+        ]);
+
+        $shift = SupervisorShift::query()->create([
+            'security_company_id' => $companyId,
+            'user_id' => $this->companySupervisor()->id,
+            'status' => SupervisorShiftStatus::Open,
+            'started_at' => now()->subHours(3),
+        ]);
+        $employee = Employee::query()->where('security_company_id', $companyId)->firstOrFail();
+        $review = fn (int $hoursAgo) => SupervisorShiftReview::query()->create([
+            'supervisor_shift_id' => $shift->id,
+            'client_id' => $client->id,
+            'supervisor_post_id' => $post->id,
+            'employee_id' => $employee->id,
+            'latitude' => 3.45,
+            'longitude' => -76.53,
+            'recorded_at' => now()->subHours($hoursAgo),
+        ]);
+
+        $service = app(BuildPostComplianceService::class);
+        $today = CarbonImmutable::parse('2026-10-14', $tz);
+        $row = fn () => collect($service->day($companyId, $today))->first(fn (array $r) => (int) $r['post']->id === (int) $post->id);
+        $range = fn () => $service->range($companyId, $today, $today)['posts'][$post->id];
+
+        $review(1);
+        $this->assertFalse($row()['done']);
+        $this->assertSame(1, $row()['reviews']);
+        $this->assertSame(['expected' => 2, 'done' => 1], array_intersect_key($range(), ['expected' => 0, 'done' => 0]));
+
+        $review(2);
+        $review(3);
+        $this->assertTrue($row()['done']);
+        $this->assertSame(['expected' => 2, 'done' => 2], array_intersect_key($range(), ['expected' => 0, 'done' => 0]));
     }
 
     public function test_compliance_respects_service_days_holidays_and_reviews(): void

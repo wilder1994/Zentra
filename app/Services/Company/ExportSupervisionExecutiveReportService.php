@@ -163,7 +163,7 @@ final class ExportSupervisionExecutiveReportService
         $recs = $snapshot->recommendations;
 
         $boxes = [
-            [$coverage, 'Cumplimiento', $this->int($snapshot->sitesVisited).' de '.$this->int($snapshot->sitesContracted).' puesto-día', $fill, $ink],
+            [$coverage, 'Cumplimiento', $this->int($snapshot->sitesVisited).' de '.$this->int($snapshot->sitesContracted).' revistas esperadas', $fill, $ink],
             [$this->int($snapshot->postsDone).' de '.$this->int($snapshot->postsTotal), 'Puestos cumplidos', $this->int($snapshot->postsTotal - $snapshot->postsDone).' con pendientes', self::CARD, self::INK],
             [$this->int($snapshot->reviews), 'Revistas', $this->int($snapshot->reviewsWithNovelty).' con novedad', self::CARD, self::INK],
             [$this->int($snapshot->kmTraveled), 'Km recorridos', $this->int(count($snapshot->bySupervisor)).' supervisores', self::CARD, self::GOLD],
@@ -199,6 +199,7 @@ final class ExportSupervisionExecutiveReportService
             $items = array_map(fn (array $alert) => str_replace('> 12 h', 'de más de 12 h', $alert['text']), $snapshot->alerts);
             $paragraphs[] = ['Puntos de atención: '.implode('; ', $items).'.', self::GOLD];
         }
+        $paragraphs[] = ['Revistas esperadas: cada puesto espera las revistas contratadas con el cliente (por defecto 1) en cada día de servicio, de 06:00 a 06:00, a cualquier hora. Los días sin servicio y los festivos sin servicio no cuentan.', self::MUTED];
         $paragraphs[] = ['Revistas de portería (código Accesos) no entran en este informe; solo la captura de campo de los supervisores.', self::MUTED];
 
         $this->paragraphs($slide, $paragraphs, 40, 248, 880, 220, 13);
@@ -215,7 +216,7 @@ final class ExportSupervisionExecutiveReportService
                 default => 'en rojo, lejos de la meta del 90 %',
             };
             $pending = $s->postsTotal - $s->postsDone;
-            $text = 'Se esperaban '.$this->int($s->sitesContracted).' revistas puesto-día en '.$this->int($s->postsTotal)
+            $text = 'Se esperaban '.$this->int($s->sitesContracted).' revistas en '.$this->int($s->postsTotal)
                 .' puestos y se cumplieron '.$this->int($s->sitesVisited).' ('.$this->decimal((float) $s->coveragePercent).' %), un resultado '.$level.'. '
                 .($pending === 0
                     ? 'Todos los puestos completaron sus días de servicio.'
@@ -231,7 +232,7 @@ final class ExportSupervisionExecutiveReportService
         $text .= ', y recorrieron '.$this->int($s->kmTraveled).' km.';
 
         if ($s->sitesContracted > 0 && $s->reviews > $s->sitesVisited) {
-            $text .= ' Hay más revistas que cumplimientos porque un puesto puede recibir varias visitas el mismo día; el cumplimiento cuenta una por puesto y día operativo (06:00 a 06:00).';
+            $text .= ' Hay más revistas que cumplimientos porque un puesto puede recibir más visitas de las contratadas; el cumplimiento cuenta hasta las revistas contratadas por puesto en cada día operativo.';
         }
 
         $recs = $s->recommendations;

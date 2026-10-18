@@ -81,10 +81,10 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
-                        @include('partials.theme-toggle')
                         @isset($actions)
                             {{ $actions }}
                         @endisset
+                        @include('partials.theme-toggle')
                     </div>
                 </div>
             </header>
