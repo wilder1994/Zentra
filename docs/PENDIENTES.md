@@ -16,7 +16,7 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ### 17 oct 2026 · Mapas: pines en gota y agrupación por zoom (todos los módulos)
 - Gota única para pines y grupos (número en la cabeza), colores e íconos de cada convención intactos. `map-pins.js` + `map-cluster.js` (`@googlemaps/markerclusterer`).
-- Instalaciones: Mapa + «Instalaciones y servicios» arriba, Novedades + Revistas abajo; tarjetas a 192 px; tarjeta del pin fija en la esquina del mapa.
+- Instalaciones: Mapa + «Instalaciones y servicios» arriba, Novedades + Revistas abajo; contenedores a 384 px y KPIs compactos (~65 px, −40 %); tarjeta del pin fija en la esquina del mapa.
 - Aplicado en Instalaciones, Mi empresa, Supervisión, Observatorio, Plataforma y panel cliente. Detalle: `DISENO-UI-ZENTRA.md` §10.1.
 - Tarjeta en el mapa de Plataforma (Ver empresa, Entrar como empresa) y del panel cliente. Botón **Compartir ubicación** (copiar, WhatsApp, Google Maps, menú del celular) en todas las tarjetas. Sin íconos de lugares de Google en los mapas.
 
@@ -24,7 +24,7 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 - Selector de cliente en el header (`x-ui.filter-picker`: lista al abrir, filtra al escribir) que filtra toda la vista y el refresco en vivo.
 - KPIs con ícono y contexto (sin ubicación, vigilantes, revistas cumplidas/esperadas con barra, hora de la última novedad).
 - Mapa al estilo de Supervisión (Satélite/Terreno, pines SVG con número de servicios, tarjeta al clic).
-- «Servicios actuales» → **Instalaciones y servicios** (fila por instalación, puestos desplegables, buscador interno). Se quitó la tabla paginada y el buscador de abajo. Tarjetas a 320 px.
+- «Servicios actuales» → **Instalaciones y servicios** (fila por instalación, puestos desplegables, buscador interno). Se quitó la tabla paginada y el buscador de abajo.
 - El panel de cliente conserva su tablero (`sig-board`). Tests: `CompanyInstallationDirectoryTest`, `SigBoardAndPanicTest`.
 
 ### 17 oct 2026 · Revistas contratadas por puesto, filtros en modal y tema a la derecha
