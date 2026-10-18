@@ -48,6 +48,13 @@ final class CompanySupervisionFieldSheetTest extends TestCase
         $list->assertSee('Fichas');
         $list->assertSee('FC-');
         $list->assertSee('Revista');
+        $list->assertSee('Filtrar fichas');
+        $list->assertDontSee('Descargar PPTX');
+
+        $filtered = $this->actingAs($admin)->get(route('company.supervision.index', ['tab' => 'sheets', 'kind' => 'review']));
+        $filtered->assertOk();
+        $filtered->assertSee('Tipo: Revista');
+        $filtered->assertSee('Limpiar todo');
 
         $print = $this->actingAs($admin)->get(route('company.supervision.sheets.show', [
             'kind' => 'review',

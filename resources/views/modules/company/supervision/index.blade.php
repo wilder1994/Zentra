@@ -17,6 +17,25 @@
         'client_id' => $filter->clientId ?? null,
         'novelty' => $filter->hasNovelty === null ? null : ($filter->hasNovelty ? '1' : '0'),
     ], fn ($value) => $value !== null && $value !== '');
+    $sheetKindLabels = ['review' => 'Revista', 'alarm' => 'Alarma', 'support' => 'Apoyo', 'document' => 'Documentos'];
+    $sheetChips = [];
+    if ($activeTab === 'sheets') {
+        $chipLabels = [
+            'zone_id' => ['Zona', collect($zones ?? [])->firstWhere('id', $filter->zoneId)?->name],
+            'supervisor_id' => ['Supervisor', collect($supervisors ?? [])->firstWhere('id', $filter->supervisorId)?->name],
+            'kind' => ['Tipo', $sheetKindLabels[$filter->sheetKind ?? ''] ?? null],
+            'client_id' => ['Cliente', collect($clients ?? [])->firstWhere('id', $filter->clientId)?->name],
+            'novelty' => ['Novedad', $filter->hasNovelty === null ? null : ($filter->hasNovelty ? 'Con novedad' : 'Sin novedad')],
+        ];
+        foreach ($chipLabels as $key => [$label, $value]) {
+            if (isset($tabQuery[$key]) && $value !== null) {
+                $sheetChips[] = [
+                    'label' => $label.': '.$value,
+                    'url' => route('company.supervision.index', array_diff_key($tabQuery, [$key => true]) + ['tab' => 'sheets']),
+                ];
+            }
+        }
+    }
     $semaphoreClass = match ($summary->semaphore) {
         'green' => 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
         'yellow' => 'bg-amber-500/20 text-amber-300 border-amber-500/40',
@@ -31,7 +50,10 @@
         <form method="GET" action="{{ route('company.supervision.index') }}" class="flex flex-wrap items-end gap-2" id="supervision-filter">
             <input type="hidden" name="tab" value="{{ $activeTab }}">
             @include('modules.company.supervision.partials.period-picker', ['from' => $summary->from, 'to' => $summary->to])
-            @if (in_array($activeTab, ['summary', 'sheets'], true))
+            @if ($activeTab === 'sheets')
+                @include('modules.company.supervision.partials.sheet-filters', ['kindLabels' => $sheetKindLabels])
+            @else
+            @if ($activeTab === 'summary')
             <div>
                 <label for="zone_id" class="text-xs text-slate-500">Zona</label>
                 <select id="zone_id" name="zone_id"
@@ -57,44 +79,13 @@
                     @endforeach
                 </select>
             </div>
-            @if ($activeTab === 'sheets')
-                <div>
-                    <label for="kind" class="text-xs text-slate-500">Tipo</label>
-                    <select id="kind" name="kind"
-                            class="mt-1 block h-9 min-w-[8.5rem] px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                        <option value="">Todas</option>
-                        <option value="review" @selected($filter->sheetKind === 'review')>Revista</option>
-                        <option value="alarm" @selected($filter->sheetKind === 'alarm')>Alarma</option>
-                        <option value="support" @selected($filter->sheetKind === 'support')>Apoyo</option>
-                        <option value="document" @selected($filter->sheetKind === 'document')>Documentos</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="client_id" class="text-xs text-slate-500">Cliente</label>
-                    <select id="client_id" name="client_id"
-                            class="mt-1 block h-9 min-w-[9.5rem] px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                        <option value="">Todos</option>
-                        @foreach ($clients ?? [] as $client)
-                            <option value="{{ $client->id }}" @selected($filter->clientId === (int) $client->id)>{{ $client->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label for="novelty" class="text-xs text-slate-500">Novedad</label>
-                    <select id="novelty" name="novelty"
-                            class="mt-1 block h-9 min-w-[7.5rem] px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                        <option value="">Todas</option>
-                        <option value="1" @selected($filter->hasNovelty === true)>Con novedad</option>
-                        <option value="0" @selected($filter->hasNovelty === false)>Sin novedad</option>
-                    </select>
-                </div>
-            @endif
             <x-ui.button type="submit" size="sm" variant="secondary">Filtrar</x-ui.button>
-            @if ($activeTab !== 'history')
+            @if ($activeTab === 'summary')
             <a href="{{ route('company.supervision.report', $tabQuery) }}"
                class="inline-flex items-center h-9 px-3 text-sm rounded-lg border border-amber-500/40 text-amber-200 hover:bg-amber-500/10">
                 Descargar PPTX
             </a>
+            @endif
             @endif
         </form>
         @endif
@@ -235,6 +226,20 @@
         @endif
 
         @if ($activeTab === 'sheets')
+            @if ($sheetChips !== [])
+                <div class="flex flex-wrap items-center gap-2">
+                    @foreach ($sheetChips as $chip)
+                        <a href="{{ $chip['url'] }}"
+                           class="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs text-amber-200 hover:bg-amber-500/20"
+                           title="Quitar filtro">
+                            {{ $chip['label'] }}
+                            <span aria-hidden="true">✕</span>
+                        </a>
+                    @endforeach
+                    <a href="{{ route('company.supervision.index', array_intersect_key($tabQuery, ['from' => true, 'to' => true]) + ['tab' => 'sheets']) }}"
+                       class="text-xs text-slate-400 hover:text-white">Limpiar todo</a>
+                </div>
+            @endif
             <section class="rounded-lg border border-slate-800 bg-slate-900/80 overflow-hidden">
                 <div class="px-4 py-3 border-b border-slate-800">
                     <h3 class="text-sm font-semibold text-white">Fichas de campo</h3>
