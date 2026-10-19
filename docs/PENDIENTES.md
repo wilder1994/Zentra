@@ -24,7 +24,7 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
-### 18 oct 2026 · Fichas en modal + PDF, ficha renovada y temas de capacitación (sin commit aún)
+### 18 oct 2026 · Fichas en modal + PDF, ficha renovada y temas de capacitación (commit 92e9be8, desplegado 18 oct)
 APK 2.6 (versionCode 16) + PWA v59. Dependencia `barryvdh/laravel-dompdf`. Tests: `SupervisionSheetModalTest`. Detalle: `SUPERVISION-CAMPO.md` (Fichas de campo).
 
 - Panel: la ficha abre en modal (Descargar PDF, Imprimir, Cerrar) desde Fichas, En vivo, Historial y mapa. App: pantalla completa solo para ver. Zoom al tocar fotos y mapa.
@@ -32,7 +32,7 @@ APK 2.6 (versionCode 16) + PWA v59. Dependencia `barryvdh/laravel-dompdf`. Tests
 - Turno: selfies inicio/cierre («Pendiente cierre»), odómetros con km recorridos, mapa del recorrido (falta activar la API, ver Abiertos 4), preoperacional en cuadrícula y actividad en tabla. La selfie no se repite.
 - App: Tema con «+ Crear tema» / «Agregar tema». Panel: tema usado se desactiva; filtros Todos · Creados en campo · Inactivos.
 
-### 18 oct 2026 · App 2.4–2.5: campos compactos y novedad automática de la revista (sin commit aún)
+### 18 oct 2026 · App 2.4–2.5: campos compactos y novedad automática de la revista (commit 92e9be8, desplegado 18 oct)
 APK 2.5 (versionCode 15) + PWA v58. En 2.5: tarjeta del supervisor con foto tipo documento y Turno / Zona / Placa / Km inicio (sin texto del GPS); ícono de cámara en los recuadros de fotos de módulos y Observatorio. Tests: `SupervisorUniformAndTrainingTest`. Detalle: `SUPERVISION-CAMPO.md`.
 
 - Presentación personal primero, en tabla Prenda | Novedad Sí / No | No aplica (estados `yes`/`no`/`na`; lo viejo Regular/Malo = Sí, Bueno = No).
@@ -41,14 +41,14 @@ APK 2.5 (versionCode 15) + PWA v58. En 2.5: tarjeta del supervisor con foto tipo
 - Resumen y PPTX: prendas y vigilantes con más novedades, tabla con observación del supervisor, «Personal capacitado» filtrable.
 - Corregido: buscar vigilante con menos de 3 dígitos rompía la búsqueda.
 
-### 18 oct 2026 · Revista: Presentación personal y Capacitaciones (sin commit aún)
+### 18 oct 2026 · Revista: Presentación personal y Capacitaciones (commit 92e9be8, desplegado 18 oct)
 App 2.3 (APK + PWA v55). Migración `2026_10_18_220000`. Tests: `SupervisorUniformAndTrainingTest`. Detalle: `SUPERVISION-CAMPO.md`.
 
 - **Presentación personal** (obligatoria en la revista, ligada al vigilante): catálogo de prendas en Ajustes; por prenda Bueno / Regular / Malo / No aplica, **sin valor por defecto**. Novedad automática si hay Regular o Malo, o manual; con novedad: observación obligatoria + 1 a 3 fotos. Entra al correo de la revista.
 - **Capacitaciones** (opcional, una por revista, ligada al vigilante, nunca es novedad): Mensual/Personalizada, Virtual/En puesto, tema del catálogo (Ajustes; el supervisor puede crear desde la app, no editar ni borrar), motivo si es personalizada, descripción y cronómetro si es en puesto (módulo bloqueado mientras corre, sobrevive al cierre de la app, aviso a las 2 h), 1 a 3 fotos. Un vigilante no repite tema en el mismo mes: con señal se bloquea al elegir; sin señal se avisa y al sincronizar la capacitación repetida se descarta (la revista se guarda).
 - **Resumen y PPTX**: indicadores y gráficos de capacitaciones (periodo por tipo/modalidad, por tema, cobertura mensual, personalizadas) y presentación personal con novedad (prendas, vigilantes); 3 diapositivas nuevas.
 
-### 18 oct 2026 · Zonas con clientes, responsables de cliente y correos de novedades (sin commit aún)
+### 18 oct 2026 · Zonas con clientes, responsables de cliente y correos de novedades (commit 92e9be8, desplegado 18 oct)
 
 - **Zonas** (Ajustes → Zonas): sin correo. Cada cliente tiene **una** zona principal (`clients.supervisor_zone_id`) y puede **compartirse** con otras (`supervisor_zone_shared_clients`). Modal **Asignar clientes a zonas** (buscador, filtros Todos / Sin zona / cada zona, tabla Cliente · Zona principal · Compartido con · Estado calculado, lotes). Botón **Clientes** por zona abre el mismo modal filtrado. Aviso «N clientes sin zona». Ficha del cliente: «Zona: Sur · compartido con Norte».
 - **App supervisor**: solo ve clientes propios + compartidos de las zonas activas del turno; el servidor valida al guardar. Transición: si la empresa no tiene ninguna zona con clientes, ve todos. **Apoyos** con casilla «¿Con novedad?». Documentos sin cambios.
