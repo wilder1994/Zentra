@@ -11,9 +11,14 @@ use App\Enums\SupervisorFieldModule;
 use App\Enums\SupervisorFieldOutcome;
 use App\Enums\SupervisorRiskImpact;
 use App\Enums\SupervisorRiskLikelihood;
+use App\Enums\SupervisorTrainingKind;
+use App\Enums\SupervisorTrainingModality;
 use App\Enums\SupervisorWeaponPermitKind;
+use App\Models\SupervisorUniformItem;
 use App\Support\Supervision\RecommendationEvidencePhotos;
 use App\Support\Supervision\RiskMatrix;
+use App\Support\Supervision\UniformInspection;
+use Carbon\CarbonImmutable;
 use App\Models\SupervisorAlarmType;
 use App\Models\SupervisorControlBookType;
 use App\Models\SupervisorDocumentType;
@@ -39,6 +44,8 @@ final class AssertSupervisorFieldPayload
             SupervisorFieldModule::Folders => $this->folders($payload),
             SupervisorFieldModule::Weapons => $this->weapons($payload, $companyId),
             SupervisorFieldModule::Recommendations => $this->recommendations($payload, $companyId),
+            SupervisorFieldModule::Uniform => $this->uniform($payload, $companyId),
+            SupervisorFieldModule::Trainings => $this->trainings($payload),
             SupervisorFieldModule::Alarms => $this->alarms($payload, $companyId),
             SupervisorFieldModule::Supports => $this->supports($payload, $companyId),
         };
@@ -308,6 +315,127 @@ final class AssertSupervisorFieldPayload
     }
 
     /**
+     * Todas las prendas activas deben venir marcadas (Novedad Sí / No o No aplica); una sola en Sí da novedad.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function uniform(array $payload, ?int $companyId): ValidatedFieldPayload
+    {
+        $data = $this->validate($payload, [
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.item_id' => ['required', 'integer', 'min:1'],
+            'items.*.status' => ['required', 'string', Rule::in([...UniformInspection::STATUSES, 'good', 'regular', 'bad'])],
+            'notes' => ['nullable', 'string', 'max:1000'],
+            'photos' => ['nullable', 'array'],
+            'photos.*' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $active = SupervisorUniformItem::query()
+            ->where('security_company_id', (int) $companyId)
+            ->active()
+            ->pluck('name', 'id')
+            ->mapWithKeys(fn ($name, $id) => [(int) $id => (string) $name])
+            ->all();
+
+        $byId = [];
+        foreach ($data['items'] as $item) {
+            $byId[(int) $item['item_id']] = UniformInspection::normalize((string) $item['status']);
+        }
+        $missing = array_diff(array_keys($active), array_keys($byId));
+        if ($missing !== []) {
+            throw ValidationException::withMessages([
+                'items' => 'Marque todas las prendas: falta '.implode(', ', array_map(fn ($id) => $active[$id], $missing)).'.',
+            ]);
+        }
+
+        $items = [];
+        foreach ($active as $id => $name) {
+            $items[] = ['item_id' => $id, 'item' => $name, 'status' => $byId[$id]];
+        }
+
+        $novelty = collect($items)->contains(fn (array $item) => $item['status'] === 'yes');
+        $notes = trim((string) ($data['notes'] ?? ''));
+        if ($novelty && $notes === '') {
+            throw ValidationException::withMessages([
+                'notes' => 'Describa la novedad de la presentación personal.',
+            ]);
+        }
+
+        return new ValidatedFieldPayload([
+            'items' => $items,
+            'novelty' => $novelty ? 'yes' : 'no',
+            'notes' => $novelty ? $notes : null,
+            'photos' => $novelty ? array_filter($data['photos'] ?? []) : [],
+        ], $novelty ? SupervisorFieldOutcome::Attention : SupervisorFieldOutcome::Ok);
+    }
+
+    /**
+     * El tema llega como id del catálogo o como nombre nuevo; lo resuelve quien guarda la revista.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function trainings(array $payload): ValidatedFieldPayload
+    {
+        $data = $this->validate($payload, [
+            'kind' => ['required', Rule::enum(SupervisorTrainingKind::class)],
+            'modality' => ['required', Rule::enum(SupervisorTrainingModality::class)],
+            'topic_id' => ['nullable', 'integer', 'min:1', 'required_without:topic_name'],
+            'topic_name' => ['nullable', 'string', 'min:3', 'max:160', 'required_without:topic_id'],
+            'reason' => ['nullable', 'string', 'max:1000'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'started_at' => ['nullable', 'date'],
+            'ended_at' => ['nullable', 'date'],
+            'photos' => ['nullable', 'array'],
+            'photos.*' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $kind = SupervisorTrainingKind::from((string) $data['kind']);
+        $modality = SupervisorTrainingModality::from((string) $data['modality']);
+        $reason = trim((string) ($data['reason'] ?? ''));
+        $description = trim((string) ($data['description'] ?? ''));
+
+        if ($kind === SupervisorTrainingKind::Custom && $reason === '') {
+            throw ValidationException::withMessages(['reason' => 'Indique el motivo o la falencia de la capacitación personalizada.']);
+        }
+
+        $out = [
+            'kind' => $kind->value,
+            'modality' => $modality->value,
+            'topic_id' => isset($data['topic_id']) ? (int) $data['topic_id'] : null,
+            'topic_name' => isset($data['topic_name']) ? trim((string) $data['topic_name']) : null,
+            'reason' => $kind === SupervisorTrainingKind::Custom ? $reason : null,
+            'description' => null,
+            'started_at' => null,
+            'ended_at' => null,
+            'minutes' => null,
+            'photos' => array_filter($data['photos'] ?? []),
+        ];
+
+        if ($modality === SupervisorTrainingModality::Onsite) {
+            if ($description === '') {
+                throw ValidationException::withMessages(['description' => 'Describa la capacitación dada en el puesto.']);
+            }
+            if (empty($data['started_at']) || empty($data['ended_at'])) {
+                throw ValidationException::withMessages(['timer' => 'Inicie y termine la capacitación para registrar la duración.']);
+            }
+            $start = CarbonImmutable::parse((string) $data['started_at']);
+            $end = CarbonImmutable::parse((string) $data['ended_at']);
+            if ($end->lte($start)) {
+                throw ValidationException::withMessages(['timer' => 'La hora de fin debe ser posterior al inicio.']);
+            }
+            if ($end->gt(now()->addMinutes(5))) {
+                throw ValidationException::withMessages(['timer' => 'La hora de fin no puede estar en el futuro.']);
+            }
+            $out['description'] = $description;
+            $out['started_at'] = $start->toIso8601String();
+            $out['ended_at'] = $end->toIso8601String();
+            $out['minutes'] = max(1, (int) ceil($start->diffInSeconds($end) / 60));
+        }
+
+        return new ValidatedFieldPayload($out, SupervisorFieldOutcome::Ok);
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      */
     private function alarms(array $payload, ?int $companyId): ValidatedFieldPayload
@@ -368,6 +496,7 @@ final class AssertSupervisorFieldPayload
         $data = $this->validate($payload, [
             'support_type_id' => $typeRule,
             'reason' => ['required', 'string', 'min:3', 'max:500'],
+            'novelty' => ['nullable', 'string', Rule::in(['yes', 'no'])],
         ]);
 
         $data['support_type_id'] = (int) $data['support_type_id'];
@@ -378,7 +507,13 @@ final class AssertSupervisorFieldPayload
                 ->value('name');
         }
 
-        return new ValidatedFieldPayload($data, SupervisorFieldOutcome::Attention);
+        // Apps viejas no mandan la casilla: el apoyo sigue contando como novedad.
+        $data['novelty'] = ($data['novelty'] ?? null) === 'no' ? 'no' : 'yes';
+        $outcome = $data['novelty'] === 'yes'
+            ? SupervisorFieldOutcome::Attention
+            : SupervisorFieldOutcome::Ok;
+
+        return new ValidatedFieldPayload($data, $outcome);
     }
 
     /**

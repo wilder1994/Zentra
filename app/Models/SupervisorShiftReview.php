@@ -12,6 +12,7 @@ final class SupervisorShiftReview extends Model
 {
     protected $fillable = [
         'supervisor_shift_id',
+        'supervisor_zone_id',
         'client_id',
         'supervisor_post_id',
         'employee_id',
@@ -39,6 +40,12 @@ final class SupervisorShiftReview extends Model
     public function shift(): BelongsTo
     {
         return $this->belongsTo(SupervisorShift::class, 'supervisor_shift_id');
+    }
+
+    /** Zona del cliente al registrarse (a ella cuenta la revista). */
+    public function zone(): BelongsTo
+    {
+        return $this->belongsTo(SupervisorZone::class, 'supervisor_zone_id');
     }
 
     public function client(): BelongsTo

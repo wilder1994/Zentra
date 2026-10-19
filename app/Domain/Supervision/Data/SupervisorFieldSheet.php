@@ -10,7 +10,15 @@ use DateTimeInterface;
 final readonly class SupervisorFieldSheet
 {
     /**
-     * @param  list<array{title: string, rows: list<string>, photos: list<array{label: string, src: string}>}>  $sections
+     * Secciones: `rows` texto libre; opcionales `fields` (etiqueta/valor), `table` (head + rows con `cells` y `tone`),
+     * `note` (observación resaltada) y `novelty`.
+     *
+     * @param  list<array{title: string, rows: list<string>, photos: list<array{label: string, src: string}>, fields?: list<array{label: string, value: string}>, table?: array{head: list<string>, rows: list<array{cells: list<string>, tone?: ?string}>, center?: list<int>}, note?: ?string, novelty?: bool}>  $sections
+     * @param  array{photos: list<array{label: string, src: ?string, pending?: ?string}>, fields: list<array{label: string, value: string}>}|null  $hero
+     * @param  array{photos: list<array{label: string, src: ?string, pending?: ?string}>, fields: list<array{label: string, value: string, strong?: bool}>}|null  $odometer
+     * @param  array{src: ?string, fields: list<array{label: string, value: string}>, note: ?string}|null  $routeMap
+     * @param  list<array{label: string, novelty: bool}>  $moduleSummary
+     * @param  list<string>  $signatures
      */
     public function __construct(
         public SupervisorFieldSheetKind $kind,
@@ -38,5 +46,10 @@ final readonly class SupervisorFieldSheet
         public array $sections,
         public bool $isDraft = false,
         public ?string $mapImageSrc = null,
+        public ?array $hero = null,
+        public ?array $odometer = null,
+        public ?array $routeMap = null,
+        public array $moduleSummary = [],
+        public array $signatures = [],
     ) {}
 }

@@ -15,7 +15,9 @@
         * { box-sizing: border-box; }
         body { font-family: ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--ink); margin: 0; padding: 1rem 1rem 2.6rem; }
         h1 { font-size: 1.15rem; margin: 0; font-weight: 700; }
-        .sub { font-size: .75rem; color: var(--muted); margin: .2rem 0 .85rem; }
+        .app-head { margin-bottom: .75rem; }
+        .app-head h1 { flex: none; }
+        .app-head #status { flex: 1; min-width: 0; margin: 0; text-align: center; font-size: .72rem; line-height: 1.25; }
         label { display: block; font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-top: .7rem; }
         input, select, textarea, button { width: 100%; margin: .22rem 0 0; height: 2.25rem; padding: 0 .7rem; border-radius: .5rem; border: 1px solid var(--line); background: var(--navy); color: #fff; font: inherit; font-size: .84rem; }
         textarea { height: auto; min-height: 3.4rem; padding: .5rem .7rem; resize: vertical; }
@@ -32,11 +34,14 @@
         .check { display: flex; gap: .55rem; align-items: flex-start; padding: .4rem .55rem; border: 1px solid var(--line); border-radius: .5rem; background: var(--navy); margin-top: .28rem; font-size: .8rem; }
         .check input { width: auto; height: auto; margin: .15rem 0 0; }
         .cam { background: #000; border-radius: .75rem; overflow: hidden; aspect-ratio: 4/3; margin-top: .4rem; position: relative; }
-        .cam video, .cam img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .cam img { position: absolute; inset: 0; }
+        button.cam { display: block; width: 100%; height: auto; padding: 0; border: 1.5px dashed var(--line); background: var(--navy); color: var(--muted); cursor: pointer; }
+        .cam img { width: 100%; height: 100%; object-fit: cover; display: block; position: absolute; inset: 0; }
+        .cam-icon { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .35rem; }
+        .cam-icon svg { width: 2.6rem; height: 2.6rem; }
+        .cam-icon em { font-style: normal; font-size: .72rem; font-weight: 600; }
         .shift { color: var(--gold); font-size: .78rem; font-weight: 650; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; }
-        .mod { text-align: left; margin: 0; padding: .75rem .8rem; background: var(--navy); border: 1px solid var(--line); border-radius: .8rem; min-height: 3.4rem; overflow: hidden; }
+        .mod { text-align: left; margin: 0; padding: .65rem .8rem; background: var(--navy); border: 1px solid var(--line); border-radius: .8rem; min-height: 3.6rem; overflow: hidden; flex-direction: column; align-items: flex-start; justify-content: center; gap: .1rem; }
         .mod b { display: block; font-size: .88rem; }
         .mod .n { color: var(--gold); font-size: .7rem; margin-top: .2rem; font-weight: 600; }
         .entry { height: auto; min-height: 3.1rem; margin-top: .45rem; padding: .7rem .85rem; justify-content: space-between; }
@@ -57,23 +62,35 @@
         .chev { display: inline-block; width: 1rem; transition: transform .15s; font-size: 1rem; line-height: 1; }
         .collapse.is-open .chev { transform: rotate(180deg); }
         .profile { display: flex; gap: .7rem; align-items: center; }
-        .avatar { width: 3.1rem; height: 3.1rem; border-radius: 999px; object-fit: cover; background: #0b1220; border: 1px solid var(--line); flex-shrink: 0; }
+        .avatar { width: 5.4rem; height: auto; align-self: stretch; min-height: 5.4rem; border-radius: .6rem; object-fit: cover; background: #0b1220; border: 1px solid var(--line); flex-shrink: 0; }
+        .sup-card { display: flex; gap: .7rem; align-items: stretch; }
+        .sup-info { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; gap: .45rem; }
+        .sup-top { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; }
+        .sup-id { min-width: 0; }
+        .sup-state { margin: 0; font-size: .6rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--gold); }
+        .sup-name { margin: .1rem 0 0; font-weight: 700; font-size: .8rem; line-height: 1.25; }
+        .sup-top .btn-sm { margin: 0; height: 1.9rem; padding: 0 .65rem; font-size: .75rem; }
+        .sup-meta { display: grid; grid-template-columns: 1fr 1fr; gap: .3rem .6rem; margin: 0; }
+        .sup-meta dt { font-size: .58rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+        .sup-meta dd { margin: 0; font-size: .78rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .head-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .35rem; }
         .head-row .shift { margin: 0; }
         .btn-sm { width: auto; margin: 0; height: 2.25rem; padding: 0 .75rem; flex-shrink: 0; }
         .combo { position: relative; }
         .combo-list { position: absolute; z-index: 30; left: 0; right: 0; max-height: 10rem; overflow: auto; background: var(--navy); border: 1px solid var(--line); border-radius: .5rem; margin-top: .15rem; }
-        .combo-list button { width: 100%; height: auto; margin: 0; border-radius: 0; background: transparent; text-align: left; font-weight: 500; font-size: .8rem; padding: .4rem .65rem; }
+        .combo-list button { width: 100%; height: auto; margin: 0; border-radius: 0; background: transparent; text-align: left; justify-content: flex-start; font-weight: 500; font-size: .8rem; padding: .4rem .65rem; }
         .thumb { width: 4.4rem; height: 4.4rem; border-radius: .5rem; object-fit: cover; border: 1px solid var(--line); background: #000; }
         .item-card { border: 1px solid var(--line); border-radius: .7rem; padding: .7rem; margin-top: .55rem; background: var(--navy); }
         .item-card:first-child { margin-top: 0; }
         .item-card .head-row { margin-bottom: 0; }
         button[data-rep-add] { margin-top: .55rem; }
         .photo-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .45rem; margin-top: .45rem; }
-        .photo-slot { margin: 0; padding: 0; height: auto; aspect-ratio: 1; border-radius: .7rem; border: 1px dashed var(--line); background: var(--navy); display: flex; align-items: flex-end; justify-content: center; overflow: hidden; position: relative; }
+        .photo-slot { margin: 0; padding: 0; height: auto; aspect-ratio: 1; border-radius: .7rem; border: 1px dashed var(--line); background: var(--navy); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .2rem; overflow: hidden; position: relative; color: var(--muted); }
+        .slot-icon { width: 1.9rem; height: 1.9rem; }
+        .photo-slot.has-photo .slot-icon { display: none; }
         .photo-slot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
         .photo-slot span { position: relative; z-index: 1; font-size: .6rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--muted); text-align: center; padding: .35rem; line-height: 1.2; }
-        .photo-slot.has-photo span { width: 100%; background: linear-gradient(transparent, rgba(0,0,0,.78)); color: #fff; padding: .45rem .3rem .4rem; }
+        .photo-slot.has-photo span { position: absolute; left: 0; bottom: 0; width: 100%; background: linear-gradient(transparent, rgba(0,0,0,.78)); color: #fff; padding: .45rem .3rem .4rem; }
         #obs-map { height: 12.5rem; margin-top: .4rem; border-radius: .75rem; overflow: hidden; background: #0b1220; border: 1px solid var(--line); }
         #obs-map-hint { font-size: .72rem; color: #64748b; line-height: 1.4; margin: .35rem 0; }
         .risk-level { margin: .2rem 0 .65rem; padding: .45rem .65rem; border-radius: .6rem; background: var(--navy); border: 1px solid var(--line); font-weight: 700; font-size: .85rem; }
@@ -99,16 +116,54 @@
         #feedback.ok p { background: var(--ok); border: 1px solid var(--ok); color: #fff; }
         #feedback.err p { background: var(--err); border: 1px solid var(--err); color: #fff; }
         .theme-btn { width: auto; margin: 0; height: 2rem; padding: 0 .7rem; font-size: .75rem; }
+        .mod.is-required { border-color: #b45309; }
+        .mod.is-required .n { color: #fbbf24; }
+        .mod.is-done { border-color: var(--gold); }
+        .hint.err { color: var(--err); }
+        .hint.warn { color: #fbbf24; }
+        .hint.ok { color: var(--ok); }
+        .ptable { width: 100%; border-collapse: collapse; margin-top: .5rem; font-size: .8rem; border: 1px solid var(--line); border-radius: .6rem; overflow: hidden; }
+        .ptable th { font-size: .62rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); padding: .3rem .2rem; text-align: center; background: var(--navy); border-bottom: 1px solid var(--line); }
+        .ptable td { padding: .2rem; text-align: center; border-top: 1px solid var(--line); }
+        .ptable .pt-name { text-align: left; padding-left: .55rem; font-weight: 600; width: 46%; }
+        .ptable tr[data-status="yes"] td { background: rgba(239,68,68,.08); }
+        .tick { display: inline-flex; margin: 0; padding: .2rem; cursor: pointer; text-transform: none; letter-spacing: 0; }
+        .tick input, .yn-opt input { position: absolute; opacity: 0; width: 0; height: 0; }
+        .tick span, .yn-box { display: inline-block; width: 1.15rem; height: 1.15rem; border: 1.5px solid #64748b; border-radius: .25rem; background: transparent; position: relative; }
+        .tick input:checked + span, .yn-opt input:checked + .yn-box { background: var(--gold); border-color: var(--gold); }
+        .tick-yes input:checked + span, .yn-opt input[value="yes"]:checked + .yn-box { background: #dc2626; border-color: #dc2626; }
+        .tick-na input:checked + span { background: #64748b; border-color: #64748b; }
+        .tick input:checked + span::after, .yn-opt input:checked + .yn-box::after { content: ''; position: absolute; left: .32rem; top: .1rem; width: .3rem; height: .6rem; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+        .yn-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-top: .55rem; padding: .45rem .6rem; border: 1px solid var(--line); border-radius: .5rem; background: var(--navy); }
+        .yn-label { font-size: .7rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+        .yn { display: flex; gap: .9rem; }
+        .yn-opt { display: inline-flex; align-items: center; gap: .35rem; margin: 0; font-size: .82rem; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--ink); cursor: pointer; }
+        .check.is-locked { border-color: #b45309; }
+        select:disabled { opacity: .6; }
+        .timer-box { border: 1px solid var(--line); border-radius: .75rem; padding: .7rem; margin-top: .35rem; background: var(--navy); text-align: center; }
+        .timer-clock { font-size: 2rem; font-weight: 800; letter-spacing: .06em; font-variant-numeric: tabular-nums; }
+        body.training-lock .timer-box { border-color: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,.25); }
+        .topic-new { color: var(--ok) !important; font-weight: 700 !important; }
+        .topic-row { display: flex; gap: .4rem; align-items: center; }
+        .topic-row input { flex: 1; min-width: 0; }
+        .topic-row .btn-sm { margin-top: .22rem; height: 2.25rem; }
+        .topic-note { padding: .45rem .65rem; margin: 0; }
+        .sheet-viewer { position: fixed; inset: 0; z-index: 60; background: var(--bg); display: flex; flex-direction: column; }
+        .sheet-viewer.hidden { display: none; }
+        .sheet-viewer-bar { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: .6rem .8rem; border-bottom: 1px solid var(--line); background: var(--card); }
+        .sheet-viewer-bar span { font-weight: 700; font-size: .88rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sheet-viewer-bar .btn-sm { margin: 0; height: 2rem; }
+        .sheet-viewer iframe { flex: 1; width: 100%; border: 0; background: #eef2f6; }
+        body.sheet-open { overflow: hidden; }
     </style>
 </head>
 <body>
-    <div class="head-row">
+    <div class="head-row app-head">
         <h1>Zentra Supervisión</h1>
+        <p id="status" class="ok"></p>
         <button type="button" class="ghost theme-btn" id="btn-theme">Tema</button>
     </div>
-    <p class="sub">Captura de campo. La fuente de verdad es Zentra.</p>
     <div id="feedback" class="err" aria-live="assertive"><p></p></div>
-    <p id="status" class="ok"></p>
     <p id="sync-bar" class="sync-bar hidden"></p>
     <div id="sync-rejected" class="sync-rejected hidden"></div>
 
@@ -200,37 +255,32 @@
             <input id="km-start" type="number" min="0" step="1">
             <p class="hint" id="last-km"></p>
             <label>Foto del odómetro (solo cámara)</label>
-            <div class="cam"><video id="cam-odo" playsinline autoplay muted></video><img id="snap-odo" class="hidden" alt=""></div>
-            <div class="row">
-                <button type="button" class="gold" id="btn-snap-odo">Tomar foto</button>
-                <button type="button" class="secondary" data-live-cam="cam-odo" data-facing="environment" data-snap="snap-odo" data-blob="odo">Trasera</button>
-                <button type="button" class="secondary" data-live-cam="cam-odo" data-facing="user" data-snap="snap-odo" data-blob="odo">Frontal</button>
-            </div>
+            <button type="button" class="cam" data-cam-blob="odo" data-cam-img="snap-odo" data-cam-facing="environment"><span class="cam-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.9l1.2-1.8A1.5 1.5 0 0 1 9.85 3.5h4.3a1.5 1.5 0 0 1 1.25.7L16.6 6h1.9A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.6"/></svg><em>Tocar para tomar foto</em></span><img id="snap-odo" class="hidden" alt=""></button>
             <label>Selfie de inicio</label>
-            <div class="cam"><video id="cam-self" playsinline autoplay muted></video><img id="snap-self" class="hidden" alt=""></div>
-            <div class="row">
-                <button type="button" class="gold" id="btn-snap-self">Tomar selfie</button>
-                <button type="button" class="secondary" data-live-cam="cam-self" data-facing="environment" data-snap="snap-self" data-blob="self">Trasera</button>
-                <button type="button" class="secondary" data-live-cam="cam-self" data-facing="user" data-snap="snap-self" data-blob="self">Frontal</button>
-            </div>
-            <p class="hint">Cámara real solo en HTTPS (Tailscale Serve). En http://IP:8085 el navegador no permite la cámara.</p>
+            <button type="button" class="cam" data-cam-blob="self" data-cam-img="snap-self" data-cam-facing="user"><span class="cam-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.9l1.2-1.8A1.5 1.5 0 0 1 9.85 3.5h4.3a1.5 1.5 0 0 1 1.25.7L16.6 6h1.9A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.6"/></svg><em>Tocar para tomar foto</em></span><img id="snap-self" class="hidden" alt=""></button>
             <button type="button" class="gold" id="btn-start">Iniciar turno</button>
         </div>
         <button type="button" class="ghost" id="btn-logout-open">Salir</button>
     </div>
 
     <div id="ops" class="hidden">
-        <div class="card">
-            <div class="head-row">
-                <p class="shift" id="shift-label">Turno abierto</p>
-                <button type="button" class="secondary btn-sm" id="btn-go-close">Cerrar</button>
-            </div>
-            <div class="profile">
+        <div class="card" id="sup-card">
+            <div class="sup-card">
                 <img id="sup-avatar" class="avatar" alt="">
-                <div>
-                    <p id="sup-name" style="margin:0;font-weight:700;font-size:.9rem;"></p>
-                    <p class="hint" id="shift-meta" style="margin:.15rem 0 0;"></p>
-                    <p class="hint" id="gps-hint" style="margin:.35rem 0 0;">APK: el GPS sigue con la pantalla apagada (notificación de turno). PWA: al apagar la pantalla se pausa. El mapa distingue En línea, Pantalla apagada y Sin señal.</p>
+                <div class="sup-info">
+                    <div class="sup-top">
+                        <div class="sup-id">
+                            <p class="sup-state" id="shift-label">Turno abierto</p>
+                            <p id="sup-name" class="sup-name"></p>
+                        </div>
+                        <button type="button" class="secondary btn-sm" id="btn-go-close">Cerrar</button>
+                    </div>
+                    <dl class="sup-meta">
+                        <div><dt>Turno</dt><dd id="sup-schedule">—</dd></div>
+                        <div><dt>Zona</dt><dd id="sup-zone">—</dd></div>
+                        <div><dt>Placa</dt><dd id="sup-plate">—</dd></div>
+                        <div><dt>Km inicio</dt><dd id="sup-km">—</dd></div>
+                    </dl>
                 </div>
             </div>
         </div>
@@ -270,15 +320,11 @@
             <label for="rev-guard-name">Nombre del vigilante</label>
             <input id="rev-guard-name" readonly>
             <label>Foto del vigilante</label>
-            <div class="cam" style="aspect-ratio:1;max-width:12rem;"><video id="cam-guard" playsinline autoplay muted></video><img id="snap-guard" class="hidden" alt=""></div>
-            <div class="row">
-                <button type="button" class="gold" id="btn-snap-guard">Tomar foto</button>
-                <button type="button" class="secondary" data-live-cam="cam-guard" data-facing="environment" data-snap="snap-guard" data-blob="guard">Trasera</button>
-                <button type="button" class="secondary" data-live-cam="cam-guard" data-facing="user" data-snap="snap-guard" data-blob="guard">Frontal</button>
-            </div>
+            <button type="button" class="cam" style="aspect-ratio:1;max-width:12rem;" data-cam-blob="guard" data-cam-img="snap-guard" data-cam-facing="environment"><span class="cam-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.9l1.2-1.8A1.5 1.5 0 0 1 9.85 3.5h4.3a1.5 1.5 0 0 1 1.25.7L16.6 6h1.9A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.6"/></svg><em>Tocar para tomar foto</em></span><img id="snap-guard" class="hidden" alt=""></button>
             <label for="rev-notes">Observaciones</label>
             <textarea id="rev-notes"></textarea>
             <label class="check"><input type="checkbox" id="rev-novelty"><span>Con novedad</span></label>
+            <p class="hint warn hidden" id="rev-novelty-why"></p>
             <p class="sec-title" style="margin-top:1rem;">En este puesto</p>
             <p class="hint">Registre los módulos que necesite. Nada se envía hasta Guardar revista.</p>
             <div class="grid" id="hub-grid"></div>
@@ -320,9 +366,9 @@
             <textarea id="obs-body"></textarea>
             <label>Fotos (1 obligatoria, hasta 3)</label>
             <div id="obs-photos" class="photo-grid">
-                <button type="button" class="photo-slot" data-photo-slot="obs-0"><span>Cámara 1</span></button>
-                <button type="button" class="photo-slot" data-photo-slot="obs-1"><span>Cámara 2</span></button>
-                <button type="button" class="photo-slot" data-photo-slot="obs-2"><span>Cámara 3</span></button>
+                <button type="button" class="photo-slot" data-photo-slot="obs-0"><svg class="slot-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.9l1.2-1.8A1.5 1.5 0 0 1 9.85 3.5h4.3a1.5 1.5 0 0 1 1.25.7L16.6 6h1.9A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.6"/></svg><span>Foto 1</span></button>
+                <button type="button" class="photo-slot" data-photo-slot="obs-1"><svg class="slot-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.9l1.2-1.8A1.5 1.5 0 0 1 9.85 3.5h4.3a1.5 1.5 0 0 1 1.25.7L16.6 6h1.9A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.6"/></svg><span>Foto 2</span></button>
+                <button type="button" class="photo-slot" data-photo-slot="obs-2"><svg class="slot-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.9l1.2-1.8A1.5 1.5 0 0 1 9.85 3.5h4.3a1.5 1.5 0 0 1 1.25.7L16.6 6h1.9A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.6"/></svg><span>Foto 3</span></button>
             </div>
             <p class="hint">Toque el recuadro para abrir la cámara. La primera foto es obligatoria.</p>
             <label class="check"><input type="checkbox" id="obs-anonymous"><span>Enviar en anónimo</span></label>
@@ -365,7 +411,7 @@
                 <p class="sec-title" style="margin:0;">Mis fichas</p>
                 <button type="button" class="ghost btn-sm" id="btn-sheets-back">Volver</button>
             </div>
-            <p class="hint">Se abre la carta en otra ventana para imprimir o guardar PDF.</p>
+            <p class="hint">Toque una ficha para verla. Toque una foto para ampliarla.</p>
             <div id="sheets-list"></div>
         </div>
     </div>
@@ -376,25 +422,24 @@
             <label for="km-end">Kilometraje final</label>
             <input id="km-end" type="number" min="0" step="1">
             <label>Foto del odómetro final</label>
-            <div class="cam"><video id="cam-odo-end" playsinline autoplay muted></video><img id="snap-odo-end" class="hidden" alt=""></div>
-            <div class="row">
-                <button type="button" class="gold" id="btn-snap-odo-end">Tomar foto</button>
-                <button type="button" class="secondary" data-live-cam="cam-odo-end" data-facing="environment" data-snap="snap-odo-end" data-blob="odoEnd">Trasera</button>
-                <button type="button" class="secondary" data-live-cam="cam-odo-end" data-facing="user" data-snap="snap-odo-end" data-blob="odoEnd">Frontal</button>
-            </div>
+            <button type="button" class="cam" data-cam-blob="odoEnd" data-cam-img="snap-odo-end" data-cam-facing="environment"><span class="cam-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.9l1.2-1.8A1.5 1.5 0 0 1 9.85 3.5h4.3a1.5 1.5 0 0 1 1.25.7L16.6 6h1.9A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.6"/></svg><em>Tocar para tomar foto</em></span><img id="snap-odo-end" class="hidden" alt=""></button>
             <label>Selfie de cierre</label>
-            <div class="cam"><video id="cam-self-end" playsinline autoplay muted></video><img id="snap-self-end" class="hidden" alt=""></div>
-            <div class="row">
-                <button type="button" class="gold" id="btn-snap-self-end">Tomar selfie</button>
-                <button type="button" class="secondary" data-live-cam="cam-self-end" data-facing="environment" data-snap="snap-self-end" data-blob="selfEnd">Trasera</button>
-                <button type="button" class="secondary" data-live-cam="cam-self-end" data-facing="user" data-snap="snap-self-end" data-blob="selfEnd">Frontal</button>
-            </div>
+            <button type="button" class="cam" data-cam-blob="selfEnd" data-cam-img="snap-self-end" data-cam-facing="user"><span class="cam-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.9l1.2-1.8A1.5 1.5 0 0 1 9.85 3.5h4.3a1.5 1.5 0 0 1 1.25.7L16.6 6h1.9A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.6"/></svg><em>Tocar para tomar foto</em></span><img id="snap-self-end" class="hidden" alt=""></button>
             <button type="button" class="gold" id="btn-close">Confirmar cierre</button>
             <button type="button" class="ghost" id="btn-close-back">Volver</button>
         </div>
     </div>
 
+    <div id="sheet-viewer" class="sheet-viewer hidden" role="dialog" aria-modal="true" aria-labelledby="sheet-viewer-title">
+        <div class="sheet-viewer-bar">
+            <span id="sheet-viewer-title">Ficha</span>
+            <button type="button" class="secondary btn-sm" id="btn-sheet-close">Cerrar</button>
+        </div>
+        <iframe id="sheet-viewer-frame" title="Ficha de campo"></iframe>
+    </div>
+
     <input id="photo-file" class="hidden" type="file" accept="image/*" capture="environment">
+    <input id="cam-file" class="hidden" type="file" accept="image/*" capture="environment">
     <div id="photo-editor" class="photo-editor hidden">
         <div class="photo-editor-inner">
             <p class="sec-title" id="crop-title">Encuadrar foto</p>
@@ -408,7 +453,7 @@
         </div>
     </div>
 
-    <script src="offline.js?v=44"></script>
-    <script src="app.js?v=44"></script>
+    <script src="offline.js?v=59"></script>
+    <script src="app.js?v=59"></script>
 </body>
 </html>

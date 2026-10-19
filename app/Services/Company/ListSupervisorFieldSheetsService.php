@@ -76,11 +76,12 @@ final class ListSupervisorFieldSheetsService
     ): array {
         return SupervisorShiftReview::query()
             ->whereHas('shift', function ($query) use ($companyId, $filter, $onlyUserId): void {
-                $query->where('security_company_id', $companyId)->matchingFilter($filter);
+                $query->where('security_company_id', $companyId)->matchingSupervisor($filter);
                 if ($onlyUserId !== null) {
                     $query->where('user_id', $onlyUserId);
                 }
             })
+            ->when($filter->zoneId !== null, fn ($query) => $query->where('supervisor_zone_id', $filter->zoneId))
             ->when($fromAt !== null, fn ($query) => $query->where('recorded_at', '>=', $fromAt))
             ->when($toAt !== null, fn ($query) => $query->where('recorded_at', '<=', $toAt))
             ->when($filter->clientId !== null, fn ($query) => $query->where('client_id', $filter->clientId))
@@ -124,7 +125,8 @@ final class ListSupervisorFieldSheetsService
             ->where('security_company_id', $companyId)
             ->whereIn('module', $modules)
             ->when($onlyUserId !== null, fn ($query) => $query->where('user_id', $onlyUserId))
-            ->whereHas('shift', fn ($query) => $query->matchingFilter($filter))
+            ->whereHas('shift', fn ($query) => $query->matchingSupervisor($filter))
+            ->when($filter->zoneId !== null, fn ($query) => $query->where('supervisor_zone_id', $filter->zoneId))
             ->when($fromAt !== null, fn ($query) => $query->where('recorded_at', '>=', $fromAt))
             ->when($toAt !== null, fn ($query) => $query->where('recorded_at', '<=', $toAt))
             ->when($filter->clientId !== null, fn ($query) => $query->where('client_id', $filter->clientId))

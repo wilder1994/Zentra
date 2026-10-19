@@ -62,10 +62,10 @@ final class CompanySupervisionFieldSheetTest extends TestCase
         ]));
         $print->assertOk();
         $print->assertSee('Acta de revista de supervisión de puesto', false);
-        $print->assertSee('Imprimir / Guardar PDF');
-        $print->assertSee('Cliente:', false);
-        $print->assertSee('Instalación:', false);
-        $print->assertSee('Puesto:', false);
+        $print->assertSee('Descargar PDF');
+        $print->assertSee('>Cliente<', false);
+        $print->assertSee('>Instalación<', false);
+        $print->assertSee('>Puesto<', false);
         $print->assertSee($client->name);
         $print->assertSee('Decreto 356 de 1994', false);
         $print->assertDontSee('generado desde Zentra');

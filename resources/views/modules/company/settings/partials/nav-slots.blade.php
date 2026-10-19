@@ -17,4 +17,6 @@
     <a href="{{ route('company.supervision-risk-types.index') }}" @class(['admin-header-tab', 'is-active' => $activeTab === 'riesgos'])>Riesgos</a>
     <a href="{{ route('company.supervision-alarm-types.index') }}" @class(['admin-header-tab', 'is-active' => $activeTab === 'alarmas'])>Alarmas</a>
     <a href="{{ route('company.supervision-support-types.index') }}" @class(['admin-header-tab', 'is-active' => $activeTab === 'apoyos'])>Apoyos</a>
+    <a href="{{ route('company.supervision-uniform-items.index') }}" @class(['admin-header-tab', 'is-active' => $activeTab === 'presentacion'])>Presentación personal</a>
+    <a href="{{ route('company.supervision-training-topics.index') }}" @class(['admin-header-tab', 'is-active' => $activeTab === 'temas'])>Temas de capacitación</a>
 </x-slot:headerTabs>

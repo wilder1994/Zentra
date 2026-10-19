@@ -30,7 +30,7 @@ final class CompanyUserFromEmployeeTest extends TestCase
             ->assertSee('Cédula', false)
             ->assertSee('Usuario de acceso', false)
             ->assertSee('Cargo / función', false)
-            ->assertSee('Email personal', false)
+            ->assertSee('Correo corporativo', false)
             ->assertSee('Generar usuario y contraseña', false)
             ->assertSee('Protección de datos de menores', false);
     }
@@ -48,7 +48,7 @@ final class CompanyUserFromEmployeeTest extends TestCase
             ->assertSee('Cédula', false)
             ->assertSee('Usuario de acceso', false)
             ->assertSee('Cargo / función', false)
-            ->assertSee('Email personal', false);
+            ->assertSee('Correo corporativo', false);
     }
 
     public function test_can_create_supervisor_from_users_module(): void
@@ -86,6 +86,33 @@ final class CompanyUserFromEmployeeTest extends TestCase
         $this->assertNull($user->email);
         $this->assertTrue($user->must_change_password);
         $this->assertNotNull($user->supervisor_code);
+    }
+
+    public function test_internal_client_admin_saves_corporate_email(): void
+    {
+        $this->seedWithPilot();
+        $admin = $this->companyAdmin();
+        $employee = $this->createEmployee($this->createJobTitle('Director de cuenta'));
+        $client = Client::query()->where('slug', 'palmas-del-ingenio')->firstOrFail();
+        $preview = $this->actingAs($admin)->postJson(route('company.users.credentials-preview'), [
+            'employee_id' => $employee->id,
+        ])->assertOk();
+
+        $this->actingAs($admin)->post(route('company.users.store'), [
+            'role' => 'client-admin',
+            'origin' => 'internal',
+            'employee_id' => $employee->id,
+            'job_title' => 'Director de cuenta',
+            'corporate_email' => 'director@sj-seguridad.test',
+            'client_ids' => [$client->id],
+            'username' => $preview->json('username'),
+            'password' => $preview->json('password'),
+            'password_confirmation' => $preview->json('password'),
+        ])->assertRedirect();
+
+        $user = User::query()->where('employee_id', $employee->id)->firstOrFail();
+        $this->assertSame('director@sj-seguridad.test', $user->corporate_email);
+        $this->assertNull($user->email);
     }
 
     public function test_guard_from_users_requires_employee_and_client(): void

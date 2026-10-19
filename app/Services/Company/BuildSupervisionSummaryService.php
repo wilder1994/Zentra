@@ -16,6 +16,7 @@ use App\Models\SupervisorPost;
 use App\Models\SupervisorRecommendation;
 use App\Models\SupervisorShift;
 use App\Models\SupervisorShiftReview;
+use App\Models\SupervisorTraining;
 use App\Models\SupervisorZone;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -40,16 +41,30 @@ final class BuildSupervisionSummaryService
         $companyId = (int) $company->id;
 
         $reviews = SupervisorShiftReview::query()
-            ->whereHas('shift', fn ($q) => $q->where('security_company_id', $companyId)->matchingFilter($filter))
+            ->whereHas('shift', fn ($q) => $q->where('security_company_id', $companyId)->matchingSupervisor($filter))
+            ->when($filter->zoneId !== null, fn ($q) => $q->where('supervisor_zone_id', $filter->zoneId))
             ->whereBetween('recorded_at', [$fromAt, $toAt])
-            ->with(['client:id,name', 'shift.user:id,name'])
+            ->with(['client:id,name', 'shift.user:id,name', 'employee:id,first_names,last_name_paternal,last_name_maternal'])
+            ->get();
+
+        $trainings = SupervisorTraining::query()
+            ->where('security_company_id', $companyId)
+            ->whereBetween('recorded_at', [$fromAt, $toAt])
+            ->when($filter->zoneId !== null, fn ($q) => $q->where('supervisor_zone_id', $filter->zoneId))
+            ->when($filter->supervisorId !== null, fn ($q) => $q->where('user_id', $filter->supervisorId))
+            ->with([
+                'topic:id,name',
+                'employee:id,first_names,last_name_paternal,last_name_maternal',
+                'user:id,name',
+                'log:id,payload',
+            ])
             ->get();
 
         $logs = SupervisorFieldLog::query()
             ->where('security_company_id', $companyId)
             ->whereBetween('recorded_at', [$fromAt, $toAt])
             ->when($filter->supervisorId !== null, fn ($q) => $q->where('user_id', $filter->supervisorId))
-            ->when($filter->zoneId !== null, fn ($q) => $q->whereHas('shift', fn ($s) => $s->where('supervisor_zone_id', $filter->zoneId)))
+            ->when($filter->zoneId !== null, fn ($q) => $q->where('supervisor_zone_id', $filter->zoneId))
             ->with(['client:id,name', 'user:id,name'])
             ->get();
 
@@ -79,7 +94,7 @@ final class BuildSupervisionSummaryService
         ];
         $modules = $this->moduleRows($reviews->count(), $logs);
         $alerts = $this->alerts($logs, $recommendations, $shifts);
-        $charts = $this->charts->execute($fromAt, $toAt, $reviews, $logs, $shifts, $recRows);
+        $charts = $this->charts->execute($fromAt, $toAt, $reviews, $logs, $shifts, $recRows, $trainings);
 
         $caption = 'Del '.$fromAt->format('d/m/Y').' al '.$toAt->format('d/m/Y');
         if ($filter->zoneId !== null) {
@@ -171,7 +186,7 @@ final class BuildSupervisionSummaryService
         return SupervisorRecommendation::query()
             ->where('security_company_id', $companyId)
             ->when($filter->supervisorId !== null, fn ($q) => $q->where('opened_by_user_id', $filter->supervisorId))
-            ->when($filter->zoneId !== null, fn ($q) => $q->whereHas('openedShift', fn ($s) => $s->where('supervisor_zone_id', $filter->zoneId)))
+            ->when($filter->zoneId !== null, fn ($q) => $q->where('supervisor_zone_id', $filter->zoneId))
             ->whereBetween('created_at', [$fromAt, $toAt])
             ->get();
     }

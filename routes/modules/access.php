@@ -26,7 +26,7 @@ use App\Http\Controllers\Client\AuthorizationController;
 use App\Http\Controllers\Ops\OperationalAlertController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth', 'password.changed', 'active', 'tenancy.access', 'client.module:doors', 'porteria.door', 'shift.open'])->prefix('access')->name('access.')->group(function () {
+Route::middleware(['auth', 'password.changed', 'active', 'tenancy.access', 'client.module:doors', 'porteria.door', 'shift.open', 'porteria.readonly'])->prefix('access')->name('access.')->group(function () {
     Route::get('/ops/alerts.json', [OperationalAlertController::class, 'poll'])->name('ops.alerts');
     Route::post('/ops/panic', [OperationalAlertController::class, 'panic'])->name('ops.panic');
 

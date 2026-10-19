@@ -6,6 +6,7 @@ use App\Http\Middleware\EnsureClientPanelModule;
 use App\Http\Middleware\EnsureCompanyUser;
 use App\Http\Middleware\EnsureOpenShift;
 use App\Http\Middleware\EnsurePorteriaDoor;
+use App\Http\Middleware\EnsurePorteriaReadOnly;
 use App\Http\Middleware\EnsurePasswordIsChanged;
 use App\Http\Middleware\EnsurePlatformAdmin;
 use App\Http\Middleware\EnsureSupervisionUnlocked;
@@ -59,6 +60,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'supervision.unlocked' => EnsureSupervisionUnlocked::class,
             'shift.open' => EnsureOpenShift::class,
             'porteria.door' => EnsurePorteriaDoor::class,
+            'porteria.readonly' => EnsurePorteriaReadOnly::class,
             'supervisor.pro' => EnsureSupervisorProApi::class,
         ]);
     })

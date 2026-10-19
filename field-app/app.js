@@ -27,7 +27,6 @@ let sites = [];
 let reviewClient = null;
 let reviewPost = null;
 let reviewGuard = null;
-let streams = {};
 let blobs = { odo: null, self: null, odoEnd: null, selfEnd: null, guard: null };
 let searchTimers = {};
 let moduleReturn = 'home';
@@ -51,6 +50,14 @@ let obsMap = null;
 let obsMarker = null;
 let obsPin = null;
 let obsMapsPromise = null;
+const APP_BUILD = 23;
+let trainingsMonth = [];
+let topicPick = null;
+let trainingTimer = null;
+let trainingDup = '';
+let trainingTick = null;
+let trainingWarned = false;
+let sessionSaveTimer = null;
 
 async function withBusy(btn, busyLabel, fn) {
     if (!btn || btn.dataset.busy === '1') return;
@@ -155,7 +162,6 @@ function show(id) {
     ['login', 'change-password', 'open-shift', 'ops', 'close-shift'].forEach((key) => {
         document.getElementById(key).classList.toggle('hidden', key !== id);
     });
-    stopAllCams();
 }
 
 async function api(path, options = {}) {
@@ -207,6 +213,7 @@ function applyPack(pack) {
     postsCache = pack.posts || postsCache;
     guardsCache = pack.guards || guardsCache;
     if (pack.modules?.length) catalog = pack.modules;
+    if (Array.isArray(pack.trainings_month)) trainingsMonth = pack.trainings_month;
     if (pack.observatory_sites) obsSitesCache = pack.observatory_sites;
     if (pack.observatory_kinds_by_client) obsKindsByClient = pack.observatory_kinds_by_client;
     if (pack.observatory_kinds) {
@@ -215,17 +222,34 @@ function applyPack(pack) {
     }
     const select = document.getElementById('mod-client');
     if (select) {
-        select.innerHTML = (sites || []).map((s) => `<option value="${s.id}">${s.name}</option>`).join('')
-            || '<option value="">Sin clientes con Supervisión</option>';
+        const current = select.value;
+        select.innerHTML = (sites || []).length
+            ? '<option value="">Seleccione…</option>' + sites.map((s) => `<option value="${s.id}">${s.name}</option>`).join('')
+            : '<option value="">Sin clientes con Supervisión</option>';
+        select.value = current;
     }
     renderHub();
 }
 
+let packRefreshedAt = 0;
+
 async function refreshOfflinePack() {
-    const pack = await api('/supervision/offline-pack');
+    const pack = await api(`/supervision/offline-pack?app_build=${APP_BUILD}`);
+    packRefreshedAt = Date.now();
     await ZentraOffline.metaSet('pack', pack);
     applyPack(pack);
     return pack;
+}
+
+/** La central puede habilitar otra zona en pleno turno: al abrir revista o módulo se piden los clientes de nuevo. */
+async function refreshSitesIfStale() {
+    if (!navigator.onLine || !token() || Date.now() - packRefreshedAt < 20000) return false;
+    try {
+        await refreshOfflinePack();
+        return true;
+    } catch (e) {
+        return false;
+    }
 }
 
 async function restorePack() {
@@ -394,7 +418,8 @@ async function sendOutboxItem(row, authToken) {
     }
     if (row.type === 'review') {
         const fd = reviewFormFromQueue(row);
-        await api('/supervision/reviews', { method: 'POST', body: fd, ...auth });
+        const data = await api('/supervision/reviews', { method: 'POST', body: fd, ...auth });
+        announceDiscarded(data);
         return;
     }
     if (row.type === 'close') {
@@ -500,111 +525,48 @@ function readChecks(prefix) {
     return out;
 }
 
-function cameraAvailable() {
-    return Boolean(window.isSecureContext && navigator.mediaDevices?.getUserMedia);
-}
+const SLOT_ICON = '<svg class="slot-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.9l1.2-1.8A1.5 1.5 0 0 1 9.85 3.5h4.3a1.5 1.5 0 0 1 1.25.7L16.6 6h1.9A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.6"/></svg>';
 
-async function startCam(videoId, facing) {
-    stopCam(videoId);
-    const video = document.getElementById(videoId);
-    if (!cameraAvailable()) {
-        setStatus('Cámara no disponible. Abra la PWA por HTTPS (Tailscale Serve), no por http://IP:8085.', false);
-        return;
-    }
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: facing === 'user' ? 'user' : 'environment' } },
-            audio: false,
-        });
-        streams[videoId] = stream;
-        video.srcObject = stream;
-        await video.play();
-    } catch (e) {
-        setStatus('Sin cámara o permiso denegado.', false);
-    }
-}
-
-function stopCam(videoId) {
-    const stream = streams[videoId];
-    if (stream) stream.getTracks().forEach((t) => t.stop());
-    delete streams[videoId];
-    const video = document.getElementById(videoId);
-    if (video) video.srcObject = null;
-}
-
-function stopAllCams() {
-    Object.keys(streams).forEach(stopCam);
-}
-
-function waitForVideo(video, ms = 3000) {
+function downscaleImage(file, max = 1600) {
     return new Promise((resolve) => {
-        if (video.videoWidth) {
-            resolve(true);
-            return;
-        }
-        let settled = false;
-        const finish = (ok) => {
-            if (settled) return;
-            settled = true;
-            video.removeEventListener('loadeddata', onReady);
-            resolve(ok);
+        const img = new Image();
+        img.onload = () => {
+            const scale = Math.min(1, max / Math.max(img.width, img.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(img.src);
+            canvas.toBlob((blob) => resolve(blob || file), 'image/jpeg', 0.86);
         };
-        const onReady = () => finish(video.videoWidth > 0);
-        video.addEventListener('loadeddata', onReady);
-        setTimeout(() => finish(video.videoWidth > 0), ms);
+        img.onerror = () => resolve(file);
+        img.src = URL.createObjectURL(file);
     });
-}
-
-function captureFrame(videoId, imgId, key) {
-    const video = document.getElementById(videoId);
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0);
-    canvas.toBlob((blob) => {
-        blobs[key] = blob;
-        const img = document.getElementById(imgId);
-        img.src = URL.createObjectURL(blob);
-        img.classList.remove('hidden');
-        stopCam(videoId);
-        setStatus('Foto tomada.');
-    }, 'image/jpeg', 0.86);
-}
-
-async function snapTo(videoId, imgId, key, label, facing) {
-    const video = document.getElementById(videoId);
-    if (!video.videoWidth) {
-        if (!cameraAvailable()) {
-            setStatus('Cámara no disponible. Abra la PWA por HTTPS (Tailscale Serve), no por http://IP:8085.', false);
-            return;
-        }
-        await startCam(videoId, facing);
-        const ready = await waitForVideo(video);
-        if (!ready) {
-            setStatus('Active Trasera o Frontal y permita la cámara.', false);
-            return;
-        }
-    }
-    captureFrame(videoId, imgId, key);
 }
 
 function bindCameras() {
-    document.querySelectorAll('[data-live-cam]').forEach((btn) => {
+    const input = document.getElementById('cam-file');
+    document.querySelectorAll('[data-cam-blob]').forEach((btn) => {
         btn.onclick = () => {
-            const videoId = btn.dataset.liveCam;
-            const snapId = btn.dataset.snap;
-            const blobKey = btn.dataset.blob;
-            const facing = btn.dataset.facing === 'user' ? 'user' : 'environment';
-            if (snapId) document.getElementById(snapId)?.classList.add('hidden');
-            if (blobKey) blobs[blobKey] = null;
-            startCam(videoId, facing);
+            input.dataset.blob = btn.dataset.camBlob;
+            input.dataset.img = btn.dataset.camImg;
+            input.setAttribute('capture', btn.dataset.camFacing === 'user' ? 'user' : 'environment');
+            input.value = '';
+            input.click();
         };
     });
-    document.getElementById('btn-snap-odo').onclick = () => snapTo('cam-odo', 'snap-odo', 'odo', 'Odómetro inicio', 'environment');
-    document.getElementById('btn-snap-self').onclick = () => snapTo('cam-self', 'snap-self', 'self', 'Selfie inicio', 'user');
-    document.getElementById('btn-snap-odo-end').onclick = () => snapTo('cam-odo-end', 'snap-odo-end', 'odoEnd', 'Odómetro cierre', 'environment');
-    document.getElementById('btn-snap-self-end').onclick = () => snapTo('cam-self-end', 'snap-self-end', 'selfEnd', 'Selfie cierre', 'user');
-    document.getElementById('btn-snap-guard').onclick = () => snapTo('cam-guard', 'snap-guard', 'guard', 'Vigilante', 'environment');
+    input.onchange = async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        const key = input.dataset.blob;
+        const blob = await downscaleImage(file);
+        blobs[key] = blob;
+        const img = document.getElementById(input.dataset.img);
+        img.src = URL.createObjectURL(blob);
+        img.classList.remove('hidden');
+        setStatus('Foto tomada.');
+        if (key === 'guard') saveReviewSession();
+    };
 }
 
 function renderIntake() {
@@ -663,16 +625,59 @@ function renderIntake() {
 
 function renderHub() {
     const hubMods = catalog.filter((mod) => mod.hangs_off_review);
-    document.getElementById('hub-grid').innerHTML = hubMods.map((mod) => `
-        <button type="button" class="mod" data-key="${mod.key}">
+    document.getElementById('hub-grid').innerHTML = hubMods.map((mod) => {
+        const count = draftCount(mod.key);
+        const note = mod.single
+            ? (count ? 'Registrada ✓' : (mod.mandatory ? 'Obligatoria' : 'Opcional'))
+            : `${count} en esta revista`;
+        const tone = mod.mandatory && !count ? ' is-required' : (mod.single && count ? ' is-done' : '');
+        return `
+        <button type="button" class="mod${tone}" data-key="${mod.key}">
             <b>${mod.label}</b>
-            <span class="n">${draftCount(mod.key)} en esta revista</span>
-        </button>`).join('');
+            <span class="n">${note}</span>
+        </button>`;
+    }).join('');
     document.querySelectorAll('#hub-grid .mod').forEach((btn) => {
         btn.onclick = () => openModule(btn.dataset.key, 'review');
     });
     const ctx = document.getElementById('review-context');
     ctx.textContent = [reviewClient?.name, reviewPost?.name, reviewGuard?.name].filter(Boolean).join(' · ');
+    syncReviewNovelty();
+}
+
+function draftHasNovelty(draft) {
+    const p = draft.payload || {};
+    const items = Array.isArray(p.items) ? p.items : [];
+    switch (draft.module) {
+    case 'uniform': return items.some((row) => ['yes', 'regular', 'bad'].includes(row.status));
+    case 'inventory': return items.some((row) => row.status === 'regular' || row.status === 'bad');
+    case 'control_books': return items.some((row) => row.novelty === 'yes');
+    case 'folders': return p.status === 'missing';
+    case 'weapons': return p.novelty === 'yes' || (p.permit_expires_at && p.permit_expires_at < new Date().toISOString().slice(0, 10));
+    case 'recommendations': return items.length > 0;
+    default: return false;
+    }
+}
+
+function syncReviewNovelty() {
+    const box = document.getElementById('rev-novelty');
+    const why = document.getElementById('rev-novelty-why');
+    if (!box) return;
+    const sources = reviewDraftLogs.filter(draftHasNovelty)
+        .map((draft) => catalog.find((m) => m.key === draft.module)?.label || draft.module);
+    const forced = sources.length > 0;
+    if (forced) {
+        if (!box.disabled) box.dataset.manual = box.checked ? '1' : '0';
+        box.checked = true;
+    } else if (box.disabled) {
+        box.checked = box.dataset.manual === '1';
+    }
+    box.disabled = forced;
+    box.closest('.check')?.classList.toggle('is-locked', forced);
+    if (why) {
+        why.textContent = forced ? `Por novedad en: ${[...new Set(sources)].join(', ')}.` : '';
+        why.classList.toggle('hidden', !forced);
+    }
 }
 
 function draftCount(moduleKey) {
@@ -680,7 +685,6 @@ function draftCount(moduleKey) {
 }
 
 function showOpsHome() {
-    stopAllCams();
     document.getElementById('ops-home').classList.remove('hidden');
     document.getElementById('review-card').classList.add('hidden');
     document.getElementById('module-card').classList.add('hidden');
@@ -690,19 +694,18 @@ function showOpsHome() {
 }
 
 function showReview() {
-    stopAllCams();
     document.getElementById('ops-home').classList.add('hidden');
     document.getElementById('module-card').classList.add('hidden');
     document.getElementById('sheets-card')?.classList.add('hidden');
     document.getElementById('observatory-card')?.classList.add('hidden');
     hideGeoCard();
     document.getElementById('review-card').classList.remove('hidden');
+    refreshSitesIfStale();
 }
 
 function openModule(key, from = 'home') {
     currentModule = catalog.find((m) => m.key === key);
     if (!currentModule) return;
-    stopAllCams();
     moduleReturn = from;
     document.getElementById('ops-home').classList.add('hidden');
     document.getElementById('review-card').classList.add('hidden');
@@ -711,6 +714,7 @@ function openModule(key, from = 'home') {
     hideGeoCard();
     const wrap = document.getElementById('module-client-wrap');
     wrap.classList.toggle('hidden', !currentModule.requires_client);
+    if (currentModule.requires_client) document.getElementById('mod-client').value = '';
     document.getElementById('module-card').classList.remove('hidden');
     document.getElementById('module-title').textContent = currentModule.label;
     document.getElementById('module-hint').textContent = currentModule.hint;
@@ -719,8 +723,445 @@ function openModule(key, from = 'home') {
     (currentModule.fields || []).filter((field) => field.type === 'repeatable').forEach(bindRepeatable);
     bindAllPhotoGrids();
     bindConditionalFields();
+    if (currentModule.key === 'trainings') {
+        topicPick = null;
+        trainingTimer = null;
+        trainingDup = '';
+        trainingWarned = false;
+    }
+    if (currentModule.key === 'uniform') bindUniform();
+    if (currentModule.key === 'trainings') bindTraining();
+    const existing = currentModule.single ? reviewDraftLogs.find((row) => row.module === currentModule.key) : null;
+    if (existing) prefillModule(existing);
     document.getElementById('module-card').scrollIntoView({ behavior: 'smooth' });
+    if (currentModule.requires_client) refreshSitesIfStale();
 }
+
+function foldText(text) {
+    return String(text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function trainingRunning() {
+    return Boolean(trainingTimer?.startedAt && !trainingTimer?.endedAt);
+}
+
+function bindUniform() {
+    const form = document.getElementById('module-form');
+    if (!form) return;
+    const sync = () => {
+        form.querySelectorAll('.ptable tbody tr').forEach((row) => {
+            const picked = row.querySelector('input:checked')?.value || '';
+            row.dataset.status = picked;
+        });
+    };
+    form.addEventListener('change', () => {
+        sync();
+        scheduleSessionSave();
+    });
+    sync();
+}
+
+function bindTraining() {
+    const form = document.getElementById('module-form');
+    if (!form) return;
+    bindTopicPicker();
+    document.getElementById('btn-timer-start').onclick = startTrainingTimer;
+    document.getElementById('btn-timer-stop').onclick = stopTrainingTimer;
+    form.addEventListener('change', scheduleSessionSave);
+    form.addEventListener('input', scheduleSessionSave);
+    renderTimer();
+}
+
+function topicField() {
+    return (currentModule?.fields || []).find((f) => f.type === 'topic');
+}
+
+function bindTopicPicker() {
+    const input = document.getElementById('f-topic-q');
+    const list = document.getElementById('f-topic-list');
+    const add = document.getElementById('f-topic-add');
+    if (!input || !list || !add) return;
+    let creating = false;
+    const note = (text) => `<p class="hint topic-note">${text}</p>`;
+    const setCreating = (on) => {
+        creating = on;
+        add.classList.toggle('hidden', !on);
+        input.placeholder = on ? 'Escribe tu tema' : 'Toque para elegir o crear el tema';
+        if (on) {
+            input.value = '';
+            topicPick = null;
+            trainingDup = '';
+            setTopicState('Revise que el tema no exista. Desde la app no se puede editar ni borrar.');
+            input.focus();
+        }
+        syncAdd();
+    };
+    const syncAdd = () => {
+        add.disabled = input.value.trim().length < 3;
+    };
+    const render = () => {
+        const options = topicField()?.options || [];
+        const typed = input.value.trim();
+        const term = foldText(typed);
+        const matches = options.filter((o) => term === '' || foldText(o.label).includes(term)).slice(0, 30);
+        const exact = options.find((o) => foldText(o.label) === term);
+        let html = '';
+        if (creating) {
+            if (!term || !matches.length) {
+                list.classList.add('hidden');
+                return;
+            }
+            html = note('Ya existen temas parecidos:');
+        } else if (!term) {
+            html = '<button type="button" data-create-topic="1" class="topic-new">+ Crear tema</button>';
+            if (!options.length) html += note('Aún no hay temas. Cree el primero.');
+        } else if (!exact) {
+            html = typed.length >= 3
+                ? `<button type="button" data-new-topic="1" class="topic-new">+ Agregar tema «${esc(typed)}»</button>`
+                : note('Escriba al menos 3 letras para agregar el tema.');
+        }
+        html += matches.map((o) => `<button type="button" data-topic="${esc(o.value)}">${esc(o.label)}</button>`).join('');
+        list.innerHTML = html;
+        list.classList.remove('hidden');
+        list.querySelectorAll('[data-topic]').forEach((btn) => {
+            btn.onclick = () => {
+                const found = options.find((o) => String(o.value) === btn.dataset.topic);
+                if (!found) return;
+                setCreating(false);
+                pickTopic({ id: found.value, name: found.label, isNew: false });
+            };
+        });
+        list.querySelector('[data-create-topic]')?.addEventListener('click', () => {
+            setCreating(true);
+            render();
+        });
+        list.querySelector('[data-new-topic]')?.addEventListener('click', () => createTopic(typed));
+    };
+    add.onclick = async () => {
+        const name = input.value.trim();
+        if (name.length < 3) return;
+        await createTopic(name);
+        if (topicPick) setCreating(false);
+    };
+    input.onkeydown = (ev) => {
+        if (creating && ev.key === 'Enter') {
+            ev.preventDefault();
+            add.click();
+        }
+    };
+    input.oninput = () => {
+        if (topicPick && input.value !== topicPick.name) {
+            topicPick = null;
+            trainingDup = '';
+            setTopicState(creating ? 'Revise que el tema no exista. Desde la app no se puede editar ni borrar.' : '');
+        }
+        syncAdd();
+        render();
+    };
+    input.onfocus = render;
+    setCreating(false);
+}
+
+function setTopicState(text, tone = '') {
+    const el = document.getElementById('f-topic-state');
+    if (!el) return;
+    el.textContent = text;
+    el.className = `hint${tone ? ` ${tone}` : ''}`;
+}
+
+async function createTopic(name) {
+    const clean = name.replace(/\s+/g, ' ').trim();
+    if (clean.length < 3) return;
+    const field = topicField();
+    const same = (field?.options || []).find((o) => foldText(o.label) === foldText(clean));
+    if (same) {
+        pickTopic({ id: same.value, name: same.label, isNew: false });
+        return;
+    }
+    try {
+        const data = await api('/supervision/training-topics', { method: 'POST', body: JSON.stringify({ name: clean }) });
+        const topic = { value: String(data.topic.value), label: data.topic.label };
+        if (field && !(field.options || []).some((o) => String(o.value) === topic.value)) {
+            field.options = [...(field.options || []), topic].sort((a, b) => a.label.localeCompare(b.label));
+        }
+        pickTopic({ id: topic.value, name: topic.label, isNew: false });
+        setStatus(data.created ? `Tema «${topic.label}» creado.` : `El tema «${topic.label}» ya existía; quedó seleccionado.`);
+    } catch (e) {
+        if (!ZentraOffline.isOfflineError(e)) {
+            setStatus(e.message, false);
+            return;
+        }
+        pickTopic({ id: null, name: clean, isNew: true });
+    }
+}
+
+async function pickTopic(pick) {
+    topicPick = pick;
+    trainingDup = '';
+    const input = document.getElementById('f-topic-q');
+    if (input) input.value = pick.name;
+    document.getElementById('f-topic-list')?.classList.add('hidden');
+    scheduleSessionSave();
+    await checkTrainingDuplicate();
+}
+
+async function checkTrainingDuplicate() {
+    if (!topicPick) return;
+    const employeeId = Number(reviewGuard?.id || 0);
+    if (!employeeId) {
+        setTopicState('Seleccione primero el vigilante en la revista.', 'err');
+        return;
+    }
+    if (topicPick.isNew) {
+        setTopicState('Sin señal: el tema nuevo se crea al sincronizar. Si el vigilante ya lo recibió este mes, la capacitación se eliminará al sincronizar.', 'warn');
+        return;
+    }
+    const local = trainingsMonth.some((row) => Number(row.employee_id) === employeeId && Number(row.topic_id) === Number(topicPick.id));
+    if (local) {
+        trainingDup = `Este vigilante ya fue capacitado en «${topicPick.name}» este mes. Elija otro tema o cancele la capacitación.`;
+        setTopicState(trainingDup, 'err');
+        return;
+    }
+    if (!navigator.onLine) {
+        setTopicState('Sin señal: no se puede validar si este vigilante ya recibió este tema. Si ya fue capacitado este mes, esta capacitación se eliminará al sincronizar.', 'warn');
+        return;
+    }
+    try {
+        const data = await api(`/supervision/trainings/check?employee_id=${employeeId}&topic_id=${encodeURIComponent(topicPick.id)}`);
+        if (data.trained) {
+            trainingDup = data.message;
+            setTopicState(trainingDup, 'err');
+        } else {
+            setTopicState('Tema disponible para este vigilante.', 'ok');
+        }
+    } catch (e) {
+        setTopicState('Sin señal: no se puede validar si este vigilante ya recibió este tema. Si ya fue capacitado este mes, esta capacitación se eliminará al sincronizar.', 'warn');
+    }
+}
+
+function formatClock(ms) {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const h = String(Math.floor(total / 3600)).padStart(2, '0');
+    const m = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
+    const s = String(total % 60).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+}
+
+function renderTimer() {
+    const clock = document.getElementById('timer-clock');
+    const start = document.getElementById('btn-timer-start');
+    const stop = document.getElementById('btn-timer-stop');
+    const hint = document.getElementById('timer-hint');
+    if (!clock || !start || !stop) return;
+    clearInterval(trainingTick);
+    trainingTick = null;
+    const running = trainingRunning();
+    document.body.classList.toggle('training-lock', running);
+    start.classList.toggle('hidden', Boolean(trainingTimer?.startedAt));
+    stop.classList.toggle('hidden', !running);
+    if (!trainingTimer?.startedAt) {
+        clock.textContent = '00:00:00';
+        hint.textContent = 'Pulse Iniciar al comenzar. La duración la calcula el sistema.';
+        return;
+    }
+    const startedAt = new Date(trainingTimer.startedAt);
+    const fmt = (d) => d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    if (!running) {
+        const ended = new Date(trainingTimer.endedAt);
+        clock.textContent = formatClock(ended - startedAt);
+        hint.textContent = `Capacitación de ${fmt(startedAt)} a ${fmt(ended)} · ${Math.max(1, Math.ceil((ended - startedAt) / 60000))} min.`;
+        return;
+    }
+    const paint = () => {
+        const elapsed = Date.now() - startedAt.getTime();
+        clock.textContent = formatClock(elapsed);
+        hint.textContent = `En curso desde las ${fmt(startedAt)}. No puede salir del módulo hasta terminar o cancelar.`;
+        if (elapsed >= 2 * 3600 * 1000 && !trainingWarned) {
+            trainingWarned = true;
+            if (!window.confirm('La capacitación lleva más de 2 horas. ¿Sigue en curso?\n\nAceptar: sigue. Cancelar: terminarla ahora.')) {
+                stopTrainingTimer();
+            }
+        }
+    };
+    paint();
+    trainingTick = setInterval(paint, 1000);
+}
+
+function startTrainingTimer() {
+    if (!reviewGuard?.id) {
+        setStatus('Seleccione primero el vigilante en la revista.', false);
+        return;
+    }
+    trainingTimer = { startedAt: new Date().toISOString(), endedAt: null };
+    trainingWarned = false;
+    try { history.pushState({ trainingLock: true }, ''); } catch (e) { /* sin historial */ }
+    renderTimer();
+    saveReviewSession();
+    setStatus('Capacitación iniciada.');
+}
+
+function stopTrainingTimer() {
+    if (!trainingRunning()) return;
+    trainingTimer = { ...trainingTimer, endedAt: new Date().toISOString() };
+    renderTimer();
+    saveReviewSession();
+    setStatus('Capacitación terminada.');
+}
+
+function cancelTraining() {
+    clearInterval(trainingTick);
+    trainingTick = null;
+    trainingTimer = null;
+    topicPick = null;
+    trainingDup = '';
+    document.body.classList.remove('training-lock');
+    reviewDraftLogs = reviewDraftLogs.filter((row) => row.module !== 'trainings');
+    saveReviewSession();
+}
+
+function prefillModule(state) {
+    const payload = state.payload || {};
+    const form = document.getElementById('module-form');
+    if (!form) return;
+    (currentModule.fields || []).forEach((field) => {
+        if (field.type === 'checklist') {
+            const legacy = { good: 'no', regular: 'yes', bad: 'yes' };
+            (payload[field.name] || []).forEach((row) => {
+                const status = legacy[row.status] || row.status;
+                const input = form.querySelector(`input[name="f-${field.name}-${row.item_id}"][value="${status}"]`);
+                if (input) input.checked = true;
+            });
+            return;
+        }
+        if (field.type === 'radio') {
+            const select = document.getElementById(`f-${field.name}`);
+            if (select?.tagName === 'SELECT') {
+                select.value = payload[field.name] ?? '';
+                return;
+            }
+            const input = form.querySelector(`input[name="f-${field.name}"][value="${payload[field.name]}"]`);
+            if (input) input.checked = true;
+            return;
+        }
+        if (field.type === 'textarea' || field.type === 'text') {
+            const el = document.getElementById(`f-${field.name}`);
+            if (el && payload[field.name] != null) el.value = payload[field.name];
+        }
+    });
+    if (currentModule.key === 'trainings') {
+        if (payload.topic_label) {
+            topicPick = payload.topic_id
+                ? { id: String(payload.topic_id), name: payload.topic_label, isNew: false }
+                : { id: null, name: payload.topic_label, isNew: true };
+            const input = document.getElementById('f-topic-q');
+            if (input) input.value = payload.topic_label;
+            checkTrainingDuplicate();
+        }
+        trainingTimer = state.timer || (payload.started_at ? { startedAt: payload.started_at, endedAt: payload.ended_at } : null);
+        renderTimer();
+    }
+    Object.entries(state.photos || {}).forEach(([slot, blob]) => {
+        if (blob) applySlotPhoto(slot, blob);
+    });
+    form.dispatchEvent(new Event('change'));
+}
+
+function announceDiscarded(data) {
+    const rows = data?.discarded_trainings || [];
+    if (!rows.length) return;
+    const message = rows.map((row) => row.message).join(' ');
+    setStatus(message, false);
+    try { window.alert(message); } catch (e) { /* sin alert */ }
+}
+
+function moduleState() {
+    if (!currentModule || !['uniform', 'trainings'].includes(currentModule.key)) return null;
+    if (document.getElementById('module-card').classList.contains('hidden')) return null;
+    return {
+        key: currentModule.key,
+        payload: readPayload(),
+        photos: { ...modulePhotos },
+        timer: currentModule.key === 'trainings' ? trainingTimer : null,
+    };
+}
+
+function scheduleSessionSave() {
+    clearTimeout(sessionSaveTimer);
+    sessionSaveTimer = setTimeout(saveReviewSession, 400);
+}
+
+async function saveReviewSession() {
+    if (!offlineReady()) return;
+    const open = moduleState();
+    const empty = !reviewClient && !reviewPost && !reviewGuard && !reviewDraftLogs.length && !blobs.guard && !open;
+    try {
+        await ZentraOffline.metaSet('reviewSession', empty ? null : {
+            client: reviewClient,
+            post: reviewPost,
+            guard: reviewGuard,
+            notes: document.getElementById('rev-notes')?.value || '',
+            novelty: Boolean(document.getElementById('rev-novelty')?.checked),
+            drafts: reviewDraftLogs,
+            guardBlob: blobs.guard || null,
+            eventId: reviewEventId,
+            open,
+        });
+    } catch (e) {
+        // sin almacenamiento
+    }
+}
+
+async function restoreReviewSession() {
+    if (!offlineReady()) return;
+    let session = null;
+    try { session = await ZentraOffline.metaGet('reviewSession'); } catch (e) { session = null; }
+    if (!session) return;
+    reviewClient = session.client || null;
+    reviewPost = session.post || null;
+    reviewGuard = session.guard || null;
+    reviewDraftLogs = Array.isArray(session.drafts) ? session.drafts : [];
+    reviewEventId = session.eventId || null;
+    blobs.guard = session.guardBlob || null;
+    if (reviewClient) document.getElementById('rev-client-q').value = reviewClient.name || '';
+    if (reviewPost) {
+        const postQ = document.getElementById('rev-post-q');
+        postQ.disabled = false;
+        postQ.value = reviewPost.name || '';
+    }
+    if (reviewGuard) {
+        document.getElementById('rev-guard-doc').value = reviewGuard.document_number || '';
+        document.getElementById('rev-guard-name').value = reviewGuard.name || '';
+    }
+    document.getElementById('rev-notes').value = session.notes || '';
+    document.getElementById('rev-novelty').checked = Boolean(session.novelty);
+    if (blobs.guard) {
+        const img = document.getElementById('snap-guard');
+        img.src = URL.createObjectURL(blobs.guard);
+        img.classList.remove('hidden');
+    }
+    showReview();
+    renderHub();
+    if (session.open?.key && catalog.some((m) => m.key === session.open.key)) {
+        openModule(session.open.key, 'review');
+        prefillModule(session.open);
+        if (trainingRunning()) {
+            try { history.pushState({ trainingLock: true }, ''); } catch (e) { /* sin historial */ }
+        }
+    }
+    setStatus(trainingRunning() ? 'Capacitación en curso recuperada.' : 'Se recuperó la revista en curso.');
+}
+
+window.addEventListener('popstate', () => {
+    if (!trainingRunning()) return;
+    try { history.pushState({ trainingLock: true }, ''); } catch (e) { /* sin historial */ }
+    setStatus('Termine o cancele la capacitación antes de salir.', false);
+});
+
+window.addEventListener('beforeunload', (ev) => {
+    if (!trainingRunning()) return;
+    ev.preventDefault();
+    ev.returnValue = '';
+});
 
 function fieldWrapper(field, html) {
     const attrs = [];
@@ -740,11 +1181,56 @@ function renderField(field) {
     if (field.type === 'photo_grid') {
         return fieldWrapper(field, `<label>${field.label}</label>
             <div class="photo-grid" id="photos-${field.name}">
-                ${(field.slots || []).map((slot) => `<button type="button" class="photo-slot" data-photo-slot="${slot.key}"><span>${slot.label}</span></button>`).join('')}
+                ${(field.slots || []).map((slot) => `<button type="button" class="photo-slot" data-photo-slot="${slot.key}">${SLOT_ICON}<span>${slot.label}</span></button>`).join('')}
             </div>`);
     }
     if (field.type === 'row') {
         return fieldWrapper(field, `<div class="row">${(field.fields || []).map((sub) => `<div><label>${sub.label}</label>${fieldControl(sub)}</div>`).join('')}</div>`);
+    }
+    if (field.type === 'checklist') {
+        const options = field.options || [];
+        const group = field.group || [];
+        const grouped = options.filter((o) => group.includes(o.value));
+        const loose = options.filter((o) => !group.includes(o.value));
+        const head = grouped.length
+            ? `<tr><th rowspan="2" class="pt-name">Prenda</th><th colspan="${grouped.length}">${esc(field.group_label || '')}</th>${loose.map((o) => `<th rowspan="2">${esc(o.label)}</th>`).join('')}</tr>
+               <tr>${grouped.map((o) => `<th>${esc(o.label)}</th>`).join('')}</tr>`
+            : `<tr><th class="pt-name">Prenda</th>${options.map((o) => `<th>${esc(o.label)}</th>`).join('')}</tr>`;
+        const ordered = [...grouped, ...loose];
+        return fieldWrapper(field, `<table class="ptable">
+            <thead>${head}</thead>
+            <tbody>${(field.items || []).map((item) => `
+                <tr data-item="${esc(item.value)}">
+                    <td class="pt-name">${esc(item.label)}</td>
+                    ${ordered.map((o) => `<td><label class="tick tick-${esc(o.value)}"><input type="radio" name="f-${field.name}-${esc(item.value)}" value="${esc(o.value)}" aria-label="${esc(item.label)}: ${esc(o.label)}"><span></span></label></td>`).join('')}
+                </tr>`).join('')}
+            </tbody>
+        </table>`);
+    }
+    if (field.type === 'radio' && isYesNo(field)) {
+        return fieldWrapper(field, `<div class="yn-row"><span class="yn-label">${field.label}</span>${fieldControl(field)}</div>`);
+    }
+    if (field.type === 'topic') {
+        return fieldWrapper(field, `<label for="f-topic-q">${field.label}</label>
+            <div class="combo">
+                <div class="topic-row">
+                    <input id="f-topic-q" autocomplete="off" placeholder="Toque para elegir o crear el tema">
+                    <button type="button" id="f-topic-add" class="gold btn-sm hidden" disabled>Agregar</button>
+                </div>
+                <div id="f-topic-list" class="combo-list hidden"></div>
+            </div>
+            <p class="hint" id="f-topic-state"></p>`);
+    }
+    if (field.type === 'timer') {
+        return fieldWrapper(field, `<label>${field.label}</label>
+            <div class="timer-box">
+                <div class="timer-clock" id="timer-clock">00:00:00</div>
+                <p class="hint" id="timer-hint">Pulse Iniciar al comenzar. La duración la calcula el sistema.</p>
+                <div class="row">
+                    <button type="button" class="gold" id="btn-timer-start">Iniciar capacitación</button>
+                    <button type="button" class="secondary hidden" id="btn-timer-stop">Terminar capacitación</button>
+                </div>
+            </div>`);
     }
     const body = field.type === 'checkbox' ? fieldControl(field) : `<label>${field.label}</label>${fieldControl(field)}`;
     return fieldWrapper(field, body);
@@ -766,15 +1252,16 @@ function bindConditionalFields() {
             try { spec = JSON.parse(el.dataset.optionsWhen || '{}'); } catch { spec = {}; }
             const fieldName = spec.field;
             const options = (spec.map && fieldName) ? (spec.map[payload[fieldName]] || []) : [];
-            const radios = el.querySelector('.opts');
-            if (!radios || !options.length) return;
-            const current = radios.querySelector('input[type="radio"]:checked')?.value;
-            const name = radios.querySelector('input[type="radio"]')?.name;
-            if (!name) return;
-            radios.innerHTML = options.map((option, i) => {
-                const checked = option.value === current || (current == null && i === 0) ? 'checked' : '';
-                return `<label class="opt"><input type="radio" name="${name}" value="${option.value}" ${checked}><span>${option.label}</span></label>`;
-            }).join('');
+            const select = el.querySelector('select');
+            if (!select) return;
+            const signature = options.map((o) => o.value).join('|');
+            if (select.dataset.optionsSig === signature) return;
+            select.dataset.optionsSig = signature;
+            const current = select.value;
+            select.innerHTML = `<option value="">${options.length ? 'Seleccione…' : 'Primero la modalidad'}</option>`
+                + options.map((o) => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join('');
+            select.disabled = !options.length;
+            if (options.some((o) => o.value === current)) select.value = current;
         });
     };
     form.onchange = apply;
@@ -814,7 +1301,7 @@ function repeatableItemHtml(field, index) {
         if (item.type === 'photo_grid') {
             return `<label>${item.label}</label>
                 <div class="photo-grid" data-photo-grid="${field.name}-${index}-${item.name}">
-                    ${(item.slots || []).map((slot) => `<button type="button" class="photo-slot" data-photo-slot="${index}_${slot.key}"><span>${slot.label}</span></button>`).join('')}
+                    ${(item.slots || []).map((slot) => `<button type="button" class="photo-slot" data-photo-slot="${index}_${slot.key}">${SLOT_ICON}<span>${slot.label}</span></button>`).join('')}
                 </div>`;
         }
         if (item.type === 'computed') {
@@ -822,6 +1309,7 @@ function repeatableItemHtml(field, index) {
         }
         const named = { ...item, name: `${field.name}-${index}-${item.name}` };
         if (item.type === 'qty_pair') return fieldControl(named);
+        if (isYesNo(item)) return `<div class="yn-row"><span class="yn-label">${item.label}</span>${fieldControl(named)}</div>`;
         return item.type === 'checkbox' ? fieldControl(named) : `<label>${item.label}</label>${fieldControl(named)}`;
     }).join('');
     return `<div class="item-card" data-index="${index}">
@@ -893,6 +1381,11 @@ function bindComputedRisk(card, field, index) {
     const impact = document.getElementById(`f-${field.name}-${index}-impact`);
     if (!out || !likelihood || !impact) return;
     const paint = () => {
+        if (!likelihood.value || !impact.value) {
+            out.textContent = '—';
+            out.dataset.level = '';
+            return;
+        }
         const level = riskLevelFrom(Number(likelihood.value), Number(impact.value));
         out.textContent = level.label;
         out.dataset.level = level.key;
@@ -990,6 +1483,7 @@ function applySlotPhoto(slot, blob) {
         btn.prepend(img);
     }
     img.src = URL.createObjectURL(blob);
+    scheduleSessionSave();
 }
 
 document.getElementById('photo-file').onchange = () => {
@@ -1049,13 +1543,18 @@ document.getElementById('btn-crop-ok').onclick = async () => {
     window.addEventListener('touchend', end);
 })();
 
+function isYesNo(field) {
+    const values = (field.options || []).map((o) => o.value).sort().join(',');
+    return field.type === 'radio' && values === 'no,yes';
+}
+
 function fieldControl(field) {
     const req = field.required ? 'required' : '';
     if (field.type === 'textarea') return `<textarea id="f-${field.name}" ${req}></textarea>`;
     if (field.type === 'select') {
         const options = field.options || [];
         const opts = options.length
-            ? options.map((o) => `<option value="${o.value}">${o.label}</option>`).join('')
+            ? '<option value="">Seleccione…</option>' + options.map((o) => `<option value="${o.value}">${o.label}</option>`).join('')
             : `<option value="">${field.empty_label || 'Sin tipos. Agréguelos en Ajustes'}</option>`;
         return `<select id="f-${field.name}" ${req}>${opts}</select>`;
     }
@@ -1067,8 +1566,14 @@ function fieldControl(field) {
             </div>`).join('')}</div>`;
     }
     if (field.type === 'radio') {
-        return `<div class="opts">${(field.options || []).map((o, i) => `
-            <label class="opt"><input type="radio" name="f-${field.name}" value="${o.value}" ${i === 0 && field.required ? 'checked' : ''}><span>${o.label}</span></label>`).join('')}</div>`;
+        if (isYesNo(field)) {
+            return `<div class="yn">${['yes', 'no'].map((value) => `
+                <label class="yn-opt"><input type="radio" name="f-${field.name}" value="${value}"><span class="yn-box"></span><span>${value === 'yes' ? 'Sí' : 'No'}</span></label>`).join('')}</div>`;
+        }
+        return `<select id="f-${field.name}" data-choice="1" ${req}>
+            <option value="">Seleccione…</option>
+            ${(field.options || []).map((o) => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join('')}
+        </select>`;
     }
     if (field.type === 'checkbox') return `<label class="opt"><input id="f-${field.name}" type="checkbox"><span>${field.label}</span></label>`;
     if (field.type === 'number') return `<input id="f-${field.name}" type="number" min="${field.min ?? 1}" value="${field.min ?? 1}" ${req}>`;
@@ -1088,7 +1593,31 @@ function readPayload() {
             (field.fields || []).forEach((sub) => assignFieldValue(payload, sub));
             return;
         }
+        if (field.type === 'checklist') {
+            payload[field.name] = (field.items || []).map((item) => {
+                const picked = document.querySelector(`input[name="f-${field.name}-${item.value}"]:checked`);
+                return { item_id: Number(item.value), status: picked ? picked.value : null };
+            });
+            payload.novelty = payload[field.name].some((row) => row.status === 'yes') ? 'yes' : 'no';
+            return;
+        }
+        if (field.type === 'topic') {
+            payload.topic_id = topicPick && !topicPick.isNew ? Number(topicPick.id) : null;
+            payload.topic_name = topicPick?.isNew ? topicPick.name : null;
+            payload.topic_label = topicPick?.name || null;
+            return;
+        }
+        if (field.type === 'timer') {
+            payload.started_at = trainingTimer?.startedAt || null;
+            payload.ended_at = trainingTimer?.endedAt || null;
+            return;
+        }
         if (field.type === 'radio') {
+            const select = document.getElementById(`f-${field.name}`);
+            if (select?.tagName === 'SELECT') {
+                payload[field.name] = select.value || null;
+                return;
+            }
             const picked = document.querySelector(`input[name="f-${field.name}"]:checked`);
             payload[field.name] = picked ? picked.value : null;
             return;
@@ -1120,6 +1649,11 @@ function readRepeatable(field) {
                 return;
             }
             if (item.type === 'radio') {
+                const select = document.getElementById(`f-${key}`);
+                if (select?.tagName === 'SELECT') {
+                    row[item.name] = select.value || null;
+                    return;
+                }
                 const picked = document.querySelector(`input[name="f-${key}"]:checked`);
                 row[item.name] = picked ? picked.value : null;
                 return;
@@ -1188,31 +1722,49 @@ function selectReviewClient(row) {
     document.getElementById('rev-post-q').disabled = false;
     document.getElementById('rev-post-q').value = '';
     document.getElementById('rev-post-q').placeholder = 'Escriba el puesto';
+    scheduleSessionSave();
 }
 
 function selectReviewPost(row) {
     reviewPost = { id: row.id, name: row.name || row.label };
     document.getElementById('rev-post-q').value = row.label || reviewPost.name;
+    scheduleSessionSave();
 }
 
 function selectReviewGuard(row) {
+    const previous = reviewGuard?.id;
     reviewGuard = { id: row.id, name: row.name, document_number: row.document_number };
     document.getElementById('rev-guard-doc').value = row.document_number;
     document.getElementById('rev-guard-name').value = row.name;
+    const tied = reviewDraftLogs.filter((d) => d.module === 'uniform' || d.module === 'trainings');
+    if (previous && String(previous) !== String(row.id) && tied.length) {
+        reviewDraftLogs = reviewDraftLogs.filter((d) => d.module !== 'uniform' && d.module !== 'trainings');
+        renderHub();
+        setStatus('Cambió el vigilante: la presentación personal y la capacitación deben registrarse de nuevo.', false);
+    }
+    scheduleSessionSave();
 }
 
 function bindReviewUi() {
     const clientQ = document.getElementById('rev-client-q');
     const postQ = document.getElementById('rev-post-q');
     const guardQ = document.getElementById('rev-guard-doc');
+    const noClients = 'Ese cliente no está en tus zonas. Pide a la central que te habilite la zona.';
     clientQ.oninput = () => debounceSearch('client', () => {
         reviewClient = null;
-        fillCombo('rev-client-list', filterSites(clientQ.value), 'Sin clientes con Supervisión', selectReviewClient);
+        fillCombo('rev-client-list', filterSites(clientQ.value), noClients, selectReviewClient);
     });
-    clientQ.onfocus = () => fillCombo('rev-client-list', filterSites(clientQ.value), 'Sin clientes con Supervisión', selectReviewClient);
+    clientQ.onfocus = async () => {
+        fillCombo('rev-client-list', filterSites(clientQ.value), noClients, selectReviewClient);
+        if (await refreshSitesIfStale() && document.activeElement === clientQ) {
+            fillCombo('rev-client-list', filterSites(clientQ.value), noClients, selectReviewClient);
+        }
+    };
     postQ.oninput = () => debounceSearch('post', () => searchPosts(postQ.value));
     postQ.onfocus = () => { if (reviewClient) searchPosts(postQ.value); };
     guardQ.oninput = () => debounceSearch('guard', () => searchGuards(guardQ.value));
+    document.getElementById('rev-notes').addEventListener('input', scheduleSessionSave);
+    document.getElementById('rev-novelty').addEventListener('change', scheduleSessionSave);
     document.addEventListener('click', (ev) => {
         if (!ev.target.closest('.combo')) {
             document.querySelectorAll('.combo-list').forEach((el) => el.classList.add('hidden'));
@@ -1254,8 +1806,8 @@ async function searchPosts(query) {
     }
 }
 
-async function searchGuards(document) {
-    const term = (document || '').replace(/\s+/g, '');
+async function searchGuards(query) {
+    const term = (query || '').replace(/\s+/g, '');
     if (term.length < 3) {
         reviewGuard = null;
         document.getElementById('rev-guard-name').value = '';
@@ -1296,6 +1848,10 @@ async function persistReview() {
     if (!reviewPost) throw new Error('Seleccione el puesto.');
     if (!reviewGuard) throw new Error('Seleccione el vigilante por cédula.');
     if (!blobs.guard) throw new Error('Tome la foto del vigilante.');
+    const missingMandatory = catalog.filter((mod) => mod.mandatory && !reviewDraftLogs.some((row) => row.module === mod.key));
+    if (missingMandatory.length) {
+        throw new Error(`Diligencie ${missingMandatory.map((mod) => mod.label.toLowerCase()).join(' y ')} antes de guardar la revista.`);
+    }
     const pos = await geoRequired('Active la ubicación del dispositivo para guardar la revista.');
     if (!reviewEventId) reviewEventId = ZentraOffline.uuid();
     const clientEventId = reviewEventId;
@@ -1316,6 +1872,7 @@ async function persistReview() {
         longitude: String(pos.longitude),
         logs: JSON.stringify(outgoing),
         recorded_at: new Date().toISOString(),
+        app_build: String(APP_BUILD),
     };
     const queued = {
         type: 'review',
@@ -1329,6 +1886,7 @@ async function persistReview() {
         currentReview = data.review;
         activity = data.activity || activity;
         reviewEventId = null;
+        announceDiscarded(data);
     } catch (e) {
         if (!ZentraOffline.isOfflineError(e)) throw e;
         await enqueueOrThrow(queued, 'Revista guardada en el teléfono. Se enviará al reconectar.');
@@ -1340,6 +1898,7 @@ async function persistReview() {
     reviewDraftLogs = [];
     resetReviewForm();
     renderHub();
+    await saveReviewSession();
     return currentReview;
 }
 
@@ -1354,16 +1913,24 @@ function resetReviewForm() {
     document.getElementById('rev-guard-doc').value = '';
     document.getElementById('rev-guard-name').value = '';
     document.getElementById('rev-notes').value = '';
-    document.getElementById('rev-novelty').checked = false;
+    const novelty = document.getElementById('rev-novelty');
+    novelty.checked = false;
+    novelty.disabled = false;
+    novelty.dataset.manual = '0';
+    document.getElementById('rev-novelty-why')?.classList.add('hidden');
 }
 
 function discardReviewSession() {
     reviewDraftLogs = [];
     currentReview = null;
     blobs.guard = null;
+    trainingTimer = null;
+    topicPick = null;
+    document.body.classList.remove('training-lock');
     document.getElementById('snap-guard').classList.add('hidden');
     resetReviewForm();
     renderHub();
+    saveReviewSession();
 }
 
 async function saveReview() {
@@ -1382,7 +1949,7 @@ function enterOps() {
 
 async function loadCatalog() {
     try {
-        const data = await api('/supervision/catalog');
+        const data = await api(`/supervision/catalog?app_build=${APP_BUILD}`);
         catalog = data.modules || [];
         const pack = await ZentraOffline.metaGet('pack') || {};
         pack.modules = catalog;
@@ -1450,12 +2017,15 @@ function applyShift(shift) {
     }
     clearOwnCloseLock();
     document.getElementById('shift-label').textContent = 'Turno abierto';
-    document.getElementById('shift-meta').textContent = [
-        shift.schedule_label,
-        shift.route_zone,
-        shift.fleet_vehicle?.plate,
-        shift.km_start != null ? `${shift.km_start} km` : null,
-    ].filter(Boolean).join(' · ');
+    const meta = {
+        'sup-schedule': shift.schedule_label,
+        'sup-zone': shift.route_zone,
+        'sup-plate': shift.fleet_vehicle?.plate,
+        'sup-km': shift.km_start != null ? `${Number(shift.km_start).toLocaleString('es-CO')} km` : null,
+    };
+    Object.entries(meta).forEach(([id, value]) => {
+        document.getElementById(id).textContent = value || '—';
+    });
     document.getElementById('km-end').value = shift.km_start || '';
     renderHub();
     startPing();
@@ -1603,7 +2173,6 @@ function stopPing() {
 
 function logout(opts = {}) {
     stopPing();
-    stopAllCams();
     const uid = ZentraOffline.currentUserId?.() || null;
     const tok = token();
     if (uid && tok) ZentraOffline.rememberUser?.(uid, tok);
@@ -1650,12 +2219,21 @@ async function afterLogin(data = {}) {
     flushOutbox();
     if (shift) {
         enterOps();
+        await restoreReviewSession();
         return;
     }
     show('open-shift');
 }
 
 bindCameras();
+(() => {
+    const home = document.getElementById('ops-home');
+    const card = document.getElementById('sup-card');
+    if (!home || !card) return;
+    const sync = () => card.classList.toggle('hidden', home.classList.contains('hidden'));
+    new MutationObserver(sync).observe(home, { attributes: true, attributeFilter: ['class'] });
+    sync();
+})();
 bindReviewUi();
 bindObsPhotoGrid();
 document.querySelectorAll('[data-collapse]').forEach((btn) => {
@@ -1759,7 +2337,6 @@ document.getElementById('btn-start').onclick = () => withBusy(
         if (startSelfie) {
             await setSupervisorAvatar(startSelfie);
         }
-        stopAllCams();
         try { await refreshOfflinePack(); } catch (e) { /* el turno ya abrió */ }
         await loadCurrent();
         enterOps();
@@ -1768,11 +2345,14 @@ document.getElementById('btn-start').onclick = () => withBusy(
 );
 
 document.getElementById('btn-go-close').onclick = () => {
+    if (trainingRunning()) {
+        setStatus('Termine o cancele la capacitación antes de cerrar el turno.', false);
+        return;
+    }
     show('close-shift');
 };
 
 document.getElementById('btn-close-back').onclick = () => {
-    stopAllCams();
     show('ops');
     showOpsHome();
 };
@@ -1794,7 +2374,6 @@ document.getElementById('btn-close').onclick = () => withBusy(
             closeEventId = null;
             blobs.odoEnd = blobs.selfEnd = null;
             stopPing();
-            stopAllCams();
             activity = null;
             currentReview = null;
             reviewDraftLogs = [];
@@ -1815,7 +2394,6 @@ document.getElementById('btn-close').onclick = () => withBusy(
             await ZentraOffline.metaSet('closeQueued', true);
             blobs.odoEnd = blobs.selfEnd = null;
             stopPing();
-            stopAllCams();
             await updateSyncBar();
             show('ops');
             showOpsHome();
@@ -1841,15 +2419,31 @@ document.getElementById('btn-submit').onclick = () => withBusy(
             if (currentModule.key === 'weapons') {
                 draft.photos = { ...modulePhotos };
             }
+            if (currentModule.single) {
+                const slots = (currentModule.fields || [])
+                    .filter((field) => field.type === 'photo_grid')
+                    .flatMap((field) => field.slots || [])
+                    .map((slot) => slot.key);
+                const keep = currentModule.key !== 'uniform' || payload.novelty === 'yes';
+                draft.photos = keep
+                    ? Object.fromEntries(slots.filter((key) => modulePhotos[key]).map((key) => [key, modulePhotos[key]]))
+                    : {};
+                reviewDraftLogs = reviewDraftLogs.filter((row) => row.module !== currentModule.key);
+            }
             if (currentModule.key === 'recommendations') {
                 const field = (currentModule.fields || []).find((item) => item.type === 'repeatable');
                 draft.photos = collectRepeatablePhotos(field);
             }
             modulePhotos = {};
             reviewDraftLogs.push(draft);
+            if (currentModule.key === 'trainings') {
+                trainingTimer = null;
+                document.body.classList.remove('training-lock');
+            }
             renderHub();
-            setStatus(`${currentModule.label} registrado.`);
+            setStatus(`${currentModule.label} registrada en la revista.`);
             showReview();
+            saveReviewSession();
             return;
         }
         const pos = currentModule.requires_gps
@@ -1887,6 +2481,36 @@ document.getElementById('btn-submit').onclick = () => withBusy(
 );
 
 function assertDraftPayload(mod, payload) {
+    if (mod.key === 'folders' && !payload.status) throw new Error('Indique el estado de la carpeta.');
+    if (mod.key === 'uniform') {
+        const field = (mod.fields || []).find((f) => f.type === 'checklist');
+        const missing = (payload.items || []).filter((row) => !row.status)
+            .map((row) => (field?.items || []).find((item) => Number(item.value) === row.item_id)?.label)
+            .filter(Boolean);
+        if (missing.length) throw new Error(`Marque todas las prendas. Falta: ${missing.join(', ')}.`);
+        if (payload.novelty === 'yes') {
+            if (!payload.notes) throw new Error('Describa la novedad de la presentación personal.');
+            if (!['uniform_1', 'uniform_2', 'uniform_3'].some((key) => modulePhotos[key])) {
+                throw new Error('Tome al menos una foto de la novedad.');
+            }
+        }
+    }
+    if (mod.key === 'trainings') {
+        if (!reviewGuard?.id) throw new Error('Seleccione primero el vigilante en la revista.');
+        if (!payload.kind) throw new Error('Indique si la capacitación es mensual o personalizada.');
+        if (!payload.modality) throw new Error('Indique si la capacitación es virtual o en puesto.');
+        if (!topicPick) throw new Error('Elija o cree el tema de la capacitación.');
+        if (trainingDup) throw new Error(trainingDup);
+        if (payload.kind === 'custom' && !payload.reason) throw new Error('Indique el motivo o la falencia de la capacitación personalizada.');
+        if (payload.modality === 'onsite') {
+            if (!payload.description) throw new Error('Describa la capacitación dada en el puesto.');
+            if (trainingRunning()) throw new Error('Termine la capacitación antes de registrarla.');
+            if (!payload.started_at || !payload.ended_at) throw new Error('Inicie y termine la capacitación para registrar la duración.');
+        }
+        if (!['training_1', 'training_2', 'training_3'].some((key) => modulePhotos[key])) {
+            throw new Error('Tome al menos una foto de evidencia de la capacitación.');
+        }
+    }
     if (mod.key === 'inventory') {
         const items = payload.items || [];
         if (!items.length) throw new Error('Agregue al menos un elemento.');
@@ -1926,6 +2550,7 @@ function assertDraftPayload(mod, payload) {
     }
     if (mod.key === 'supports') {
         if (!payload.support_type_id) throw new Error('Seleccione el tipo de apoyo.');
+        if (payload.novelty !== 'yes' && payload.novelty !== 'no') throw new Error('Indique si el apoyo fue por una novedad.');
         if (!payload.reason) throw new Error('Indique el motivo del apoyo.');
     }
     if (mod.key === 'control_books') {
@@ -1961,8 +2586,17 @@ function assertDraftPayload(mod, payload) {
 }
 
 document.getElementById('btn-mod-back').onclick = () => {
+    if (trainingRunning()) {
+        if (!window.confirm('La capacitación está en curso. ¿Cancelarla? Se perderá lo registrado de la capacitación; la revista sigue.')) {
+            setStatus('Termine o cancele la capacitación antes de salir.', false);
+            return;
+        }
+        cancelTraining();
+        setStatus('Capacitación cancelada. Puede seguir con la revista.');
+    }
     if (moduleReturn === 'review') showReview();
     else showOpsHome();
+    saveReviewSession();
 };
 document.getElementById('btn-open-review').onclick = showReview;
 document.getElementById('btn-review-back').onclick = () => {
@@ -1978,7 +2612,6 @@ document.getElementById('btn-open-supports').onclick = () => openModule('support
 document.getElementById('btn-open-documents').onclick = () => openModule('documents', 'home');
 
 function showObservatory() {
-    stopAllCams();
     document.getElementById('ops-home').classList.add('hidden');
     document.getElementById('review-card').classList.add('hidden');
     document.getElementById('module-card').classList.add('hidden');
@@ -2340,7 +2973,6 @@ function startGeoWatch() {
 }
 
 function showGeo() {
-    stopAllCams();
     ['ops-home', 'review-card', 'module-card', 'sheets-card', 'observatory-card'].forEach((id) => {
         document.getElementById(id)?.classList.add('hidden');
     });
@@ -2449,7 +3081,6 @@ async function sendGeo() {
 })();
 
 async function showSheets() {
-    stopAllCams();
     document.getElementById('ops-home').classList.add('hidden');
     document.getElementById('review-card').classList.add('hidden');
     document.getElementById('module-card').classList.add('hidden');
@@ -2466,12 +3097,12 @@ async function showSheets() {
             return;
         }
         list.innerHTML = rows.map((row) => `
-            <button type="button" class="entry" data-sheet-kind="${row.kind}" data-sheet-id="${row.id}">
+            <button type="button" class="entry" data-sheet-kind="${row.kind}" data-sheet-id="${row.id}" data-sheet-folio="${esc(row.folio)}">
                 ${row.folio}<span>${row.type}${row.client ? ' · ' + row.client : ''}${row.novelty ? ' · novedad' : ''}</span>
             </button>
         `).join('');
         list.querySelectorAll('[data-sheet-kind]').forEach((btn) => {
-            btn.onclick = () => openSheet(btn.dataset.sheetKind, btn.dataset.sheetId);
+            btn.onclick = () => openSheet(btn.dataset.sheetKind, btn.dataset.sheetId, btn.dataset.sheetFolio);
         });
     } catch (e) {
         list.innerHTML = '';
@@ -2479,21 +3110,34 @@ async function showSheets() {
     }
 }
 
-async function openSheet(kind, id) {
+async function openSheet(kind, id, folio = '') {
+    const viewer = document.getElementById('sheet-viewer');
+    const frame = document.getElementById('sheet-viewer-frame');
     try {
+        setStatus('Abriendo ficha…');
         const html = await apiHtml(`/supervision/sheets/${kind}/${id}`);
-        const w = window.open('', '_blank');
-        if (!w) {
-            setStatus('Permita ventanas emergentes para ver la ficha.', false);
-            return;
-        }
-        w.document.open();
-        w.document.write(html);
-        w.document.close();
+        document.getElementById('sheet-viewer-title').textContent = folio || 'Ficha';
+        frame.srcdoc = html;
+        viewer.classList.remove('hidden');
+        document.body.classList.add('sheet-open');
+        try { history.pushState({ sheetViewer: true }, ''); } catch (e) { /* sin historial */ }
+        setStatus('');
     } catch (e) {
         setStatus(e.message, false);
     }
 }
+
+function closeSheet(fromHistory = false) {
+    const viewer = document.getElementById('sheet-viewer');
+    if (viewer.classList.contains('hidden')) return;
+    viewer.classList.add('hidden');
+    document.getElementById('sheet-viewer-frame').srcdoc = '';
+    document.body.classList.remove('sheet-open');
+    if (!fromHistory && history.state?.sheetViewer) history.back();
+}
+
+document.getElementById('btn-sheet-close').onclick = () => closeSheet();
+window.addEventListener('popstate', () => closeSheet(true));
 document.getElementById('btn-logout-open').onclick = logout;
 
 if (token()) {

@@ -137,6 +137,22 @@
                         Sin Supervisión.
                     @endif
                 </p>
+                @if ($client->has_supervision)
+                    @php
+                        $zoneName = $client->supervisorZone?->name;
+                        $sharedNames = $client->sharedSupervisorZones->pluck('name')->implode(', ');
+                    @endphp
+                    <p class="text-sm {{ $zoneName ? 'text-slate-300' : 'text-rose-300' }}">
+                        @if ($zoneName)
+                            Zona: <span class="font-semibold text-white">{{ $zoneName }}</span>@if ($sharedNames !== '') · compartido con {{ $sharedNames }}@endif
+                        @else
+                            Sin zona de Supervisión: ningún supervisor lo ve.
+                        @endif
+                        @can('company.settings.manage')
+                            <a href="{{ route('company.supervision-zones.index') }}" class="ml-1 text-xs font-semibold text-indigo-300 hover:text-indigo-200">Zonas</a>
+                        @endcan
+                    </p>
+                @endif
                 @if ($client->isCatalogOnly())
                     <p class="text-xs text-slate-500">Esta ficha no consume cupo. Activa Accesos o Supervisión en Editar cuando tengas asientos.</p>
                 @endif

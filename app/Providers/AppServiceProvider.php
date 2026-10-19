@@ -19,6 +19,8 @@ use App\Models\SupervisorPostModality;
 use App\Models\SupervisorRiskType;
 use App\Models\SupervisorShiftTemplate;
 use App\Models\SupervisorSupportType;
+use App\Models\SupervisorTrainingTopic;
+use App\Models\SupervisorUniformItem;
 use App\Models\SupervisorWeaponBrand;
 use App\Models\SupervisorWeaponType;
 use App\Models\SupervisorZone;
@@ -79,6 +81,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(SupervisorAlarmType::class, SupervisorCompanyCatalogPolicy::class);
         Gate::policy(SupervisorPostModality::class, SupervisorCompanyCatalogPolicy::class);
         Gate::policy(SupervisorSupportType::class, SupervisorCompanyCatalogPolicy::class);
+        Gate::policy(SupervisorUniformItem::class, SupervisorCompanyCatalogPolicy::class);
+        Gate::policy(SupervisorTrainingTopic::class, SupervisorCompanyCatalogPolicy::class);
 
         Gate::before(function (User $user, string $ability): ?bool {
             $simulated = app(OperateAsRole::class)->allows($ability);

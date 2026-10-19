@@ -21,6 +21,10 @@ use Illuminate\Support\Facades\Storage;
 
 final class BuildSupervisorShiftSheetService
 {
+    public function __construct(
+        private readonly BuildShiftRouteMapService $routeMaps,
+    ) {}
+
     public function forCompany(int $companyId, int $shiftId): ?SupervisorFieldSheet
     {
         return $this->build($companyId, $shiftId, null);
@@ -117,11 +121,13 @@ final class BuildSupervisorShiftSheetService
                     $photos[] = ['label' => (string) ($photo['label'] ?? 'Foto'), 'src' => $src];
                 }
             }
-            $sections[] = [
-                'title' => (string) ($section['title'] ?? ''),
-                'rows' => array_values(array_map('strval', $section['rows'] ?? [])),
-                'photos' => $photos,
-            ];
+            $title = (string) ($section['title'] ?? '');
+            $rows = array_values(array_map('strval', $section['rows'] ?? []));
+            $sections[] = match ($title) {
+                'Preoperacional' => ['title' => $title, 'rows' => [], 'photos' => $photos, 'fields' => $this->checklistFields($rows)],
+                'Actividad del turno' => ['title' => $title, 'photos' => $photos] + $this->activityTable($rows),
+                default => ['title' => $title, 'rows' => $rows, 'photos' => $photos],
+            };
         }
 
         return new SupervisorFieldSheet(
@@ -147,10 +153,163 @@ final class BuildSupervisorShiftSheetService
             latitude: $lat,
             longitude: $lng,
             guardPhotoSrc: $this->dataUri(isset($payload['selfie_path']) ? (string) $payload['selfie_path'] : $shift->km_start_selfie_path),
-            sections: $sections,
+            sections: array_values(array_filter($sections, static fn (array $section): bool => ! in_array($section['title'], ['Inicio de turno', 'Cierre de turno'], true))),
             isDraft: $draft,
-            mapImageSrc: $this->staticMapSrc($lat, $lng),
+            hero: $this->heroBlock($shift, $payload),
+            odometer: $this->odometerBlock($shift),
+            routeMap: $this->routeBlock($shift),
+            signatures: ['Supervisor', 'Coordinación / central'],
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array{photos: list<array{label: string, src: ?string, pending?: ?string}>, fields: list<array{label: string, value: string}>}
+     */
+    private function heroBlock(SupervisorShift $shift, array $payload): array
+    {
+        $tz = (string) config('app.timezone');
+        $user = (string) ($payload['supervisor_name'] ?? $shift->user?->name ?? 'Supervisor');
+        $username = $payload['username'] ?? $shift->user?->username;
+        $end = match (true) {
+            $shift->isOpen() => 'Turno abierto',
+            $shift->ended_at !== null => $shift->ended_at->timezone($tz)->format('d/m/Y H:i').($shift->closed_by_system ? ' · por el sistema' : ''),
+            default => '—',
+        };
+
+        return [
+            'photos' => [
+                [
+                    'label' => 'Selfie de inicio',
+                    'src' => $this->dataUri(isset($payload['selfie_path']) ? (string) $payload['selfie_path'] : $shift->km_start_selfie_path),
+                    'pending' => 'Sin foto',
+                ],
+                [
+                    'label' => 'Selfie de cierre',
+                    'src' => $this->dataUri($shift->km_end_selfie_path),
+                    'pending' => $shift->isOpen() ? 'Pendiente cierre' : ($shift->closed_by_system ? 'Cierre por el sistema' : 'Sin foto'),
+                ],
+            ],
+            'fields' => [
+                ['label' => 'Supervisor', 'value' => $user.($username ? ' ('.$username.')' : '')],
+                ['label' => 'Turno', 'value' => (string) ($payload['shift_label'] ?? $shift->schedule_label ?? '—')],
+                ['label' => 'Zona', 'value' => (string) ($payload['zone_name'] ?? $shift->zone?->name ?? '—')],
+                ['label' => 'Placa', 'value' => (string) ($shift->fleetVehicle?->plate ?? '—')],
+                ['label' => 'Inicio', 'value' => $shift->started_at?->timezone($tz)->format('d/m/Y H:i') ?? '—'],
+                ['label' => 'Cierre', 'value' => $end],
+            ],
+        ];
+    }
+
+    /**
+     * @return array{photos: list<array{label: string, src: ?string, pending?: ?string}>, fields: list<array{label: string, value: string, strong?: bool}>}
+     */
+    private function odometerBlock(SupervisorShift $shift): array
+    {
+        $traveled = $shift->km_traveled ?? ($shift->km_end !== null && $shift->km_start !== null ? (int) $shift->km_end - (int) $shift->km_start : null);
+        $pending = $shift->isOpen() ? 'Pendiente cierre' : 'Sin foto';
+
+        return [
+            'photos' => [
+                ['label' => 'Odómetro de inicio', 'src' => $this->dataUri($shift->km_start_photo_path), 'pending' => 'Sin foto'],
+                ['label' => 'Odómetro final', 'src' => $this->dataUri($shift->km_end_photo_path), 'pending' => $pending],
+            ],
+            'fields' => [
+                ['label' => 'Km inicio', 'value' => $this->km($shift->km_start)],
+                ['label' => 'Km final', 'value' => $shift->km_end !== null ? $this->km($shift->km_end) : ($shift->isOpen() ? 'Pendiente' : '—')],
+                ['label' => 'Km recorridos', 'value' => $traveled !== null ? $this->km($traveled) : '—', 'strong' => true],
+            ],
+        ];
+    }
+
+    /**
+     * @return array{src: ?string, fields: list<array{label: string, value: string}>, note: ?string}
+     */
+    private function routeBlock(SupervisorShift $shift): array
+    {
+        $route = $this->routeMaps->execute($shift);
+        $start = $shift->started_at;
+        $end = $shift->ended_at ?? ($shift->isOpen() ? now() : null);
+        $minutes = $start !== null && $end !== null ? max(0, (int) $start->diffInMinutes($end)) : null;
+        $standalone = $shift->fieldLogs->filter(fn (SupervisorFieldLog $log) => in_array($log->module, [SupervisorFieldModule::Alarms, SupervisorFieldModule::Supports, SupervisorFieldModule::Documents], true))->count();
+
+        $note = null;
+        if (! $route['has_points']) {
+            $note = 'Sin puntos GPS en este turno.';
+        } elseif ($shift->isOpen()) {
+            $note = 'En curso: recorrido hasta las '.now()->timezone((string) config('app.timezone'))->format('H:i').'.';
+        }
+
+        return [
+            'src' => $route['src'],
+            'fields' => [
+                ['label' => 'Km por GPS', 'value' => number_format($route['km'], 1, ',', '.')],
+                ['label' => 'Duración', 'value' => $minutes !== null ? intdiv($minutes, 60).' h '.str_pad((string) ($minutes % 60), 2, '0', STR_PAD_LEFT).' min' : '—'],
+                ['label' => 'Revistas', 'value' => (string) $shift->reviews->count()],
+                ['label' => 'Alarmas, apoyos y documentos', 'value' => (string) $standalone],
+                ['label' => 'Paradas', 'value' => (string) $route['stops']],
+            ],
+            'note' => $note,
+        ];
+    }
+
+    /**
+     * «EPP:» / «Casco: Sí» → «EPP · Casco» = Sí.
+     *
+     * @param  list<string>  $rows
+     * @return list<array{label: string, value: string}>
+     */
+    private function checklistFields(array $rows): array
+    {
+        $group = '';
+        $fields = [];
+        foreach ($rows as $row) {
+            if (str_ends_with($row, ':')) {
+                $group = rtrim($row, ':');
+
+                continue;
+            }
+            $parts = explode(': ', $row, 2);
+            if (count($parts) !== 2) {
+                $fields[] = ['label' => $group ?: 'Detalle', 'value' => $row];
+
+                continue;
+            }
+            $fields[] = ['label' => ($group !== '' && $group !== $parts[0] ? $group.' · ' : '').$parts[0], 'value' => $parts[1]];
+        }
+
+        return $fields;
+    }
+
+    /**
+     * «15/10 09:06 · Revista · Cliente · novedad» → tabla.
+     *
+     * @param  list<string>  $rows
+     */
+    private function activityTable(array $rows): array
+    {
+        $out = [];
+        foreach ($rows as $row) {
+            $parts = explode(' · ', $row);
+            if (count($parts) < 2) {
+                return ['rows' => $rows];
+            }
+            $novelty = end($parts) === 'novedad';
+            if ($novelty) {
+                array_pop($parts);
+            }
+            $out[] = [
+                'cells' => [$parts[0], $parts[1], $parts[2] ?? '—', $novelty ? 'Sí' : 'No'],
+                'tone' => $novelty ? 'nov' : null,
+            ];
+        }
+
+        return ['rows' => [], 'table' => ['head' => ['Hora', 'Registro', 'Cliente', 'Novedad'], 'rows' => $out, 'center' => [3]]];
+    }
+
+    private function km(int|float|string|null $value): string
+    {
+        return $value === null || $value === '' ? '—' : number_format((float) $value, 0, ',', '.').' km';
     }
 
     /**
@@ -285,26 +444,6 @@ final class BuildSupervisorShiftSheetService
         }
 
         return ['label' => $label, 'path' => $path];
-    }
-
-    private function staticMapSrc(?float $lat, ?float $lng): ?string
-    {
-        if ($lat === null || $lng === null) {
-            return null;
-        }
-        $key = (string) config('google-maps.server_api_key');
-        if ($key === '') {
-            return null;
-        }
-
-        return 'https://maps.googleapis.com/maps/api/staticmap?'.http_build_query([
-            'center' => $lat.','.$lng,
-            'zoom' => 16,
-            'size' => '640x280',
-            'maptype' => 'satellite',
-            'markers' => 'color:0x22c55e|'.$lat.','.$lng,
-            'key' => $key,
-        ]);
     }
 
     /**

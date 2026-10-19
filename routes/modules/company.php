@@ -25,6 +25,9 @@ use App\Http\Controllers\Company\SettingsController;
 use App\Http\Controllers\Company\StructureTypeController;
 use App\Http\Controllers\Company\SupervisionFieldSheetController;
 use App\Http\Controllers\Company\SupervisionMapController;
+use App\Http\Controllers\Company\SupervisionShiftZoneController;
+use App\Http\Controllers\Company\SupervisorTrainingTopicController;
+use App\Http\Controllers\Company\SupervisorUniformItemController;
 use App\Http\Controllers\Company\SupervisorAlarmTypeController;
 use App\Http\Controllers\Company\SupervisorChecklistItemController;
 use App\Http\Controllers\Company\SupervisorControlBookTypeController;
@@ -209,6 +212,7 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
 
             Route::get('/supervision-zones', [SupervisorZoneController::class, 'index'])->name('supervision-zones.index');
             Route::post('/supervision-zones', [SupervisorZoneController::class, 'store'])->name('supervision-zones.store');
+            Route::post('/supervision-zones/assign', [SupervisorZoneController::class, 'assign'])->name('supervision-zones.assign');
             Route::put('/supervision-zones/{zone}', [SupervisorZoneController::class, 'update'])->name('supervision-zones.update');
             Route::delete('/supervision-zones/{zone}', [SupervisorZoneController::class, 'destroy'])->name('supervision-zones.destroy');
 
@@ -257,6 +261,16 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
             Route::put('/supervision-alarm-types/{alarmType}', [SupervisorAlarmTypeController::class, 'update'])->name('supervision-alarm-types.update');
             Route::delete('/supervision-alarm-types/{alarmType}', [SupervisorAlarmTypeController::class, 'destroy'])->name('supervision-alarm-types.destroy');
 
+            Route::get('/supervision-uniform-items', [SupervisorUniformItemController::class, 'index'])->name('supervision-uniform-items.index');
+            Route::post('/supervision-uniform-items', [SupervisorUniformItemController::class, 'store'])->name('supervision-uniform-items.store');
+            Route::put('/supervision-uniform-items/{uniformItem}', [SupervisorUniformItemController::class, 'update'])->name('supervision-uniform-items.update');
+            Route::delete('/supervision-uniform-items/{uniformItem}', [SupervisorUniformItemController::class, 'destroy'])->name('supervision-uniform-items.destroy');
+
+            Route::get('/supervision-training-topics', [SupervisorTrainingTopicController::class, 'index'])->name('supervision-training-topics.index');
+            Route::post('/supervision-training-topics', [SupervisorTrainingTopicController::class, 'store'])->name('supervision-training-topics.store');
+            Route::put('/supervision-training-topics/{trainingTopic}', [SupervisorTrainingTopicController::class, 'update'])->name('supervision-training-topics.update');
+            Route::delete('/supervision-training-topics/{trainingTopic}', [SupervisorTrainingTopicController::class, 'destroy'])->name('supervision-training-topics.destroy');
+
             Route::get('/supervision-support-types', [SupervisorSupportTypeController::class, 'index'])->name('supervision-support-types.index');
             Route::post('/supervision-support-types', [SupervisorSupportTypeController::class, 'store'])->name('supervision-support-types.store');
             Route::put('/supervision-support-types/{supportType}', [SupervisorSupportTypeController::class, 'update'])->name('supervision-support-types.update');
@@ -272,6 +286,12 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
         Route::get('/supervision/turnos/{shift}/ruta', [SupervisionMapController::class, 'snappedRoute'])
             ->middleware('permission:company.supervision.view')
             ->name('supervision.snapped-route');
+        Route::get('/supervision/turnos/{shift}/zonas', [SupervisionShiftZoneController::class, 'show'])
+            ->middleware('permission:company.supervision.view')
+            ->name('supervision.shift-zones.show');
+        Route::put('/supervision/turnos/{shift}/zonas', [SupervisionShiftZoneController::class, 'update'])
+            ->middleware('permission:company.supervision.view')
+            ->name('supervision.shift-zones.update');
         Route::get('/supervision/informe.pptx', [SupervisionMapController::class, 'report'])
             ->middleware('permission:company.supervision.view')
             ->name('supervision.report');

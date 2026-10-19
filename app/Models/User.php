@@ -43,6 +43,7 @@ class User extends Authenticatable
         'job_title',
         'avatar_path',
         'email',
+        'corporate_email',
         'password',
         'is_active',
         'last_login_at',

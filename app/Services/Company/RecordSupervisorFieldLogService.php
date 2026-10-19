@@ -15,7 +15,9 @@ use App\Models\SupervisorFieldLog;
 use App\Models\SupervisorRecommendation;
 use App\Models\SupervisorShift;
 use App\Models\SupervisorShiftReview;
+use App\Services\Supervision\NotifySupervisionNoveltyService;
 use App\Support\Supervision\SupervisorCaptureTime;
+use App\Support\Supervision\SupervisorClientScope;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -24,6 +26,7 @@ final class RecordSupervisorFieldLogService
 {
     public function __construct(
         private readonly AssertSupervisorFieldPayload $assertPayload,
+        private readonly SupervisorClientScope $clientScope,
     ) {}
 
     /**
@@ -57,10 +60,17 @@ final class RecordSupervisorFieldLogService
         $client = $module === SupervisorFieldModule::Documents
             ? null
             : ($review?->client ?? $this->resolveClient($shift, $module, $clientId));
+        if ($client !== null && $review === null) {
+            $this->clientScope->assertVisible($shift, $client, $recordedAt);
+        }
         $this->assertGps($module, $lat, $lng);
         $validated = $this->assertPayload->execute($module, $payload, (int) $shift->security_company_id);
 
-        return DB::transaction(function () use ($shift, $module, $validated, $client, $review, $notes, $lat, $lng, $clientEventId, $recordedAt) {
+        $zoneId = $review?->supervisor_zone_id !== null
+            ? (int) $review->supervisor_zone_id
+            : $this->clientScope->recordZoneId($shift, $client);
+
+        $log = DB::transaction(function () use ($shift, $module, $validated, $client, $review, $notes, $lat, $lng, $clientEventId, $recordedAt, $zoneId) {
             $recommendationId = null;
             $payload = $validated->payload;
 
@@ -75,6 +85,7 @@ final class RecordSupervisorFieldLogService
                     $level = SupervisorRiskLevel::from((string) $item['risk_level']);
                     $recommendation = SupervisorRecommendation::query()->create([
                         'security_company_id' => $shift->security_company_id,
+                        'supervisor_zone_id' => $zoneId,
                         'client_id' => $client->id,
                         'opened_by_user_id' => $shift->user_id,
                         'opened_shift_id' => $shift->id,
@@ -100,6 +111,7 @@ final class RecordSupervisorFieldLogService
             return SupervisorFieldLog::query()->create([
                 'supervisor_shift_id' => $shift->id,
                 'supervisor_shift_review_id' => $review?->id,
+                'supervisor_zone_id' => $zoneId,
                 'security_company_id' => $shift->security_company_id,
                 'user_id' => $shift->user_id,
                 'client_id' => $client?->id,
@@ -114,6 +126,12 @@ final class RecordSupervisorFieldLogService
                 'client_event_id' => $clientEventId,
             ]);
         });
+
+        if ($review === null) {
+            app(NotifySupervisionNoveltyService::class)->log($log);
+        }
+
+        return $log;
     }
 
     /**

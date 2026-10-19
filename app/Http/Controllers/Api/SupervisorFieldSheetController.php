@@ -70,6 +70,6 @@ final class SupervisorFieldSheetController extends Controller
         $sheet = $this->buildSheet->forSupervisor($companyId, (int) $user->id, $sheetKind, $id);
         abort_if($sheet === null, 404);
 
-        return view('modules.company.supervision.ficha', ['sheet' => $sheet]);
+        return view('modules.company.supervision.ficha', ['sheet' => $sheet, 'mode' => 'app']);
     }
 }

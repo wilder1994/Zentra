@@ -12,7 +12,7 @@ La pantalla copia Personal de SJ-SIG (listado, ficha, foto, bloques HR/SS) con e
 
 ## Dónde vive
 
-Sidebar **Empleados** (maestro) y **Documentos** (indexador de carpetas del personal). **Ajustes** → pestañas **Cargos** | **Tipos** | **Estructuras** | **Zonas** | **Turnos** | **Preoperacional** | **Documentos** | **Libros** | **Tipos de arma** | **Marcas** | **Riesgos** | **Alarmas** | **Apoyos**. Las de Supervisión de campo: [`SUPERVISION-CAMPO.md`](SUPERVISION-CAMPO.md). El **Documentos** del sidebar no es la Normoteca de plataforma (`docs/MODULO-DOCUMENTOS.md`).
+Sidebar **Empleados** (maestro) y **Documentos** (indexador de carpetas del personal). **Ajustes** → pestañas **Cargos** | **Tipos** | **Estructuras** | **Zonas** | **Turnos** | **Preoperacional** | **Documentos** | **Libros** | **Tipos de arma** | **Marcas** | **Riesgos** | **Alarmas** | **Apoyos** | **Presentación personal** | **Temas de capacitación**. Las de Supervisión de campo: [`SUPERVISION-CAMPO.md`](SUPERVISION-CAMPO.md). El **Documentos** del sidebar no es la Normoteca de plataforma (`docs/MODULO-DOCUMENTOS.md`).
 
 | Pieza | Dónde |
 |-------|--------|
@@ -28,7 +28,7 @@ Sidebar **Empleados** (maestro) y **Documentos** (indexador de carpetas del pers
 | Carga masiva | modal en el listado → preview → aceptar |
 | Foto | Círculo en alta/edición; en la ficha se cambia al elegir archivo (`POST /company/employees/{id}/photo`) |
 
-Permisos: Empleados `company.employees.view` / `manage`; Documentos `company.documents.view` / `manage` (subir e indexar = manage). El admin empresa los tiene todos. Un colaborador solo si el grant lo dice. El login se da en **Usuarios** (`company.users.assign`): mismo formulario crear/editar; todos los roles con empleado; usuario `nombre.apellido.####`. El email personal es el de la ficha; el From de avisos es el correo de la **zona** de Supervisión.
+Permisos: Empleados `company.employees.view` / `manage`; Documentos `company.documents.view` / `manage` (subir e indexar = manage). El admin empresa los tiene todos. Un colaborador solo si el grant lo dice. El login se da en **Usuarios** (`company.users.assign`): mismo formulario crear/editar; todos los roles con empleado; usuario `nombre.apellido.####`. El email personal es el de la ficha. Las novedades de Supervisión van al **correo corporativo** del administrador de cliente interno (responsable); las zonas ya no llevan correo.
 
 El primer administrador de una empresa nueva usa **la misma ficha** (`admin.companies.first-admin.*`).
 

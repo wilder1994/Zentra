@@ -22,6 +22,8 @@ import { supervisionPeriodPicker } from './supervision-period';
 import { supervisionFilters } from './supervision-filters';
 import { filterPicker } from './filter-picker';
 import { installationsBoard } from './installations-board';
+import { zoneAssigner } from './zone-assigner';
+import { shiftZones } from './shift-zones';
 import { createClusterer, CLUSTER_TONES } from './map-cluster';
 import { dropSvg, dropIcon, numberDropIcon, GLYPHS, MAP_STYLES } from './map-pins';
 import { installMapShare, shareButton, createCornerCard } from './map-share';
@@ -32,6 +34,7 @@ import { deviceChangeAlerts } from './device-change-alerts';
 import { geoRequestAlerts } from './geo-request-alerts';
 import { opsLiveSurface, opsLivePage, sigBoardLive, companyDashboardLive } from './ops-live-surface';
 import './employee-document-indexer';
+import './sheet-modal';
 
 import { initFormFeedback } from './form-feedback';
 import Alpine from 'alpinejs';
@@ -74,6 +77,8 @@ Alpine.data('supervisionPeriodPicker', supervisionPeriodPicker);
 Alpine.data('supervisionFilters', supervisionFilters);
 Alpine.data('filterPicker', filterPicker);
 Alpine.data('installationsBoard', installationsBoard);
+Alpine.data('zoneAssigner', zoneAssigner);
+Alpine.data('shiftZones', shiftZones);
 Alpine.data('authorizationValidityPicker', authorizationValidityPicker);
 
 Alpine.start();

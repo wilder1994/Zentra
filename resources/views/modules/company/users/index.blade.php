@@ -33,7 +33,7 @@
                         <tr class="hover:bg-slate-900/40">
                             <td class="px-4 py-3 text-white">{{ $user->name }}</td>
                             <td class="px-4 py-3 font-mono text-xs text-slate-300">{{ $user->username }}</td>
-                            <td class="px-4 py-3 text-slate-300">{{ $user->email ?: '—' }}</td>
+                            <td class="px-4 py-3 text-slate-300">{{ $user->corporate_email ?: ($user->email ?: '—') }}</td>
                             <td class="px-4 py-3 text-slate-400">{{ \App\Support\Auth\AssignableRoles::label($user->roles->first()?->name ?? '') }}</td>
                             <td class="px-4 py-3 text-slate-400 text-xs">{{ $user->clients->pluck('name')->join(', ') ?: '—' }}</td>
                             <td class="px-4 py-3 text-right whitespace-nowrap">

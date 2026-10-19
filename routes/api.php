@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\SupervisorFieldSheetController;
 use App\Http\Controllers\Api\SupervisorGeoController;
 use App\Http\Controllers\Api\SupervisorObservatoryController;
 use App\Http\Controllers\Api\SupervisorShiftController;
+use App\Http\Controllers\Api\SupervisorTrainingController;
 use App\Http\Controllers\Api\VisitorController;
 use App\Http\Controllers\Public\ObservatoryApiDocsController;
 use Illuminate\Support\Facades\Route;
@@ -59,6 +60,8 @@ Route::middleware(['auth:sanctum', 'company.service'])->group(function () {
         Route::get('/recommendations', [SupervisorFieldLogController::class, 'recommendations']);
         Route::get('/geo/installations', [SupervisorGeoController::class, 'installations']);
         Route::post('/geo/requests', [SupervisorGeoController::class, 'store'])->middleware('throttle:20,1');
+        Route::post('/training-topics', [SupervisorTrainingController::class, 'storeTopic'])->middleware('throttle:30,1');
+        Route::get('/trainings/check', [SupervisorTrainingController::class, 'check']);
         Route::get('/sheets', [SupervisorFieldSheetController::class, 'index']);
         Route::get('/sheets/{kind}/{id}', [SupervisorFieldSheetController::class, 'show']);
     });

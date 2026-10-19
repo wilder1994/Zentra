@@ -11,6 +11,8 @@ enum SupervisorFieldModule: string
     case Folders = 'folders';
     case Weapons = 'weapons';
     case Recommendations = 'recommendations';
+    case Uniform = 'uniform';
+    case Trainings = 'trainings';
     case Alarms = 'alarms';
     case Supports = 'supports';
     case Documents = 'documents';
@@ -23,6 +25,8 @@ enum SupervisorFieldModule: string
             self::Folders => 'Carpetas',
             self::Weapons => 'Armamento',
             self::Recommendations => 'Recomendaciones',
+            self::Uniform => 'Presentación personal',
+            self::Trainings => 'Capacitación',
             self::Alarms => 'Alarmas',
             self::Supports => 'Apoyos',
             self::Documents => 'Documentos',
@@ -37,6 +41,8 @@ enum SupervisorFieldModule: string
             self::Folders => 'Carpeta del puesto: completa o con faltantes.',
             self::Weapons => 'Revista del arma: identificación, novedad y aseo opcional con foto.',
             self::Recommendations => 'Hasta tres riesgos del puesto: probabilidad, impacto, consecuencia y evidencia.',
+            self::Uniform => 'Obligatoria. Marque el estado de cada prenda del vigilante. Con novedad: observación y fotos.',
+            self::Trainings => 'Una por revista para el vigilante de la revista. No se repite el mismo tema en el mes.',
             self::Alarms => 'Prueba o atención de alarma en el sitio: tipo, modalidad, resultado y GPS.',
             self::Supports => 'Apoyo operativo en un cliente: tipo, motivo y GPS.',
             self::Documents => 'Papeles que recogen o entregan en el turno. Sin cliente ni GPS.',
@@ -62,8 +68,18 @@ enum SupervisorFieldModule: string
     public function hangsOffReview(): bool
     {
         return match ($this) {
-            self::Inventory, self::ControlBooks, self::Folders, self::Weapons, self::Recommendations => true,
+            self::Inventory, self::ControlBooks, self::Folders, self::Weapons, self::Recommendations,
+            self::Uniform, self::Trainings => true,
             default => false,
+        };
+    }
+
+    /** Módulos que solo entiende la app desde APK 2.3 (catálogo con `app_build` >= 23). */
+    public function needsAppBuild(): int
+    {
+        return match ($this) {
+            self::Uniform, self::Trainings => 23,
+            default => 0,
         };
     }
 }

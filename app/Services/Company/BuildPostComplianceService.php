@@ -8,6 +8,7 @@ use App\Domain\Supervision\Data\SupervisionQueryFilter;
 use App\Models\SupervisorPost;
 use App\Models\SupervisorShiftReview;
 use App\Support\Supervision\SupervisionOperationalDay;
+use App\Support\Supervision\SupervisorClientScope;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -39,8 +40,10 @@ final class BuildPostComplianceService
         $today = SupervisionOperationalDay::dateFor();
         $dates = array_values(array_filter($dates, fn (CarbonImmutable $d) => $d->lte($today)));
 
-        $posts = $this->posts($companyId);
-        $reviewed = $this->reviewedPostDays($posts, $dates, $filter);
+        $zonesByClient = $filter?->zoneId !== null
+            && app(SupervisorClientScope::class)->companyUsesZones($companyId);
+        $posts = $this->posts($companyId, $zonesByClient ? $filter->zoneId : null);
+        $reviewed = $this->reviewedPostDays($posts, $dates, $filter, ! $zonesByClient);
 
         $expected = 0;
         $done = 0;
@@ -116,7 +119,7 @@ final class BuildPostComplianceService
     }
 
     /** @return Collection<int, SupervisorPost> */
-    private function posts(int $companyId): Collection
+    private function posts(int $companyId, ?int $zoneId = null): Collection
     {
         return SupervisorPost::query()
             ->withoutGlobalScopes()
@@ -125,7 +128,8 @@ final class BuildPostComplianceService
             ->whereHas('client', fn ($q) => $q->withoutGlobalScopes()
                 ->where('security_company_id', $companyId)
                 ->where('has_supervision', true)
-                ->where('is_active', true))
+                ->where('is_active', true)
+                ->when($zoneId !== null, fn ($c) => $c->where('supervisor_zone_id', $zoneId)))
             ->with([
                 'client' => fn ($q) => $q->withoutGlobalScopes()->select(['id', 'name', 'latitude', 'longitude', 'address', 'city']),
                 'installation' => fn ($q) => $q->withoutGlobalScopes(),
@@ -153,7 +157,7 @@ final class BuildPostComplianceService
      * @param  list<CarbonImmutable>  $dates
      * @return array<int, array<string, int>> post_id => [Y-m-d => revistas]
      */
-    private function reviewedPostDays(Collection $posts, array $dates, ?SupervisionQueryFilter $filter = null): array
+    private function reviewedPostDays(Collection $posts, array $dates, ?SupervisionQueryFilter $filter = null, bool $zoneOnReview = false): array
     {
         if ($posts->isEmpty() || $dates === []) {
             return [];
@@ -167,7 +171,8 @@ final class BuildPostComplianceService
             ->whereIn('supervisor_post_id', $posts->pluck('id')->all())
             ->where('recorded_at', '>=', $from)
             ->where('recorded_at', '<', $to)
-            ->when($filter !== null, fn ($q) => $q->whereHas('shift', fn ($s) => $s->matchingFilter($filter)))
+            ->when($filter?->supervisorId !== null, fn ($q) => $q->whereHas('shift', fn ($s) => $s->matchingSupervisor($filter)))
+            ->when($zoneOnReview && $filter?->zoneId !== null, fn ($q) => $q->where('supervisor_zone_id', $filter->zoneId))
             ->get(['supervisor_post_id', 'recorded_at'])
             ->each(function (SupervisorShiftReview $review) use (&$out): void {
                 $key = SupervisionOperationalDay::dateFor($review->recorded_at)->format('Y-m-d');

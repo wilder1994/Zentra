@@ -8,10 +8,14 @@ use App\Enums\SupervisorAlarmKind;
 use App\Enums\SupervisorAlarmResult;
 use App\Enums\SupervisorFieldModule;
 use App\Enums\SupervisorRiskLevel;
+use App\Enums\SupervisorTrainingKind;
+use App\Enums\SupervisorTrainingModality;
 use App\Models\SupervisorFieldLog;
 use App\Models\SupervisorRecommendation;
 use App\Models\SupervisorShift;
 use App\Models\SupervisorShiftReview;
+use App\Models\SupervisorTraining;
+use App\Support\Supervision\UniformInspection;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 
@@ -50,8 +54,10 @@ final class BuildSupervisionPeriodCharts
         Collection $logs,
         Collection $shifts,
         Collection $recommendations,
+        ?Collection $trainings = null,
     ): array {
         [$grain, $keys, $labels] = $this->buckets($fromAt, $toAt);
+        $trainings ??= collect();
 
         $reviewCounts = array_fill_keys($keys, 0);
         $noveltyYes = array_fill_keys($keys, 0);
@@ -110,6 +116,135 @@ final class BuildSupervisionPeriodCharts
                 ->map(fn (SupervisorFieldLog $log) => (string) (($log->payload['support_type'] ?? null) ?: 'Sin tipo'))),
             'supports_place' => $this->supportsPlace($logs),
             'documents' => $this->documentsMix($logs),
+            'trainings' => $this->trainingStats($grain, $keys, $trainings, $reviews),
+            'uniform' => $this->uniformStats($logs, $reviews),
+        ];
+    }
+
+    /**
+     * Capacitaciones del periodo: indicadores, serie por tipo y modalidad, temas, cobertura mensual y personalizadas.
+     *
+     * @param  list<string>  $keys
+     * @param  Collection<int, SupervisorTraining>  $trainings
+     * @param  Collection<int, SupervisorShiftReview>  $reviews
+     * @return array<string, mixed>
+     */
+    private function trainingStats(string $grain, array $keys, Collection $trainings, Collection $reviews): array
+    {
+        $series = [];
+        foreach (['monthly_virtual', 'monthly_onsite', 'custom_virtual', 'custom_onsite'] as $name) {
+            $series[$name] = array_fill_keys($keys, 0);
+        }
+        $topics = [];
+        foreach ($trainings as $training) {
+            $bucket = $training->kind->value.'_'.$training->modality->value;
+            $key = $this->keyOf($grain, CarbonImmutable::parse($training->recorded_at)->timezone((string) config('app.timezone')));
+            if (isset($series[$bucket]) && array_key_exists($key, $series[$bucket])) {
+                $series[$bucket][$key]++;
+            }
+            $topic = (string) ($training->topic?->name ?? 'Sin tema');
+            $topics[$topic] ??= ['name' => $topic, 'total' => 0, 'monthly' => 0, 'custom' => 0, 'virtual' => 0, 'onsite' => 0];
+            $topics[$topic]['total']++;
+            $topics[$topic][$training->kind === SupervisorTrainingKind::Monthly ? 'monthly' : 'custom']++;
+            $topics[$topic][$training->modality === SupervisorTrainingModality::Virtual ? 'virtual' : 'onsite']++;
+        }
+        usort($topics, fn (array $a, array $b) => [$b['total'], $a['name']] <=> [$a['total'], $b['name']]);
+
+        $reviewed = $reviews->pluck('employee_id')->filter()->map(fn ($id) => (int) $id)->unique();
+        $monthlyPeople = $trainings
+            ->filter(fn (SupervisorTraining $row) => $row->kind === SupervisorTrainingKind::Monthly)
+            ->pluck('employee_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique();
+        $tz = (string) config('app.timezone');
+
+        return [
+            'total' => $trainings->count(),
+            'people' => $trainings->pluck('employee_id')->unique()->count(),
+            'monthly' => $trainings->where('kind', SupervisorTrainingKind::Monthly)->count(),
+            'custom' => $trainings->where('kind', SupervisorTrainingKind::Custom)->count(),
+            'virtual' => $trainings->where('modality', SupervisorTrainingModality::Virtual)->count(),
+            'onsite' => $trainings->where('modality', SupervisorTrainingModality::Onsite)->count(),
+            'minutes' => (int) $trainings->sum(fn (SupervisorTraining $row) => (int) ($row->minutes ?? 0)),
+            'series' => array_map('array_values', $series),
+            'by_topic' => array_slice($topics, 0, 10),
+            'coverage' => [
+                'reviewed' => $reviewed->count(),
+                'covered' => $reviewed->intersect($monthlyPeople)->count(),
+            ],
+            'people_rows' => $trainings
+                ->sortBy([
+                    fn (SupervisorTraining $a, SupervisorTraining $b) => strcmp((string) $a->employee?->fullName(), (string) $b->employee?->fullName()),
+                    fn (SupervisorTraining $a, SupervisorTraining $b) => $b->recorded_at <=> $a->recorded_at,
+                ])
+                ->map(fn (SupervisorTraining $row) => [
+                    'employee' => (string) ($row->employee?->fullName() ?? '—'),
+                    'topic' => (string) ($row->topic?->name ?? '—'),
+                    'kind' => $row->kind->value,
+                    'kind_label' => $row->kind->label(),
+                    'modality' => $row->modality->value,
+                    'modality_label' => $row->modality->label(),
+                    'reason' => (string) ($row->log?->payload['reason'] ?? ''),
+                    'minutes' => $row->minutes,
+                    'date' => $row->recorded_at?->timezone($tz)->format('d/m/Y'),
+                    'supervisor' => (string) ($row->user?->name ?? ''),
+                ])
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
+     * Presentación personal: solo lo que salió con novedad (prendas y vigilantes).
+     *
+     * @param  Collection<int, SupervisorFieldLog>  $logs
+     * @param  Collection<int, SupervisorShiftReview>  $reviews
+     * @return array<string, mixed>
+     */
+    private function uniformStats(Collection $logs, Collection $reviews): array
+    {
+        $uniform = $logs->filter(fn (SupervisorFieldLog $log) => $log->module === SupervisorFieldModule::Uniform);
+        $reviewsById = $reviews->keyBy('id');
+        $tz = (string) config('app.timezone');
+
+        $items = [];
+        $people = [];
+        $rows = [];
+        foreach ($uniform->sortByDesc('recorded_at') as $log) {
+            $flagged = collect($log->payload['items'] ?? [])
+                ->filter(fn ($item) => is_array($item) && UniformInspection::hasNovelty((string) ($item['status'] ?? '')))
+                ->map(fn (array $item) => (string) ($item['item'] ?? 'Prenda'))
+                ->values()
+                ->all();
+            if ($flagged === []) {
+                continue;
+            }
+            foreach ($flagged as $name) {
+                $items[$name] = ($items[$name] ?? 0) + 1;
+            }
+            $review = $reviewsById->get($log->supervisor_shift_review_id);
+            $employee = (string) ($review?->employee?->fullName() ?? 'Vigilante');
+            $people[$employee] = ($people[$employee] ?? 0) + 1;
+            $rows[] = [
+                'employee' => $employee,
+                'items' => implode(', ', $flagged),
+                'note' => (string) ($log->payload['notes'] ?? ''),
+                'date' => $log->recorded_at?->timezone($tz)->format('d/m/Y'),
+                'supervisor' => (string) ($review?->shift?->user?->name ?? ''),
+                'client' => (string) ($review?->client?->name ?? ''),
+            ];
+        }
+        arsort($items);
+        arsort($people);
+
+        return [
+            'inspected' => $uniform->count(),
+            'novelty' => count($rows),
+            'reviews' => $reviews->count(),
+            'by_item' => array_map(fn ($name, $total) => ['name' => (string) $name, 'total' => $total], array_keys(array_slice($items, 0, 10, true)), array_slice($items, 0, 10, true)),
+            'by_people' => array_map(fn ($name, $total) => ['name' => (string) $name, 'total' => $total], array_keys(array_slice($people, 0, 10, true)), array_slice($people, 0, 10, true)),
+            'people_count' => count($people),
+            'rows' => $rows,
         ];
     }
 

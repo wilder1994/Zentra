@@ -1,6 +1,12 @@
 # Hosting VPS (Zentra)
 
-**Última actualización:** 17 octubre 2026
+**Última actualización:** 18 octubre 2026
+
+Fichas en modal + PDF (18 oct 2026): **dependencia Composer nueva** `barryvdh/laravel-dompdf` (va en `composer.lock`): en el VPS `composer install --no-dev --optimize-autoloader`, luego `npm ci && npm run build` + caches. Sin migrate. Necesita la extensión PHP **gd** (recorte de fotos) y escritura en `storage/app/supervision/route-maps`. El mapa del recorrido usa **Maps Static API**: hay que activarla en Google Cloud en el mismo proyecto de la clave (`GOOGLE_MAPS_SERVER_API_KEY` o `GOOGLE_MAPS_API_KEY`); hoy en local Google responde 403 «API not activated» y la ficha muestra «Mapa no disponible por el momento». La petición sale del servidor con `Referer` = `APP_URL` (si la clave está restringida por sitio, incluir ese dominio). APK 2.6 en `public/downloads/` y PWA `/campo` (SW v59).
+
+Presentación personal y Capacitaciones (18 oct 2026): **con migrate** (`2026_10_18_220000`: prendas, temas y capacitaciones). APK 2.5 en `public/downloads/` y PWA `/campo` (SW v58). Antes de anunciarlo, crear las prendas en Ajustes → Presentación personal (sin prendas no se exige). Las apps viejas siguen funcionando sin los módulos nuevos.
+
+Zonas con clientes, responsables y correos de novedades (18 oct 2026): **con migrate** (`2026_10_18_200000`: zona principal y compartidos de cada cliente, zonas por turno, zona en revistas/fichas/recomendaciones, `users.corporate_email`; quita `supervisor_zones.email`). Pull + `npm ci && npm run build` + `migrate --force` + caches. APK 2.2 en `public/downloads/` y PWA `/campo` (SW v54). Los correos salen en cola: hace falta `MAIL_*` real en `.env` y un worker (`queue:work`) en el VPS; **no consta** que hoy exista ninguno de los dos, revisar antes de anunciar los correos. Mientras ningún cliente tenga zona, los supervisores siguen viendo todos.
 
 Instalaciones rediseño (17 oct 2026): sin migrate. Pull + `npm ci && npm run build` + `view:cache` + `route:cache`.
 

@@ -9,12 +9,16 @@ use App\Enums\SupervisorAlarmResult;
 use App\Enums\SupervisorFieldModule;
 use App\Enums\SupervisorRiskImpact;
 use App\Enums\SupervisorRiskLikelihood;
+use App\Enums\SupervisorTrainingKind;
+use App\Enums\SupervisorTrainingModality;
 use App\Enums\SupervisorWeaponPermitKind;
 use App\Models\SupervisorAlarmType;
 use App\Models\SupervisorControlBookType;
 use App\Models\SupervisorDocumentType;
 use App\Models\SupervisorRiskType;
 use App\Models\SupervisorSupportType;
+use App\Models\SupervisorTrainingTopic;
+use App\Models\SupervisorUniformItem;
 use App\Models\SupervisorWeaponBrand;
 use App\Models\SupervisorWeaponType;
 use Illuminate\Database\Eloquent\Model;
@@ -26,9 +30,9 @@ final class FieldModuleCatalog
      *
      * @return list<array<string, mixed>>
      */
-    public function modules(?int $companyId = null): array
+    public function modules(?int $companyId = null, int $appBuild = 0): array
     {
-        return [
+        return $this->uniformFirst([
             [
                 'key' => 'reviews',
                 'label' => 'Revista',
@@ -340,6 +344,7 @@ final class FieldModuleCatalog
                     ],
                 ],
             ]),
+            ...$this->reviewExtras($companyId, $appBuild),
             $this->fieldModule(SupervisorFieldModule::Alarms, [
                 [
                     'name' => 'alarm_type_id',
@@ -387,6 +392,16 @@ final class FieldModuleCatalog
                     'options' => $this->namedCatalogOptions(SupervisorSupportType::class, $companyId),
                 ],
                 [
+                    'name' => 'novelty',
+                    'label' => '¿El apoyo fue por una novedad?',
+                    'type' => 'radio',
+                    'required' => true,
+                    'options' => [
+                        ['value' => 'no', 'label' => 'Sin novedad'],
+                        ['value' => 'yes', 'label' => 'Con novedad'],
+                    ],
+                ],
+                [
                     'name' => 'reason',
                     'label' => 'Motivo',
                     'type' => 'textarea',
@@ -429,7 +444,136 @@ final class FieldModuleCatalog
                     ],
                 ],
             ]),
-        ];
+        ]);
+    }
+
+    /**
+     * Presentación personal va de primera entre los módulos de la revista (es obligatoria).
+     *
+     * @param  list<array<string, mixed>>  $modules
+     * @return list<array<string, mixed>>
+     */
+    private function uniformFirst(array $modules): array
+    {
+        $uniform = array_values(array_filter($modules, fn (array $m) => $m['key'] === SupervisorFieldModule::Uniform->value));
+        $rest = array_values(array_filter($modules, fn (array $m) => $m['key'] !== SupervisorFieldModule::Uniform->value));
+        if ($uniform === []) {
+            return $rest;
+        }
+        array_splice($rest, 1, 0, $uniform);
+
+        return $rest;
+    }
+
+    /**
+     * Presentación personal (si la empresa tiene prendas) y Capacitación. Solo para apps que las entienden.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function reviewExtras(?int $companyId, int $appBuild): array
+    {
+        if ($appBuild < SupervisorFieldModule::Uniform->needsAppBuild()) {
+            return [];
+        }
+
+        $modules = [];
+        $items = $this->namedCatalogOptions(SupervisorUniformItem::class, $companyId);
+        if ($items !== []) {
+            $modules[] = $this->fieldModule(SupervisorFieldModule::Uniform, [
+                [
+                    'name' => 'items',
+                    'label' => 'Prendas',
+                    'type' => 'checklist',
+                    'required' => true,
+                    'items' => $items,
+                    'options' => UniformInspection::options(),
+                    'group_label' => 'Novedad',
+                    'group' => ['yes', 'no'],
+                ],
+                [
+                    'name' => 'notes',
+                    'label' => 'Observación de la novedad',
+                    'type' => 'textarea',
+                    'required' => true,
+                    'max' => 1000,
+                    'show_when' => ['novelty' => 'yes'],
+                ],
+                [
+                    'name' => 'photos',
+                    'label' => 'Evidencia (1 a 3 fotos)',
+                    'type' => 'photo_grid',
+                    'required' => true,
+                    'min' => 1,
+                    'slots' => UniformInspection::photoSlots(),
+                    'show_when' => ['novelty' => 'yes'],
+                ],
+            ]) + ['mandatory' => true, 'single' => true];
+        }
+
+        $modules[] = $this->fieldModule(SupervisorFieldModule::Trainings, [
+            [
+                'name' => 'kind',
+                'label' => 'Tipo',
+                'type' => 'radio',
+                'required' => true,
+                'no_default' => true,
+                'options' => collect(SupervisorTrainingKind::cases())
+                    ->map(fn (SupervisorTrainingKind $kind) => ['value' => $kind->value, 'label' => $kind->label()])
+                    ->values()
+                    ->all(),
+            ],
+            [
+                'name' => 'modality',
+                'label' => 'Modalidad',
+                'type' => 'radio',
+                'required' => true,
+                'no_default' => true,
+                'options' => collect(SupervisorTrainingModality::cases())
+                    ->map(fn (SupervisorTrainingModality $modality) => ['value' => $modality->value, 'label' => $modality->label()])
+                    ->values()
+                    ->all(),
+            ],
+            [
+                'name' => 'topic',
+                'label' => 'Tema',
+                'type' => 'topic',
+                'required' => true,
+                'options' => $this->namedCatalogOptions(SupervisorTrainingTopic::class, $companyId),
+            ],
+            [
+                'name' => 'reason',
+                'label' => 'Motivo / falencia identificada',
+                'type' => 'textarea',
+                'required' => true,
+                'max' => 1000,
+                'show_when' => ['kind' => SupervisorTrainingKind::Custom->value],
+            ],
+            [
+                'name' => 'description',
+                'label' => 'Descripción de la capacitación',
+                'type' => 'textarea',
+                'required' => true,
+                'max' => 2000,
+                'show_when' => ['modality' => SupervisorTrainingModality::Onsite->value],
+            ],
+            [
+                'name' => 'timer',
+                'label' => 'Duración',
+                'type' => 'timer',
+                'required' => true,
+                'show_when' => ['modality' => SupervisorTrainingModality::Onsite->value],
+            ],
+            [
+                'name' => 'photos',
+                'label' => 'Evidencia (1 a 3 fotos)',
+                'type' => 'photo_grid',
+                'required' => true,
+                'min' => 1,
+                'slots' => TrainingEvidence::photoSlots(),
+            ],
+        ]) + ['single' => true];
+
+        return $modules;
     }
 
     /**

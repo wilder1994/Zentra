@@ -127,6 +127,11 @@
 
             <main class="flex-1 min-w-0 overflow-y-scroll">
                 <div class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+                    @if (\App\Http\Middleware\EnsurePorteriaReadOnly::appliesTo(auth()->user()))
+                        <div class="mb-4 rounded-lg border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs text-sky-200">
+                            Portería en <strong>solo lectura</strong>: puedes ver todo, pero los registros los hacen los vigilantes.
+                        </div>
+                    @endif
                     {{ $slot }}
                 </div>
             </main>

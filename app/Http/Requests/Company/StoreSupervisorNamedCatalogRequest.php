@@ -33,10 +33,6 @@ final class StoreSupervisorNamedCatalogRequest extends FormRequest
             'is_active' => ['sometimes', 'boolean'],
         ];
 
-        if ($this->routeIs('company.supervision-zones.*')) {
-            $rules['email'] = ['nullable', 'email', 'max:150'];
-        }
-
         if ($this->routeIs('company.supervision-shifts.*')) {
             $rules['starts_at'] = ['required', 'date_format:H:i'];
             $rules['ends_at'] = ['required', 'date_format:H:i'];

@@ -487,8 +487,9 @@ final class CompanySupervisionMapTest extends TestCase
         ]));
         $draft->assertOk();
         $draft->assertSee('Ficha de turno de supervisión');
-        $draft->assertSee('En curso — no guardada');
-        $draft->assertSee('3.451600');
+        $draft->assertSee('>En curso<', false);
+        $draft->assertSee('Pendiente cierre');
+        $draft->assertSee('Recorrido del turno');
         $this->assertNull($shift->fresh()->sheet_snapshot);
 
         $shift->update([
@@ -504,7 +505,8 @@ final class CompanySupervisionMapTest extends TestCase
         ]));
         $closed->assertOk();
         $closed->assertSee('Ficha de turno de supervisión');
-        $closed->assertDontSee('En curso — no guardada');
+        $closed->assertDontSee('>En curso<', false);
+        $closed->assertDontSee('Pendiente cierre');
         $this->assertNotNull($shift->fresh()->sheet_snapshot);
     }
 }

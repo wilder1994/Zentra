@@ -32,16 +32,23 @@
                             {{ $row['online_label'] ?? 'Sin señal' }}
                         </p>
                         <p class="text-xs text-slate-500 mt-0.5">Inicio {{ $row['started_at_label'] ?? '—' }}</p>
+                        <p class="text-xs text-sky-500 mt-0.5">{{ $row['zone_label'] ?? 'Sin zona' }}</p>
                     </td>
                     <td class="py-2 pr-2 text-xs text-slate-300 leading-snug">{{ $row['status_line'] ?? '—' }}</td>
                     <td class="py-2 text-right text-slate-300 tabular-nums">{{ number_format((float) ($row['km'] ?? 0), 1) }}</td>
                     <td class="py-2 text-right text-slate-300 tabular-nums">{{ (int) ($row['reviews_count'] ?? 0) }}</td>
                     <td class="py-2 pl-2 text-right">
-                        @if (! empty($row['sheet_url']))
-                            <a href="{{ $row['sheet_url'] }}" target="_blank" rel="noopener"
-                               class="inline-flex rounded-md border border-slate-700 px-2 py-0.5 text-[11px] font-semibold text-indigo-300 hover:bg-slate-800"
-                               onclick="event.stopPropagation()">Ver</a>
-                        @endif
+                        <div class="flex flex-col items-end gap-1">
+                            @if (! empty($row['sheet_url']))
+                                <a href="{{ $row['sheet_url'] }}"
+                                   class="inline-flex rounded-md border border-slate-700 px-2 py-0.5 text-[11px] font-semibold text-indigo-300 hover:bg-slate-800"
+                                   onclick="event.stopPropagation()">Ver</a>
+                            @endif
+                            @if (($canManageZones ?? false) && ! empty($row['zones_url']))
+                                <button type="button" class="js-shift-zones inline-flex rounded-md border border-sky-700/70 px-2 py-0.5 text-[11px] font-semibold text-sky-300 hover:bg-slate-800"
+                                        data-url="{{ $row['zones_url'] }}" data-user="{{ $row['user'] ?? 'Supervisor' }}">Zonas</button>
+                            @endif
+                        </div>
                     </td>
                 </tr>
             @endforeach

@@ -40,8 +40,8 @@
         'employeeId' => (string) old('employee_id', $employee?->id ?? ''),
         'employeeName' => old('employee_name', $employee?->fullName() ?? $managedUser?->name ?? ''),
         'documentNumber' => old('document_number', $managedUser?->document_number ?: $employee?->document_number ?? ''),
-        'personalEmail' => old('personal_email', $employee?->email ?? ''),
         'email' => old('email', $managedUser?->email ?? ''),
+        'corporateEmail' => old('corporate_email', $managedUser?->corporate_email ?? ''),
         'username' => old('username', $managedUser?->username ?? ''),
         'jobTitle' => (string) $selectedJobTitle,
         'role' => $selectedRole,
@@ -77,8 +77,10 @@
             employeeId: cfg.employeeId,
             employeeName: cfg.employeeName,
             documentNumber: cfg.documentNumber,
-            personalEmail: cfg.personalEmail,
             email: cfg.email,
+            corporateEmail: cfg.corporateEmail,
+            bulkGrants: {},
+            expandedClients: [],
             username: cfg.username,
             jobTitle: cfg.jobTitle,
             role: cfg.role,
@@ -104,6 +106,7 @@
             get isInstallationAdmin() { return this.role === 'client-installation-admin' },
             get isExternal() { return this.isInstallationAdmin || (this.role === 'client-admin' && this.origin === 'external') },
             get isCollaborator() { return this.role === 'colaborador' },
+            get isInternalClientAdmin() { return this.role === 'client-admin' && this.origin !== 'external' },
             get usesCompanyMatrix() { return this.role === 'colaborador' || this.role === 'company-admin' },
             get usesClientMatrix() { return this.role === 'colaborador' || this.role === 'client-admin' },
             get usesInstallationMatrix() { return this.role === 'colaborador' || this.role === 'client-installation-admin' },
@@ -127,6 +130,7 @@
                 if (this.role === 'company-admin') this.fillCompanyAdminGrants()
                 if (this.usesClientMatrix) this.fillScopedManage(this.clientGrants, this.pickedClientIds)
                 if (this.usesInstallationMatrix) this.fillScopedManage(this.installationGrants, this.selectedInstallationIds)
+                this.initBulkGrants()
                 this.$watch('role', () => {
                     if (this.isInstallationAdmin) this.origin = 'external'
                     if (this.role === 'company-admin') this.fillCompanyAdminGrants()
@@ -157,8 +161,11 @@
                 if (this.pickedClientIds.includes(value)) {
                     this.pickedClientIds = this.pickedClientIds.filter((item) => item !== value)
                 } else {
+                    if (this.usesClientMatrix) {
+                        this.ensureScopedGrants(this.clientGrants, value)
+                        if (this.role === 'client-admin') this.clientGrants[value] = { ...this.bulkGrants }
+                    }
                     this.pickedClientIds = [...this.pickedClientIds, value]
-                    if (this.usesClientMatrix) this.ensureScopedGrants(this.clientGrants, value)
                 }
             },
             toggleInstallation(id) {
@@ -185,6 +192,32 @@
                     if (anySet) return
                     keys.forEach((key) => { map[id][key] = skip.has(key) ? 'none' : 'manage' })
                 })
+            },
+            initBulkGrants() {
+                const keys = (this.scopedModules || []).map((mod) => mod.key)
+                const skip = new Set(['employees', 'documents'])
+                const first = this.pickedClientIds.map((id) => this.clientGrants[id]).find(Boolean)
+                const next = {}
+                keys.forEach((key) => { next[key] = first?.[key] || (skip.has(key) ? 'none' : 'manage') })
+                this.bulkGrants = next
+            },
+            sameAsBulk(id) {
+                const row = this.clientGrants[id] || {}
+                return (this.scopedModules || []).every((mod) => (row[mod.key] || 'none') === (this.bulkGrants[mod.key] || 'none'))
+            },
+            setBulk(key, level) {
+                const following = this.pickedClientIds.filter((id) => this.sameAsBulk(id))
+                this.bulkGrants = { ...this.bulkGrants, [key]: level }
+                following.forEach((id) => { this.clientGrants[id] = { ...this.clientGrants[id], [key]: level } })
+            },
+            applyBulkToAll() {
+                this.pickedClientIds.forEach((id) => { this.clientGrants[id] = { ...this.bulkGrants } })
+            },
+            toggleExpanded(id) {
+                const value = String(id)
+                this.expandedClients = this.expandedClients.includes(value)
+                    ? this.expandedClients.filter((item) => item !== value)
+                    : [...this.expandedClients, value]
             },
             fillCompanyAdminGrants() {
                 const keys = (this.companyModules || []).map((mod) => mod.key)
@@ -236,7 +269,6 @@
                 this.employeeId = String(row.id)
                 this.employeeName = row.name
                 this.documentNumber = row.document_number
-                this.personalEmail = row.email || ''
                 this.jobTitle = row.job_title || this.jobTitle
                 this.nameResults = []
                 this.documentResults = []
@@ -408,10 +440,12 @@
         <x-ui.field-error :messages="$errors->get('job_title')" />
     </div>
 
-    <div x-show="needsEmployee">
-        <x-ui.label for="personal-email">Email personal</x-ui.label>
-        <input id="personal-email" type="email" :value="personalEmail" readonly class="w-full h-9 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-        <p class="mt-1 text-[11px] text-slate-500">Viene de la ficha del empleado. No es el login.</p>
+    <div x-show="isInternalClientAdmin" x-cloak>
+        <x-ui.label for="corporate_email">Correo corporativo</x-ui.label>
+        <input id="corporate_email" type="email" name="corporate_email" x-model="corporateEmail" :disabled="!isInternalClientAdmin"
+               placeholder="nombre@empresa.com" class="w-full h-9 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
+        <p class="mt-1 text-[11px] text-slate-500">Aquí llegan las novedades de Supervisión de sus clientes. No es el login.</p>
+        <x-ui.field-error :messages="$errors->get('corporate_email')" />
     </div>
 
     <div x-show="isExternal">
@@ -491,22 +525,54 @@
 
     <div x-show="usesClientMatrix && pickedClientIds.length" x-cloak class="space-y-3 rounded-lg border border-slate-800 bg-slate-950/40 p-3">
         <p class="text-xs font-medium text-slate-300">Permisos por cliente</p>
-        <p class="text-[11px] text-slate-500">Nada / Ver / Gestionar por módulo. Portería no se recorta aquí. Empleados y documentos quedan en Nada salvo que los marques.</p>
-        <template x-for="id in pickedClientIds" :key="'cg'+id">
-            <div class="space-y-1">
-                <p class="text-sm text-white" x-text="(clients.find((c) => String(c.id) === String(id)) || {}).name"></p>
-                <template x-for="mod in scopedModules" :key="'cm'+id+mod.key">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                        <span class="text-xs text-slate-400" x-text="mod.label"></span>
-                        <div class="flex gap-3 text-xs text-slate-300">
-                            <label><input type="radio" :name="'grants[client]['+id+']['+mod.key+']'" value="none" x-model="clientGrants[id][mod.key]" class="border-slate-600 bg-slate-950 text-indigo-600"> Nada</label>
-                            <label><input type="radio" :name="'grants[client]['+id+']['+mod.key+']'" value="view" x-model="clientGrants[id][mod.key]" class="border-slate-600 bg-slate-950 text-indigo-600"> Ver</label>
-                            <label><input type="radio" :name="'grants[client]['+id+']['+mod.key+']'" value="manage" x-model="clientGrants[id][mod.key]" class="border-slate-600 bg-slate-950 text-indigo-600"> Gestionar</label>
-                        </div>
-                    </div>
-                </template>
+        <p class="text-[11px] text-slate-500" x-show="!isInternalClientAdmin">Nada / Ver / Gestionar por módulo. Portería no se recorta aquí. Empleados y documentos quedan en Nada salvo que los marques.</p>
+        <p class="text-[11px] text-slate-500" x-show="isInternalClientAdmin">Nada / Ver / Gestionar por módulo. La portería la ve en solo lectura. Empleados y documentos quedan en Nada salvo que los marques.</p>
+
+        <div class="rounded-lg border border-indigo-500/30 bg-indigo-500/5 p-3 space-y-1">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <p class="text-xs font-semibold text-indigo-500">Aplicar a todos</p>
+                <button type="button" @click="applyBulkToAll()" class="h-7 px-2.5 rounded-md bg-indigo-600 text-[11px] font-semibold text-white hover:bg-indigo-500">Aplicar a todos los clientes</button>
             </div>
-        </template>
+            <template x-for="mod in scopedModules" :key="'bm'+mod.key">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <span class="text-xs text-slate-300" x-text="mod.label"></span>
+                    <div class="flex gap-3 text-xs text-slate-300">
+                        <template x-for="opt in [['none', 'Nada'], ['view', 'Ver'], ['manage', 'Gestionar']]" :key="'bo'+mod.key+opt[0]">
+                            <label><input type="radio" :name="'bulk_'+mod.key" :value="opt[0]" :checked="bulkGrants[mod.key] === opt[0]" @change="setBulk(mod.key, opt[0])" class="border-slate-600 bg-slate-950 text-indigo-600"> <span x-text="opt[1]"></span></label>
+                        </template>
+                    </div>
+                </div>
+            </template>
+            <p class="text-[11px] text-slate-500">Al cambiar aquí se actualizan los clientes que siguen «Igual a todos». Los personalizados se respetan.</p>
+        </div>
+
+        <div class="divide-y divide-slate-800 rounded-lg border border-slate-800">
+            <template x-for="id in pickedClientIds" :key="'cg'+id">
+                <div>
+                    <button type="button" @click="toggleExpanded(id)" class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-slate-800/60">
+                        <span class="flex min-w-0 items-center gap-2">
+                            <svg class="h-3.5 w-3.5 shrink-0 text-slate-500 transition-transform" :class="expandedClients.includes(String(id)) ? 'rotate-90' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 0 1 .02-1.06L11.17 10 7.23 6.29a.75.75 0 1 1 1.04-1.08l4.5 4.25a.75.75 0 0 1 0 1.08l-4.5 4.25a.75.75 0 0 1-1.06-.02Z" clip-rule="evenodd"/></svg>
+                            <span class="truncate text-sm text-white" x-text="(clients.find((c) => String(c.id) === String(id)) || {}).name"></span>
+                        </span>
+                        <span class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                              :class="sameAsBulk(id) ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-300'"
+                              x-text="sameAsBulk(id) ? 'Igual a todos' : 'Personalizado'"></span>
+                    </button>
+                    <div x-show="expandedClients.includes(String(id))" x-cloak class="space-y-1 px-3 pb-3">
+                        <template x-for="mod in scopedModules" :key="'cm'+id+mod.key">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <span class="text-xs text-slate-400" x-text="mod.label"></span>
+                                <div class="flex gap-3 text-xs text-slate-300">
+                                    <label><input type="radio" :name="'grants[client]['+id+']['+mod.key+']'" value="none" x-model="clientGrants[id][mod.key]" class="border-slate-600 bg-slate-950 text-indigo-600"> Nada</label>
+                                    <label><input type="radio" :name="'grants[client]['+id+']['+mod.key+']'" value="view" x-model="clientGrants[id][mod.key]" class="border-slate-600 bg-slate-950 text-indigo-600"> Ver</label>
+                                    <label><input type="radio" :name="'grants[client]['+id+']['+mod.key+']'" value="manage" x-model="clientGrants[id][mod.key]" class="border-slate-600 bg-slate-950 text-indigo-600"> Gestionar</label>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </div>
     </div>
 
     <div x-show="usesInstallationMatrix && (isCollaborator ? installations.length : selectedInstallationIds.length)" x-cloak class="space-y-3 rounded-lg border border-slate-800 bg-slate-950/40 p-3">

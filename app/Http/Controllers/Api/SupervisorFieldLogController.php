@@ -15,6 +15,7 @@ use App\Support\Supervision\FieldModuleCatalog;
 use App\Support\Supervision\SupervisorCaptureTime;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 final class SupervisorFieldLogController extends Controller
 {
@@ -29,18 +30,25 @@ final class SupervisorFieldLogController extends Controller
     {
         $companyId = (int) $request->user()->security_company_id;
 
-        return response()->json(['modules' => $this->catalog->modules($companyId)]);
+        return response()->json(['modules' => $this->catalog->modules($companyId, $request->integer('app_build'))]);
     }
 
     public function store(StoreSupervisorFieldLogRequest $request): JsonResponse
     {
+        $module = SupervisorFieldModule::from((string) $request->validated('module'));
+        if (in_array($module, [SupervisorFieldModule::Uniform, SupervisorFieldModule::Trainings], true)) {
+            throw ValidationException::withMessages([
+                'module' => $module->label().' se registra dentro de la revista, al guardarla.',
+            ]);
+        }
+
         $at = SupervisorCaptureTime::parse($request->validated('recorded_at'));
         $shift = $this->shiftService->shiftForCapture($request->user(), $at);
         abort_if($shift === null, 422, 'No hay turno abierto.');
 
         $log = $this->logService->execute(
             $shift,
-            SupervisorFieldModule::from((string) $request->validated('module')),
+            $module,
             $request->validated('payload'),
             $request->validated('client_id') !== null ? (int) $request->validated('client_id') : null,
             $request->validated('supervisor_shift_review_id') !== null

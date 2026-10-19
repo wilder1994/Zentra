@@ -100,6 +100,7 @@ final class SupervisionMapController extends Controller
                 ->role('supervisor')
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            'canManageZones' => (bool) $request->user()?->can('company.settings.manage'),
         ]);
     }
 

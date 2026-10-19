@@ -65,6 +65,7 @@ final class AdvanceSupervisorRecommendationService
 
             SupervisorFieldLog::query()->create([
                 'supervisor_shift_id' => $shift->id,
+                'supervisor_zone_id' => $recommendation->supervisor_zone_id,
                 'security_company_id' => $shift->security_company_id,
                 'user_id' => $shift->user_id,
                 'client_id' => $recommendation->client_id,

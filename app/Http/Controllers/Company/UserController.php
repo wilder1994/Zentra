@@ -167,6 +167,7 @@ final class UserController extends Controller
                 $user->update(['avatar_path' => $path]);
             }
         }
+        $this->syncCorporateEmail($user, $request->validated('corporate_email'));
 
         $message = 'Usuario creado.';
         if ($user->supervisor_code) {
@@ -234,10 +235,21 @@ final class UserController extends Controller
             $request->user(),
             UserManagementContext::Company,
         );
+        $this->syncCorporateEmail($user->fresh(), $request->validated('corporate_email'));
 
         return redirect()
             ->route('company.users.edit', $user)
             ->with('success', 'Usuario actualizado.');
+    }
+
+    /** Solo el admin de cliente interno (responsable) lleva correo corporativo. */
+    private function syncCorporateEmail(User $user, mixed $email): void
+    {
+        $internal = $user->hasRole('client-admin') && $user->admin_origin !== 'external';
+        $value = $internal && is_string($email) && trim($email) !== '' ? trim($email) : null;
+        if ($user->corporate_email !== $value) {
+            $user->forceFill(['corporate_email' => $value])->save();
+        }
     }
 
     public function deactivate(Request $request, User $user): RedirectResponse

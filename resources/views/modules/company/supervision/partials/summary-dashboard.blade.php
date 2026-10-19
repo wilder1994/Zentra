@@ -122,6 +122,8 @@
         </div>
     </div>
 
+    @include('modules.company.supervision.partials.summary-trainings', ['training' => $charts['trainings'] ?? [], 'uniform' => $charts['uniform'] ?? [], 'grainLabel' => $grainLabel])
+
     @php
         $statusRow = [
             'red' => 'bg-red-500/10 hover:bg-red-500/15',
@@ -387,6 +389,52 @@
             const supports = data.supports_by_type || [];
             bar('chart-supports', supports.length ? supports.map((r) => r.name) : ['Sin datos'], [
                 { label: 'Apoyos', data: supports.length ? supports.map((r) => r.total) : [0], backgroundColor: '#a78bfa' },
+            ]);
+
+            const tr = data.trainings || {};
+            const ts = tr.series || {};
+            bar('chart-trainings-period', labels, [
+                { label: 'Mensual · virtual', data: ts.monthly_virtual || [], backgroundColor: '#38bdf8', borderRadius: 3 },
+                { label: 'Mensual · en puesto', data: ts.monthly_onsite || [], backgroundColor: '#0ea5e9', borderRadius: 3 },
+                { label: 'Personalizada · virtual', data: ts.custom_virtual || [], backgroundColor: '#c4b5fd', borderRadius: 3 },
+                { label: 'Personalizada · en puesto', data: ts.custom_onsite || [], backgroundColor: '#8b5cf6', borderRadius: 3 },
+            ], true);
+            const cov = tr.coverage || {};
+            donut('chart-trainings-coverage', ['Con capacitación mensual', 'Sin capacitación mensual'], [
+                cov.covered || 0, Math.max(0, (cov.reviewed || 0) - (cov.covered || 0)),
+            ], ['#2dd4bf', '#334155']);
+
+            function hbar(id, rows, datasets) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                new Chart(el, {
+                    type: 'bar',
+                    data: { labels: rows.length ? rows : ['Sin datos'], datasets },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend },
+                        scales: {
+                            x: { ...axis, stacked: true, beginAtZero: true, ticks: { ...axis.ticks, precision: 0 } },
+                            y: { ...axis, stacked: true, ticks: { ...axis.ticks, font: { size: 10 }, color: '#94a3b8' } },
+                        },
+                    },
+                });
+            }
+            const topics = tr.by_topic || [];
+            hbar('chart-trainings-topics', topics.map((r) => r.name), [
+                { label: 'Mensual', data: topics.length ? topics.map((r) => r.monthly) : [0], backgroundColor: '#38bdf8', borderRadius: 3 },
+                { label: 'Personalizada', data: topics.length ? topics.map((r) => r.custom) : [0], backgroundColor: '#8b5cf6', borderRadius: 3 },
+            ]);
+            const uni = data.uniform || {};
+            const uniItems = uni.by_item || [];
+            hbar('chart-uniform-items', uniItems.map((r) => r.name), [
+                { label: 'Novedades', data: uniItems.length ? uniItems.map((r) => r.total) : [0], backgroundColor: '#fb923c', borderRadius: 3 },
+            ]);
+            const uniPeople = uni.by_people || [];
+            hbar('chart-uniform-people', uniPeople.map((r) => r.name), [
+                { label: 'Novedades', data: uniPeople.length ? uniPeople.map((r) => r.total) : [0], backgroundColor: '#f87171', borderRadius: 3 },
             ]);
         })();
     </script>

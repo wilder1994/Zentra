@@ -24,5 +24,6 @@ final readonly class RecordSupervisorShiftReviewInput
         public array $logPhotos = [],
         public ?string $clientEventId = null,
         public ?CarbonImmutable $recordedAt = null,
+        public int $appBuild = 0,
     ) {}
 }

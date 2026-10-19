@@ -8,6 +8,7 @@ use App\Enums\InstallationKind;
 use App\Models\Employee;
 use App\Models\Installation;
 use App\Models\SupervisorPost;
+use App\Models\SupervisorTraining;
 use App\Models\User;
 use App\Services\Observatory\EnsureObservatoryReportTypesService;
 use App\Support\Supervision\FieldModuleCatalog;
@@ -22,7 +23,7 @@ final class BuildSupervisorOfflinePackService
     /**
      * @return array{sites: list<array<string, mixed>>, posts: list<array<string, mixed>>, guards: list<array<string, mixed>>, modules: list<array<string, mixed>>}
      */
-    public function execute(User $user): array
+    public function execute(User $user, int $appBuild = 0): array
     {
         $sites = $this->lookup->sites($user);
         $siteIds = array_map(fn (array $site) => (int) $site['id'], $sites);
@@ -84,7 +85,8 @@ final class BuildSupervisorOfflinePackService
             'sites' => $sites,
             'posts' => $posts,
             'guards' => $guards,
-            'modules' => $this->catalog->modules((int) $user->security_company_id),
+            'modules' => $this->catalog->modules((int) $user->security_company_id, $appBuild),
+            'trainings_month' => $this->trainingsThisMonth((int) $user->security_company_id),
             'observatory_kinds' => $kinds,
             'observatory_kinds_by_client' => $kindsByClient,
             'observatory_sites' => $colegios->map(static fn (Installation $site): array => [
@@ -98,5 +100,24 @@ final class BuildSupervisorOfflinePackService
                 'lng' => $site->longitude !== null ? (float) $site->longitude : null,
             ])->values()->all(),
         ];
+    }
+
+    /**
+     * Capacitaciones del mes (vigilante + tema) para bloquear temas repetidos aun sin señal.
+     *
+     * @return list<array{employee_id: int, topic_id: int}>
+     */
+    private function trainingsThisMonth(int $companyId): array
+    {
+        return SupervisorTraining::query()
+            ->where('security_company_id', $companyId)
+            ->where('period', now()->format('Y-m'))
+            ->get(['employee_id', 'supervisor_training_topic_id'])
+            ->map(fn (SupervisorTraining $row) => [
+                'employee_id' => (int) $row->employee_id,
+                'topic_id' => (int) $row->supervisor_training_topic_id,
+            ])
+            ->values()
+            ->all();
     }
 }

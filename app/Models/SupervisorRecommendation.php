@@ -17,6 +17,7 @@ final class SupervisorRecommendation extends Model
 {
     protected $fillable = [
         'security_company_id',
+        'supervisor_zone_id',
         'client_id',
         'opened_by_user_id',
         'opened_shift_id',

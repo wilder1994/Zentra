@@ -201,7 +201,7 @@ final class SupervisorShiftController extends Controller
 
     public function offlinePack(Request $request): JsonResponse
     {
-        return response()->json($this->offlinePack->execute($request->user()));
+        return response()->json($this->offlinePack->execute($request->user(), $request->integer('app_build')));
     }
 
     public function posts(Request $request): JsonResponse
@@ -256,7 +256,7 @@ final class SupervisorShiftController extends Controller
         $zones = SupervisorZone::query()
             ->where('security_company_id', $companyId)
             ->active()
-            ->get(['id', 'name', 'email']);
+            ->get(['id', 'name']);
 
         $templates = SupervisorShiftTemplate::query()
             ->where('security_company_id', $companyId)
@@ -267,7 +267,6 @@ final class SupervisorShiftController extends Controller
             'zones' => $zones->map(fn (SupervisorZone $zone) => [
                 'id' => $zone->id,
                 'name' => $zone->name,
-                'email' => $zone->email,
             ])->values()->all(),
             'shift_templates' => $templates->map(fn (SupervisorShiftTemplate $template) => [
                 'id' => $template->id,
@@ -473,6 +472,7 @@ final class SupervisorShiftController extends Controller
                 logPhotos: is_array($request->file('log_photos')) ? $request->file('log_photos') : [],
                 clientEventId: $request->validated('client_event_id'),
                 recordedAt: $at,
+                appBuild: (int) ($request->validated('app_build') ?? 0),
             ),
         );
         if (! $shift->isOpen()) {
@@ -482,6 +482,7 @@ final class SupervisorShiftController extends Controller
         return response()->json([
             'review' => $this->reviewPayload($review),
             'activity' => $this->logService->activityFor($shift),
+            'discarded_trainings' => $this->reviewService->discardedTrainings(),
         ], 201);
     }
 

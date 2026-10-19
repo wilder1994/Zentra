@@ -14,6 +14,7 @@ final class SupervisorFieldLog extends Model
     protected $fillable = [
         'supervisor_shift_id',
         'supervisor_shift_review_id',
+        'supervisor_zone_id',
         'security_company_id',
         'user_id',
         'client_id',
@@ -43,6 +44,12 @@ final class SupervisorFieldLog extends Model
     public function shift(): BelongsTo
     {
         return $this->belongsTo(SupervisorShift::class, 'supervisor_shift_id');
+    }
+
+    /** Zona del cliente al registrarse (a ella cuenta el registro). */
+    public function zone(): BelongsTo
+    {
+        return $this->belongsTo(SupervisorZone::class, 'supervisor_zone_id');
     }
 
     public function review(): BelongsTo

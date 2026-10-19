@@ -35,6 +35,7 @@ final class StoreUserRequest extends FormRequest
             $this->clientIdsRule(),
             [
                 'origin' => ['nullable', 'string', Rule::enum(ClientAdminOrigin::class)],
+                'corporate_email' => ['nullable', 'email', 'max:255'],
                 'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
                 'username' => [
                     'required',
@@ -115,6 +116,7 @@ final class StoreUserRequest extends FormRequest
             'origin' => 'origen',
             'document_number' => 'cédula',
             'installation_ids' => 'instalaciones',
+            'corporate_email' => 'correo corporativo',
         ];
     }
 

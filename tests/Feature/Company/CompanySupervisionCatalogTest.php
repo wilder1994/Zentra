@@ -35,13 +35,11 @@ final class CompanySupervisionCatalogTest extends TestCase
 
         $this->actingAs($admin)->post(route('company.supervision-zones.store'), [
             'name' => 'Occidente',
-            'email' => 'norte.ops@sj-seguridad.test',
             'is_active' => '1',
         ])->assertRedirect(route('company.supervision-zones.index'));
 
         $this->assertDatabaseHas('supervisor_zones', [
             'name' => 'Occidente',
-            'email' => 'norte.ops@sj-seguridad.test',
             'security_company_id' => $admin->security_company_id,
         ]);
 

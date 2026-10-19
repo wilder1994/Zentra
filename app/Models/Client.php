@@ -20,6 +20,7 @@ class Client extends Model
 
     protected $fillable = [
         'security_company_id',
+        'supervisor_zone_id',
         'name',
         'party_type',
         'legal_name',
@@ -115,6 +116,18 @@ class Client extends Model
     public function structureType(): BelongsTo
     {
         return $this->belongsTo(StructureType::class);
+    }
+
+    /** Zona principal de Supervisión (una sola). */
+    public function supervisorZone(): BelongsTo
+    {
+        return $this->belongsTo(SupervisorZone::class, 'supervisor_zone_id');
+    }
+
+    /** Zonas de Supervisión con las que se comparte (además de la principal). */
+    public function sharedSupervisorZones(): BelongsToMany
+    {
+        return $this->belongsToMany(SupervisorZone::class, 'supervisor_zone_shared_clients')->withTimestamps();
     }
 
     public function assignments(): HasMany

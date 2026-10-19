@@ -18,6 +18,7 @@ trait ValidatesManagedUser
             'job_title' => ['nullable', 'string', 'max:80'],
             'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
             'email' => ['nullable', 'email', 'max:255'],
+            'corporate_email' => ['nullable', 'email', 'max:255'],
             'password' => $passwordRequired
                 ? ['required', 'confirmed', Password::defaults()]
                 : ['nullable', 'confirmed', Password::defaults()],

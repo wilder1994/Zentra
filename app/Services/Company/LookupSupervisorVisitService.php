@@ -8,18 +8,27 @@ use App\Models\Client;
 use App\Models\Employee;
 use App\Models\SupervisorPost;
 use App\Models\User;
+use App\Support\Supervision\SupervisorClientScope;
 
 final class LookupSupervisorVisitService
 {
+    public function __construct(
+        private readonly ManageSupervisorShiftService $shifts,
+        private readonly SupervisorClientScope $scope,
+    ) {}
+
     /**
      * @return list<array{id: int, name: string}>
      */
     public function sites(User $user): array
     {
+        $visible = $this->visibleClientIds($user);
+
         return Client::query()
             ->where('security_company_id', $user->security_company_id)
             ->where('has_supervision', true)
             ->where('is_active', true)
+            ->when($visible !== null, fn ($q) => $q->whereIn('id', $visible !== [] ? $visible : [0]))
             ->orderBy('name')
             ->get(['id', 'name'])
             ->map(fn (Client $client) => [
@@ -31,12 +40,34 @@ final class LookupSupervisorVisitService
     }
 
     /**
+     * Clientes que el supervisor puede ver ahora. Null = todos (la empresa aún no usa zonas).
+     * Sin turno abierto y con zonas en uso no ve ninguno.
+     *
+     * @return list<int>|null
+     */
+    public function visibleClientIds(User $user): ?array
+    {
+        if (! $this->scope->companyUsesZones((int) $user->security_company_id)) {
+            return null;
+        }
+
+        $shift = $this->shifts->currentFor($user);
+
+        return $shift !== null ? ($this->scope->visibleClientIds($shift) ?? []) : [];
+    }
+
+    /**
      * @return list<array{id: int, name: string, installation_id: int, installation_name: ?string, label: string}>
      */
     public function posts(User $user, int $clientId, string $query = ''): array
     {
         $client = $this->companySupervisionClient($user, $clientId);
         if ($client === null) {
+            return [];
+        }
+
+        $visible = $this->visibleClientIds($user);
+        if ($visible !== null && ! in_array((int) $client->id, $visible, true)) {
             return [];
         }
 

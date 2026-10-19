@@ -98,6 +98,12 @@ final class SupervisorShift extends Model
         return $this->belongsTo(SupervisorZone::class, 'supervisor_zone_id');
     }
 
+    /** Zonas añadidas desde En vivo (incluye las quitadas; usar active()). */
+    public function extraZones(): HasMany
+    {
+        return $this->hasMany(SupervisorShiftZone::class);
+    }
+
     public function shiftTemplate(): BelongsTo
     {
         return $this->belongsTo(SupervisorShiftTemplate::class, 'supervisor_shift_template_id');
@@ -109,6 +115,16 @@ final class SupervisorShift extends Model
         return $query
             ->when($filter->zoneId !== null, fn (Builder $q) => $q->where('supervisor_zone_id', $filter->zoneId))
             ->when($filter->supervisorId !== null, fn (Builder $q) => $q->where('user_id', $filter->supervisorId));
+    }
+
+    /**
+     * Para revistas y fichas: la zona va en cada registro (zona del cliente), no en el turno.
+     *
+     * @param Builder<self> $query
+     */
+    public function scopeMatchingSupervisor(Builder $query, SupervisionQueryFilter $filter): Builder
+    {
+        return $query->when($filter->supervisorId !== null, fn (Builder $q) => $q->where('user_id', $filter->supervisorId));
     }
 
     public function isOpen(): bool

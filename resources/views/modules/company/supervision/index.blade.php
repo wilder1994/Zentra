@@ -169,9 +169,12 @@
                             'Revistas por día operativo: de 06:00 a 06:00.',
                         ]])
                         <div class="mt-2 overflow-auto flex-1" id="supervision-live-list">
-                            @include('modules.company.supervision.partials.live-roster', ['rows' => $map['live']])
+                            @include('modules.company.supervision.partials.live-roster', ['rows' => $map['live'], 'canManageZones' => $canManageZones])
                         </div>
                     </section>
+                    @if ($canManageZones)
+                        @include('modules.company.supervision.partials.shift-zones-modal')
+                    @endif
                 @endif
 
                 @if ($activeTab === 'history')
@@ -198,7 +201,7 @@
                                     <div class="flex items-start justify-between gap-2">
                                         <p class="text-sm font-medium text-slate-100">{{ $row['user'] ?? 'Supervisor' }}</p>
                                         @if (! empty($row['sheet_url']))
-                                            <a href="{{ $row['sheet_url'] }}" target="_blank" rel="noopener"
+                                            <a href="{{ $row['sheet_url'] }}"
                                                class="shrink-0 rounded-md border border-slate-700 px-2 py-0.5 text-[11px] font-semibold text-indigo-300 hover:bg-slate-800"
                                                onclick="event.stopPropagation()">Ver</a>
                                         @endif
@@ -256,8 +259,7 @@
                                 <td class="px-4 py-2 text-slate-400">{{ $row->recordedAt->format('d/m/Y H:i') }}</td>
                                 <td class="px-4 py-2 text-right">
                                     <a href="{{ route('company.supervision.sheets.show', ['kind' => $row->kind->value, 'id' => $row->id]) }}"
-                                       target="_blank"
-                                       class="text-indigo-300 hover:text-indigo-200">Ver / imprimir</a>
+                                       class="text-indigo-300 hover:text-indigo-200">Ver ficha</a>
                                 </td>
                             </tr>
                         @empty
@@ -379,6 +381,8 @@
                 let pinCard = null;
                 let motoTip = null;
 
+                const canManageZones = @json($canManageZones);
+
                 function esc(value) {
                     return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
                         '&': '&amp;',
@@ -432,16 +436,20 @@
                         + rows.map((row) => {
                             const selected = Number(selectedLiveShiftId) === Number(row.shift_id);
                             const sheet = row.sheet_url
-                                ? '<a href="' + esc(row.sheet_url) + '" target="_blank" rel="noopener" class="js-sheet-link inline-flex rounded-md border border-slate-700 px-2 py-0.5 text-[11px] font-semibold text-indigo-300 hover:bg-slate-800">Ver</a>'
+                                ? '<a href="' + esc(row.sheet_url) + '" class="js-sheet-link inline-flex rounded-md border border-slate-700 px-2 py-0.5 text-[11px] font-semibold text-indigo-300 hover:bg-slate-800">Ver</a>'
+                                : '';
+                            const zonesBtn = canManageZones && row.zones_url
+                                ? '<button type="button" class="js-shift-zones inline-flex rounded-md border border-sky-700/70 px-2 py-0.5 text-[11px] font-semibold text-sky-300 hover:bg-slate-800" data-url="' + esc(row.zones_url) + '" data-user="' + esc(row.user || 'Supervisor') + '">Zonas</button>'
                                 : '';
                             return '<tr class="supervision-live-pick border-b border-slate-800/70 align-top cursor-pointer hover:bg-slate-800/60' + (selected ? ' bg-slate-800 ring-1 ring-inset ring-indigo-500/60' : '') + '" data-shift-id="' + esc(String(row.shift_id)) + '">'
                                 + '<td class="py-2 pr-2"><p class="font-medium text-slate-100">' + esc(row.user || 'Supervisor') + '</p>'
                                 + '<p class="text-xs mt-0.5 ' + signalTextClass(row) + '">' + esc(row.online_label || (row.online ? 'En línea' : 'Sin señal')) + '</p>'
-                                + '<p class="text-xs text-slate-500 mt-0.5">Inicio ' + esc(row.started_at_label || '—') + '</p></td>'
+                                + '<p class="text-xs text-slate-500 mt-0.5">Inicio ' + esc(row.started_at_label || '—') + '</p>'
+                                + '<p class="text-xs text-sky-500 mt-0.5">' + esc(row.zone_label || 'Sin zona') + '</p></td>'
                                 + '<td class="py-2 pr-2 text-xs text-slate-300 leading-snug">' + esc(row.status_line || liveStatus(row)) + '</td>'
                                 + '<td class="py-2 text-right text-slate-300 tabular-nums">' + Number(row.km || 0).toFixed(1) + '</td>'
                                 + '<td class="py-2 text-right text-slate-300 tabular-nums">' + String(row.reviews_count || 0) + '</td>'
-                                + '<td class="py-2 pl-2 text-right">' + sheet + '</td>'
+                                + '<td class="py-2 pl-2 text-right"><div class="flex flex-col items-end gap-1">' + sheet + zonesBtn + '</div></td>'
                                 + '</tr>';
                         }).join('')
                         + '</tbody></table>';
@@ -731,7 +739,7 @@
                     }
                     const notes = row.notes ? '<p class="zmap-card-meta" style="margin:6px 0 0">' + esc(row.notes) + '</p>' : '';
                     const link = row.sheet_url
-                        ? '<a href="' + esc(row.sheet_url) + '" target="_blank" rel="noopener" class="zmap-card-link">Ver ficha' + (row.folio ? ' ' + esc(row.folio) : '') + '</a>'
+                        ? '<a href="' + esc(row.sheet_url) + '" class="zmap-card-link">Ver ficha' + (row.folio ? ' ' + esc(row.folio) : '') + '</a>'
                         : '';
                     const place = pin.kind === 'client' || pin.kind === 'installation'
                         ? { title: headline, subtitle: pin.kind === 'installation' ? (row.client || '') : '', address: row.address }
@@ -1291,6 +1299,13 @@
                     document.getElementById('supervision-live-list')?.addEventListener('click', (ev) => {
                         const link = ev.target.closest('.js-sheet-link');
                         if (link) return;
+                        const zonesBtn = ev.target.closest('.js-shift-zones');
+                        if (zonesBtn) {
+                            window.dispatchEvent(new CustomEvent('shift-zones:open', {
+                                detail: { url: zonesBtn.dataset.url, user: zonesBtn.dataset.user },
+                            }));
+                            return;
+                        }
                         const row = ev.target.closest('.supervision-live-pick');
                         if (!row || !googleMap) return;
                         const id = Number(row.dataset.shiftId);
@@ -1318,8 +1333,8 @@
                     paintLive(true);
                     liveFitted = true;
                     clearInterval(livePollTimer);
-                    livePollTimer = setInterval(async () => {
-                        if (pinSticky || listSticky || pinCard) return;
+                    const pollLive = async (force = false) => {
+                        if (!force && (pinSticky || listSticky || pinCard)) return;
                         try {
                             const res = await fetch(liveFeedUrl, { headers: { Accept: 'application/json' } });
                             if (!res.ok) return;
@@ -1331,7 +1346,9 @@
                             paintLive(!liveFitted);
                             liveFitted = true;
                         } catch (e) {}
-                    }, 10000);
+                    };
+                    livePollTimer = setInterval(pollLive, 10000);
+                    window.addEventListener('supervision:refresh-live', () => pollLive(true));
                     } catch (e) {
                         fallback?.classList.remove('hidden');
                     }

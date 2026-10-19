@@ -91,6 +91,11 @@ final class ExportSupervisionExecutiveReportService
             $this->activitySlide($this->slide($ppt), $snapshot);
             $this->fieldSlide($this->slide($ppt), $snapshot);
             $this->weaponsSlide($this->slide($ppt), $snapshot);
+            $this->trainingsSlide($this->slide($ppt), $snapshot);
+            $this->trainingTopicsSlide($this->slide($ppt), $snapshot);
+            $this->trainingPeopleSlides($ppt, $snapshot);
+            $this->uniformSlide($this->slide($ppt), $snapshot);
+            $this->uniformRowsSlides($ppt, $snapshot);
             $this->supervisorSlide($this->slide($ppt), $snapshot);
             $this->alarmsSlide($this->slide($ppt), $snapshot);
             $this->clientSlides($ppt, $snapshot);
@@ -431,6 +436,197 @@ final class ExportSupervisionExecutiveReportService
         }
 
         $this->paragraphs($slide, [[$text, self::INK]], 40, self::TEXT_Y, 880, self::TEXT_H);
+    }
+
+    private function trainingsSlide(Slide $slide, SupervisionPeriodSnapshot $snapshot): void
+    {
+        $charts = $snapshot->charts;
+        $t = $charts['trainings'] ?? [];
+        $monthlyGrain = ($charts['grain'] ?? 'day') === 'month';
+        $this->heading($slide, 'Capacitaciones', $snapshot->caption);
+
+        $total = (int) ($t['total'] ?? 0);
+        $labels = array_values($charts['labels'] ?? []);
+        $series = $t['series'] ?? [];
+        if ($total === 0) {
+            $this->emptyChart($slide, $monthlyGrain ? 'Capacitaciones por mes' : 'Capacitaciones por día', 40, self::CHART_Y, 560, self::CHART_H);
+        } else {
+            $showValues = count($labels) <= 16;
+            $stack = new Bar;
+            $stack->setBarDirection(Bar::DIRECTION_VERTICAL);
+            $stack->setBarGrouping(Bar::GROUPING_STACKED);
+            $stack->setOverlapWidthPercent(100);
+            foreach ([
+                ['Mensual · virtual', 'monthly_virtual', 'FF38BDF8'],
+                ['Mensual · en puesto', 'monthly_onsite', 'FF0EA5E9'],
+                ['Personalizada · virtual', 'custom_virtual', 'FFC4B5FD'],
+                ['Personalizada · en puesto', 'custom_onsite', 'FF8B5CF6'],
+            ] as [$name, $key, $color]) {
+                $stack->addSeries($this->barSeries($name, $this->combine($labels, array_values($series[$key] ?? [])), $color, $showValues, true));
+            }
+            $this->chart($slide, $stack, 40, self::CHART_Y, 560, self::CHART_H, $monthlyGrain ? 'Capacitaciones por mes' : 'Capacitaciones por día');
+        }
+
+        $coverage = $t['coverage'] ?? ['reviewed' => 0, 'covered' => 0];
+        $reviewed = (int) ($coverage['reviewed'] ?? 0);
+        $covered = (int) ($coverage['covered'] ?? 0);
+        $this->donut($slide, 'Cobertura mensual', [
+            'Con capacitación mensual' => $covered,
+            'Sin capacitación mensual' => max(0, $reviewed - $covered),
+        ], ['FF2DD4BF', self::SLATE], 612, self::CHART_Y, 308, self::CHART_H);
+
+        if ($total === 0) {
+            $text = 'No se registraron capacitaciones en el periodo.';
+        } else {
+            $minutes = (int) ($t['minutes'] ?? 0);
+            $text = 'Se dieron '.$this->count($total, 'capacitación', 'capacitaciones').' a '.$this->count((int) ($t['people'] ?? 0), 'vigilante', 'vigilantes').': '
+                .$this->count((int) ($t['monthly'] ?? 0), 'mensual', 'mensuales').' y '.$this->count((int) ($t['custom'] ?? 0), 'personalizada', 'personalizadas').'; '
+                .$this->int((int) ($t['virtual'] ?? 0)).' virtuales y '.$this->int((int) ($t['onsite'] ?? 0)).' en puesto'
+                .($minutes > 0 ? ' ('.$this->int($minutes).' minutos de capacitación presencial)' : '').'. '
+                .($reviewed > 0
+                    ? 'De los '.$this->int($reviewed).' vigilantes con revista en el periodo, '.$this->int($covered).' recibieron la capacitación mensual ('.$this->pct($covered, $reviewed).').'
+                    : '');
+        }
+
+        $this->paragraphs($slide, [[$text, self::INK]], 40, self::TEXT_Y, 880, self::TEXT_H);
+    }
+
+    private function trainingTopicsSlide(Slide $slide, SupervisionPeriodSnapshot $snapshot): void
+    {
+        $t = $snapshot->charts['trainings'] ?? [];
+        $this->heading($slide, 'Temas de capacitación', $snapshot->caption);
+
+        $topics = array_slice($t['by_topic'] ?? [], 0, 10);
+        if ($topics === []) {
+            $this->emptyChart($slide, 'Capacitaciones por tema', 40, self::CHART_Y, 880, self::CHART_H);
+        } else {
+            $monthly = [];
+            $custom = [];
+            foreach ($topics as $row) {
+                $name = Str::limit((string) $row['name'], 40);
+                $monthly[$name] = (int) $row['monthly'];
+                $custom[$name] = (int) $row['custom'];
+            }
+            $bar = new Bar;
+            $bar->setBarDirection(Bar::DIRECTION_HORIZONTAL);
+            $bar->setBarGrouping(Bar::GROUPING_STACKED);
+            $bar->setOverlapWidthPercent(100);
+            $bar->addSeries($this->barSeries('Mensual', array_reverse($monthly, true), 'FF38BDF8', true, true));
+            $bar->addSeries($this->barSeries('Personalizada', array_reverse($custom, true), 'FF8B5CF6', true, true));
+            $this->chart($slide, $bar, 40, self::CHART_Y, 880, self::CHART_H, 'Capacitaciones por tema');
+        }
+
+        $top = $topics[0] ?? null;
+        $text = $topics === []
+            ? 'No se registraron temas de capacitación en el periodo.'
+            : 'Se dieron '.$this->count(count($t['by_topic'] ?? []), 'tema', 'temas').' distintos. El más dado fue «'.$top['name'].'» ('.$this->int((int) $top['total']).': '
+                .$this->int((int) $top['monthly']).' mensual y '.$this->int((int) $top['custom']).' personalizada). '
+                .'Las capacitaciones personalizadas ('.$this->int((int) ($t['custom'] ?? 0)).') responden a falencias identificadas en la revista.';
+        $this->paragraphs($slide, [[$text, self::INK]], 40, self::TEXT_Y, 880, self::TEXT_H);
+    }
+
+    /** Personal capacitado: un renglón por capacitación, 14 por diapositiva. */
+    private function trainingPeopleSlides(PhpPresentation $ppt, SupervisionPeriodSnapshot $snapshot): void
+    {
+        $t = $snapshot->charts['trainings'] ?? [];
+        $rows = $t['people_rows'] ?? [];
+        $pages = $rows === [] ? [[]] : array_chunk($rows, 14);
+        $total = count($pages);
+        $legend = $this->count((int) ($t['people'] ?? 0), 'vigilante capacitado', 'vigilantes capacitados').' · '
+            .$this->count((int) ($t['monthly'] ?? 0), 'mensual', 'mensuales').' · '.$this->count((int) ($t['custom'] ?? 0), 'personalizada', 'personalizadas');
+
+        foreach ($pages as $page => $chunk) {
+            $slide = $this->slide($ppt);
+            $this->heading($slide, 'Personal capacitado'.($total > 1 ? ' ('.($page + 1).'/'.$total.')' : ''), $snapshot->caption.' · '.$legend);
+            if ($chunk === []) {
+                $this->text($slide, 'No se registraron capacitaciones en el periodo.', 40, 110, 880, 40, 14, self::MUTED);
+
+                continue;
+            }
+
+            $widths = [250, 250, 110, 100, 90, 80];
+            $table = $slide->createTableShape(count($widths));
+            $table->setOffsetX(40)->setOffsetY(100)->setWidth(array_sum($widths));
+            $this->tableRow($table->createRow(), ['Vigilante', 'Tema', 'Tipo', 'Modalidad', 'Duración', 'Fecha'], $widths, self::CARD, self::MUTED, true);
+            foreach ($chunk as $row) {
+                $this->tableRow($table->createRow(), [
+                    Str::limit((string) $row['employee'], 38),
+                    Str::limit((string) $row['topic'], 38),
+                    (string) $row['kind_label'],
+                    (string) $row['modality_label'],
+                    $row['minutes'] ? $row['minutes'].' min' : '—',
+                    (string) $row['date'],
+                ], $widths, $row['kind'] === 'custom' ? 'FF2E1065' : self::NAVY, self::INK);
+            }
+        }
+    }
+
+    private function uniformSlide(Slide $slide, SupervisionPeriodSnapshot $snapshot): void
+    {
+        $u = $snapshot->charts['uniform'] ?? [];
+        $this->heading($slide, 'Presentación personal con novedad', $snapshot->caption);
+
+        foreach ([
+            ['by_item', 'Prendas con más novedades', self::ORANGE, 40],
+            ['by_people', 'Vigilantes con más novedades', self::RED, 486],
+        ] as [$key, $title, $color, $x]) {
+            $values = [];
+            foreach (array_slice($u[$key] ?? [], 0, 8) as $row) {
+                $values[Str::limit((string) $row['name'], 28)] = (int) $row['total'];
+            }
+            if ($values === []) {
+                $this->emptyChart($slide, $title, $x, self::CHART_Y, 434, self::CHART_H);
+
+                continue;
+            }
+            $bar = new Bar;
+            $bar->setBarDirection(Bar::DIRECTION_HORIZONTAL);
+            $bar->addSeries($this->barSeries('Novedades', array_reverse($values, true), $color));
+            $this->chart($slide, $bar, $x, self::CHART_Y, 434, self::CHART_H, $title, false);
+        }
+
+        $inspected = (int) ($u['inspected'] ?? 0);
+        $novelty = (int) ($u['novelty'] ?? 0);
+        if ($inspected === 0) {
+            $text = 'No se registró presentación personal en el periodo.';
+        } elseif ($novelty === 0) {
+            $text = 'Se revisó la presentación personal en '.$this->count($inspected, 'revista', 'revistas').' y ninguna tuvo novedad.';
+        } else {
+            $topItem = $u['by_item'][0] ?? null;
+            $topPerson = $u['by_people'][0] ?? null;
+            $text = $this->count($novelty, 'revista tuvo', 'revistas tuvieron').' novedad en la presentación personal ('.$this->pct($novelty, $inspected).' de las revisadas), '
+                .'con '.$this->count((int) ($u['people_count'] ?? 0), 'vigilante', 'vigilantes').' involucrados.'
+                .(is_array($topItem) ? ' La prenda con más novedades fue «'.$topItem['name'].'» ('.$this->int((int) $topItem['total']).').' : '')
+                .(is_array($topPerson) && (int) $topPerson['total'] > 1 ? ' '.$topPerson['name'].' acumuló '.$this->int((int) $topPerson['total']).' novedades.' : '');
+        }
+        $this->paragraphs($slide, [[$text, self::INK]], 40, self::TEXT_Y, 880, self::TEXT_H);
+    }
+
+    /** Novedades de presentación personal con la observación del supervisor, 10 por diapositiva. */
+    private function uniformRowsSlides(PhpPresentation $ppt, SupervisionPeriodSnapshot $snapshot): void
+    {
+        $rows = $snapshot->charts['uniform']['rows'] ?? [];
+        if ($rows === []) {
+            return;
+        }
+        $pages = array_chunk($rows, 10);
+        $total = count($pages);
+        foreach ($pages as $page => $chunk) {
+            $slide = $this->slide($ppt);
+            $this->heading($slide, 'Novedades de presentación personal'.($total > 1 ? ' ('.($page + 1).'/'.$total.')' : ''), $snapshot->caption);
+            $widths = [200, 180, 420, 80];
+            $table = $slide->createTableShape(count($widths));
+            $table->setOffsetX(40)->setOffsetY(100)->setWidth(array_sum($widths));
+            $this->tableRow($table->createRow(), ['Vigilante', 'Prendas con novedad', 'Observación del supervisor', 'Fecha'], $widths, self::CARD, self::MUTED, true);
+            foreach ($chunk as $row) {
+                $this->tableRow($table->createRow(), [
+                    Str::limit((string) $row['employee'], 30),
+                    Str::limit((string) $row['items'], 30),
+                    Str::limit((string) ($row['note'] ?: '—'), 80),
+                    (string) $row['date'],
+                ], $widths, self::NAVY, self::INK);
+            }
+        }
     }
 
     private function supervisorSlide(Slide $slide, SupervisionPeriodSnapshot $snapshot): void

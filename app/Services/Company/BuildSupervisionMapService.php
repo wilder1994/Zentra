@@ -152,6 +152,8 @@ final class BuildSupervisionMapService
                 ->withCount('reviews')
                 ->with([
                     'user',
+                    'zone:id,name',
+                    'extraZones' => fn ($q) => $q->active()->with('zone:id,name'),
                     'locations' => fn ($q) => $q->orderBy('recorded_at'),
                 ])
                 ->get()
@@ -317,6 +319,8 @@ final class BuildSupervisionMapService
             ->withCount('reviews')
             ->with([
                 'user',
+                'zone:id,name',
+                'extraZones' => fn ($q) => $q->active()->with('zone:id,name'),
                 'locations' => fn ($q) => $q->orderBy('recorded_at'),
             ])
             ->get()
@@ -403,7 +407,20 @@ final class BuildSupervisionMapService
             'online_label' => $built['online_label'],
             'status_line' => $statusLine,
             'sheet_url' => $this->shiftSheetUrl($shift),
+            'zone_label' => $this->zoneLabel($shift),
+            'zones_url' => route('company.supervision.shift-zones.show', $shift),
         ];
+    }
+
+    private function zoneLabel(SupervisorShift $shift): string
+    {
+        $base = $shift->zone?->name;
+        $extra = $shift->relationLoaded('extraZones')
+            ? $shift->extraZones->map(fn ($row) => $row->zone?->name)->filter()->values()->all()
+            : [];
+        $label = $base ? 'Zona '.$base : 'Sin zona';
+
+        return $extra !== [] ? $label.' + '.implode(', ', $extra) : $label;
     }
 
     private function shiftSheetUrl(SupervisorShift $shift): string
