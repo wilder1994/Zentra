@@ -7,12 +7,14 @@ Lista viva de lo definido y **no implementado**. Al implementar, mover a «Hecho
 ### 4. Mapa del recorrido en la ficha de turno: activar Maps Static API
 Definido 18 oct 2026. Código listo (`BuildShiftRouteMapService`).
 
-- En Google Cloud, en el proyecto de la clave de mapas, activar **Maps Static API**. Hoy Google responde 403 «API not activated» y la ficha muestra «Mapa no disponible por el momento».
-- Si la clave está restringida por sitio web, incluir el dominio de `APP_URL` (la petición sale del servidor con ese `Referer`).
-### 3. Correos de novedades en el VPS
-Definido 18 oct 2026. El código ya encola los correos (ver Hecho, 18 oct).
+- 18 oct: el usuario activó **Maps Static API**. Falta ver una ficha de turno con el mapa en producción (turno con GPS).
+- Si la clave está restringida por sitio web, incluir el dominio de `APP_URL` (la petición sale del servidor con ese `Referer`); si es por IP, `82.25.66.93`.
 
-- Falta confirmar en el VPS: `MAIL_*` real (hoy no consta) y un worker de cola (`queue:work` con supervisor/systemd). Sin eso los correos quedan en la tabla `jobs`.
+### 5. App de campo en tema claro: textos ilegibles
+Definido 18 oct 2026 (visto en producción). Código: `field-app/index.html` (CSS).
+
+- En tema claro, `input, select, textarea, button` tienen `color: #fff` fijo: el valor de las listas y campos (p. ej. «Día», «Norte») sale blanco sobre fondo claro. El botón «Tema» casi no se ve y los subtítulos de los botones del menú tienen poco contraste.
+- Arreglo: usar `var(--ink)` en tema claro para campos y `.theme-btn`; revisar contraste de `.entry span`. Requiere PWA nueva y APK 2.7.
 
 ### 2. Recorte de planilla PILA pesa 1,14 MB por empleado
 Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
@@ -23,6 +25,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 - Detalle: [`EMPLEADOS-Y-CARGOS.md`](EMPLEADOS-Y-CARGOS.md) (Parafiscales).
 
 ## Hecho
+
+### 18 oct 2026 · Correos de novedades en producción (Brevo)
+Worker `zentra-queue.service` + SMTP Brevo (`smtp-relay.brevo.com:587`, TLS). Remitente `Zentra <noreply@zentra.wcodex.cloud>`, dominio autenticado en Brevo (TXT `brevo-code`, DKIM `brevo1/brevo2._domainkey.zentra`, DMARC `_dmarc.zentra`) en el DNS de Hostinger. Probado: envío directo y por cola (sin fallidos). Plan gratis: 300 correos/día. Detalle: `HOSTING-VPS.md`.
 
 ### 18 oct 2026 · Fichas en modal + PDF, ficha renovada y temas de capacitación (commit 92e9be8, desplegado 18 oct)
 APK 2.6 (versionCode 16) + PWA v59. Dependencia `barryvdh/laravel-dompdf`. Tests: `SupervisionSheetModalTest`. Detalle: `SUPERVISION-CAMPO.md` (Fichas de campo).
