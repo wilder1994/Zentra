@@ -39,7 +39,7 @@ Flota: `supervisor_fleet_vehicles` (placa/marca la primera vez). **No** es `vehi
 
 ## App de campo
 
-PWA en `field-app/` (copia `public/campo/` y Laragon `Zentra_Supervision`). Caché SW `zentra-sup-v61`. Hosting: `https://zentra.wcodex.cloud/campo`. APK Android v2.7 (versionCode 17, Capacitor) en `field-app/android/`; el binario se publica en `public/downloads/zentra-supervision.apk`. Selfie de inicio en el círculo de perfil.
+PWA en `field-app/` (copia `public/campo/` y Laragon `Zentra_Supervision`). Caché SW `zentra-sup-v61`; en cada versión subir también `?v=` de `app.js` y `offline.js` en `index.html` (si no, el navegador sirve el JS viejo de su caché HTTP con el HTML nuevo). Hosting: `https://zentra.wcodex.cloud/campo`. APK Android v2.7 (versionCode 17, Capacitor) en `field-app/android/`; el binario se publica en `public/downloads/zentra-supervision.apk`. Selfie de inicio en el círculo de perfil.
 
 **Horario del turno (21 oct 2026):** el fin programado es la franja de la plantilla que contiene la hora de apertura; se puede abrir hasta **2 h antes** del inicio (relevo anticipado). Fuera de su franja la plantilla no se abre y el mensaje dice cuál corresponde («Ahora corresponde Noche (18:00 – 06:00)»). El cierre automático (fin + 30 min, cada 5 min) nunca pone fin antes del inicio. Antes, un Noche abierto a las 17:30 o un Día abierto después de las 18:00 nacían vencidos y el sistema los cerraba a los pocos minutos.
 
