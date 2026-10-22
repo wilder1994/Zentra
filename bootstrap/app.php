@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\DisableTenantScoping;
+use App\Http\Middleware\EnsureApiKeyAbility;
 use App\Http\Middleware\EnsureClientAdmin;
 use App\Http\Middleware\EnsureClientPanelModule;
 use App\Http\Middleware\EnsureCompanyUser;
@@ -62,6 +63,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'porteria.door' => EnsurePorteriaDoor::class,
             'porteria.readonly' => EnsurePorteriaReadOnly::class,
             'supervisor.pro' => EnsureSupervisorProApi::class,
+            'api.ability' => EnsureApiKeyAbility::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

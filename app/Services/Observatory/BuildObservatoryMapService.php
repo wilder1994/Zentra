@@ -16,14 +16,35 @@ final class BuildObservatoryMapService
 {
     /**
      * @param  list<int>|null  $installationIds
+     * @param  list<int>|null  $typeIds
      * @return array<string, mixed>
      */
-    public function execute(?int $companyId, ?int $clientId, ?array $installationIds, string $eventShowRoute, string $comuna = ''): array
-    {
+    public function execute(
+        ?int $companyId,
+        ?int $clientId,
+        ?array $installationIds,
+        string $eventShowRoute,
+        string $comuna = '',
+        ?string $from = null,
+        ?string $to = null,
+        string $status = '',
+        ?array $typeIds = null,
+    ): array {
         $layer = app(CaliComunaLayer::class);
+        $typeScope = $typeIds === [] ? [0] : $typeIds;
         $sites = Installation::query()
             ->withoutGlobalScopes()
-            ->with(['client:id,name,security_company_id', 'observatoryEvents.reports.reportType'])
+            ->with([
+                'client:id,name,security_company_id',
+                'observatoryEvents' => fn ($q) => $q
+                    ->whereNull('archived_at')
+                    ->when($from !== null && $from !== '', fn ($e) => $e->whereDate('opened_at', '>=', $from))
+                    ->when($to !== null && $to !== '', fn ($e) => $e->whereDate('opened_at', '<=', $to))
+                    ->when($status !== '', fn ($e) => $e->where('status', $status))
+                    ->when($typeScope !== null, fn ($e) => $e->whereHas('reports', fn ($r) => $r->whereIn('observatory_report_type_id', $typeScope))),
+                'observatoryEvents.reports' => fn ($q) => $q->when($typeScope !== null, fn ($r) => $r->whereIn('observatory_report_type_id', $typeScope)),
+                'observatoryEvents.reports.reportType',
+            ])
             ->where('is_active', true)
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
@@ -151,7 +172,16 @@ final class BuildObservatoryMapService
                     : null,
                 16,
             ),
-            'types' => [],
+            'types' => collect($points)
+                ->unique('kind_slug')
+                ->map(fn (array $point): array => [
+                    'slug' => $point['kind_slug'],
+                    'name' => $point['kind'],
+                    'color' => $point['color'],
+                    'level' => $point['level'],
+                ])
+                ->values()
+                ->all(),
             'sites' => [],
             'points' => $points,
         ];

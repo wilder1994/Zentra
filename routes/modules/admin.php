@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Platform\ApiIntegrationController;
 use App\Http\Controllers\Platform\CommercialController;
 use App\Http\Controllers\Platform\CompanyController;
 use App\Http\Controllers\Platform\CompanyQuotaController;
@@ -120,6 +121,23 @@ Route::middleware(['auth', 'password.changed', 'active', 'platform.admin', 'tena
         Route::get('/companies/{company}/historial', [CompanyController::class, 'historial'])
             ->middleware('permission:platform.companies.view')
             ->name('companies.historial');
+
+        Route::get('/companies/{company}/integraciones', [ApiIntegrationController::class, 'index'])
+            ->middleware('permission:platform.companies.view')
+            ->name('companies.integrations.index');
+        Route::get('/companies/{company}/integraciones/manual/{type}.pdf', [ApiIntegrationController::class, 'manual'])
+            ->middleware('permission:platform.companies.view')
+            ->whereIn('type', array_keys(ApiIntegrationController::MANUALS))
+            ->name('companies.integrations.manual');
+        Route::post('/companies/{company}/integraciones', [ApiIntegrationController::class, 'store'])
+            ->middleware('permission:platform.companies.manage')
+            ->name('companies.integrations.store');
+        Route::post('/companies/{company}/integraciones/{key}/revoke', [ApiIntegrationController::class, 'revoke'])
+            ->middleware('permission:platform.companies.manage')
+            ->name('companies.integrations.revoke');
+        Route::post('/companies/{company}/integraciones/{key}/regenerate', [ApiIntegrationController::class, 'regenerate'])
+            ->middleware('permission:platform.companies.manage')
+            ->name('companies.integrations.regenerate');
 
         Route::post('/companies/{company}/enter', [CompanyController::class, 'enterAsSupport'])
             ->middleware('permission:platform.companies.manage')

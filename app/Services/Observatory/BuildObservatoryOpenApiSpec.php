@@ -20,8 +20,10 @@ final class BuildObservatoryOpenApiSpec
                 'version' => '1.0.0',
                 'description' => implode("\n\n", [
                     'Eventos y riesgos escolares del **Observatorio**. No incluye censo, portería ni facturación.',
-                    'Alcance: el token ve solo los colegios del cliente (Secretaría) o de la empresa. El admin de instalaciones ve solo sus instalaciones.',
-                    'Autenticación: `POST /api/auth/login` → `Authorization: Bearer {token}`.',
+                    'Autenticación: **API key** entregada por soporte de Zentra. En cada petición: `Authorization: Bearer {api_key}` y `Accept: application/json`. En esta página: botón **Autorizar** → pega la key (sin la palabra «Bearer»).',
+                    'Alcance: la key solo entra a los endpoints que se le dieron y solo ve los clientes y colegios de su usuario.',
+                    'Duración: una key sin fecha de vencimiento funciona hasta que se revoque o regenere; con fecha, deja de funcionar al pasar ese día.',
+                    'Respuestas en JSON. `401` = key inválida, revocada o vencida. `403` = la key no tiene ese permiso (`code: api_key_ability`) o el dato está fuera de su alcance.',
                     'Un reporte nuevo se une al folio abierto del mismo colegio y tipo si el último de ese tipo tiene menos de 1 hora.',
                 ]),
             ],
@@ -29,14 +31,14 @@ final class BuildObservatoryOpenApiSpec
                 ['url' => $server, 'description' => 'Zentra'],
             ],
             'tags' => [
-                ['name' => 'Sesión', 'description' => 'Token Sanctum'],
+                ['name' => 'Sesión', 'description' => 'Login personal (uso interno). Las integraciones usan API key: no lo necesitan.'],
                 ['name' => 'Observatorio', 'description' => 'Eventos, reportes y riesgos'],
             ],
             'paths' => [
                 '/api/auth/login' => [
                     'post' => [
                         'tags' => ['Sesión'],
-                        'summary' => 'Obtener token',
+                        'summary' => 'Login personal (no se usa con API key)',
                         'operationId' => 'observatoryLogin',
                         'security' => [],
                         'requestBody' => $this->jsonBody([
@@ -72,8 +74,8 @@ final class BuildObservatoryOpenApiSpec
                                 'data' => ['type' => 'array', 'items' => ['$ref' => '#/components/schemas/Event']],
                                 'meta' => ['$ref' => '#/components/schemas/PageMeta'],
                             ]),
-                            '401' => $this->error(401, 'Sin token'),
-                            '403' => $this->error(403, 'Fuera de alcance'),
+                            '401' => $this->error(401, 'Key inválida, revocada o vencida'),
+                            '403' => $this->error(403, 'Sin permiso o fuera de alcance'),
                         ],
                     ],
                 ],
@@ -135,7 +137,7 @@ final class BuildObservatoryOpenApiSpec
                         'tags' => ['Observatorio'],
                         'summary' => 'Crear reporte',
                         'operationId' => 'createObservatoryReport',
-                        'description' => 'Secretaría (`client-admin`): canal Integración. Rector o apoyo: mismo origen que el panel. La empresa solo lee.',
+                        'description' => 'Requiere el permiso «Crear reportes» en la API key. Los reportes enviados con API key quedan con canal Integración. Las pruebas en esta página crean reportes reales.',
                         'requestBody' => [
                             'required' => true,
                             'content' => [
@@ -158,7 +160,8 @@ final class BuildObservatoryOpenApiSpec
                             '201' => $this->jsonResponse('Reporte creado o unido a un folio abierto', [
                                 'report' => ['$ref' => '#/components/schemas/CreatedReport'],
                             ]),
-                            '403' => $this->error(403, 'La empresa no escribe por API'),
+                            '401' => $this->error(401, 'Key inválida, revocada o vencida'),
+                            '403' => $this->error(403, 'Sin permiso «Crear reportes» o colegio fuera de alcance'),
                             '422' => $this->error(422, 'Validación'),
                         ],
                     ],
@@ -169,7 +172,8 @@ final class BuildObservatoryOpenApiSpec
                     'bearerAuth' => [
                         'type' => 'http',
                         'scheme' => 'bearer',
-                        'bearerFormat' => 'Sanctum',
+                        'bearerFormat' => 'API key',
+                        'description' => 'Pega la API key entregada por soporte (sin «Bearer»).',
                     ],
                 ],
                 'schemas' => [

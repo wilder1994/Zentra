@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Services\Observatory\BuildObservatoryBoardService;
 use App\Services\Observatory\BuildObservatoryMapService;
 use App\Services\Observatory\EnsureObservatoryReportTypesService;
+use App\Services\Observatory\BuildObservatoryExportDataService;
 use App\Services\Observatory\ExportObservatoryBoardService;
 use App\Services\Observatory\MergeObservatoryEventsService;
 use App\Services\Observatory\PresentObservatoryLiveService;
@@ -27,6 +28,7 @@ use App\Services\Observatory\UpdateObservatoryEventStatusService;
 use App\Services\Ops\NotifyOpsSurface;
 use App\Support\Auth\AssignableRoles;
 use App\Support\Geo\CaliComunaLayer;
+use App\Support\Observatory\ObservatoryFilters;
 use App\Support\Observatory\ObservatoryPhotoInput;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
@@ -54,53 +56,23 @@ final class ObservatoryEventController extends Controller
 
         $clientId = (int) $this->tenantContext->clientId();
         abort_unless($clientId > 0, 403);
-        $filters = $this->filters($request);
+        $allowed = $this->tenantContext->installationIds();
+        $filters = ObservatoryFilters::fromRequest($request, null, $clientId, $allowed);
         $board = app(BuildObservatoryBoardService::class);
-        $siteIds = app(CaliComunaLayer::class)->scopeInstallationIds(
-            $filters['comuna'],
-            null,
-            $clientId,
-            $this->tenantContext->installationIds(),
-        );
-
-        $events = $board->scoped(null, $clientId, $siteIds, $filters['from'], $filters['to'])
-            ->with(['installation', 'latestReport.reportType'])
-            ->when($filters['search'] !== '', function ($q) use ($filters) {
-                $q->where(function ($inner) use ($filters) {
-                    $inner->where('title', 'like', '%'.$filters['search'].'%')
-                        ->orWhereHas('installation', fn ($i) => $i->where('name', 'like', '%'.$filters['search'].'%')
-                            ->orWhere('dane_code', 'like', '%'.$filters['search'].'%'));
-                });
-            })
-            ->when($filters['status'] !== '', fn ($q) => $q->where('status', $filters['status']))
-            ->orderByDesc('opened_at')
-            ->paginate(20)
-            ->withQueryString();
+        $siteIds = $filters->siteIds(null, $allowed);
 
         $client = Client::query()->findOrFail($clientId);
         app(EnsureObservatoryReportTypesService::class)->execute($client);
 
         return view('modules.observatory.client.index', [
-            'events' => $events,
-            'search' => $filters['search'],
-            'from' => $filters['from'],
-            'to' => $filters['to'],
-            'status' => $filters['status'],
-            'vista' => $filters['vista'],
-            'grain' => $filters['grain'],
-            'comuna' => $filters['comuna'],
-            'comunas' => app(CaliComunaLayer::class)->catalog(),
+            'filters' => $filters,
+            'events' => $this->eventsQuery($board, $clientId, $siteIds, $filters)->paginate(20)->withQueryString(),
             'publicUrl' => route('observatory.public.show', $client->slug),
             'canReport' => $this->canReportFromPanel($request->user()),
             'reporterName' => $request->user()?->name,
-            'board' => $board->execute(null, $clientId, $siteIds, $filters['from'], $filters['to'], $filters['grain']),
-            'map' => app(BuildObservatoryMapService::class)->execute(
-                null,
-                $clientId,
-                $siteIds,
-                'client.observatory.events.show',
-                $filters['comuna'],
-            ),
+            'board' => $this->boardPayload($board, $clientId, $siteIds, $filters),
+            'map' => $this->mapPayload($clientId, $siteIds, $filters),
+            'filterOptions' => $this->filterOptions($clientId, $allowed),
         ]);
     }
 
@@ -110,38 +82,15 @@ final class ObservatoryEventController extends Controller
 
         $clientId = (int) $this->tenantContext->clientId();
         abort_unless($clientId > 0, 403);
-        $filters = $this->filters($request);
+        $allowed = $this->tenantContext->installationIds();
+        $filters = ObservatoryFilters::fromRequest($request, null, $clientId, $allowed);
         $board = app(BuildObservatoryBoardService::class);
-        $siteIds = app(CaliComunaLayer::class)->scopeInstallationIds(
-            $filters['comuna'],
-            null,
-            $clientId,
-            $this->tenantContext->installationIds(),
-        );
-
-        $events = $board->scoped(null, $clientId, $siteIds, $filters['from'], $filters['to'])
-            ->with(['installation', 'latestReport.reportType'])
-            ->when($filters['search'] !== '', function ($q) use ($filters) {
-                $q->where(function ($inner) use ($filters) {
-                    $inner->where('title', 'like', '%'.$filters['search'].'%')
-                        ->orWhereHas('installation', fn ($i) => $i->where('name', 'like', '%'.$filters['search'].'%')
-                            ->orWhere('dane_code', 'like', '%'.$filters['search'].'%'));
-                });
-            })
-            ->when($filters['status'] !== '', fn ($q) => $q->where('status', $filters['status']))
-            ->orderByDesc('opened_at')
-            ->paginate(20);
+        $siteIds = $filters->siteIds(null, $allowed);
 
         return response()->json(app(PresentObservatoryLiveService::class)->execute(
-            $board->execute(null, $clientId, $siteIds, $filters['from'], $filters['to'], $filters['grain']),
-            app(BuildObservatoryMapService::class)->execute(
-                null,
-                $clientId,
-                $siteIds,
-                'client.observatory.events.show',
-                $filters['comuna'],
-            ),
-            $events,
+            $this->boardPayload($board, $clientId, $siteIds, $filters),
+            $this->mapPayload($clientId, $siteIds, $filters),
+            $this->eventsQuery($board, $clientId, $siteIds, $filters)->paginate(20),
             'client.observatory.events.show',
             false,
         ));
@@ -153,33 +102,28 @@ final class ObservatoryEventController extends Controller
 
         $clientId = (int) $this->tenantContext->clientId();
         abort_unless($clientId > 0, 403);
-        $filters = $this->filters($request);
-        $siteIds = app(CaliComunaLayer::class)->scopeInstallationIds(
-            $filters['comuna'],
-            null,
-            $clientId,
-            $this->tenantContext->installationIds(),
-        );
-        $client = Client::query()->findOrFail($clientId);
-        $payload = app(BuildObservatoryBoardService::class)->execute(
-            null,
-            $clientId,
-            $siteIds,
-            $filters['from'],
-            $filters['to'],
-            $filters['grain'],
-        );
-        $export = app(ExportObservatoryBoardService::class);
-        $file = $export->execute($payload, [
-            'scope' => $client->name,
-            'caption' => $export->caption(
-                $filters['from'],
-                $filters['to'],
-                $filters['grain'],
-                app(CaliComunaLayer::class)->label($filters['comuna']),
-            ),
-            'from' => $filters['from'],
-            'to' => $filters['to'],
+        $allowed = $this->tenantContext->installationIds();
+        $filters = ObservatoryFilters::fromRequest($request, null, $clientId, $allowed);
+        $siteIds = $filters->siteIds(null, $allowed);
+        $client = Client::query()->with('securityCompany')->findOrFail($clientId);
+        $boardService = app(BuildObservatoryBoardService::class);
+        $payload = $this->boardPayload($boardService, $clientId, $siteIds, $filters);
+        $site = $filters->installationId !== null
+            ? Installation::query()->whereKey($filters->installationId)->value('name')
+            : null;
+        $types = $filters->typesForExport($payload['types'] ?? []);
+        $data = app(BuildObservatoryExportDataService::class)->execute($this->eventsQuery($boardService, $clientId, $siteIds, $filters), $types);
+        $company = $client->securityCompany;
+
+        $file = app(ExportObservatoryBoardService::class)->execute($payload, $data, [
+            'scope' => (string) ($site ?: $client->name),
+            'scope_kind' => $site ? 'Instalación' : 'Cliente',
+            'company' => $company?->displayName() ?? $client->name,
+            'logo_path' => $company?->logo_path,
+            'filters' => $filters->labels($payload['types'] ?? []),
+            'from' => $filters->from,
+            'to' => $filters->to,
+            'grain' => $filters->grain(),
         ]);
 
         return response()
@@ -187,6 +131,68 @@ final class ObservatoryEventController extends Controller
             ->deleteFileAfterSend();
     }
 
+    /** @param  list<int>|null  $siteIds */
+    private function eventsQuery(BuildObservatoryBoardService $board, int $clientId, ?array $siteIds, ObservatoryFilters $filters)
+    {
+        return $filters->applySearch(
+            $board->scoped(null, $clientId, $siteIds, $filters->from, $filters->to, $filters->status, $filters->typeIds)
+                ->with(['installation', 'latestReport.reportType']),
+            false,
+        )->orderByDesc('opened_at');
+    }
+
+    /**
+     * @param  list<int>|null  $siteIds
+     * @return array<string, mixed>
+     */
+    private function boardPayload(BuildObservatoryBoardService $board, int $clientId, ?array $siteIds, ObservatoryFilters $filters): array
+    {
+        return $board->execute(null, $clientId, $siteIds, $filters->from, $filters->to, $filters->grain(), $filters->status, $filters->typeIds);
+    }
+
+    /**
+     * @param  list<int>|null  $siteIds
+     * @return array<string, mixed>
+     */
+    private function mapPayload(int $clientId, ?array $siteIds, ObservatoryFilters $filters): array
+    {
+        return app(BuildObservatoryMapService::class)->execute(
+            null,
+            $clientId,
+            $siteIds,
+            'client.observatory.events.show',
+            $filters->comuna,
+            $filters->from,
+            $filters->to,
+            $filters->status,
+            $filters->typeIds,
+        );
+    }
+
+    /**
+     * @param  list<int>|null  $allowed
+     * @return array<string, mixed>
+     */
+    private function filterOptions(int $clientId, ?array $allowed): array
+    {
+        $sites = Installation::query()
+            ->where('client_id', $clientId)
+            ->where('is_active', true)
+            ->when($allowed !== null, fn ($q) => $q->whereIn('id', $allowed))
+            ->orderBy('name')
+            ->get(['id', 'name', 'dane_code']);
+
+        return [
+            'places' => $sites->map(fn (Installation $site): array => [
+                'value' => 'site:'.$site->id,
+                'label' => $site->name,
+                'hint' => $site->dane_code ? 'DANE '.$site->dane_code : 'Instalación',
+            ])->values()->all(),
+            'types' => collect(ObservatoryReportType::catalogFor($clientId))
+                ->map(fn (array $type): array => ['value' => $type['slug'], 'label' => $type['name']])->values()->all(),
+            'comunas' => app(CaliComunaLayer::class)->catalog(),
+        ];
+    }
     public function create(Request $request): View
     {
         $this->authorize('viewAny', ObservatoryEvent::class);
@@ -393,29 +399,5 @@ final class ObservatoryEventController extends Controller
             ->when($siteIds !== null, fn ($q) => $q->whereIn('id', $siteIds))
             ->orderBy('name')
             ->get();
-    }
-
-    /** @return array{search: string, from: ?string, to: ?string, status: string, vista: string, grain: string, comuna: string} */
-    private function filters(Request $request): array
-    {
-        $validated = $request->validate([
-            'q' => ['nullable', 'string', 'max:120'],
-            'from' => ['nullable', 'date'],
-            'to' => ['nullable', 'date'],
-            'status' => ['nullable', 'string', Rule::enum(ObservatoryEventStatus::class)],
-            'vista' => ['nullable', 'string', Rule::in(['tablero', 'eventos'])],
-            'grain' => ['nullable', 'string', Rule::in(['day', 'month', 'year'])],
-            'comuna' => ['nullable', 'string', 'max:12'],
-        ]);
-
-        return [
-            'search' => trim((string) ($validated['q'] ?? '')),
-            'from' => $validated['from'] ?? null,
-            'to' => $validated['to'] ?? null,
-            'status' => (string) ($validated['status'] ?? ''),
-            'vista' => (string) ($validated['vista'] ?? 'tablero'),
-            'grain' => (string) ($validated['grain'] ?? 'day'),
-            'comuna' => app(CaliComunaLayer::class)->normalize($validated['comuna'] ?? null),
-        ];
     }
 }

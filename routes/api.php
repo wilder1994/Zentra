@@ -22,23 +22,26 @@ Route::get('/observatory/openapi.json', [ObservatoryApiDocsController::class, 's
 
 Route::middleware(['auth:sanctum', 'company.service'])->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
-    Route::post('/auth/logout', [AuthController::class, 'logout']);
+    Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('api.ability:human');
 
-    Route::apiResource('pre-authorizations', PreAuthorizationController::class)->except(['update']);
-    Route::get('correspondence', [CorrespondenceController::class, 'index']);
-    Route::get('correspondence/{correspondence}', [CorrespondenceController::class, 'show']);
+    Route::apiResource('pre-authorizations', PreAuthorizationController::class)->only(['index', 'show'])
+        ->middleware('api.ability:access.pre_authorizations.read');
+    Route::apiResource('pre-authorizations', PreAuthorizationController::class)->only(['store', 'destroy'])
+        ->middleware('api.ability:access.pre_authorizations.write');
+    Route::get('correspondence', [CorrespondenceController::class, 'index'])->middleware('api.ability:access.correspondence.read');
+    Route::get('correspondence/{correspondence}', [CorrespondenceController::class, 'show'])->middleware('api.ability:access.correspondence.read');
 
-    Route::get('visitors/search', [VisitorController::class, 'search']);
+    Route::get('visitors/search', [VisitorController::class, 'search'])->middleware('api.ability:access.visitors.read');
 
     Route::prefix('observatory')->group(function () {
-        Route::get('/events', [ObservatoryController::class, 'events']);
-        Route::get('/events/{event}', [ObservatoryController::class, 'show']);
-        Route::get('/board', [ObservatoryController::class, 'board']);
-        Route::get('/sites', [ObservatoryController::class, 'sites']);
-        Route::post('/reports', [ObservatoryController::class, 'store'])->middleware('throttle:30,1');
+        Route::get('/events', [ObservatoryController::class, 'events'])->middleware('api.ability:observatory.events.read');
+        Route::get('/events/{event}', [ObservatoryController::class, 'show'])->middleware('api.ability:observatory.events.read');
+        Route::get('/board', [ObservatoryController::class, 'board'])->middleware('api.ability:observatory.board.read');
+        Route::get('/sites', [ObservatoryController::class, 'sites'])->middleware('api.ability:observatory.sites.read');
+        Route::post('/reports', [ObservatoryController::class, 'store'])->middleware(['api.ability:observatory.reports.write', 'throttle:30,1']);
     });
 
-    Route::middleware('supervisor.pro')->prefix('supervision')->group(function () {
+    Route::middleware(['api.ability:human', 'supervisor.pro'])->prefix('supervision')->group(function () {
         Route::post('/password', [SupervisorShiftController::class, 'changePassword']);
         Route::get('/shifts/current', [SupervisorShiftController::class, 'current']);
         Route::get('/intake', [SupervisorShiftController::class, 'intake']);

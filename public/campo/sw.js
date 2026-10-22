@@ -1,4 +1,4 @@
-const CACHE = 'zentra-sup-v59';
+const CACHE = 'zentra-sup-v61';
 const PRECACHE = ['./', './index.html', './offline.js', './app.js', './manifest.json'];
 
 self.addEventListener('install', (event) => {

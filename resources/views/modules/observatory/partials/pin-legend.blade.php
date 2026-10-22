@@ -15,7 +15,7 @@
                 <span class="ml-auto text-slate-500 shrink-0">N{{ $type['level'] }}</span>
             </div>
         @empty
-            <p class="text-[11px] text-slate-500">El admin del cliente crea los tipos.</p>
+            <p class="text-[11px] text-slate-500">Sin tipos registrados.</p>
         @endforelse
     </div>
 </div>

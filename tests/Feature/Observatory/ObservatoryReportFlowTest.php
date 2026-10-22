@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Services\Observatory\EnsureObservatoryReportTypesService;
 use App\Services\Tenant\AssignCompanySupervisionPackageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -253,7 +254,7 @@ final class ObservatoryReportFlowTest extends TestCase
         }
     }
 
-    public function test_company_and_client_admin_view_but_cannot_change_status(): void
+    public function test_company_attends_and_client_admin_only_views(): void
     {
         [$client, $colegio] = $this->sites();
         $event = $this->openEvent($client, $colegio);
@@ -293,11 +294,7 @@ final class ObservatoryReportFlowTest extends TestCase
         $this->actingAs($company)
             ->get(route('company.observatory.events.show', $event))
             ->assertOk()
-            ->assertSee('Los estados los cierra el admin de instalaciones', false);
-
-        $this->actingAs($company)->withSession($session)
-            ->patch(route('client.observatory.events.status', $event), ['status' => 'en_atencion'])
-            ->assertForbidden();
+            ->assertSee('Pasar a en atención', false);
 
         $this->actingAs($clientAdmin)->withSession($session)
             ->get(route('client.observatory.events.index'))
@@ -436,10 +433,6 @@ final class ObservatoryReportFlowTest extends TestCase
         ])->assertRedirect();
         $foreign = ObservatoryEvent::query()->latest('id')->firstOrFail();
 
-        $this->actingAs($company)->withSession($session)
-            ->post(route('client.observatory.events.merge', $keep), ['source_event_id' => $source->id])
-            ->assertForbidden();
-
         $this->actingAs($clientAdmin)->withSession($session)
             ->post(route('client.observatory.events.merge', $keep), ['source_event_id' => $source->id])
             ->assertForbidden();
@@ -466,7 +459,7 @@ final class ObservatoryReportFlowTest extends TestCase
         $this->actingAs($company)
             ->get(route('company.observatory.events.show', $keep))
             ->assertOk()
-            ->assertDontSee('Unir aquí', false);
+            ->assertSee('Unir aquí', false);
 
         $this->actingAs($admin)->withSession($session)
             ->post(route('client.observatory.events.merge', $keep), ['source_event_id' => $foreign->id])
@@ -608,7 +601,7 @@ final class ObservatoryReportFlowTest extends TestCase
             ->assertSee('IPS Salud del Ingenio', false)
             ->assertSee('Pines', false)
             ->assertSee('Calor', false)
-            ->assertSee('Desde — Hasta', false)
+            ->assertSee('Filtros', false)
             ->assertSee('Todas', false)
             ->assertSee('cali-comunas.geojson', false)
             ->assertDontSee('libraries=visualization', false)
@@ -651,16 +644,20 @@ final class ObservatoryReportFlowTest extends TestCase
         $this->actingAs($company)
             ->get(route('company.observatory.events.index', ['comuna' => '09']))
             ->assertOk()
-            ->assertSee('IE Santa Librada', false)
-            ->assertDontSee('IE Republica del Peru', false)
-            ->assertSee('Comuna 09', false)
-            ->assertSee('name="comuna" value="09"', false);
+            ->assertSee('Comuna: Comuna 09', false)
+            ->assertViewHas('events', fn ($events): bool => $this->sitesOf($events) === ['IE Santa Librada'])
+            ->assertViewHas('map', fn (array $map): bool => collect($map['sites'])->pluck('name')->all() === ['IE Santa Librada']);
 
         $this->actingAs($company)
             ->get(route('company.observatory.events.index', ['comuna' => 'fuera', 'vista' => 'eventos']))
             ->assertOk()
-            ->assertSee('IE Republica del Peru', false)
-            ->assertDontSee('IE Santa Librada', false);
+            ->assertViewHas('events', fn ($events): bool => $this->sitesOf($events) === ['IE Republica del Peru']);
+    }
+
+    /** @return list<string> */
+    private function sitesOf(LengthAwarePaginator $events): array
+    {
+        return collect($events->items())->map(fn (ObservatoryEvent $event): ?string => $event->installation?->name)->unique()->values()->all();
     }
 
     public function test_cali_comunas_geojson_is_public(): void
@@ -686,7 +683,7 @@ final class ObservatoryReportFlowTest extends TestCase
             ->assertSee('Días con más reportes', false)
             ->assertSee('De dónde llega', false)
             ->assertSee('Atención de folios', false)
-            ->assertSee('API', false)
+            ->assertDontSee('docs/observatory', false)
             ->assertSee('Compartir link', false)
             ->assertSee('Tipos y nivel', false);
     }

@@ -91,7 +91,7 @@ final class BindSupervisorDevice
                 'mobile_device_label' => $row->device_label,
                 'mobile_device_bound_at' => now(),
             ])->save();
-            $user->tokens()->delete();
+            $user->tokens()->where('is_integration', false)->delete();
 
             $row->forceFill([
                 'status' => DeviceChangeStatus::Aprobada->value,

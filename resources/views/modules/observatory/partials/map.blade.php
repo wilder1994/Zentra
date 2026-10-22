@@ -33,31 +33,6 @@
                             :class="mode === 'heat_risk' ? 'bg-white text-slate-900' : 'bg-slate-900 text-slate-200 border border-slate-700'"
                             @click="setMode('heat_risk')">Calor riesgo</button>
                 </div>
-                @if (($map['comunas'] ?? []) !== [])
-                    <div class="relative min-w-[10rem] max-w-[14rem] flex-1" @click.outside="comunaOpen = false">
-                        <input type="search"
-                               class="h-7 w-full rounded-md border border-slate-700 bg-slate-900 px-2 text-[11px] text-white placeholder:text-slate-500"
-                               placeholder="Todas"
-                               :value="comunaOpen ? comunaQ : comunaLabel()"
-                               @focus="comunaOpen = true; comunaQ = ''"
-                               @input="comunaOpen = true; comunaQ = $event.target.value"
-                               @keydown.escape="comunaOpen = false"
-                               autocomplete="off">
-                        <div x-show="comunaOpen" x-cloak
-                             class="absolute left-0 right-0 top-full z-20 mt-1 max-h-48 overflow-y-auto rounded-md border border-slate-700 bg-slate-950 shadow-xl">
-                            <button type="button"
-                                    class="block w-full px-2 py-1.5 text-left text-[11px] text-slate-300 hover:bg-slate-800"
-                                    @click="goComuna('')">Todas</button>
-                            <template x-for="row in filteredComunas()" :key="row.code">
-                                <button type="button"
-                                        class="block w-full px-2 py-1.5 text-left text-[11px] hover:bg-slate-800"
-                                        :class="comuna === row.code ? 'text-white' : 'text-slate-300'"
-                                        x-text="row.name"
-                                        @click="goComuna(row.code)"></button>
-                            </template>
-                        </div>
-                    </div>
-                @endif
                 <div class="ml-auto flex gap-1">
                     <button type="button" class="h-7 px-2.5 rounded-md text-[11px] font-semibold"
                             :class="mapType === 'roadmap' ? 'bg-white text-slate-900' : 'bg-slate-900 text-slate-200 border border-slate-700'"

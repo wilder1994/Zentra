@@ -46,7 +46,7 @@ final class CompanyServiceAccess
         User::query()
             ->where('security_company_id', $companyId)
             ->each(static function (User $user): void {
-                $user->tokens()->delete();
+                $user->tokens()->where('is_integration', false)->delete();
             });
     }
 }

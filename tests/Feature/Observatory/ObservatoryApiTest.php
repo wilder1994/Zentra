@@ -17,9 +17,17 @@ final class ObservatoryApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_openapi_and_docs_are_public(): void
+    public function test_docs_are_for_platform_admins_only(): void
     {
-        $this->get('/docs/observatory')
+        $this->seedWithPilot();
+
+        $this->get('/docs/observatory')->assertRedirect(route('login'));
+
+        $company = User::query()->where('email', 'empresa@sj-seguridad.test')->firstOrFail();
+        $this->actingAs($company)->get('/docs/observatory')->assertForbidden();
+
+        $super = User::query()->role('super-admin')->firstOrFail();
+        $this->actingAs($super)->get('/docs/observatory')
             ->assertOk()
             ->assertSee('API del Observatorio', false);
 

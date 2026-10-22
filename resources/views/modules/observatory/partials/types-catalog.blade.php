@@ -22,7 +22,7 @@
                         </div>
                         @if ($canEdit)
                             <div class="flex items-center gap-2">
-                                <button type="button" @click="editing = true" class="text-xs text-teal-300">Editar</button>
+                                <button type="button" @click="editing = true" class="text-xs {{ ($accent ?? 'teal') === 'indigo' ? 'text-indigo-300' : 'text-teal-300' }}">Editar</button>
                                 <form method="POST" action="{{ route($destroyRoute, $type) }}" onsubmit="return confirm('¿Eliminar este tipo?')">
                                     @csrf
                                     @method('DELETE')
@@ -62,7 +62,7 @@
     @if ($canEdit)
         <div class="rounded-xl border border-slate-800 bg-slate-900 p-4 h-fit">
             <h3 class="text-sm font-semibold text-white mb-3">Nuevo tipo</h3>
-            <form method="POST" action="{{ route($storeRoute) }}" class="space-y-3">
+            <form method="POST" action="{{ $storeUrl ?? route($storeRoute) }}" class="space-y-3">
                 @csrf
                 <input type="text" name="name" value="{{ old('name') }}" required placeholder="Porte de arma" class="w-full h-9 rounded-lg bg-slate-950 border border-slate-700 px-3 text-sm text-white">
                 <x-ui.field-error :messages="$errors->get('name')" />
@@ -84,6 +84,6 @@
             </form>
         </div>
     @else
-        <p class="text-sm text-slate-500">Solo el administrador del cliente puede crear o cambiar tipos.</p>
+        <p class="text-sm text-slate-500">{{ $readOnlyNote ?? 'Solo el administrador del cliente puede crear o cambiar tipos.' }}</p>
     @endif
 </div>

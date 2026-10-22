@@ -39,6 +39,15 @@ final class ObservatoryEventPolicy
             return false;
         }
 
+        if ($user->hasRole('company-admin') || $user->hasRole('colaborador') || $user->hasRole('super-admin')) {
+            $companyId = (int) (app(\App\Support\Platform\ActingCompanyResolver::class)->id($user) ?? $user->security_company_id);
+            if ((int) $event->client?->security_company_id !== $companyId) {
+                return false;
+            }
+
+            return ! $user->hasRole('colaborador') || $user->canAccessClient((int) $event->client_id);
+        }
+
         return $user->hasRole(AssignableRoles::CLIENT_INSTALLATION_ADMIN)
             && $user->canAccessInstallation((int) $event->installation_id)
             && ! $user->isSiteSupport((int) $event->installation_id);

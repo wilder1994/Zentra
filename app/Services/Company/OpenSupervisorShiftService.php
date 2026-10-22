@@ -25,6 +25,7 @@ final class OpenSupervisorShiftService
     public function __construct(
         private readonly SeedSupervisorIntakeDefaultsService $defaults,
         private readonly ManageSupervisorShiftService $shifts,
+        private readonly ResolveSupervisorShiftDeadlineService $deadlines,
     ) {}
 
     public function execute(User $user, OpenSupervisorShiftInput $input): SupervisorShift
@@ -50,6 +51,8 @@ final class OpenSupervisorShiftService
                 'shift_template_id' => 'El turno no pertenece a esta empresa o está inactivo.',
             ]);
         }
+
+        $this->assertWithinSchedule($companyId, $template);
 
         $zone = SupervisorZone::query()
             ->where('security_company_id', $companyId)
@@ -111,6 +114,36 @@ final class OpenSupervisorShiftService
 
             return $shift->fresh(['fleetVehicle', 'zone', 'shiftTemplate']);
         });
+    }
+
+    /**
+     * Sin esto, un turno Día abierto a las 20:00 (o Noche a las 15:00) nacía vencido
+     * y el cierre automático lo cerraba a los pocos minutos.
+     */
+    private function assertWithinSchedule(int $companyId, SupervisorShiftTemplate $template): void
+    {
+        if (! $template->starts_at || ! $template->ends_at) {
+            return;
+        }
+
+        $now = CarbonImmutable::now();
+        if ($this->deadlines->window($now, (string) $template->starts_at, (string) $template->ends_at) !== null) {
+            return;
+        }
+
+        $fits = SupervisorShiftTemplate::query()
+            ->where('security_company_id', $companyId)
+            ->where('is_active', true)
+            ->whereNotNull('starts_at')
+            ->whereNotNull('ends_at')
+            ->get()
+            ->first(fn (SupervisorShiftTemplate $other) => $this->deadlines->window($now, (string) $other->starts_at, (string) $other->ends_at) !== null);
+
+        throw ValidationException::withMessages([
+            'shift_template_id' => 'El turno '.$template->name.' es de '.substr((string) $template->starts_at, 0, 5).' a '.substr((string) $template->ends_at, 0, 5)
+                .' y a esta hora no está en su horario (se puede abrir hasta '.(ResolveSupervisorShiftDeadlineService::EARLY_START_MINUTES / 60).' h antes).'
+                .($fits !== null ? ' Ahora corresponde '.$fits->name.' ('.$fits->scheduleLabel().').' : ' Elija el turno que corresponde a esta hora.'),
+        ]);
     }
 
     private function slotFromTemplate(SupervisorShiftTemplate $template): SupervisorShiftSlot

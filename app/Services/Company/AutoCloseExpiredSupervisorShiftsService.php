@@ -59,9 +59,13 @@ final class AutoCloseExpiredSupervisorShiftsService
 
         DB::transaction(function () use ($shift, $note, $deadline, $nowAt): void {
             $kmEnd = (int) ($shift->km_start ?? 0);
+            $endedAt = $nowAt->gt($deadline) ? $deadline : $nowAt;
+            if ($shift->started_at !== null && $endedAt->lt($shift->started_at)) {
+                $endedAt = \Carbon\CarbonImmutable::parse($shift->started_at->toIso8601String());
+            }
             $shift->update([
                 'status' => SupervisorShiftStatus::Closed,
-                'ended_at' => $nowAt->gt($deadline) ? $deadline : $nowAt,
+                'ended_at' => $endedAt,
                 'km_end' => $shift->km_end ?? $kmEnd,
                 'km_traveled' => $shift->km_traveled ?: $this->gpsKm($shift),
                 'notes' => trim((string) $shift->notes."\n".$note),

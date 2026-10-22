@@ -4,6 +4,7 @@
     $canDetach = $canDetach ?? false;
     $statusAction = $statusAction ?? null;
     $mergeAction = $mergeAction ?? null;
+    $detachRoute = $detachRoute ?? 'client.observatory.events.reports.detach';
     $mergeCandidates = $mergeCandidates ?? collect();
     $folioMap = $folioMap ?? null;
     $isNuevo = $event->status === \App\Enums\ObservatoryEventStatus::Nuevo;
@@ -121,7 +122,7 @@
                             </div>
                         @endif
                         @if ($canDetach && $event->reports->count() > 1)
-                            <form method="POST" action="{{ route('client.observatory.events.reports.detach', [$event, $report]) }}" class="pt-2">
+                            <form method="POST" action="{{ route($detachRoute, [$event, $report]) }}" class="pt-2">
                                 @csrf
                                 <button type="submit" class="h-8 px-2 rounded-md border border-slate-700 text-[11px] font-semibold text-slate-300 hover:bg-slate-800">
                                     Sacar a folio nuevo

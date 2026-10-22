@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Domain\Supervision\Data\OpenSupervisorShiftInput;
 use App\Domain\Supervision\Data\RecordSupervisorShiftReviewInput;
 use App\Enums\SupervisorChecklistKind;
+use App\Enums\SupervisorShiftStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\CloseSupervisorShiftRequest;
 use App\Http\Requests\Api\OpenSupervisorShiftRequest;
@@ -127,7 +128,7 @@ final class SupervisorShiftController extends Controller
             return response()->json($blocked, 423);
         }
 
-        $user->tokens()->delete();
+        $user->tokens()->where('is_integration', false)->delete();
         $token = $user->createToken($request->string('device_name')->toString() ?: 'supervision-pro')->plainTextToken;
 
         return response()->json([
@@ -421,14 +422,30 @@ final class SupervisorShiftController extends Controller
         }
 
         $shift = $this->shiftService->currentFor($request->user());
+        $targetId = (int) ($request->validated('shift_id') ?? 0);
+        if ($shift !== null && $targetId > 0 && (int) $shift->id !== $targetId) {
+            // Cierre guardado en el teléfono de un turno anterior: no debe cerrar el turno nuevo.
+            $shift = null;
+        }
         if ($shift === null) {
             $systemClosed = SupervisorShift::query()
+                ->when($targetId > 0, fn ($q) => $q->whereKey($targetId))
                 ->where('user_id', $request->user()->id)
                 ->where('closed_by_system', true)
                 ->whereNull('close_client_event_id')
                 ->where('ended_at', '>=', now()->subHours(SupervisorCaptureTime::LATE_SYNC_HOURS))
                 ->latest('ended_at')
                 ->first();
+            if ($systemClosed === null && $targetId > 0) {
+                $already = SupervisorShift::query()
+                    ->where('user_id', $request->user()->id)
+                    ->whereKey($targetId)
+                    ->where('status', SupervisorShiftStatus::Closed)
+                    ->first();
+                if ($already !== null) {
+                    return response()->json(['shift' => $already]);
+                }
+            }
             abort_if($systemClosed === null, 422, 'No hay turno abierto.');
 
             return response()->json(['shift' => $this->closeShift->attachToSystemClosed(

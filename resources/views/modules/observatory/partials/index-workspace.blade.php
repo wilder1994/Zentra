@@ -1,15 +1,9 @@
 @php
-    $action = $action ?? '';
-    $search = $search ?? '';
-    $from = $from ?? '';
-    $to = $to ?? '';
-    $status = $status ?? '';
-    $vista = in_array($vista ?? 'tablero', ['tablero', 'eventos'], true) ? ($vista ?? 'tablero') : 'tablero';
-    $grain = in_array($grain ?? 'day', ['day', 'month', 'year'], true) ? ($grain ?? 'day') : 'day';
-    $filterClientId = $filterClientId ?? '';
-    $filterClients = $filterClients ?? collect();
-    $comuna = $comuna ?? '';
-    $comunas = $comunas ?? ($map['comunas'] ?? []);
+    /** @var \App\Support\Observatory\ObservatoryFilters $filters */
+    $vista = in_array($filters->vista, ['tablero', 'eventos'], true) ? $filters->vista : 'tablero';
+    $status = $filters->status;
+    $grain = $filters->grain();
+    $options = $filterOptions ?? ['places' => [], 'types' => [], 'comunas' => []];
     $board = $board ?? [
         'total' => 0, 'nuevo' => 0, 'en_atencion' => 0, 'cerrado' => 0, 'closed_rate' => 0, 'load_rate' => 0,
         'top' => [], 'trend' => ['labels' => ['—'], 'series' => []],
@@ -22,18 +16,6 @@
     $accent = $accent ?? 'teal';
     $linkClass = $accent === 'indigo' ? 'text-indigo-400 hover:text-indigo-300' : 'text-teal-400 hover:text-teal-300';
     $folioClass = $accent === 'indigo' ? 'text-indigo-300' : 'text-teal-300';
-    $searchPlaceholder = $showClientColumn
-        ? 'Buscar por instalación, DANE, cliente o texto…'
-        : 'Buscar por instalación, DANE o texto…';
-    $docsUrl = route('observatory.docs');
-    $exportRoute = $exportRoute ?? null;
-    $exportUrl = $exportRoute ? ($exportRoute.'?'.http_build_query(array_filter([
-        'from' => $from ?: null,
-        'to' => $to ?: null,
-        'grain' => $grain,
-        'comuna' => $comuna ?: null,
-        'client_id' => $filterClientId ?: null,
-    ], static fn ($value) => $value !== null && $value !== ''))) : null;
     $tabUrl = static function (string $tab, ?string $statusValue = null) use ($status): string {
         return request()->fullUrlWithQuery([
             'vista' => $tab,
@@ -102,6 +84,15 @@
     .obs-chart-lg { height: 13.5rem; }
     .obs-gauge { height: auto; min-height: 10.5rem; display: flex; flex-direction: column; overflow: visible; }
     .obs-gauge-plot { height: 7.25rem; position: relative; overflow: visible; }
+    html[data-theme="light"] .obs-kpi,
+    html[data-theme="light"] .obs-card {
+        background: var(--ui-surface);
+        border-color: var(--ui-border);
+        box-shadow: 0 1px 2px rgb(15 23 42 / 0.06);
+    }
+    html[data-theme="light"] .obs-card-h p { color: var(--ui-muted); }
+    html[data-theme="light"] .obs-card-h h3 { color: var(--ui-text); }
+    html[data-theme="light"] .obs-chip { color: #92400e; border-color: rgb(217 119 6 / 0.45); background: rgb(254 243 199 / 0.7); }
 </style>
 @endpush
 
@@ -113,93 +104,42 @@
          data-events='@json($liveEventRows)'
      @endif>
     <div class="space-y-3" @if ($vista === 'tablero') x-data="observatoryBoard(@js($charts))" @endif>
-    <form method="GET" action="{{ $action }}"
-          x-data="obsDateRange({ from: @js($from), to: @js($to) })"
-          class="rounded-xl border border-slate-800 bg-slate-900/70 p-2.5 flex flex-col lg:flex-row lg:flex-wrap xl:flex-nowrap xl:items-end gap-2">
-        <input type="hidden" name="vista" value="{{ $vista }}">
-        <input type="hidden" name="from" :value="from">
-        <input type="hidden" name="to" :value="to">
-        <input type="hidden" name="comuna" value="{{ $comuna }}">
-        @if ($showClientColumn && $filterClients->isNotEmpty())
-            <div class="w-full lg:w-36 shrink-0">
-                <label for="client_id" class="block text-[11px] text-slate-500 mb-1">Cliente</label>
-                <select id="client_id" name="client_id" class="w-full h-9 px-2 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                    <option value="">Todos</option>
-                    @foreach ($filterClients as $row)
-                        <option value="{{ $row->id }}" @selected((string) $filterClientId === (string) $row->id)>{{ $row->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-        @endif
-        <div class="shrink-0">
-            <p class="block text-[11px] text-slate-500 mb-1">Desde — Hasta</p>
-            <button type="button"
-                    class="h-9 px-2.5 inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 text-sm text-slate-200 hover:bg-slate-800"
-                    @click="show()">
-                <svg class="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                    <rect x="3" y="5" width="18" height="16" rx="2"></rect>
-                    <path d="M3 10h18M8 3v4M16 3v4"></path>
-                </svg>
-                <span class="whitespace-nowrap" x-text="label"></span>
-            </button>
-            <template x-teleport="body">
-                <div x-show="open" x-cloak
-                     class="fixed inset-0 z-50 flex items-center justify-center p-4"
-                     @keydown.escape.window="close()">
-                    <div class="absolute inset-0 bg-slate-950/75" @click="close()"></div>
-                    <div class="relative w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-4 shadow-2xl" @click.stop>
-                        <p class="text-[11px] uppercase tracking-wide text-slate-500">Rango</p>
-                        <h3 class="text-sm font-semibold text-white">Desde y hasta</h3>
-                        <div class="mt-3 grid grid-cols-2 gap-3">
-                            <div>
-                                <label for="obs-from" class="block text-[11px] text-slate-500 mb-1">Desde</label>
-                                <input type="date" id="obs-from" x-model="draftFrom"
-                                       class="w-full h-9 px-2 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                            </div>
-                            <div>
-                                <label for="obs-to" class="block text-[11px] text-slate-500 mb-1">Hasta</label>
-                                <input type="date" id="obs-to" x-model="draftTo"
-                                       class="w-full h-9 px-2 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                            </div>
-                        </div>
-                        <div class="mt-4 flex justify-end gap-2">
-                            <button type="button" class="h-9 px-3 rounded-lg border border-slate-700 text-sm text-slate-300" @click="close()">Cerrar</button>
-                            <button type="button" class="h-9 px-3 rounded-lg bg-slate-100 text-sm font-medium text-slate-900" @click="apply()">Aceptar</button>
-                        </div>
-                    </div>
-                </div>
-            </template>
+    @php
+        $chips = [];
+        $drop = static fn (array $keys): string => request()->fullUrlWithoutQuery(array_merge($keys, ['page']));
+        if ($filters->installationId !== null) {
+            $site = collect($options['places'])->firstWhere('value', 'site:'.$filters->installationId);
+            $chips[] = ['Instalación: '.($site['label'] ?? '#'.$filters->installationId), $drop(['installation_id', 'client_id'])];
+        } elseif ($filters->clientId !== null && $showClientColumn) {
+            $client = collect($options['places'])->firstWhere('value', 'client:'.$filters->clientId);
+            $chips[] = ['Cliente: '.($client['label'] ?? '#'.$filters->clientId), $drop(['client_id'])];
+        }
+        if ($filters->status !== '') {
+            $chips[] = ['Estado: '.(\App\Enums\ObservatoryEventStatus::tryFrom($filters->status)?->label() ?? $filters->status), $drop(['status'])];
+        }
+        if ($filters->type !== '') {
+            $chips[] = ['Tipo: '.(collect($options['types'])->firstWhere('value', $filters->type)['label'] ?? $filters->type), $drop(['type'])];
+        }
+        if ($filters->comuna !== '') {
+            $chips[] = ['Comuna: '.(collect($options['comunas'])->firstWhere('code', $filters->comuna)['name'] ?? $filters->comuna), $drop(['comuna'])];
+        }
+        if ($filters->search !== '' && $vista === 'eventos') {
+            $chips[] = ['Texto: '.$filters->search, $drop(['q'])];
+        }
+    @endphp
+    @if ($chips !== [])
+        <div class="flex flex-wrap items-center gap-1.5 text-xs">
+            @foreach ($chips as [$label, $url])
+                <a href="{{ $url }}" class="obs-chip inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-amber-200 hover:bg-amber-500/20">
+                    {{ $label }} <span aria-hidden="true">×</span>
+                </a>
+            @endforeach
+            <a href="{{ request()->fullUrlWithoutQuery(['client_id', 'installation_id', 'status', 'type', 'comuna', 'q', 'page']) }}"
+               class="rounded-full px-2 py-1 text-slate-400 hover:text-white">Limpiar todo</a>
         </div>
-        <div class="shrink-0">
-            <label for="grain" class="block text-[11px] text-slate-500 mb-1">Líneas</label>
-            <select id="grain" name="grain" class="h-9 px-2 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
-                <option value="day" @selected($grain === 'day')>Por día</option>
-                <option value="month" @selected($grain === 'month')>Por mes</option>
-                <option value="year" @selected($grain === 'year')>Por año</option>
-            </select>
-        </div>
-        <div class="flex-1 min-w-[10rem]">
-            <label for="q" class="block text-[11px] text-slate-500 mb-1">Buscar</label>
-            <input type="search" id="q" name="q" value="{{ $search }}" placeholder="{{ $searchPlaceholder }}"
-                   class="w-full h-9 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white placeholder:text-slate-600">
-        </div>
-        @if ($status !== '')
-            <input type="hidden" name="status" value="{{ $status }}">
-        @endif
-        <button type="submit" class="h-9 px-4 shrink-0 rounded-lg border border-slate-700 text-sm text-slate-200 hover:bg-slate-800">Filtrar</button>
-        @if ($vista === 'tablero')
-            @include('modules.observatory.partials.share-modal')
-        @endif
-        @if ($vista === 'tablero' && $exportUrl)
-            <a href="{{ $exportUrl }}"
-               class="h-9 px-4 inline-flex items-center rounded-lg border border-slate-700 text-sm text-slate-300 hover:bg-slate-800">PPTX</a>
-        @endif
-        <a href="{{ $docsUrl }}" target="_blank" rel="noopener"
-           class="h-9 px-4 inline-flex items-center rounded-lg border border-slate-700 text-sm text-slate-300 hover:bg-slate-800">API</a>
-    </form>
-
+    @endif
     @if ($vista === 'tablero')
-        <div class="grid grid-cols-2 xl:grid-cols-4 gap-2">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
             @foreach ([
                 [null, 'Eventos', $board['total'], $status === '', '#94a3b8'],
                 ['nuevo', 'Nuevos', $board['nuevo'], $status === 'nuevo', '#f59e0b'],
@@ -214,18 +154,18 @@
             @endforeach
         </div>
 
-        <div class="grid gap-2 xl:grid-cols-[minmax(0,7fr)_minmax(13rem,3fr)] xl:items-stretch">
+        <div class="grid gap-2 lg:grid-cols-[minmax(0,7fr)_minmax(13rem,3fr)] lg:items-stretch">
             @include('modules.observatory.partials.map', [
                 'map' => $map,
-                'mapCanvasClass' => 'h-80 xl:h-full xl:min-h-[26rem]',
+                'mapCanvasClass' => 'h-80 lg:h-full lg:min-h-[26rem]',
             ])
             @include('modules.observatory.partials.pin-legend')
         </div>
 
-        <div class="grid gap-2 xl:grid-cols-[minmax(14rem,1fr)_minmax(0,2fr)] xl:items-stretch">
+        <div class="grid gap-2 lg:grid-cols-[minmax(14rem,1fr)_minmax(0,2fr)] lg:items-stretch">
             <section class="obs-card p-2.5 flex flex-col min-h-0">
                 <p class="text-[10px] uppercase tracking-wide text-slate-500 shrink-0">Instalaciones por riesgo</p>
-                <div class="mt-1.5 space-y-1.5 overflow-y-auto max-h-48 xl:max-h-none xl:flex-1 sidebar-scroll">
+                <div class="mt-1.5 space-y-1.5 overflow-y-auto max-h-48 lg:max-h-none lg:flex-1 sidebar-scroll">
                     @if ($observatoryLiveUrl)
                         <template x-for="row in (payload.top || [])" :key="row.name + '-' + (row.count ?? 0)">
                             <div class="flex items-start justify-between gap-2 text-sm">
@@ -266,13 +206,13 @@
             <section class="obs-card">
                 <div class="obs-card-h">
                     <p>Tendencia por tipo</p>
-                    <h3>{{ $grain === 'year' ? 'Meses del periodo' : ($grain === 'month' ? 'Días del mes' : 'Día a día') }}</h3>
+                    <h3>{{ $grain === 'year' ? 'Mes a mes' : 'Día a día' }}</h3>
                 </div>
                 <div class="obs-chart obs-chart-lg"><canvas x-ref="trend" aria-label="Tendencia por tipo"></canvas></div>
             </section>
         </div>
 
-        <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-[1.15fr_1.15fr_0.85fr] xl:items-stretch">
+        <div class="grid gap-2 md:grid-cols-2 lg:grid-cols-[1.15fr_1.15fr_0.85fr] lg:items-stretch">
             <section class="obs-card">
                 <div class="obs-card-h">
                     <p>Picos</p>

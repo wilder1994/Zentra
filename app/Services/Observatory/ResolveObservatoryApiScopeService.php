@@ -43,6 +43,22 @@ final class ResolveObservatoryApiScopeService
             ];
         }
 
+        if ($user->hasRole('colaborador')) {
+            $companyId = (int) $user->security_company_id;
+            if ($companyId <= 0) {
+                throw new HttpException(403, 'La empresa no está asignada.');
+            }
+            if ($clientIdFilter !== null && ! $user->canAccessClient($clientIdFilter)) {
+                throw new HttpException(403, 'Ese cliente no está en tu alcance.');
+            }
+
+            return [
+                'company_id' => $companyId,
+                'client_id' => $clientIdFilter,
+                'installation_ids' => $user->assignedInstallationIds() ?? [],
+            ];
+        }
+
         if ($user->hasRole(AssignableRoles::CLIENT_ADMIN) || $user->hasRole(AssignableRoles::CLIENT_INSTALLATION_ADMIN)) {
             $clientId = $clientIdFilter ?? (int) ($user->primary_client_id ?? 0);
             if ($clientId <= 0) {

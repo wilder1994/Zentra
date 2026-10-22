@@ -21,6 +21,7 @@ final class CloseSupervisorShiftRequest extends FormRequest
             'odometer_photo' => ['required', 'image', 'max:5120'],
             'selfie_photo' => ['required', 'image', 'max:5120'],
             'client_event_id' => ['nullable', 'uuid'],
+            'shift_id' => ['nullable', 'integer'],
         ];
     }
 }

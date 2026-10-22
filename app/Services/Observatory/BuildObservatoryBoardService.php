@@ -28,6 +28,8 @@ final class BuildObservatoryBoardService
         ?string $from,
         ?string $to,
         string $grain = 'day',
+        string $status = '',
+        ?array $typeIds = null,
     ): array {
         if ($clientId !== null) {
             $client = Client::query()->find($clientId);
@@ -36,7 +38,7 @@ final class BuildObservatoryBoardService
             }
         }
 
-        $query = $this->scoped($companyId, $clientId, $installationIds, $from, $to);
+        $query = $this->scoped($companyId, $clientId, $installationIds, $from, $to, $status, $typeIds);
         $grain = in_array($grain, ['day', 'month', 'year'], true) ? $grain : 'day';
 
         $counts = (clone $query)
@@ -58,8 +60,8 @@ final class BuildObservatoryBoardService
             'closed_rate' => $total === 0 ? 0 : (int) round(100 * $cerrado / $total),
             'load_rate' => self::loadRate($nuevo, $enAtencion, $total),
             'top' => $this->ranking($query),
-            'trend' => $this->trendByType($companyId, $clientId, $installationIds, $from, $to, $grain, $types),
-            'peaks' => $this->peakDays($companyId, $clientId, $installationIds, $from, $to),
+            'trend' => $this->trendByType($companyId, $clientId, $installationIds, $from, $to, $grain, $types, $status, $typeIds),
+            'peaks' => $this->peakDays($companyId, $clientId, $installationIds, $from, $to, $status, $typeIds),
             'kinds' => $this->seriesByType($query, $types),
             'sources' => $this->seriesByReport($query, 'source', ObservatoryReportSource::cases()),
             'types' => $types,
@@ -80,10 +82,16 @@ final class BuildObservatoryBoardService
 
     /**
      * @param  list<int>|null  $installationIds
+     * @param  list<int>|null  $typeIds  eventos con al menos un reporte de esos tipos
      */
-    public function scoped(?int $companyId, ?int $clientId, ?array $installationIds, ?string $from, ?string $to): Builder
+    public function scoped(?int $companyId, ?int $clientId, ?array $installationIds, ?string $from, ?string $to, string $status = '', ?array $typeIds = null): Builder
     {
         return ObservatoryEvent::query()
+            ->when($status !== '', fn (Builder $q) => $q->where('status', $status))
+            ->when($typeIds !== null, fn (Builder $q) => $q->whereHas(
+                'reports',
+                fn (Builder $r) => $r->whereIn('observatory_report_type_id', $typeIds === [] ? [0] : $typeIds),
+            ))
             ->whereNull('archived_at')
             ->when($clientId !== null, fn (Builder $q) => $q->where('client_id', $clientId))
             ->when($companyId !== null, fn (Builder $q) => $q->whereHas(
@@ -149,15 +157,18 @@ final class BuildObservatoryBoardService
         ?string $to,
         string $grain,
         array $types,
+        string $status = '',
+        ?array $typeIds = null,
     ): array {
         [$start, $end] = $this->range($from, $to, $grain);
         [$labels, $keys, $sql] = $this->buckets($start, $end, $grain);
 
-        $eventIds = $this->scoped($companyId, $clientId, $installationIds, $start->toDateString(), $end->toDateString())->pluck('id');
+        $eventIds = $this->scoped($companyId, $clientId, $installationIds, $start->toDateString(), $end->toDateString(), $status, $typeIds)->pluck('id');
         $raw = $eventIds->isEmpty()
             ? collect()
             : ObservatoryReport::query()
                 ->whereIn('event_id', $eventIds->all())
+                ->when($typeIds !== null, fn ($q) => $q->whereIn('observatory_report_type_id', $typeIds === [] ? [0] : $typeIds))
                 ->selectRaw($sql.' as bucket, COALESCE(observatory_report_type_id, 0) as type_id, COUNT(*) as aggregate')
                 ->groupBy('bucket', 'type_id')
                 ->get();
@@ -199,9 +210,9 @@ final class BuildObservatoryBoardService
      * @param  list<int>|null  $installationIds
      * @return array{labels: list<string>, values: list<int>}
      */
-    private function peakDays(?int $companyId, ?int $clientId, ?array $installationIds, ?string $from, ?string $to): array
+    private function peakDays(?int $companyId, ?int $clientId, ?array $installationIds, ?string $from, ?string $to, string $status = '', ?array $typeIds = null): array
     {
-        $raw = $this->scoped($companyId, $clientId, $installationIds, $from, $to)
+        $raw = $this->scoped($companyId, $clientId, $installationIds, $from, $to, $status, $typeIds)
             ->selectRaw('DATE(opened_at) as bucket, COUNT(*) as aggregate')
             ->groupBy('bucket')
             ->orderByDesc('aggregate')

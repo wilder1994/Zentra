@@ -112,7 +112,9 @@ final class EnterCompanyAsSupportTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.companies.show', $company));
 
         $response->assertOk();
-        $response->assertSee('Entrar como empresa');
+        $response->assertSee('admin-enter-btn', false);
+        $response->assertSee('como soporte', false);
+        $response->assertSee('Integraciones API', false);
         $response->assertSee('Movimientos');
         $response->assertDontSee('Cartera de clientes');
         $response->assertDontSee('Ver en resumen');

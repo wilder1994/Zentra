@@ -40,7 +40,7 @@ final class AuthController extends Controller
         }
 
         $claim = app(ClaimSingleUserSession::class);
-        $occupied = $claim->isOccupied($user) || $user->tokens()->exists();
+        $occupied = $claim->isOccupied($user) || $user->tokens()->where('is_integration', false)->exists();
         if ($occupied && ! $request->boolean('replace_session')) {
             return response()->json([
                 'message' => ClaimSingleUserSession::MESSAGE,
@@ -48,7 +48,7 @@ final class AuthController extends Controller
             ], 409);
         }
         $claim->claim($user);
-        $user->tokens()->delete();
+        $user->tokens()->where('is_integration', false)->delete();
 
         $token = $user->createToken($request->device_name ?? 'api-token')->plainTextToken;
 
@@ -83,7 +83,7 @@ final class AuthController extends Controller
     public function logout(Request $request): JsonResponse
     {
         app(ClaimSingleUserSession::class)->release($request->user());
-        $request->user()->tokens()->delete();
+        $request->user()->tokens()->where('is_integration', false)->delete();
 
         return response()->json(['message' => 'Sesión cerrada.']);
     }

@@ -4,6 +4,20 @@ Lista viva de lo definido y **no implementado**. Al implementar, mover a «Hecho
 
 ## Abiertos
 
+### 6. Integraciones API: cerrar el login personal y aviso en empresa
+Definido 21 oct 2026. Las API keys ya existen (ver Hecho 21 oct · Integraciones API).
+
+- Evaluar que la API del Observatorio solo acepte API keys y no el login personal (`POST /api/auth/login`); hoy acepta ambos.
+- En el panel empresa: «¿Necesitas conectar el Observatorio con otro sistema? Contacta a soporte».
+- Al revocar o regenerar se borra el token y con él su «último uso»; si se quiere historial, guardar el último uso en `api_integration_keys`.
+
+### 7. Siete tests viejos fallan (portería con turno de guarda y panel empresa)
+Visto 21 oct 2026: fallan igual en el commit `f94c887` (antes de los cambios del día), en `zentra_test`.
+
+- `CorrespondenceTest` (3), `OperateAsRoleTest::real_guard_cannot_open_admin_porteria_urls`, `ClientMemberMinorProtectionTest::client_admin_sees_minor_document_but_vigilante_does_not_at_door`, `CompanyClientExpedienteTest::doors_module_blocks_client_admin_but_not_vigilante`: el vigilante recibe 302 (lo manda a iniciar turno de portería desde el 15 oct) o 422.
+- `TenantIsolationTest::company_admin_can_access_company_panel`: espera el texto «Cartera de clientes», que ya no está en Mi empresa.
+- Falta: abrir turno de guarda en esos tests (como `PorteriaRevistaTest`) y actualizar el texto esperado.
+
 ### 4. Mapa del recorrido en la ficha de turno: activar Maps Static API
 Definido 18 oct 2026. Código listo (`BuildShiftRouteMapService`).
 
@@ -14,7 +28,7 @@ Definido 18 oct 2026. Código listo (`BuildShiftRouteMapService`).
 Definido 18 oct 2026 (visto en producción). Código: `field-app/index.html` (CSS).
 
 - En tema claro, `input, select, textarea, button` tienen `color: #fff` fijo: el valor de las listas y campos (p. ej. «Día», «Norte») sale blanco sobre fondo claro. El botón «Tema» casi no se ve y los subtítulos de los botones del menú tienen poco contraste.
-- Arreglo: usar `var(--ink)` en tema claro para campos y `.theme-btn`; revisar contraste de `.entry span`. Requiere PWA nueva y APK 2.7.
+- Arreglo: usar `var(--ink)` en tema claro para campos y `.theme-btn`; revisar contraste de `.entry span`. Requiere PWA nueva y la APK siguiente (la 2.7 del 21 oct no lo incluye).
 
 ### 2. Recorte de planilla PILA pesa 1,14 MB por empleado
 Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
@@ -25,6 +39,39 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 - Detalle: [`EMPLEADOS-Y-CARGOS.md`](EMPLEADOS-Y-CARGOS.md) (Parafiscales).
 
 ## Hecho
+
+### 21 oct 2026 · Turnos del supervisor: relevo anticipado y turno cerrado por el sistema (sin commit)
+Reporte de campo: «abro a las 17:30 y a las 18:00 me cierra» y «cierro sesión, entro con otra zona y me sale sin turno pero me deja pasar revista, luego no aparece». Causa común: `ResolveSupervisorShiftDeadlineService` calculaba el fin del turno en la mañana del mismo día (Noche abierto antes de las 18:00) o en el pasado (Día abierto después de las 18:00) → el cierre automático (cada 5 min) lo cerraba al instante. Casos en datos: Giors 12 oct (Noche 17:53), Esneyder 14 oct (Día 20:10), Jorge 14 oct (Día 18:18 y 23:17, 0 revistas).
+
+- Fin programado = franja de la plantilla que contiene la hora de apertura, con relevo hasta 2 h antes del inicio. Fuera de franja: no se puede abrir («Ahora corresponde Noche (18:00 – 06:00)»); el cierre automático nunca pone fin antes del inicio.
+- App: si el servidor ya no tiene el turno (ping, revista o al volver a entrar), lleva a «Abrir turno» con aviso y conserva la revista en curso, que se recupera al abrir el turno nuevo. El cierre guardado en el teléfono manda `shift_id` y no cierra un turno más nuevo.
+- Tests: `SupervisorShiftScheduleTest`, `ResolveSupervisorShiftDeadlineTest`.
+- Además (mismo día): arranque con «Cargando…» en vez del login, reabre la pantalla donde quedó y guarda en el teléfono lo escrito en cualquier módulo, Observatorio y cierre de turno. **PWA v61 + APK 2.7 (versionCode 17).**
+
+### 21 oct 2026 · PPTX del Observatorio al nivel de Supervisión (sin commit)
+`ExportObservatoryBoardService` (estilo de `ExportSupervisionExecutiveReportService`) + `BuildObservatoryExportDataService` + `RenderObservatoryHeatMapService`. Test: `ObservatoryCompanyManageTest::test_board_pptx_follows_scope_and_filters`.
+
+- Portada con logos y periodo → Resumen (5 tarjetas, donas/barras, texto) → Mapa de calor (Static Maps oscuro + manchas por tipo + folios; sin clave dibuja sobre fondo liso) → una diapositiva por tipo (barras por día/mes, dona de estados, texto) → Instalaciones por riesgo (tabla con semáforo + barras + texto, hasta 3 páginas) → Gracias.
+- Respeta alcance y filtros: empresa, cliente o instalación; fechas, estado, tipo (solo ese tipo), comuna y texto. Colaborador con clientes puntuales solo ve los suyos (tablero, en vivo y PPTX).
+
+### 21 oct 2026 · Integraciones API en la ficha de empresa (súper admin) (sin commit)
+Ruta `/admin/companies/{id}/integraciones`. Migración `2026_10_21_200000` (tabla `api_integration_keys` + `personal_access_tokens.is_integration`). Tests: `ApiIntegrationKeysTest`. Detalle: `OBSERVATORIO.md` (API).
+
+- API key = token Sanctum de **un usuario** de la empresa (existente o externo nuevo: colaborador con Observatorio en Ver, en toda la empresa o en clientes elegidos, clave aleatoria).
+- Permisos por módulo (Observatorio, Portería): Sin acceso / Lectura / Lectura y escritura / Personalizado por endpoint. Cada ruta de `routes/api.php` declara `api.ability:<clave>` (`ApiAbilities`); la app de campo y cerrar sesión son `api.ability:human` (una key no entra).
+- Listar, regenerar (la anterior deja de servir) y revocar. La key se muestra una vez. Ayuda «?» tipo manual en la pestaña.
+- El login personal y la app de campo ya no borran las API keys del usuario.
+- «Entrar como empresa» deja de ser pestaña: botón verde **Entrar** con ícono de puerta junto a «← Empresas».
+- Dos manuales descargables en PDF (súper admin y técnico externo): **Manual de API Key** y **Manual de Integración** (+ Swagger y respuestas 200/201/401/403/422). Ruta `admin.companies.integrations.manual` (`api-key` | `integracion`); contenido en `views/modules/admin/companies/manuals/`.
+- `/docs/observatory` rediseñada: pasos Autorizar → endpoint → Ejecutar, etiquetas de Swagger en español, más contraste, el `curl` muestra `TU_API_KEY` y el contrato OpenAPI habla de API key (no del login personal).
+
+### 21 oct 2026 · Observatorio: filtros en el encabezado, empresa gestiona y tema claro (sin commit)
+Detalle: `OBSERVATORIO.md` (Tablero y Eventos, Estados, Tipos). Tests: `ObservatoryCompanyManageTest` + Observatorio (51 en `zentra_test`).
+
+- Encabezado empresa y cliente: Tablero `[Periodo] [Filtros (n)] [Compartir link] [Descargar PPTX]`; Eventos `[Periodo] [Filtros (n)]`. Fuera: Cliente, buscador, Filtrar, Líneas y API.
+- Modal Filtros: buscador cliente/instalación, Estado, Tipo, Comuna y (Eventos) «Texto o folio». Chips. Filtra tarjetas, mapa, gráficas, en vivo y PPTX. Grano automático (≤62 días por día, más por mes). Periodo por defecto: 1 ene → hoy (arregla «Día a día» en cero).
+- Empresa con Gestionar: cambia estado, une y saca reportes; Tipos por cliente (crear, editar, eliminar) y «Copiar estos tipos a otros clientes».
+- Tema claro del tablero (tarjetas, leyenda, gráficas). Leyenda del mapa en la ficha con los tipos del folio.
 
 ### 18 oct 2026 · Correos de novedades en producción (Brevo)
 Worker `zentra-queue.service` + SMTP Brevo (`smtp-relay.brevo.com:587`, TLS). Remitente `Zentra <noreply@zentra.wcodex.cloud>`, dominio autenticado en Brevo (TXT `brevo-code`, DKIM `brevo1/brevo2._domainkey.zentra`, DMARC `_dmarc.zentra`) en el DNS de Hostinger. Probado: envío directo y por cola (sin fallidos). Plan gratis: 300 correos/día. Detalle: `HOSTING-VPS.md`.

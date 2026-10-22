@@ -11,7 +11,9 @@ use App\Http\Controllers\Public\SignupController;
 use App\Support\Geo\CaliComunaLayer;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/docs/observatory', [ObservatoryApiDocsController::class, 'page'])->name('observatory.docs');
+Route::get('/docs/observatory', [ObservatoryApiDocsController::class, 'page'])
+    ->middleware(['auth', 'active', 'platform.admin'])
+    ->name('observatory.docs');
 Route::get('/geo/cali-comunas.geojson', fn () => app(CaliComunaLayer::class)->download())->name('geo.cali-comunas');
 
 Route::get('/q/{token}', AuthorizationPassController::class)

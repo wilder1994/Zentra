@@ -51,14 +51,14 @@ En el libro de minuta (`/access/guard_logs`), asunto **Novedad** y ubicación de
 
 ## Estados
 
-`nuevo` → `en_atencion` → `cerrado`. **Los gestiona el admin de instalaciones** de esa instalación (`client-installation-admin` con `installation_permission=admin`) en la ficha:
+`nuevo` → `en_atencion` → `cerrado`. **Los gestiona el admin de instalaciones** de esa instalación (`client-installation-admin` con `installation_permission=admin`) y, desde el panel empresa, quien tenga **Gestionar** en Observatorio (admin de empresa; colaboradores según su matriz), en la ficha:
 
 - **Agregar:** observación obligatoria. Desde Nuevo pasa a En atención. Si ya está en atención, el folio no cambia y la nota va a la bitácora.
 - **Cerrar folio:** solo En atención; observación obligatoria. No se reabre.
 
-Cancelar cierra el recuadro, no el folio. El apoyo ve, reporta y no cambia estado ni une. Empresa y `client-admin` solo leen. El botón **Nuevo reporte** se ve siempre en el panel cliente (y si la empresa opera el cliente); si el usuario no es rector/apoyo, al abrir dice que con ese usuario no puede reportar.
+Cancelar cierra el recuadro, no el folio. El apoyo ve, reporta y no cambia estado ni une. `client-admin` y la empresa con **Ver** solo leen. El botón **Nuevo reporte** se ve siempre en el panel cliente (y si la empresa opera el cliente); si el usuario no es rector/apoyo, al abrir dice que con ese usuario no puede reportar.
 
-El mismo admin puede **unir** otro folio del mismo colegio o **sacar** un reporte a un folio nuevo (el evento debe tener al menos dos reportes). No se une ni se saca de un evento cerrado.
+El mismo admin (o la empresa con Gestionar) puede **unir** otro folio del mismo colegio o **sacar** un reporte a un folio nuevo (el evento debe tener al menos dos reportes). No se une ni se saca de un evento cerrado.
 
 ## Quién ve
 
@@ -67,28 +67,28 @@ El mismo admin puede **unir** otro folio del mismo colegio o **sacar** un report
 | Comunidad | `/o/{slug}` |
 | Admin instalaciones / apoyo | `/client/observatory/events` — solo sus instalaciones. Solo el administrador (no el apoyo) cambia estado, une folios o saca un reporte. Ambos pueden **Nuevo reporte**. |
 | Admin del cliente | Mismo listado, todo el cliente. Ve **Nuevo reporte** pero no puede enviarlo. Sin cambiar estado ni unir. |
-| Empresa | `/company/observatory/events` — clientes de la empresa. Seguimiento, no portal, no cambia estado ni une. |
+| Empresa | `/company/observatory/events` — clientes de la empresa. Con **Gestionar** (`observatory.events.update`): cambia estado, une, saca reportes y edita tipos. Con **Ver**: solo lectura. |
 | Colaborador con Observatorio | Mismo panel empresa. Grant a nivel empresa: todos los clientes y el **detalle** del evento. Grant a cliente o instalación: ese alcance. |
 | Supervisor | PWA Observatorio |
 | Vigilante | Minuta → Observatorio si hay puerta de colegio |
-| Software de Secretaría | `/docs/observatory` + token Sanctum. Solo Observatorio de ese cliente |
+| Software de Secretaría | API key (Integraciones API del súper admin). Solo los endpoints y clientes que se le dieron |
 
 Permisos: `observatory.view`, `observatory.events.update`. Tras el alta: `php artisan db:seed --class=RoleAndPermissionSeeder`.
 
 ## Unir / sacar (v1)
 
-En la ficha del evento (`/client/observatory/events/{id}`), solo el admin de esa instalación:
+En la ficha del evento (`/client/observatory/events/{id}` o `/company/observatory/events/{id}`), el admin de esa instalación o la empresa con Gestionar:
 
 - **Unir aquí:** elige otro folio del mismo colegio. Los reportes pasan a este evento y el otro folio se elimina. No se une a un evento cerrado.
 - **Sacar a folio nuevo:** en cada reporte, si el evento está abierto y tiene dos o más. Crea un `EV-` nuevo (`nuevo`) con ese reporte. No se saca de un evento cerrado.
 
-Empresa, `client-admin` y apoyo no ven esos botones.
+`client-admin`, apoyo y empresa con Ver no ven esos botones.
 
 ## Tablero y Eventos
 
 Pestañas **Tablero** | **Eventos** (cuelgan del header, no van dentro de la barra).
 
-- **Tablero:** filtros en una sola fila (xl): **Cliente** angosto (solo empresa), **Desde — Hasta** (ícono; modal Aceptar/Cerrar), Líneas, Buscar, **Filtrar**, Compartir link, **PPTX**, API. `?comuna=` va hidden. Fila 1: mapa + leyenda. **Todas** encuadra Cali y pinta las 22 comunas. Una comuna hace zoom a ese polígono. Calor = círculos (Google quitó HeatmapLayer). Fila 2: instalaciones por riesgo + tendencia. Fila 3: picos · canal · **Atención de folios** (arco verde→rojo; % en el hueco; leyenda Cerrados / En trámite / Total; `load_rate` = `(nuevos + en atención × 0,4) / total`). En vivo: Reverb + sondeo 12 s si el socket no está conectado. El PPTX usa los mismos filtros (fechas, cliente, comuna, grano); solo cifras. Alpine: `panelSidebar` (layout) + `observatoryBoard` / `observatoryMap`. Si `app.js` no registra `panelSidebar`, el mapa y las gráficas quedan en blanco.
+- **Encabezado** (slot `actions`, empresa y cliente): Tablero = `[Periodo] [Filtros (n)] [Compartir link] [Descargar PPTX]`; Eventos = `[Periodo] [Filtros (n)]`. Periodo = `period-picker` de Supervisión; sin `from/to` se usa 1 ene del año → hoy. Filtros (`observatoryFilters`, `partials/filters-panel`): buscador de cliente o instalación (`client_id` / `installation_id`; en cliente solo sus instalaciones), Estado, Tipo de evento (slug), Comuna y, en Eventos, «Texto o folio» (`q`: título, reporte, instalación, DANE, cliente, `EV-000024` o `24`). Chips con × y «Limpiar todo». Todo filtra tarjetas, mapa, gráficas, medidor, eventos, en vivo y PPTX (`ObservatoryFilters`). Grano automático: hasta 62 días por día, más por mes. Sin botón API. Fila 1: mapa + leyenda. **Todas** encuadra Cali y pinta las 22 comunas. Una comuna hace zoom a ese polígono. Calor = círculos (Google quitó HeatmapLayer). Fila 2: instalaciones por riesgo + tendencia. Fila 3: picos · canal · **Atención de folios** (arco verde→rojo; % en el hueco; leyenda Cerrados / En trámite / Total; `load_rate` = `(nuevos + en atención × 0,4) / total`). En vivo: Reverb + sondeo 12 s si el socket no está conectado. El PPTX usa los mismos filtros; solo cifras. Tema claro: `.obs-kpi` / `.obs-card` usan `--ui-surface`; Chart.js lee `data-theme`. Alpine: `panelSidebar` (layout) + `observatoryBoard` / `observatoryMap`. Si `app.js` no registra `panelSidebar`, el mapa y las gráficas quedan en blanco.
 - **Eventos:** tabla folio / instalación / tipo / estado / abierto / Ver (+ cliente en empresa). **Ver** abre la ficha.
 
 ## Ficha
@@ -97,7 +97,7 @@ Grilla 2×2 (xl): mapa | datos del folio; novedades | bitácora. En móvil una c
 
 ## API
 
-Para el software de Secretaría (u otro sistema). Token Sanctum (`POST /api/auth/login`). Solo Observatorio de ese cliente o, en empresa, de sus clientes. No censo ni portería.
+Para el software de Secretaría (u otro sistema). Se conecta con una **API key** creada por el súper admin en la ficha de empresa → **Integraciones API** (`/admin/companies/{id}/integraciones`): la key es de un usuario de la empresa (existente o externo colaborador con Observatorio en Ver, en toda la empresa o en clientes elegidos) y solo abre los endpoints marcados (`observatory.events.read`, `observatory.board.read`, `observatory.sites.read`, `observatory.reports.write`; middleware `api.ability`). Encabezado `Authorization: Bearer <key>`. Sin el permiso: 403 `code=api_key_ability`; revocada o vencida: 401. El token personal (`POST /api/auth/login`) sigue funcionando. No censo ni portería.
 
 | Método | Ruta | Quién |
 |--------|------|--------|
@@ -107,13 +107,13 @@ Para el software de Secretaría (u otro sistema). Token Sanctum (`POST /api/auth
 | GET | `/api/observatory/sites` | Igual |
 | POST | `/api/observatory/reports` | Secretaría = canal Integración. Rector/apoyo = Panel. Empresa no |
 | GET | `/api/observatory/openapi.json` | Público (contrato) |
-| GET | `/docs/observatory` | Público (Swagger) |
+| GET | `/docs/observatory` | Solo súper admin / soporte (Swagger) |
 
 El POST usa las mismas reglas de unión (1 h, mismo colegio y tipo). Anónimo oculta nombre y teléfono.
 
 ## Tipos (catálogo del cliente)
 
-Solo el **admin del cliente** crea y edita: nombre + nivel 1–3 + color. La empresa los ve (filtro por cliente). Semilla: Amenaza N3, Riña N2, Hurto N2, Otro N1. El link `/o/{slug}`, el panel, la PWA y la minuta usan esos tipos. En el tablero empresa (Todos), leyenda, chips y gráficos agrupan por slug para no repetir el mismo tipo de cada cliente.
+Los crean y editan el **admin del cliente** y la empresa con **Gestionar** (pestaña Tipos: buscador de cliente en el encabezado; crear, editar, activar/desactivar, eliminar). Con reportes no se borra (se desactiva); siempre queda uno activo. **Copiar estos tipos a otros clientes** crea en los destinos los que falten por nombre (sin tildes ni mayúsculas) y no toca los existentes (`ManageObservatoryReportTypesService`). Semilla: Amenaza N3, Riña N2, Hurto N2, Otro N1. El link `/o/{slug}`, el panel, la PWA y la minuta usan esos tipos. En el tablero empresa (Todos), leyenda, chips y gráficos agrupan por slug para no repetir el mismo tipo de cada cliente.
 
 Puntaje del colegio = suma de niveles de sus reportes. Tablero: líneas por tipo (día/mes/año) y días pico.
 

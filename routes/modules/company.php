@@ -17,6 +17,7 @@ use App\Http\Controllers\Company\EmployeeController;
 use App\Http\Controllers\Company\InstallationGeoRequestController;
 use App\Http\Controllers\Company\JobTitleController;
 use App\Http\Controllers\Company\ObservatoryEventController;
+use App\Http\Controllers\Company\ObservatoryReportTypeController;
 use App\Http\Controllers\Company\PanicAttentionController;
 use App\Http\Controllers\Company\PersonnelDocumentController;
 use App\Http\Controllers\Company\PorteriaController;
@@ -63,6 +64,22 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
         Route::get('/observatory/events/{event}', [ObservatoryEventController::class, 'show'])
             ->middleware('permission:observatory.view')
             ->name('observatory.events.show');
+        Route::middleware('permission:observatory.events.update')->group(function () {
+            Route::patch('/observatory/events/{event}/status', [ObservatoryEventController::class, 'updateStatus'])
+                ->name('observatory.events.status');
+            Route::post('/observatory/events/{event}/merge', [ObservatoryEventController::class, 'merge'])
+                ->name('observatory.events.merge');
+            Route::post('/observatory/events/{event}/reports/{report}/detach', [ObservatoryEventController::class, 'detach'])
+                ->name('observatory.events.reports.detach');
+            Route::post('/observatory/clients/{client}/types', [ObservatoryReportTypeController::class, 'store'])
+                ->name('observatory.types.store');
+            Route::post('/observatory/clients/{client}/types/copy', [ObservatoryReportTypeController::class, 'copy'])
+                ->name('observatory.types.copy');
+            Route::put('/observatory/types/{type}', [ObservatoryReportTypeController::class, 'update'])
+                ->name('observatory.types.update');
+            Route::delete('/observatory/types/{type}', [ObservatoryReportTypeController::class, 'destroy'])
+                ->name('observatory.types.destroy');
+        });
 
         Route::get('/dashboard', [DashboardController::class, 'index'])
             ->middleware('permission:company.dashboard')

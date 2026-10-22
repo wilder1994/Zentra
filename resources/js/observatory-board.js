@@ -51,9 +51,11 @@ export function obsDateRange(config) {
     };
 }
 
-const SLATE = '#94a3b8';
-const GRID = '#1e293b';
-const MUTED = '#64748b';
+const isLight = () => document.documentElement.dataset.theme === 'light';
+const SLATE = isLight() ? '#4d675f' : '#94a3b8';
+const GRID = isLight() ? '#d5e3de' : '#1e293b';
+const MUTED = isLight() ? '#6b827a' : '#64748b';
+const SURFACE = isLight() ? '#f7fbf9' : '#0f172a';
 
 function chartFont() {
     return { family: 'Figtree, ui-sans-serif, system-ui', size: 10 };
@@ -173,7 +175,7 @@ function drawLoadGauge(canvas, value) {
 
     ctx.beginPath();
     ctx.lineWidth = 3;
-    ctx.strokeStyle = '#0f172a';
+    ctx.strokeStyle = SURFACE;
     ctx.arc(cx, cy, Math.max(4, radius - thickness / 2 - 1.5), start, start + sweep);
     ctx.stroke();
 
@@ -307,8 +309,8 @@ export function observatoryBoard(payload) {
                     labels,
                     datasets: [{
                         data: empty ? values.map(() => 1) : values,
-                        backgroundColor: empty ? values.map(() => '#1e293b') : colors.slice(0, values.length),
-                        borderColor: '#0f172a',
+                        backgroundColor: empty ? values.map(() => GRID) : colors.slice(0, values.length),
+                        borderColor: SURFACE,
                         borderWidth: 2,
                     }],
                 },

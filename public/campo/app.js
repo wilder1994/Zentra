@@ -37,6 +37,8 @@ let postsCache = [];
 let guardsCache = [];
 let syncing = false;
 let closeQueued = false;
+/** Hasta recuperar lo guardado en el teléfono no se autoguarda (evita pisarlo al arrancar). */
+let draftsReady = false;
 let reviewEventId = null;
 let closeEventId = null;
 let logEventId = null;
@@ -159,9 +161,16 @@ function setStatus(text, ok = true) {
 }
 
 function show(id) {
-    ['login', 'change-password', 'open-shift', 'ops', 'close-shift'].forEach((key) => {
-        document.getElementById(key).classList.toggle('hidden', key !== id);
+    ['boot', 'login', 'change-password', 'open-shift', 'ops', 'close-shift'].forEach((key) => {
+        document.getElementById(key)?.classList.toggle('hidden', key !== id);
     });
+    if (id === 'close-shift') rememberScreen('close-shift');
+}
+
+/** Pantalla en la que quedó el supervisor; al volver a la app se reabre ahí. */
+function rememberScreen(screen) {
+    if (!draftsReady || !offlineReady() || !ZentraOffline.currentUserId?.()) return;
+    ZentraOffline.metaSet('uiScreen', screen).catch(() => {});
 }
 
 async function api(path, options = {}) {
@@ -426,6 +435,7 @@ async function sendOutboxItem(row, authToken) {
         const fd = new FormData();
         fd.append('km_end', String(row.body.km_end));
         fd.append('client_event_id', row.clientEventId);
+        if (row.body.shift_id) fd.append('shift_id', String(row.body.shift_id));
         fd.append('odometer_photo', row.files.odometer, 'odometer-end.jpg');
         fd.append('selfie_photo', row.files.selfie, 'selfie-end.jpg');
         await api('/supervision/shifts/close', { method: 'POST', body: fd, ...auth });
@@ -566,6 +576,7 @@ function bindCameras() {
         img.classList.remove('hidden');
         setStatus('Foto tomada.');
         if (key === 'guard') saveReviewSession();
+        if (key === 'odoEnd' || key === 'selfEnd') scheduleSessionSave();
     };
 }
 
@@ -691,6 +702,8 @@ function showOpsHome() {
     document.getElementById('sheets-card')?.classList.add('hidden');
     document.getElementById('observatory-card')?.classList.add('hidden');
     hideGeoCard();
+    rememberScreen('home');
+    scheduleSessionSave();
 }
 
 function showReview() {
@@ -701,6 +714,118 @@ function showReview() {
     hideGeoCard();
     document.getElementById('review-card').classList.remove('hidden');
     refreshSitesIfStale();
+    rememberScreen('review');
+    scheduleSessionSave();
+}
+
+/** Autoguardado en el teléfono de lo que se está escribiendo (módulo, Observatorio, cierre de turno). */
+function bindDraftAutosave() {
+    const moduleForm = document.getElementById('module-form');
+    moduleForm?.addEventListener('input', scheduleSessionSave);
+    moduleForm?.addEventListener('change', scheduleSessionSave);
+    moduleForm?.addEventListener('click', (ev) => {
+        if (ev.target.closest('[data-rep-add], [data-rep-remove]')) setTimeout(scheduleSessionSave, 0);
+    });
+    document.getElementById('mod-client')?.addEventListener('change', scheduleSessionSave);
+    ['obs-body', 'obs-q'].forEach((id) => document.getElementById(id)?.addEventListener('input', scheduleSessionSave));
+    ['obs-kind', 'obs-anonymous'].forEach((id) => document.getElementById(id)?.addEventListener('change', scheduleSessionSave));
+    document.getElementById('km-end')?.addEventListener('input', scheduleSessionSave);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') flushDrafts();
+    });
+    window.addEventListener('pagehide', flushDrafts);
+}
+
+function flushDrafts() {
+    if (!draftsReady) return;
+    clearTimeout(sessionSaveTimer);
+    saveReviewSession();
+    saveObsDraft();
+    saveCloseDraft();
+}
+
+function visible(id) {
+    const el = document.getElementById(id);
+    return Boolean(el && !el.classList.contains('hidden'));
+}
+
+async function saveObsDraft() {
+    if (!offlineReady() || !visible('ops') || !visible('observatory-card')) return;
+    const body = document.getElementById('obs-body').value;
+    const photos = {};
+    ['obs-0', 'obs-1', 'obs-2'].forEach((key) => { if (modulePhotos[key]) photos[key] = modulePhotos[key]; });
+    const empty = !obsSite && !body.trim() && !document.getElementById('obs-kind').value && !Object.keys(photos).length;
+    try {
+        await ZentraOffline.metaSet('obsDraft', empty ? null : {
+            site: obsSite,
+            q: document.getElementById('obs-q').value,
+            kind: document.getElementById('obs-kind').value,
+            body,
+            anonymous: document.getElementById('obs-anonymous').checked,
+            pin: obsPin,
+            photos,
+        });
+    } catch (e) {
+        // sin almacenamiento
+    }
+}
+
+async function restoreObsDraft() {
+    if (!offlineReady()) return;
+    const draft = await ZentraOffline.metaGet('obsDraft').catch(() => null);
+    if (!draft) return;
+    await loadObservatoryKinds().catch(() => {});
+    obsSite = draft.site || null;
+    document.getElementById('obs-q').value = draft.q || draft.site?.name || '';
+    document.getElementById('obs-picked').textContent = obsSite
+        ? `Elegido: ${obsSite.name}${obsSite.client ? ` · ${obsSite.client}` : ''}`
+        : '';
+    if (obsSite) fillObsKinds(kindsForSite(obsSite));
+    document.getElementById('obs-kind').value = draft.kind || '';
+    document.getElementById('obs-body').value = draft.body || '';
+    document.getElementById('obs-anonymous').checked = Boolean(draft.anonymous);
+    document.getElementById('obs-anon-warn').classList.toggle('hidden', !draft.anonymous);
+    Object.entries(draft.photos || {}).forEach(([slot, blob]) => { if (blob) applySlotPhoto(slot, blob); });
+    if (draft.pin) obsPin = draft.pin;
+    if (obsSite) placeObsPin(obsSite);
+    setStatus('Se recuperó el reporte del Observatorio que estabas llenando.');
+}
+
+async function clearObsDraft() {
+    try { await ZentraOffline.metaSet('obsDraft', null); } catch (e) { /* sin almacenamiento */ }
+}
+
+async function saveCloseDraft() {
+    if (!offlineReady() || !visible('close-shift')) return;
+    const km = document.getElementById('km-end').value;
+    try {
+        await ZentraOffline.metaSet('closeDraft', {
+            km,
+            odometer: blobs.odoEnd || null,
+            selfie: blobs.selfEnd || null,
+        });
+    } catch (e) {
+        // sin almacenamiento
+    }
+}
+
+async function restoreCloseDraft() {
+    if (!offlineReady()) return;
+    const draft = await ZentraOffline.metaGet('closeDraft').catch(() => null);
+    if (!draft) return;
+    if (draft.km) document.getElementById('km-end').value = draft.km;
+    [['odoEnd', 'snap-odo-end', draft.odometer], ['selfEnd', 'snap-self-end', draft.selfie]].forEach(([key, imgId, blob]) => {
+        if (!blob) return;
+        blobs[key] = blob;
+        const img = document.getElementById(imgId);
+        img.src = URL.createObjectURL(blob);
+        img.classList.remove('hidden');
+    });
+    setStatus('Se recuperó el cierre de turno que estabas llenando.');
+}
+
+async function clearCloseDraft() {
+    try { await ZentraOffline.metaSet('closeDraft', null); } catch (e) { /* sin almacenamiento */ }
 }
 
 function openModule(key, from = 'home') {
@@ -735,6 +860,8 @@ function openModule(key, from = 'home') {
     if (existing) prefillModule(existing);
     document.getElementById('module-card').scrollIntoView({ behavior: 'smooth' });
     if (currentModule.requires_client) refreshSitesIfStale();
+    rememberScreen('module');
+    scheduleSessionSave();
 }
 
 function foldText(text) {
@@ -1075,19 +1202,86 @@ function announceDiscarded(data) {
 }
 
 function moduleState() {
-    if (!currentModule || !['uniform', 'trainings'].includes(currentModule.key)) return null;
+    if (!currentModule) return null;
     if (document.getElementById('module-card').classList.contains('hidden')) return null;
+    let payload = {};
+    try { payload = readPayload(); } catch (e) { payload = {}; }
     return {
         key: currentModule.key,
-        payload: readPayload(),
+        from: moduleReturn,
+        payload,
+        form: moduleSnapshot(),
         photos: { ...modulePhotos },
         timer: currentModule.key === 'trainings' ? trainingTimer : null,
     };
 }
 
+/** Copia de lo escrito en el módulo abierto (campos, tarjetas repetibles y cliente). */
+function moduleSnapshot() {
+    const form = document.getElementById('module-form');
+    const values = {};
+    form?.querySelectorAll('input, select, textarea').forEach((el) => {
+        if (el.type === 'file') return;
+        if (el.type === 'radio') {
+            if (el.checked && el.name) values[`radio:${el.name}`] = el.value;
+            return;
+        }
+        if (!el.id) return;
+        values[el.id] = el.type === 'checkbox' ? (el.checked ? '1' : '0') : el.value;
+    });
+    const cards = {};
+    (currentModule?.fields || []).filter((field) => field.type === 'repeatable').forEach((field) => {
+        cards[field.name] = [...document.querySelectorAll(`#rep-${field.name} .item-card`)].map((card) => card.dataset.index);
+    });
+    return { values, cards, client: document.getElementById('mod-client')?.value || '' };
+}
+
+function restoreModuleSnapshot(snapshot) {
+    if (!snapshot || !currentModule) return;
+    const form = document.getElementById('module-form');
+    (currentModule.fields || []).filter((field) => field.type === 'repeatable').forEach((field) => {
+        const indexes = snapshot.cards?.[field.name];
+        const root = document.getElementById(`rep-${field.name}`);
+        const list = root?.querySelector('.rep-list');
+        if (!indexes?.length || !list) return;
+        list.innerHTML = '';
+        indexes.forEach((index) => {
+            list.insertAdjacentHTML('beforeend', repeatableItemHtml(field, index));
+            const card = list.querySelector(`.item-card[data-index="${index}"]`);
+            bindAllPhotoGrids(card);
+            bindComputedRisk(card, field, index);
+        });
+        syncRepeatable(root, field);
+    });
+    const apply = () => Object.entries(snapshot.values || {}).forEach(([key, value]) => {
+        if (key.startsWith('radio:')) {
+            const name = key.slice(6);
+            const input = [...form.querySelectorAll('input[type="radio"]')].find((el) => el.name === name && el.value === value);
+            if (input) input.checked = true;
+            return;
+        }
+        const el = document.getElementById(key);
+        if (!el) return;
+        if (el.type === 'checkbox') el.checked = value === '1';
+        else el.value = value;
+    });
+    // Dos pasadas: hay listas cuyas opciones dependen de otro campo (p. ej. resultado según modalidad).
+    apply();
+    form.dispatchEvent(new Event('change', { bubbles: true }));
+    apply();
+    form.querySelectorAll('select').forEach((el) => el.dispatchEvent(new Event('change', { bubbles: true })));
+    const client = document.getElementById('mod-client');
+    if (client && snapshot.client) client.value = snapshot.client;
+}
+
 function scheduleSessionSave() {
+    if (!draftsReady) return;
     clearTimeout(sessionSaveTimer);
-    sessionSaveTimer = setTimeout(saveReviewSession, 400);
+    sessionSaveTimer = setTimeout(() => {
+        saveReviewSession();
+        saveObsDraft();
+        saveCloseDraft();
+    }, 400);
 }
 
 async function saveReviewSession() {
@@ -1142,13 +1336,17 @@ async function restoreReviewSession() {
     showReview();
     renderHub();
     if (session.open?.key && catalog.some((m) => m.key === session.open.key)) {
-        openModule(session.open.key, 'review');
+        openModule(session.open.key, session.open.from || 'review');
+        restoreModuleSnapshot(session.open.form);
         prefillModule(session.open);
         if (trainingRunning()) {
             try { history.pushState({ trainingLock: true }, ''); } catch (e) { /* sin historial */ }
         }
     }
-    setStatus(trainingRunning() ? 'Capacitación en curso recuperada.' : 'Se recuperó la revista en curso.');
+    const standalone = session.open?.from === 'home';
+    setStatus(trainingRunning()
+        ? 'Capacitación en curso recuperada.'
+        : (standalone ? 'Se recuperó lo que estabas registrando.' : 'Se recuperó la revista en curso.'));
 }
 
 window.addEventListener('popstate', () => {
@@ -1888,7 +2086,15 @@ async function persistReview() {
         reviewEventId = null;
         announceDiscarded(data);
     } catch (e) {
-        if (!ZentraOffline.isOfflineError(e)) throw e;
+        if (!ZentraOffline.isOfflineError(e)) {
+            if (e.status === 422 && /turno/i.test(e.message || '')) {
+                await saveReviewSession();
+                lastShiftCheck = 0;
+                await recheckShift();
+                throw new Error('Tu turno ya no está abierto (fin del horario o cierre desde el panel). Abre un turno nuevo; la revista sigue guardada en el teléfono.');
+            }
+            throw e;
+        }
         await enqueueOrThrow(queued, 'Revista guardada en el teléfono. Se enviará al reconectar.');
         currentReview = { id: null, pending: true, client_id: reviewClient.id };
         reviewEventId = null;
@@ -1992,7 +2198,12 @@ async function loadCurrent() {
             await ZentraOffline.setUser(data.supervisor.id, token());
         }
         const shift = data.shift;
+        const previous = await ZentraOffline.metaGet('shift').catch(() => null);
         await ZentraOffline.metaSet('shift', shift || null);
+        if (!shift && previous && !closeQueued) {
+            shiftLost();
+            return null;
+        }
         const nameEl = document.getElementById('sup-name');
         if (nameEl) nameEl.textContent = data.supervisor?.name || '';
         if (data.supervisor?.has_selfie) {
@@ -2007,6 +2218,24 @@ async function loadCurrent() {
         }
         throw e;
     }
+}
+
+/** El servidor ya no tiene el turno abierto (cierre automático por horario): no seguir capturando. */
+function shiftLost() {
+    stopPing();
+    activity = null;
+    document.getElementById('shift-label').textContent = 'Sin turno';
+    show('open-shift');
+    setStatus('Tu turno ya está cerrado (fin del horario o cierre desde el panel). Abre un turno nuevo para seguir; la revista en curso queda guardada en el teléfono.', false);
+}
+
+let lastShiftCheck = 0;
+
+/** Revisa el turno en el servidor (como mucho cada 30 s) cuando una captura dice que no hay turno abierto. */
+async function recheckShift() {
+    if (Date.now() - lastShiftCheck < 30000) return;
+    lastShiftCheck = Date.now();
+    try { await loadCurrent(); } catch (e) { /* sin red: se revisa en el próximo intento */ }
 }
 
 function applyShift(shift) {
@@ -2124,6 +2353,8 @@ function startPing() {
                 if (ZentraOffline.isOfflineError(e)) {
                     await ZentraOffline.enqueue({ type: 'ping', clientEventId: body.client_event_id, body });
                     await updateSyncBar();
+                } else if (e.status === 422) {
+                    await recheckShift();
                 }
             }
         } finally {
@@ -2172,6 +2403,8 @@ function stopPing() {
 }
 
 function logout(opts = {}) {
+    flushDrafts();
+    draftsReady = false;
     stopPing();
     const uid = ZentraOffline.currentUserId?.() || null;
     const tok = token();
@@ -2195,12 +2428,22 @@ async function afterLogin(data = {}) {
         return;
     }
     await restorePack();
+    let uiRestored = false;
+    const cachedShift = await ZentraOffline.metaGet('shift').catch(() => null);
+    if (cachedShift && catalog.length) {
+        // Entrar de una vez con lo del teléfono; el servidor se consulta por detrás.
+        applyShift(cachedShift);
+        enterOps();
+        await restoreUi();
+        uiRestored = true;
+    }
     try {
         await Promise.all([loadSites(), loadIntake()]);
         if (!catalog.length) await loadCatalog();
     } catch (e) {
         if (!ZentraOffline.isOfflineError(e)) {
             setStatus(e.message, false);
+            if (!uiRestored) show('login');
             return;
         }
     }
@@ -2218,11 +2461,42 @@ async function afterLogin(data = {}) {
     await updateSyncBar();
     flushOutbox();
     if (shift) {
-        enterOps();
-        await restoreReviewSession();
+        if (!uiRestored) {
+            enterOps();
+            await restoreUi();
+        } else {
+            renderHub();
+        }
         return;
     }
+    draftsReady = true;
+    if (!document.getElementById('open-shift').classList.contains('hidden')) return;
     show('open-shift');
+}
+
+/** Reabre la pantalla donde quedó: revista o módulo en curso, Observatorio o cierre de turno. */
+async function restoreUi() {
+    draftsReady = false;
+    try {
+        let screen = 'home';
+        try { screen = (await ZentraOffline.metaGet('uiScreen')) || 'home'; } catch (e) { screen = 'home'; }
+        const session = await ZentraOffline.metaGet('reviewSession').catch(() => null);
+        if (session) {
+            await restoreReviewSession();
+            if (session.open?.key || screen === 'review') return;
+        }
+        if (screen === 'observatory') {
+            showObservatory();
+            await restoreObsDraft();
+            return;
+        }
+        if (screen === 'close-shift') {
+            show('close-shift');
+            await restoreCloseDraft();
+        }
+    } finally {
+        draftsReady = true;
+    }
 }
 
 bindCameras();
@@ -2236,6 +2510,7 @@ bindCameras();
 })();
 bindReviewUi();
 bindObsPhotoGrid();
+bindDraftAutosave();
 document.querySelectorAll('[data-collapse]').forEach((btn) => {
     btn.onclick = () => {
         const body = document.getElementById(btn.dataset.collapse);
@@ -2341,6 +2616,7 @@ document.getElementById('btn-start').onclick = () => withBusy(
         await loadCurrent();
         enterOps();
         setStatus('Turno iniciado. Clientes y catálogo en el teléfono.');
+        await restoreUi();
     },
 );
 
@@ -2364,9 +2640,12 @@ document.getElementById('btn-close').onclick = () => withBusy(
         if (!blobs.odoEnd || !blobs.selfEnd) throw new Error('Tome foto del odómetro y selfie de cierre.');
         if (!closeEventId) closeEventId = ZentraOffline.uuid();
         const clientEventId = closeEventId;
+        const openShift = await ZentraOffline.metaGet('shift').catch(() => null);
+        const shiftId = openShift?.id ? String(openShift.id) : '';
         const fd = new FormData();
         fd.append('km_end', document.getElementById('km-end').value);
         fd.append('client_event_id', clientEventId);
+        if (shiftId) fd.append('shift_id', shiftId);
         fd.append('odometer_photo', blobs.odoEnd, 'odometer-end.jpg');
         fd.append('selfie_photo', blobs.selfEnd, 'selfie-end.jpg');
         try {
@@ -2378,6 +2657,8 @@ document.getElementById('btn-close').onclick = () => withBusy(
             currentReview = null;
             reviewDraftLogs = [];
             await ZentraOffline.metaSet('shift', null);
+            await ZentraOffline.metaSet('uiScreen', 'home').catch(() => {});
+            await clearCloseDraft();
             setStatus('Turno cerrado.');
             logout();
             return;
@@ -2386,7 +2667,7 @@ document.getElementById('btn-close').onclick = () => withBusy(
             await ZentraOffline.enqueue({
                 type: 'close',
                 clientEventId,
-                body: { km_end: document.getElementById('km-end').value },
+                body: { km_end: document.getElementById('km-end').value, shift_id: shiftId },
                 files: { odometer: blobs.odoEnd, selfie: blobs.selfEnd },
             });
             closeEventId = null;
@@ -2394,6 +2675,7 @@ document.getElementById('btn-close').onclick = () => withBusy(
             await ZentraOffline.metaSet('closeQueued', true);
             blobs.odoEnd = blobs.selfEnd = null;
             stopPing();
+            await clearCloseDraft();
             await updateSyncBar();
             show('ops');
             showOpsHome();
@@ -2620,6 +2902,7 @@ function showObservatory() {
     document.getElementById('observatory-card').classList.remove('hidden');
     loadObservatoryKinds();
     if (obsSite) placeObsPin(obsSite);
+    rememberScreen('observatory');
 }
 
 function fillObsKinds(kinds) {
@@ -2848,11 +3131,15 @@ document.getElementById('btn-obs-send').onclick = () => withBusy(
         document.getElementById('obs-anonymous').checked = false;
         document.getElementById('obs-anon-warn').classList.add('hidden');
         resetObsPhotos();
+        await clearObsDraft();
         showOpsHome();
     },
 );
 
-document.getElementById('btn-open-observatory').onclick = () => showObservatory();
+document.getElementById('btn-open-observatory').onclick = () => {
+    showObservatory();
+    if (!obsSite && !document.getElementById('obs-body').value.trim()) restoreObsDraft();
+};
 document.getElementById('btn-panic').onclick = async () => {
     try {
         await api('/supervision/panic', {
@@ -3142,6 +3429,7 @@ document.getElementById('btn-logout-open').onclick = logout;
 
 if (token()) {
     if (!offlineReady()) {
+        show('login');
         setStatus('Actualice la app (borre datos del sitio o recargue).', false);
     } else {
         ZentraOffline.restoreUserFromStorage();
@@ -3150,9 +3438,13 @@ if (token()) {
             if (e.status === 401) {
                 localStorage.removeItem('token');
                 show('login');
+            } else if (!document.getElementById('boot').classList.contains('hidden')) {
+                show('login');
             }
         });
     }
+} else {
+    show('login');
 }
 
 if ('serviceWorker' in navigator && !isNativeApp()) {

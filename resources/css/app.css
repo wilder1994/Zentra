@@ -93,6 +93,43 @@
     background: var(--admin-tab-bg-active);
 }
 
+.api-manual { font-size: 0.875rem; line-height: 1.6; color: #cbd5e1; }
+.api-manual h2 { margin: 1.25rem 0 0.4rem; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #c4b5fd; }
+.api-manual p { margin: 0.35rem 0; }
+.api-manual ul, .api-manual ol { margin: 0.35rem 0 0.6rem 1.25rem; }
+.api-manual ul { list-style: disc; }
+.api-manual ol { list-style: decimal; }
+.api-manual li { margin: 0.2rem 0; }
+.api-manual strong { color: #f1f5f9; }
+.api-manual code { border-radius: 0.25rem; background: #1e293b; padding: 0 0.3rem; font-size: 0.75rem; color: #e2e8f0; }
+.api-manual pre { margin: 0.5rem 0; overflow-x: auto; border: 1px solid #1e293b; border-radius: 0.5rem; background: #020617; padding: 0.75rem; font-size: 0.7rem; line-height: 1.5; color: #cbd5e1; }
+.api-manual pre code { background: none; padding: 0; }
+.api-manual table { width: 100%; margin: 0.5rem 0 0.75rem; border-collapse: collapse; font-size: 0.78rem; }
+.api-manual th, .api-manual td { border: 1px solid #1e293b; padding: 0.4rem 0.55rem; text-align: left; vertical-align: top; }
+.api-manual th { background: #0f172a; color: #e2e8f0; font-weight: 600; }
+.api-manual .note { margin: 0.5rem 0; border-left: 3px solid #f59e0b; border-radius: 0.25rem; background: rgb(120 53 15 / 0.25); padding: 0.45rem 0.7rem; font-size: 0.8rem; color: #fde68a; }
+.api-manual .lead { color: #e2e8f0; }
+.api-manual .meta { font-size: 0.75rem; color: #64748b; }
+
+html[data-theme="light"] .api-manual { color: #334155; }
+html[data-theme="light"] .api-manual h2 { color: #6d28d9; }
+html[data-theme="light"] .api-manual strong, html[data-theme="light"] .api-manual .lead { color: #0f172a; }
+html[data-theme="light"] .api-manual code { background: #f1f5f9; color: #0f172a; }
+html[data-theme="light"] .api-manual th, html[data-theme="light"] .api-manual td { border-color: #e2e8f0; }
+html[data-theme="light"] .api-manual th { background: #f8fafc; color: #0f172a; }
+html[data-theme="light"] .api-manual .note { background: #fffbeb; color: #92400e; }
+
+html[data-theme="light"] .admin-enter-btn {
+    color: #047857;
+    background: #ecfdf5;
+    border-color: #10b981;
+}
+
+html[data-theme="light"] .admin-enter-btn:hover {
+    color: #065f46;
+    background: #d1fae5;
+}
+
 .admin-header-tab:focus-visible {
     outline: 2px solid #64748b;
     outline-offset: 2px;

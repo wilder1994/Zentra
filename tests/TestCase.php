@@ -153,10 +153,15 @@ abstract class TestCase extends BaseTestCase
             ->where('security_company_id', $companyId)
             ->orderBy('sort_order')
             ->first();
-        $template = SupervisorShiftTemplate::query()
+        $templates = SupervisorShiftTemplate::query()
             ->where('security_company_id', $companyId)
+            ->where('is_active', true)
             ->orderBy('sort_order')
-            ->first();
+            ->get();
+        $deadlines = app(\App\Services\Company\ResolveSupervisorShiftDeadlineService::class);
+        $template = $templates->first(fn (SupervisorShiftTemplate $row) => $row->starts_at && $row->ends_at
+            && $deadlines->window(\Carbon\CarbonImmutable::now(), (string) $row->starts_at, (string) $row->ends_at) !== null)
+            ?? $templates->first();
 
         $ppe = [];
         foreach (array_keys(SupervisorChecklistItem::keyedLabels($companyId, SupervisorChecklistKind::Ppe)) as $key) {
