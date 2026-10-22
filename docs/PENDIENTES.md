@@ -40,7 +40,7 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
-### 21 oct 2026 · Turnos del supervisor: relevo anticipado y turno cerrado por el sistema (sin commit)
+### 21 oct 2026 · Turnos del supervisor: relevo anticipado y turno cerrado por el sistema (commit 487a92a + c0e8af9, desplegado 21 oct)
 Reporte de campo: «abro a las 17:30 y a las 18:00 me cierra» y «cierro sesión, entro con otra zona y me sale sin turno pero me deja pasar revista, luego no aparece». Causa común: `ResolveSupervisorShiftDeadlineService` calculaba el fin del turno en la mañana del mismo día (Noche abierto antes de las 18:00) o en el pasado (Día abierto después de las 18:00) → el cierre automático (cada 5 min) lo cerraba al instante. Casos en datos: Giors 12 oct (Noche 17:53), Esneyder 14 oct (Día 20:10), Jorge 14 oct (Día 18:18 y 23:17, 0 revistas).
 
 - Fin programado = franja de la plantilla que contiene la hora de apertura, con relevo hasta 2 h antes del inicio. Fuera de franja: no se puede abrir («Ahora corresponde Noche (18:00 – 06:00)»); el cierre automático nunca pone fin antes del inicio.
@@ -48,13 +48,13 @@ Reporte de campo: «abro a las 17:30 y a las 18:00 me cierra» y «cierro sesió
 - Tests: `SupervisorShiftScheduleTest`, `ResolveSupervisorShiftDeadlineTest`.
 - Además (mismo día): arranque con «Cargando…» en vez del login, reabre la pantalla donde quedó y guarda en el teléfono lo escrito en cualquier módulo, Observatorio y cierre de turno. **PWA v61 + APK 2.7 (versionCode 17).**
 
-### 21 oct 2026 · PPTX del Observatorio al nivel de Supervisión (sin commit)
+### 21 oct 2026 · PPTX del Observatorio al nivel de Supervisión (commit 487a92a + c0e8af9, desplegado 21 oct)
 `ExportObservatoryBoardService` (estilo de `ExportSupervisionExecutiveReportService`) + `BuildObservatoryExportDataService` + `RenderObservatoryHeatMapService`. Test: `ObservatoryCompanyManageTest::test_board_pptx_follows_scope_and_filters`.
 
 - Portada con logos y periodo → Resumen (5 tarjetas, donas/barras, texto) → Mapa de calor (Static Maps oscuro + manchas por tipo + folios; sin clave dibuja sobre fondo liso) → una diapositiva por tipo (barras por día/mes, dona de estados, texto) → Instalaciones por riesgo (tabla con semáforo + barras + texto, hasta 3 páginas) → Gracias.
 - Respeta alcance y filtros: empresa, cliente o instalación; fechas, estado, tipo (solo ese tipo), comuna y texto. Colaborador con clientes puntuales solo ve los suyos (tablero, en vivo y PPTX).
 
-### 21 oct 2026 · Integraciones API en la ficha de empresa (súper admin) (sin commit)
+### 21 oct 2026 · Integraciones API en la ficha de empresa (súper admin) (commit 487a92a + c0e8af9, desplegado 21 oct)
 Ruta `/admin/companies/{id}/integraciones`. Migración `2026_10_21_200000` (tabla `api_integration_keys` + `personal_access_tokens.is_integration`). Tests: `ApiIntegrationKeysTest`. Detalle: `OBSERVATORIO.md` (API).
 
 - API key = token Sanctum de **un usuario** de la empresa (existente o externo nuevo: colaborador con Observatorio en Ver, en toda la empresa o en clientes elegidos, clave aleatoria).
@@ -65,7 +65,7 @@ Ruta `/admin/companies/{id}/integraciones`. Migración `2026_10_21_200000` (tabl
 - Dos manuales descargables en PDF (súper admin y técnico externo): **Manual de API Key** y **Manual de Integración** (+ Swagger y respuestas 200/201/401/403/422). Ruta `admin.companies.integrations.manual` (`api-key` | `integracion`); contenido en `views/modules/admin/companies/manuals/`.
 - `/docs/observatory` rediseñada: pasos Autorizar → endpoint → Ejecutar, etiquetas de Swagger en español, más contraste, el `curl` muestra `TU_API_KEY` y el contrato OpenAPI habla de API key (no del login personal).
 
-### 21 oct 2026 · Observatorio: filtros en el encabezado, empresa gestiona y tema claro (sin commit)
+### 21 oct 2026 · Observatorio: filtros en el encabezado, empresa gestiona y tema claro (commit 487a92a + c0e8af9, desplegado 21 oct)
 Detalle: `OBSERVATORIO.md` (Tablero y Eventos, Estados, Tipos). Tests: `ObservatoryCompanyManageTest` + Observatorio (51 en `zentra_test`).
 
 - Encabezado empresa y cliente: Tablero `[Periodo] [Filtros (n)] [Compartir link] [Descargar PPTX]`; Eventos `[Periodo] [Filtros (n)]`. Fuera: Cliente, buscador, Filtrar, Líneas y API.
