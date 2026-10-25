@@ -1,6 +1,8 @@
 # Hosting VPS (Zentra)
 
-**Última actualización:** 21 octubre 2026
+**Última actualización:** 24 octubre 2026
+
+Corte 24 oct 2026 (exportación de clientes y empleados en el mismo formato de la plantilla de importación, compatible con Arzen): sin migrate y sin dependencias nuevas. Pull + `route:cache` + `view:cache` + `config:cache` + `queue:restart`. Sin `npm run build`.
 
 Corte 21 oct 2026 (Observatorio rediseñado + Integraciones API + PPTX nuevo + turnos del supervisor + app 2.7): **con migrate** `2026_10_21_200000` (tabla `api_integration_keys` + `personal_access_tokens.is_integration`). Sin dependencias nuevas de Composer ni npm y sin seeder. Pull + `migrate --force` + `npm run build` + `config:cache` + `route:cache` + `view:cache` + `queue:restart` + reload php-fpm. El PPTX del Observatorio usa **Maps Static API** (misma clave que el mapa del recorrido) para el mapa de calor; sin ella dibuja los folios sobre fondo liso. Necesita GD con FreeType (ya está). APK **2.7** (versionCode 17) en `public/downloads/` y PWA `/campo` (SW **v61**). Las API keys se crean en la ficha de empresa → **Integraciones API** (súper admin).
 

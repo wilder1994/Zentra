@@ -6,6 +6,9 @@
 <x-company-layout :title="$pageTitle">
     @if (! $operateMode)
         <x-slot:actions>
+            @can('viewAny', App\Models\Client::class)
+                <x-ui.button variant="secondary" :href="route('company.clients.export')" size="sm" title="Clientes registrados en el formato de carga (sirve para Arzen)">Exportar</x-ui.button>
+            @endcan
             @can('company.clients.manage')
                 <x-ui.button variant="secondary" :href="route('company.clients.template')" size="sm">Formato</x-ui.button>
                 <button

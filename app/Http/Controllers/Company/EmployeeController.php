@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Company;
 use App\Domain\Employee\Data\SaveEmployeeData;
 use App\Enums\BloodGroup;
 use App\Enums\Sex;
+use App\Exports\EmployeeDataExport;
 use App\Exports\EmployeeImportTemplateExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\PreviewEmployeeImportRequest;
@@ -80,6 +81,16 @@ final class EmployeeController extends Controller
         $this->authorize('create', Employee::class);
 
         return Excel::download(new EmployeeImportTemplateExport, 'formato-empleados-zentra.xlsx');
+    }
+
+    public function exportData(Request $request): BinaryFileResponse
+    {
+        $this->authorize('viewAny', Employee::class);
+
+        return Excel::download(
+            new EmployeeDataExport($this->companyId($request)),
+            'empleados-zentra-'.now()->format('Y-m-d').'.xlsx',
+        );
     }
 
     public function storeImportPreview(PreviewEmployeeImportRequest $request): RedirectResponse

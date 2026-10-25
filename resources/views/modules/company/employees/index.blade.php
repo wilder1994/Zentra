@@ -1,5 +1,6 @@
 <x-company-layout title="Empleados">
     <x-slot:actions>
+        <x-ui.button variant="secondary" :href="route('company.employees.export')" size="sm" title="Empleados activos en el formato de carga (sirve para Arzen)">Exportar</x-ui.button>
         <x-ui.button variant="secondary" :href="route('company.employees.template')" size="sm">Formato</x-ui.button>
         <button
             type="button"

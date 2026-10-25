@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Company;
 
 use App\Domain\Tenant\Data\CreateClientData;
 use App\Enums\PartyType;
+use App\Exports\ClientDataExport;
 use App\Exports\ClientImportTemplateExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\PreviewClientImportRequest;
@@ -161,6 +162,16 @@ final class ClientController extends Controller
         $this->authorize('create', Client::class);
 
         return Excel::download(new ClientImportTemplateExport, 'formato-clientes-zentra.xlsx');
+    }
+
+    public function exportData(Request $request): BinaryFileResponse
+    {
+        $this->authorize('viewAny', Client::class);
+
+        return Excel::download(
+            new ClientDataExport($this->companyId($request)),
+            'clientes-zentra-'.now()->format('Y-m-d').'.xlsx',
+        );
     }
 
     public function storeImportPreview(PreviewClientImportRequest $request): RedirectResponse

@@ -168,6 +168,7 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
         Route::middleware('permission:company.employees.view|company.employees.manage|company.settings.manage')->group(function () {
             Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
             Route::get('/employees/template', [EmployeeController::class, 'downloadTemplate'])->name('employees.template');
+            Route::get('/employees/export', [EmployeeController::class, 'exportData'])->name('employees.export');
             Route::get('/employees/lookup', [EmployeeController::class, 'lookup'])->name('employees.lookup');
             Route::get('/employees/import/preview', [EmployeeController::class, 'showImportPreview'])->name('employees.import.preview');
             Route::get('/employees/{employee}', [EmployeeController::class, 'show'])->whereNumber('employee')->name('employees.show');
@@ -379,6 +380,9 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
         Route::get('/clients/template', [ClientController::class, 'downloadTemplate'])
             ->middleware('permission:company.clients.manage')
             ->name('clients.template');
+        Route::get('/clients/export', [ClientController::class, 'exportData'])
+            ->middleware('permission:company.clients.view|company.clients.manage')
+            ->name('clients.export');
         Route::post('/clients/import/preview', [ClientController::class, 'storeImportPreview'])
             ->middleware('permission:company.clients.manage')
             ->name('clients.import.preview.store');

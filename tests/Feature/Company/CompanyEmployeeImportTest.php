@@ -107,7 +107,7 @@ final class CompanyEmployeeImportTest extends TestCase
         ]);
     }
 
-    public function test_assignment_columns_block_preview_and_commit(): void
+    public function test_assignment_columns_are_ignored_with_a_warning(): void
     {
         $this->seedWithPilot();
         $admin = $this->admin();
@@ -115,23 +115,49 @@ final class CompanyEmployeeImportTest extends TestCase
         $this->actingAs($admin)->post(route('company.employees.import.preview.store'), [
             'paste' => $this->pasteRow([
                 'client_legal_name' => 'Palmas del Ingenio',
+                'installation' => 'Sede norte',
+                'post' => 'Portería',
             ]),
         ])->assertRedirect(route('company.employees.import.preview'));
 
         $this->actingAs($admin)
             ->get(route('company.employees.import.preview'))
             ->assertOk()
-            ->assertSee('no se asignan por Excel')
-            ->assertDontSee('Aceptar y cargar');
+            ->assertSee('se ignoran')
+            ->assertSee('Aceptar y cargar');
 
         $this->actingAs($admin)
-            ->from(route('company.employees.import.preview'))
             ->post(route('company.employees.import.commit'))
-            ->assertRedirect(route('company.employees.import.preview'));
+            ->assertRedirect();
 
-        $this->assertDatabaseMissing('employees', [
+        $this->assertDatabaseHas('employees', [
             'email' => 'ana.import@sj-seguridad.test',
         ]);
+    }
+
+    public function test_export_uses_the_import_format_with_active_employees(): void
+    {
+        $this->seedWithPilot();
+        $admin = $this->admin();
+
+        $this->actingAs($admin)->post(route('company.employees.import.preview.store'), [
+            'paste' => $this->pasteRow(),
+        ]);
+        $this->actingAs($admin)->post(route('company.employees.import.commit'));
+
+        $response = $this->actingAs($admin)->get(route('company.employees.export'));
+        $response->assertOk();
+
+        $tmp = sys_get_temp_dir().DIRECTORY_SEPARATOR.'empleados-'.uniqid().'.xlsx';
+        file_put_contents($tmp, file_get_contents($response->getFile()->getPathname()));
+        $sheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tmp)->getSheetByName(EmployeeExcelSchema::DATA_SHEET);
+        unlink($tmp);
+
+        $rows = $sheet->toArray(null, false, false);
+        $this->assertSame(EmployeeExcelSchema::headers(), $rows[0]);
+
+        $documents = array_column(array_slice($rows, 1), 1);
+        $this->assertContains('1098000111', array_map('strval', $documents));
     }
 
     public function test_email_is_required_even_if_grey_in_excel(): void

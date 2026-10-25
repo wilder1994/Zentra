@@ -227,7 +227,7 @@ final class PreviewEmployeeImportService
             }
         }
         if ($assignmentFilled !== []) {
-            $errors[] = 'Razón social, instalaciones, sector y puesto no se asignan por Excel. Déjalas vacías: el árbol se crea a mano en la ficha del cliente.';
+            $warnings[] = 'Razón social, instalaciones, sector y puesto se ignoran: en Zentra el puesto se asigna en la ficha del cliente.';
         }
 
         $birthDate = $this->parseDateString($values['birth_date']);

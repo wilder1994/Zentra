@@ -73,6 +73,34 @@ final class CompanyClientImportTest extends TestCase
         $this->assertFalse($client->has_supervision);
     }
 
+    public function test_export_uses_the_import_format_with_registered_clients(): void
+    {
+        $this->seedWithPilot();
+        $admin = $this->admin();
+
+        $this->actingAs($admin)->post(route('company.clients.import.preview.store'), [
+            'paste' => $this->pasteRow(),
+        ]);
+        $this->actingAs($admin)->post(route('company.clients.import.commit'));
+
+        $response = $this->actingAs($admin)->get(route('company.clients.export'));
+        $response->assertOk();
+
+        $tmp = sys_get_temp_dir().DIRECTORY_SEPARATOR.'clientes-'.uniqid().'.xlsx';
+        file_put_contents($tmp, file_get_contents($response->getFile()->getPathname()));
+        $spreadsheet = IOFactory::load($tmp);
+        unlink($tmp);
+
+        $rows = $spreadsheet->getSheetByName(ClientExcelSchema::DATA_SHEET)->toArray(null, false, false);
+        $this->assertSame(ClientExcelSchema::headers(), $rows[0]);
+
+        $imported = collect(array_slice($rows, 1))->first(fn (array $row) => (string) $row[4] === '901888777-6');
+        $this->assertNotNull($imported);
+        $this->assertSame('Residencial Importado', $imported[1]);
+        $this->assertSame('Jurídica', $imported[0]);
+        $this->assertSame('NO', $imported[13]);
+    }
+
     public function test_import_rejects_access_when_quota_full(): void
     {
         $this->seedWithPilot();
