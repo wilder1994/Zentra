@@ -36,7 +36,7 @@ function loadGoogleMaps(key) {
     return mapsLoader;
 }
 
-/** Tablero de Instalaciones (empresa): KPIs, mapa agrupado, instalaciones con sus servicios, novedades y revistas. */
+/** Tablero de Instalaciones (empresa): mapa agrupado + lista de instalaciones/servicios. */
 export function installationsBoard() {
     let map = null;
     let pins = [];
@@ -112,24 +112,6 @@ export function installationsBoard() {
             }
 
             return shareButton({ title: m.name, subtitle: m.client || '', address: m.address || '', lat: m.lat, lng: m.lng }, { label: true });
-        },
-
-        get reviewsPct() {
-            const expected = Number(this.board.reviews_expected_today || 0);
-            if (expected === 0) {
-                return null;
-            }
-
-            return Math.min(100, Math.round((Number(this.board.reviews_done_today || 0) / expected) * 100));
-        },
-
-        get reviewsTone() {
-            const pct = this.reviewsPct;
-            if (pct === null) {
-                return 'slate';
-            }
-
-            return pct >= 90 ? 'emerald' : (pct >= 60 ? 'amber' : 'red');
         },
 
         async bootMap() {

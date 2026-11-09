@@ -125,7 +125,7 @@ final class CompanyInstallationDirectoryTest extends TestCase
             ->assertSee('IDESC Cali', false)
             ->assertSee($rector->name, false)
             ->assertSee('Administrador', false)
-            ->assertSee('Apoyo', false)
+            ->assertSee('Perfil de sitio', false)
             ->assertSee('Puestos', false);
     }
 

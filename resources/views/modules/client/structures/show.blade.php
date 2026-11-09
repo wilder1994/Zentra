@@ -41,7 +41,7 @@
 
         <div class="rounded-xl border border-slate-800 overflow-hidden">
             <div class="px-4 py-3 bg-slate-950/60 border-b border-slate-800">
-                <h3 class="text-sm font-semibold text-white">Personas en este nodo</h3>
+                <h3 class="text-sm font-semibold text-white">Personas en esta unidad</h3>
             </div>
             <table class="min-w-full text-sm">
                 <tbody class="divide-y divide-slate-800">

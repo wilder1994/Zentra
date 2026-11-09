@@ -8,6 +8,7 @@ use App\Models\Correspondence;
 use App\Models\Structure;
 use App\Models\StructureMember;
 use App\Models\User;
+use App\Services\Resident\SendResidentPushService;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,7 @@ final class ManageCorrespondenceService
         private readonly TenantContext $tenant,
         private readonly PorteriaDoorService $doors,
         private readonly AuditLogger $audit,
+        private readonly SendResidentPushService $push,
     ) {}
 
     /**
@@ -76,6 +78,20 @@ final class ManageCorrespondenceService
             'quantity' => $quantity,
             'carrier' => $item->carrier,
         ]);
+
+        $this->push->toStructure(
+            $clientId,
+            $item->structure_id !== null ? (int) $item->structure_id : null,
+            $item->structure_member_id !== null ? (int) $item->structure_member_id : null,
+            'Correspondencia en portería',
+            $quantity > 1
+                ? "Tienes {$quantity} paquetes pendientes de retiro."
+                : 'Tienes un paquete pendiente de retiro.',
+            [
+                'type' => 'correspondence',
+                'correspondence_id' => (string) $item->id,
+            ],
+        );
 
         return $item;
     }

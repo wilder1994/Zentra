@@ -20,6 +20,7 @@ use App\Models\Location;
 use App\Models\StructureType;
 use App\Models\SupervisorPostModality;
 use App\Repositories\ClientRepository;
+use App\Services\Access\PorteriaDoorService;
 use App\Services\Company\CommitClientImportService;
 use App\Services\Company\ManageArchiveService;
 use App\Services\Company\PreviewClientImportService;
@@ -33,6 +34,7 @@ use App\Support\Company\InstallationSiteAdmins;
 use App\Support\Platform\ActingCompanyResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use InvalidArgumentException;
@@ -299,7 +301,10 @@ final class ClientController extends Controller
 
         $installations = in_array($vista, ['cliente', 'sitio'], true)
             ? $client->installations()
-                ->with($vista === 'cliente' ? ['profile'] : [
+                ->with($vista === 'cliente' ? [
+                    'profile',
+                    'locations' => fn ($q) => $q->where('is_active', true)->orderBy('code'),
+                ] : [
                     'profile',
                     'rector',
                     'locations' => fn ($q) => $q->orderBy('code'),
@@ -417,25 +422,91 @@ final class ClientController extends Controller
         $this->authorize('operate', $client);
         abort_unless($client->has_access, 403);
 
-        $hasDoors = Location::query()
-            ->withoutGlobalScopes()
-            ->where('client_id', $client->id)
-            ->where('is_active', true)
-            ->whereNotNull('installation_id')
-            ->exists();
-
-        if (! $hasDoors) {
+        $doors = $this->activeDoorsForClient($client);
+        if ($doors->isEmpty()) {
             return redirect()
                 ->route('company.clients.show', $client)
                 ->with('error', 'Este cliente no tiene puertas. Sin puertas no hay portería que operar.');
         }
 
+        try {
+            $door = $this->resolveOperateDoor($request, $doors);
+        } catch (ValidationException $e) {
+            return redirect()
+                ->route('company.clients.show', $client)
+                ->with('error', $e->validator->errors()->first() ?: 'Elige instalación y puerta.');
+        }
+
+        $installationId = (int) $door->installation_id;
         $request->session()->put(config('tenancy.session.active_client_key'), $client->id);
-        CompanyOperateContext::enter((int) $client->id, CompanyOperateContext::MODE_PORTERIA);
+        CompanyOperateContext::enter((int) $client->id, CompanyOperateContext::MODE_PORTERIA, $installationId);
+        app(PorteriaDoorService::class)->remember($request, (int) $door->id);
+
+        $label = trim(($door->installation?->name ? $door->installation->name.' · ' : '').$door->name);
 
         return redirect()
             ->route('access.dashboard')
-            ->with('success', "Operando portería en: {$client->name}");
+            ->with('success', "Operando portería: {$label}");
+    }
+
+    /**
+     * @param  Collection<int, Location>  $doors
+     */
+    private function resolveOperateDoor(Request $request, Collection $doors): Location
+    {
+        $locationId = (int) $request->input('location_id');
+        $installationId = (int) $request->input('installation_id');
+
+        if ($locationId > 0) {
+            $door = $doors->firstWhere('id', $locationId);
+            if ($door === null) {
+                throw ValidationException::withMessages([
+                    'location_id' => 'La puerta no es válida para este cliente.',
+                ]);
+            }
+            if ($installationId > 0 && (int) $door->installation_id !== $installationId) {
+                throw ValidationException::withMessages([
+                    'location_id' => 'La puerta no pertenece a esa instalación.',
+                ]);
+            }
+
+            return $door;
+        }
+
+        $scoped = $doors;
+        if ($installationId > 0) {
+            $scoped = $doors->where('installation_id', $installationId)->values();
+            if ($scoped->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'installation_id' => 'Esa instalación no tiene puertas activas.',
+                ]);
+            }
+        } elseif ($doors->pluck('installation_id')->unique()->count() > 1) {
+            throw ValidationException::withMessages([
+                'installation_id' => 'Elige la instalación que vas a operar.',
+            ]);
+        }
+
+        if ($scoped->count() === 1) {
+            return $scoped->first();
+        }
+
+        throw ValidationException::withMessages([
+            'location_id' => 'Elige la puerta que vas a operar.',
+        ]);
+    }
+
+    /** @return Collection<int, Location> */
+    private function activeDoorsForClient(Client $client): Collection
+    {
+        return Location::query()
+            ->withoutGlobalScopes()
+            ->where('client_id', $client->id)
+            ->where('is_active', true)
+            ->whereNotNull('installation_id')
+            ->with('installation:id,name')
+            ->orderBy('name')
+            ->get();
     }
 
     public function operateClient(Request $request, Client $client): RedirectResponse

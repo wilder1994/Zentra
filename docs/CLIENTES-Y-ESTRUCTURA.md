@@ -51,7 +51,7 @@ Instalaciones las crea **solo la empresa**, en `/company/installations` (con cli
 
 ## Directorio de instalaciones
 
-`/company/installations` (rediseño 17 oct 2026): header con selector **Cliente** (lista al abrir, filtra al escribir sin tildes, ↑↓ Enter; `x-ui.filter-picker`) y **+ Instalación** (preselecciona el cliente filtrado). El cliente elegido (`?client_id=`) filtra toda la pantalla y el refresco en vivo (`GET /company/sig/live.json?client_id=`). KPIs compactos (~65 px, ícono a la izquierda, número y detalle en una línea): Instalaciones (+ sin ubicación), Servicios hoy (+ vigilantes), Revistas hoy (cumplidas/esperadas, barra con semáforo) y Novedades hoy (+ hora de la última). Contenedores de 384 px, en dos filas: **Mapa** | **Instalaciones y servicios**; **Novedades de servicio** | **Revistas del supervisor**. Mapa con gotas agrupadas por zoom (ver `DISENO-UI-ZENTRA.md` §10.1) y tarjeta fija en la esquina con **Ver instalación** y **Compartir**. **Instalaciones y servicios** (una fila por instalación con servicios y vigilantes; clic despliega sus puestos con modalidad, revistas/día y vigilantes; buscador interno por nombre, código o DANE; botón ubicar en el mapa). Ya no hay tabla paginada ni buscador abajo (`installationsBoard`). **Crear** siempre con cliente. La ficha `/company/installations/{id}` y `?vista=sitio` comparten la **misma tarjeta**: mapa estático (~28%) | detalle a todo el ancho. Cabecera en **una fila**: Cliente (nombre + dirección debajo) · Perfil de sitio · Área · Administrador. Fila de acciones: píldoras (Puerta / Puesto / Vigilantes / Activa) a la izquierda; **Historial · Crear · Editar · Archivar · Ver ficha** a la derecha. **Crear** es dropdown (Puerta / Puesto / Vigilante). Puertas en fila horizontal (Editar / Archivar). Puestos y vigilantes con scroll. Historial = novedades `service_change` de esa instalación. El **nombre puede repetirse**. `code` interno se genera solo; **no** es DANE. El perfil (`installation_profiles`) reemplaza el enum `kind`: DANE obligatorio solo si el perfil lo exige (p. ej. Colegio de sistema). Área: comuna IDESC en Cali (no editable); fuera, el usuario la escribe. Alta también desde la ficha del cliente.
+`/company/installations` (8 nov 2026): header con selector **Cliente** (`x-ui.filter-picker`) y **+ Instalación**. Filtro `?client_id=` + live `GET /company/sig/live.json?client_id=`. **Solo** una fila: **Mapa** | **Instalaciones y servicios** (buscador nombre/código/DANE; fila expandible con puestos). Sin KPIs ni feeds de novedades/revistas (esos van en **Mi empresa → Operación del día**). Mapa con gotas agrupadas (ver `DISENO-UI-ZENTRA.md` §10.1). La ficha `/company/installations/{id}` y `?vista=sitio` comparten la **misma tarjeta**: mapa ~28% | detalle. Cabecera: Cliente · Perfil · Área · Administrador. Acciones: Historial · Crear (Puerta/Puesto/Vigilante) · Editar · Archivar · Ver ficha. Puertas y puestos con Editar/Archivar. Perfil (`installation_profiles`) reemplaza `kind`.
 
 Los asignados (`client_user_installation_assignments`) se parten en dos bloques: **Administrador** (`installation_permission=admin`) y **Apoyo** (`support`). Formato `cargo · nombre`. Si un bloque está vacío, se muestra — . `rector_user_id` es solo el **contacto del directorio**, no el único admin. El permiso es el mismo en todas las instalaciones de esa persona. Apoyo opera el censo y no borra nodos. El panel cliente tiene el mismo directorio (sin crear) y el árbol de nodos en la ficha.
 
@@ -185,7 +185,7 @@ Listado `/company/clients` vacío: **«Aún no tienes clientes creados en la car
 
 Pestañas de ficha empresa (`/company/clients/{id}`): **Cliente** | **Resumen** (si `has_access`) | **Instalaciones**.
 
-- Cliente: ficha + Operar portería / Operar cliente / Operar instalación, Editar, Gestión de módulos. Sin «+ Cliente» aquí.
+- Cliente: ficha + menú **Operar** (Cliente → Instalación → Portería; modales si hay 2+ opciones), Editar, Gestión de módulos. Sin «+ Cliente» aquí.
 - Instalaciones (`?vista=sitio`): tarjeta unificada por instalación (mapa, perfil, puertas, puestos, Crear, Historial). Sin revistas aquí.
 - Operar cliente + flag: sidebar **Documentos** (`/client/documents`), solo empleados con puesto en ese cliente.
 
@@ -213,7 +213,7 @@ El panel `/client/installations` es el directorio de instalaciones (tabla + fich
 
 | Método | Ruta | Uso |
 |--------|------|-----|
-| GET | `/company/installations` | Tablero de instalaciones: filtro por cliente (`?client_id=`), KPIs, mapa, novedades, revistas e instalaciones con sus servicios |
+| GET | `/company/installations` | Directorio: filtro cliente, mapa + lista Instalaciones y servicios |
 | GET/PUT | `/company/installations/{id}` | Ficha (misma tarjeta que sitio) / editar (perfil, geo, DANE, área, admin/apoyo, puestos) |
 | GET | `/company/ajustes` | Hub Ajustes (Empresa · Clientes/sitio · App de campo); paneles AJAX |
 | GET | `/company/ajustes/panel/{key}` | Panel JSON de un catálogo (lista + alta) |

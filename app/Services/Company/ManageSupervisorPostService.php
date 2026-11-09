@@ -181,9 +181,10 @@ final class ManageSupervisorPostService
                 return $post->refresh()->load('employees');
             }
 
-            // Solo cambio de vigilantes: no exigir motivo (alta o retiro de personal).
+            // Sin motivo: solo vigilantes, o solo renombrar el puesto.
             $staffOnly = $staffLine !== null && count($parts) === 1;
-            $this->assertObservations($data['observations'] ?? null, required: ! $staffOnly);
+            $nameOnly = count($parts) === 1 && str_starts_with($parts[0], 'Nombre «');
+            $this->assertObservations($data['observations'] ?? null, required: ! $staffOnly && ! $nameOnly);
 
             $installation = $post->installation;
             if ($installation instanceof Installation) {

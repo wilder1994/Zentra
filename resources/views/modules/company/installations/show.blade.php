@@ -17,6 +17,7 @@
             'installationProfiles' => $installationProfiles,
             'maps' => $maps,
             'showFichaLink' => false,
+            'returnTo' => 'installation',
         ])
     </div>
 </x-company-layout>

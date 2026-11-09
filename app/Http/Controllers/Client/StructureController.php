@@ -54,7 +54,7 @@ final class StructureController extends Controller
 
         return redirect()
             ->route('client.installations.show', $installationId)
-            ->with('success', 'Estructura creada correctamente.');
+            ->with('success', 'Agregado correctamente a la estructura.');
     }
 
     public function show(Structure $structure): View

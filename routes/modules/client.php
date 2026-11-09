@@ -157,15 +157,19 @@ Route::middleware(['auth', 'password.changed', 'active', 'tenancy.access', 'clie
             Route::get('/pets/{pet}', [PetController::class, 'show'])->name('pets.show');
         });
 
-        Route::get('/app-users', [AppUserController::class, 'index'])
-            ->middleware('permission:client.app_users.manage')
-            ->name('app-users.index');
-        Route::get('/app-users/create', [AppUserController::class, 'create'])
-            ->middleware('permission:client.app_users.manage')
-            ->name('app-users.create');
-        Route::post('/app-users', [AppUserController::class, 'store'])
-            ->middleware('permission:client.app_users.manage')
-            ->name('app-users.store');
+        Route::middleware('permission:client.app_users.manage')->group(function () {
+            Route::get('/app-users', [AppUserController::class, 'index'])->name('app-users.index');
+            Route::get('/app-users/create', [AppUserController::class, 'create'])->name('app-users.create');
+            Route::post('/app-users', [AppUserController::class, 'store'])->name('app-users.store');
+            Route::get('/app-users/{appUser}', [AppUserController::class, 'show'])->name('app-users.show');
+            Route::get('/app-users/{appUser}/edit', [AppUserController::class, 'edit'])->name('app-users.edit');
+            Route::put('/app-users/{appUser}', [AppUserController::class, 'update'])->name('app-users.update');
+            Route::delete('/app-users/{appUser}', [AppUserController::class, 'destroy'])->name('app-users.destroy');
+            Route::post('/app-users/{appUser}/resend', [AppUserController::class, 'resend'])->name('app-users.resend');
+
+            Route::get('/descargas', [\App\Http\Controllers\Client\DownloadsController::class, 'index'])->name('downloads.index');
+            Route::get('/descargas/apk', [\App\Http\Controllers\Client\DownloadsController::class, 'apk'])->name('downloads.apk');
+        });
 
         Route::get('/users', [UserController::class, 'index'])
             ->middleware('permission:client.users.manage')

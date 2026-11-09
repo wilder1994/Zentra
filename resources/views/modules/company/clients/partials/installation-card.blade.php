@@ -7,6 +7,7 @@
     $canPosts = $canManageTree && $installation->is_active && ($client->has_access || $client->has_supervision);
     $canCreate = $canDoors || $canPosts;
     $showFichaLink = $showFichaLink ?? true;
+    $returnTo = $returnTo ?? null;
     $maps = $maps ?? ['api_key' => config('google-maps.api_key')];
     $historyUrl = route('company.installations.history', $installation);
     $addressLine = trim(implode(' · ', array_filter([
@@ -30,6 +31,7 @@
         historyError: '',
         guardPostId: @js($activePosts->count() === 1 ? (string) $activePosts->first()->id : ''),
         doorEditId: null,
+        postEditId: null,
         openCreate(kind) {
             this.createOpen = false;
             this.doorOpen = kind === 'door';
@@ -228,46 +230,88 @@
                     <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">Puestos y vigilantes</p>
                     <div class="max-h-72 space-y-3 overflow-y-auto pr-1">
                         @forelse ($posts as $post)
-                            <div class="grid gap-3 rounded-lg border border-slate-800/80 bg-slate-950/30 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-                                <div class="flex flex-wrap items-start justify-between gap-2 sm:border-r sm:border-dashed sm:border-slate-700 sm:pr-3">
-                                    <div class="inline-flex items-start gap-2 text-sm text-slate-200">
-                                        <svg class="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 4v5c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V7l8-4z"/><path d="M9 12l2 2 4-4"/></svg>
-                                        <span>
-                                            <span class="font-medium">{{ $post->name }}</span>
-                                            <span class="block text-[11px] text-slate-500">{{ $post->modalityLabel() }} · {{ $post->serviceDaysLabel() }}</span>
-                                            @unless ($post->is_active)
-                                                <span class="text-[10px] text-slate-500">archivado</span>
-                                            @endunless
-                                        </span>
-                                    </div>
-                                    @if ($canPosts && $post->is_active)
-                                        <form method="POST" action="{{ route('company.clients.posts.archive', [$client, $post]) }}" class="inline">
-                                            @csrf
-                                            <input type="hidden" name="vista" value="sitio">
-                                            <input type="hidden" name="observations" value="Archivo de puesto desde la tarjeta de instalación.">
-                                            <button type="submit" class="text-xs text-rose-400 hover:text-rose-300">Archivar</button>
-                                        </form>
-                                    @endif
-                                </div>
-                                <ul class="space-y-1.5">
-                                    @forelse ($post->employees as $employee)
-                                        <li class="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-200">
-                                            <span class="inline-flex min-w-0 items-center gap-2">
-                                                <svg class="h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3"/><path d="M5 20c1.5-3.5 4-5 7-5s5.5 1.5 7 5"/><path d="M4 10h3M17 10h3"/></svg>
-                                                <span class="truncate">{{ $employee->fullName() }}</span>
-                                                <span class="font-mono text-[10px] text-slate-500">{{ $employee->document_number }}</span>
+                            <div class="space-y-2 rounded-lg border border-slate-800/80 bg-slate-950/30 p-3">
+                                <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+                                    <div class="flex flex-wrap items-start justify-between gap-2 sm:border-r sm:border-dashed sm:border-slate-700 sm:pr-3">
+                                        <div class="inline-flex items-start gap-2 text-sm text-slate-200">
+                                            <svg class="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 4v5c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V7l8-4z"/><path d="M9 12l2 2 4-4"/></svg>
+                                            <span>
+                                                <span class="font-medium">{{ $post->name }}</span>
+                                                <span class="block text-[11px] text-slate-500">{{ $post->modalityLabel() }} · {{ $post->serviceDaysLabel() }}</span>
+                                                @unless ($post->is_active)
+                                                    <span class="text-[10px] text-slate-500">archivado</span>
+                                                @endunless
                                             </span>
-                                            @if ($canPosts && $post->is_active)
-                                                <form method="POST" action="{{ route('company.clients.posts.employees.detach', [$client, $post, $employee]) }}">
+                                        </div>
+                                        @if ($canPosts && $post->is_active)
+                                            <div class="flex items-center gap-2">
+                                                <button type="button" @click="postEditId = postEditId === {{ $post->id }} ? null : {{ $post->id }}" class="text-xs font-semibold text-emerald-400 hover:text-emerald-300">Editar</button>
+                                                <form method="POST" action="{{ route('company.clients.posts.archive', [$client, $post]) }}" class="inline">
                                                     @csrf
-                                                    <button type="submit" class="text-xs text-rose-400 hover:text-rose-300">Quitar</button>
+                                                    <input type="hidden" name="vista" value="sitio">
+                                                    @if (! empty($returnTo))
+                                                        <input type="hidden" name="return_to" value="{{ $returnTo }}">
+                                                        <input type="hidden" name="installation_id" value="{{ $installation->id }}">
+                                                    @endif
+                                                    <input type="hidden" name="observations" value="Archivo de puesto desde la tarjeta de instalación.">
+                                                    <button type="submit" class="text-xs text-rose-400 hover:text-rose-300">Archivar</button>
                                                 </form>
+                                            </div>
+                                        @endif
+                                    </div>
+                                    <ul class="space-y-1.5">
+                                        @forelse ($post->employees as $employee)
+                                            <li class="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-200">
+                                                <span class="inline-flex min-w-0 items-center gap-2">
+                                                    <svg class="h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3"/><path d="M5 20c1.5-3.5 4-5 7-5s5.5 1.5 7 5"/><path d="M4 10h3M17 10h3"/></svg>
+                                                    <span class="truncate">{{ $employee->fullName() }}</span>
+                                                    <span class="font-mono text-[10px] text-slate-500">{{ $employee->document_number }}</span>
+                                                </span>
+                                                @if ($canPosts && $post->is_active)
+                                                    <form method="POST" action="{{ route('company.clients.posts.employees.detach', [$client, $post, $employee]) }}">
+                                                        @csrf
+                                                        @if (! empty($returnTo))
+                                                            <input type="hidden" name="return_to" value="{{ $returnTo }}">
+                                                            <input type="hidden" name="installation_id" value="{{ $installation->id }}">
+                                                        @endif
+                                                        <button type="submit" class="text-xs text-rose-400 hover:text-rose-300">Quitar</button>
+                                                    </form>
+                                                @endif
+                                            </li>
+                                        @empty
+                                            <li class="text-xs text-slate-500">Sin vigilantes asignados.</li>
+                                        @endforelse
+                                    </ul>
+                                </div>
+                                @if ($canPosts && $post->is_active)
+                                    <div x-show="postEditId === {{ $post->id }}" x-cloak class="rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+                                        <form method="POST" action="{{ route('company.clients.posts.update', [$client, $post]) }}" class="flex flex-wrap items-end gap-2">
+                                            @csrf
+                                            @method('PUT')
+                                            <input type="hidden" name="vista" value="sitio">
+                                            <input type="hidden" name="installation_id" value="{{ $post->installation_id }}">
+                                            <input type="hidden" name="modality" value="{{ $post->modality }}">
+                                            <input type="hidden" name="is_active" value="1">
+                                            <input type="hidden" name="serves_holidays" value="{{ $post->serves_holidays ? '1' : '0' }}">
+                                            <input type="hidden" name="reviews_per_day" value="{{ $post->reviewsPerDay() }}">
+                                            @foreach ($post->serviceDayList() as $day)
+                                                <input type="hidden" name="service_days[]" value="{{ $day }}">
+                                            @endforeach
+                                            @foreach ($post->employees as $employee)
+                                                <input type="hidden" name="employee_ids[]" value="{{ $employee->id }}">
+                                            @endforeach
+                                            @if (! empty($returnTo))
+                                                <input type="hidden" name="return_to" value="{{ $returnTo }}">
                                             @endif
-                                        </li>
-                                    @empty
-                                        <li class="text-xs text-slate-500">Sin vigilantes asignados.</li>
-                                    @endforelse
-                                </ul>
+                                            <div class="min-w-[12rem] flex-1">
+                                                <label class="mb-1 block text-[11px] text-slate-500">Nombre del puesto</label>
+                                                <input type="text" name="name" value="{{ $post->name }}" required maxlength="120" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white">
+                                            </div>
+                                            <button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white">Guardar</button>
+                                            <button type="button" @click="postEditId = null" class="rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-300">Cancelar</button>
+                                        </form>
+                                    </div>
+                                @endif
                             </div>
                         @empty
                             <p class="text-xs text-slate-500">Sin puestos. Sin ellos la app no puede guardar revista.</p>

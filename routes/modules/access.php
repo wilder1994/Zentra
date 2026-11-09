@@ -44,7 +44,7 @@ Route::middleware(['auth', 'password.changed', 'active', 'tenancy.access', 'clie
         ->middleware('permission:access.manage.vehicles')
         ->name('census-vehicles.index');
     Route::get('/sites', [PorteriaDirectoryController::class, 'sites'])
-        ->middleware('permission:access.manage.locations')
+        ->middleware('permission:access.dashboard')
         ->name('sites.index');
     Route::get('/authorizations', [PorteriaAuthorizationController::class, 'index'])
         ->middleware('permission:access.manage.pre_authorizations')

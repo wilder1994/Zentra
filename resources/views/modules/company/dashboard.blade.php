@@ -22,6 +22,8 @@
     $accessChartJson = json_encode($accessByClient, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
     $personnelChartsJson = json_encode($personnel['charts'] ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
     $fieldSupervision = $fieldSupervision ?? null;
+    $serviceFeed = $serviceFeed ?? [];
+    $supervisorReviews = $supervisorReviews ?? [];
 
     $panicOpen = (int) ($k['panics_open'] ?? 0);
     $novedades = (int) ($k['novedades_today'] ?? 0);
@@ -51,6 +53,8 @@
             'open_shifts_table' => $openShiftsTable,
             'personnel' => $personnel,
             'product_quotas' => $productQuotas,
+            'service_feed' => $serviceFeed,
+            'supervisor_reviews' => $supervisorReviews,
         ],
         'field' => $fieldSupervision,
     ];
@@ -971,6 +975,55 @@
             </div>
         </div>
         @endif
+
+        <div class="company-cc-row" style="grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); height: auto;">
+            <div class="company-cc-card" style="height: 24rem;">
+                <div class="company-cc-card-head">
+                    <div class="min-w-0">
+                        <h3 class="text-sm font-semibold text-white">Novedades de servicio</h3>
+                        <p class="text-[11px] text-slate-500">Altas, bajas, modalidad y vigilantes</p>
+                    </div>
+                </div>
+                <div class="company-cc-card-body-flush px-3 pb-3 overflow-y-auto space-y-1.5">
+                    <template x-for="row in serviceFeed()" :key="row.id">
+                        <div class="rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-1.5">
+                            <p class="text-[10px] text-slate-500 tabular-nums" x-text="row.at"></p>
+                            <p class="text-sm text-slate-200 leading-snug" x-text="row.body"></p>
+                        </div>
+                    </template>
+                    <p class="py-6 text-center text-sm text-slate-500" x-show="!serviceFeed().length">Aún no hay cambios de servicio.</p>
+                </div>
+            </div>
+
+            <div class="company-cc-card" style="height: 24rem;">
+                <div class="company-cc-card-head">
+                    <div class="min-w-0">
+                        <h3 class="text-sm font-semibold text-white">Revistas del supervisor</h3>
+                        <p class="text-[11px] text-slate-500">Últimas 40</p>
+                    </div>
+                    @can('company.supervision.view')
+                        <a href="{{ route('company.supervision.index') }}" class="ui-chip-link">Supervisión</a>
+                    @endcan
+                </div>
+                <div class="company-cc-card-body-flush px-3 pb-3 overflow-y-auto">
+                    <div class="flex flex-wrap content-start gap-1.5">
+                        <template x-for="row in supervisorReviews()" :key="row.id">
+                            <article class="w-full sm:w-[calc(50%-0.2rem)] rounded-xl border px-3 py-1.5"
+                                     :class="row.novelty ? 'border-amber-500/40 bg-amber-950/20' : 'border-slate-800 bg-slate-950/70'">
+                                <div class="flex items-center justify-between gap-2">
+                                    <p class="text-[10px] text-slate-500 tabular-nums" x-text="row.at"></p>
+                                    <span x-show="row.novelty" class="text-[10px] font-semibold text-amber-300">Novedad</span>
+                                </div>
+                                <p class="text-sm text-white leading-snug" x-text="row.supervisor"></p>
+                                <p class="text-[11px] text-slate-400 mt-0.5"><span x-text="row.post"></span><span class="text-slate-600"> · </span><span x-text="row.guard"></span></p>
+                                <p class="text-xs text-slate-300 mt-0.5 leading-snug line-clamp-2" x-text="row.record"></p>
+                            </article>
+                        </template>
+                        <p class="w-full py-6 text-center text-sm text-slate-500" x-show="!supervisorReviews().length">Sin revistas registradas.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         {{-- Fila 2: Accesos | Turnos | (espacio para equilibrio en desktop con 2 cols ampliadas) --}}
         <div class="company-cc-row company-cc-row-2" style="grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); height: auto;">

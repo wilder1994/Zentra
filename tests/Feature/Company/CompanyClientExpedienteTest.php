@@ -124,16 +124,30 @@ final class CompanyClientExpedienteTest extends TestCase
 
         $user = User::query()->where('email', 'empresa@sj-seguridad.test')->firstOrFail();
         $client = Client::query()->where('slug', 'palmas-del-ingenio')->firstOrFail();
+        $door = \App\Models\Location::query()
+            ->withoutGlobalScopes()
+            ->where('client_id', $client->id)
+            ->where('is_active', true)
+            ->whereNotNull('installation_id')
+            ->orderBy('id')
+            ->firstOrFail();
 
-        $enter = $this->actingAs($user)->post(route('company.clients.activate', $client));
+        $enter = $this->actingAs($user)->post(route('company.clients.activate', $client), [
+            'installation_id' => $door->installation_id,
+            'location_id' => $door->id,
+        ]);
         $enter->assertRedirect(route('access.dashboard'));
         $this->assertSame(CompanyOperateContext::MODE_PORTERIA, CompanyOperateContext::mode());
+        $this->assertSame((int) $door->installation_id, CompanyOperateContext::installationId());
+        $this->assertSame((int) $door->id, (int) session(\App\Services\Access\PorteriaDoorService::SESSION_KEY));
 
         $dashboard = $this->actingAs($user)
             ->withSession([
                 config('tenancy.session.active_client_key') => $client->id,
                 CompanyOperateContext::SESSION_CLIENT_KEY => $client->id,
                 CompanyOperateContext::SESSION_MODE_KEY => CompanyOperateContext::MODE_PORTERIA,
+                CompanyOperateContext::SESSION_INSTALLATION_KEY => $door->installation_id,
+                \App\Services\Access\PorteriaDoorService::SESSION_KEY => $door->id,
             ])
             ->get(route('access.dashboard'));
 
@@ -150,6 +164,20 @@ final class CompanyClientExpedienteTest extends TestCase
 
         $exit->assertRedirect(route('company.clients.show', $client));
         $this->assertNull(CompanyOperateContext::clientId());
+    }
+
+    public function test_operate_porteria_requires_door_when_client_has_several(): void
+    {
+        $this->seedWithPilot();
+
+        $user = User::query()->where('email', 'empresa@sj-seguridad.test')->firstOrFail();
+        $client = Client::query()->where('slug', 'palmas-del-ingenio')->firstOrFail();
+
+        $this->actingAs($user)
+            ->from(route('company.clients.show', $client))
+            ->post(route('company.clients.activate', $client))
+            ->assertRedirect(route('company.clients.show', $client))
+            ->assertSessionHas('error');
     }
 
     public function test_operate_client_and_exit_returns_to_expediente(): void
@@ -273,11 +301,18 @@ final class CompanyClientExpedienteTest extends TestCase
         $this->assertFalse($client->fresh()->panelModuleEnabled('doors'));
 
         $this->actingAs($clientAdmin)->withSession($tenancy)->get(route('access.dashboard'))->assertForbidden();
-        $this->actingAs($vigilante)->withSession($this->porteriaSession($client))->get(route('access.dashboard'))->assertOk();
+
+        $session = $this->porteriaSession($client);
+        $door = \App\Models\Location::query()->withoutGlobalScopes()->findOrFail($session[\App\Services\Access\PorteriaDoorService::SESSION_KEY]);
+        $this->actingAs($vigilante)->withSession($session)
+            ->post(route('access.turnos.store'), $this->guardShiftOpenPayload($door))
+            ->assertRedirect();
+        $this->actingAs($vigilante)->withSession($session)->get(route('access.dashboard'))->assertOk();
 
         $this->actingAs($company)->withSession($tenancy + [
             CompanyOperateContext::SESSION_CLIENT_KEY => $client->id,
             CompanyOperateContext::SESSION_MODE_KEY => CompanyOperateContext::MODE_PORTERIA,
+            \App\Services\Access\PorteriaDoorService::SESSION_KEY => $door->id,
         ])->get(route('access.dashboard'))->assertOk();
 
         $this->actingAs($company)->withSession($tenancy + [

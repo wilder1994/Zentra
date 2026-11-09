@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CorrespondenceController;
+use App\Http\Controllers\Api\Resident\AuthController as ResidentAuthController;
+use App\Http\Controllers\Api\Resident\DeviceController as ResidentDeviceController;
 use App\Http\Controllers\Api\ObservatoryController;
 use App\Http\Controllers\Api\PreAuthorizationController;
 use App\Http\Controllers\Api\SupervisorFieldLogController;
@@ -19,6 +21,15 @@ use Illuminate\Support\Facades\Route;
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/supervision/login', [SupervisorShiftController::class, 'login']);
 Route::get('/observatory/openapi.json', [ObservatoryApiDocsController::class, 'spec']);
+
+Route::prefix('resident')->group(function (): void {
+    Route::post('/login', [ResidentAuthController::class, 'login'])->middleware('throttle:20,1');
+    Route::middleware('auth:sanctum')->group(function (): void {
+        Route::get('/me', [ResidentAuthController::class, 'me']);
+        Route::post('/logout', [ResidentAuthController::class, 'logout']);
+        Route::post('/devices', [ResidentDeviceController::class, 'store'])->middleware('throttle:30,1');
+    });
+});
 
 Route::middleware(['auth:sanctum', 'company.service'])->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);

@@ -170,7 +170,7 @@ final class GrantableModules
                     'manage' => ['observatory.view', 'observatory.events.update'],
                 ],
                 'structures' => [
-                    'label' => 'Instalaciones / nodos',
+                    'label' => 'Mi estructura',
                     'view' => ['client.structures.manage'],
                     'manage' => ['client.structures.manage'],
                 ],
@@ -205,7 +205,7 @@ final class GrantableModules
                     'manage' => ['client.users.manage'],
                 ],
                 'app_users' => [
-                    'label' => 'Accesos (app)',
+                    'label' => 'Usuarios app',
                     'view' => ['client.app_users.manage'],
                     'manage' => ['client.app_users.manage'],
                 ],

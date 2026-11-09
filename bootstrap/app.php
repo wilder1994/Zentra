@@ -43,6 +43,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->encryptCookies(except: [
             SupportCompanyContext::LAST_COMPANY_COOKIE,
         ]);
+        $middleware->redirectGuestsTo(function (Request $request) {
+            if ($request->is('r', 'r/*')) {
+                return route('resident-app.login');
+            }
+
+            return route('login');
+        });
         $middleware->web(append: [
             EnsureSupervisorUsesFieldApp::class,
             EnsureSingleSession::class,

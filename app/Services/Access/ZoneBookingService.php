@@ -184,7 +184,7 @@ final class ZoneBookingService
         $this->audit->record($booking, 'zone.booking.reject', null, ['note' => $booking->review_note]);
     }
 
-    public function cancel(User $actor, CommonZoneBooking $booking, ?string $note = null): void
+    public function cancel(?User $actor, CommonZoneBooking $booking, ?string $note = null): void
     {
         $this->assertBookingScope($booking);
         if (! in_array($booking->status->value, BookingStatus::open(), true)) {

@@ -100,7 +100,7 @@ final class MemberController extends Controller
             phonePrimary: $request->validated('phone_primary'),
             phoneSecondary: $request->validated('phone_secondary'),
             email: $request->validated('email'),
-            hasAppAccess: $request->isMinor() ? false : $request->boolean('has_app_access'),
+            hasAppAccess: false,
             isActive: $request->boolean('is_active', true),
             photoPath: $photoPath,
             minorTreatmentAcceptedAt: $request->minorAcceptedAt(),
@@ -123,12 +123,14 @@ final class MemberController extends Controller
     public function edit(StructureMember $member): View
     {
         $this->authorize('update', $member);
+        $member->loadMissing('appUser');
 
         $clientId = (int) $this->tenantContext->clientId();
         $picker = $this->structureRepository->censusPickerData($clientId, $this->tenantContext->installationIds());
         $memberTypes = MemberType::query()
             ->where(function ($q) use ($member): void {
-                $q->where('is_active', true)->orWhereKey($member->member_type_id);
+                $q->where('is_active', true)
+                    ->orWhere('id', (int) $member->member_type_id);
             })
             ->orderBy('sort_order')
             ->orderBy('name')
@@ -167,7 +169,7 @@ final class MemberController extends Controller
             'phone_primary' => $request->validated('phone_primary'),
             'phone_secondary' => $request->validated('phone_secondary'),
             'email' => $request->validated('email'),
-            'has_app_access' => $request->isMinor() ? false : $request->boolean('has_app_access'),
+            'has_app_access' => $request->isMinor() ? false : (bool) $member->has_app_access,
             'is_active' => $request->boolean('is_active', true),
         ];
 

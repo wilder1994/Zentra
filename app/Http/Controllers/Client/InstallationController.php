@@ -9,6 +9,7 @@ use App\Models\Client;
 use App\Models\Installation;
 use App\Repositories\StructureRepository;
 use App\Support\Tenancy\TenantContext;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -19,11 +20,17 @@ final class InstallationController extends Controller
         private readonly StructureRepository $structureRepository,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
         $this->authorize('viewAny', \App\Models\Structure::class);
 
         $clientId = (int) $this->tenantContext->clientId();
+        $scoped = $this->scopedQuery($clientId)->orderBy('name')->get(['id', 'name']);
+
+        if ($scoped->count() === 1) {
+            return redirect()->route('client.installations.show', $scoped->first()->id);
+        }
+
         $search = $request->string('q')->trim()->toString();
 
         $rows = $this->scopedQuery($clientId)
@@ -47,22 +54,22 @@ final class InstallationController extends Controller
         return view('modules.client.installations.index', [
             'installations' => $rows,
             'search' => $search,
-            'sigBoard' => app(\App\Services\Ops\BuildSigBoardService::class)->forTenant($this->tenantContext),
         ]);
     }
 
-    public function show(Installation $installation): View
+    public function show(Request $request, Installation $installation): View
     {
         $this->authorize('viewAny', \App\Models\Structure::class);
         $this->assertVisible($installation);
 
         $clientId = (int) $this->tenantContext->clientId();
         $client = Client::query()->with('structureType')->findOrFail($clientId);
-        $installation->load(['rector', 'assignedAdmins']);
+        $search = $request->string('q')->trim()->toString();
 
-        $tree = $this->structureRepository->treeForInstallation($clientId, (int) $installation->id);
+        $tree = $this->structureRepository->treeForInstallation($clientId, (int) $installation->id, $search !== '' ? $search : null);
         $census = $this->structureRepository->censusCounts($clientId);
         $parentOptions = $this->structureRepository->parentOptionsForInstallation($clientId, (int) $installation->id);
+        $hasMultipleSites = $this->scopedQuery($clientId)->count() > 1;
 
         return view('modules.client.installations.show', [
             'client' => $client,
@@ -70,10 +77,8 @@ final class InstallationController extends Controller
             'tree' => $tree,
             'census' => $census,
             'parentOptions' => $parentOptions,
-            'maps' => [
-                'api_key' => config('google-maps.api_key'),
-                'zoom' => 17,
-            ],
+            'search' => $search,
+            'hasMultipleSites' => $hasMultipleSites,
         ]);
     }
 

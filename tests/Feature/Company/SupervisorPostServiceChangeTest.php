@@ -89,18 +89,44 @@ final class SupervisorPostServiceChangeTest extends TestCase
         ])->assertRedirect();
         $this->assertTrue($post->fresh()->employees->contains($other));
 
-        $this->actingAs($user)
-            ->from(route('company.clients.show', [$client, 'vista' => 'sitio']))
-            ->put(route('company.clients.posts.update', [$client, $post]), [
-                'installation_id' => $installation->id,
-                'name' => 'Apoyo interno',
-                'modality' => 24,
-                'is_active' => '1',
-                'employee_ids' => [],
-                'vista' => 'sitio',
-            ])
-            ->assertRedirect()
-            ->assertSessionHas('error');
+        $this->actingAs($user)->put(route('company.clients.posts.update', [$client, $post]), [
+            'installation_id' => $installation->id,
+            'name' => 'Apoyo interno',
+            'modality' => 24,
+            'is_active' => '1',
+            'employee_ids' => [],
+            'vista' => 'sitio',
+        ])->assertRedirect()->assertSessionHas('success');
+        $this->assertCount(0, $post->fresh()->employees);
+    }
+
+    public function test_rename_only_does_not_require_observations(): void
+    {
+        $this->seedWithPilot();
+        $user = User::query()->where('email', 'empresa@sj-seguridad.test')->firstOrFail();
+        $client = Client::query()->where('slug', 'palmas-del-ingenio')->firstOrFail();
+        $post = SupervisorPost::query()
+            ->where('client_id', $client->id)
+            ->where('is_active', true)
+            ->firstOrFail();
+        $oldName = $post->name;
+
+        $this->actingAs($user)->put(route('company.clients.posts.update', [$client, $post]), [
+            'installation_id' => $post->installation_id,
+            'name' => $oldName.' (renombrado)',
+            'modality' => (int) $post->modality,
+            'is_active' => '1',
+            'employee_ids' => $post->employees->pluck('id')->all(),
+            'vista' => 'sitio',
+        ])->assertRedirect()->assertSessionHas('success');
+
+        $this->assertSame($oldName.' (renombrado)', $post->fresh()->name);
+        $body = OperationalAlert::query()
+            ->where('supervisor_post_id', $post->id)
+            ->latest('id')
+            ->value('body');
+        $this->assertIsString($body);
+        $this->assertStringContainsString('Nombre «'.$oldName.'» → «'.$oldName.' (renombrado)»', $body);
     }
 
     public function test_archive_then_remove_requires_observations(): void

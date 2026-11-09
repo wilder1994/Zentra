@@ -35,4 +35,8 @@ return [
         'binary' => env('LIBREOFFICE_BIN'),
     ],
 
+    'fcm' => [
+        'server_key' => env('FCM_SERVER_KEY'),
+    ],
+
 ];

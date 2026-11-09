@@ -10,6 +10,7 @@ use App\Enums\CompanyPackageSku;
 use App\Enums\PackageModality;
 use App\Models\SecurityCompany;
 use App\Repositories\ClientRepository;
+use App\Services\Ops\BuildSigBoardService;
 use App\Services\Pricing\PriceCalculator;
 use App\Support\Catalog\CatalogSettings;
 
@@ -20,6 +21,7 @@ final class CompanyDashboardService
         private readonly CompanyDashboardAnalytics $analytics,
         private readonly PriceCalculator $priceCalculator,
         private readonly BuildFieldSupervisionStripService $fieldSupervisionStrip,
+        private readonly BuildSigBoardService $sigBoard,
     ) {}
 
     /** @return array<string, mixed> */
@@ -28,6 +30,7 @@ final class CompanyDashboardService
         $companyId = (int) $company->id;
         $metrics = $this->clientRepository->metricsForCompany($companyId);
         $ops = $this->analytics->build($company);
+        $operationFeeds = $this->sigBoard->feedsForCompany($companyId);
 
         $modality = PackageModality::tryFrom((string) $metrics['package_modality'])
             ?? PackageModality::Manual;
@@ -62,6 +65,8 @@ final class CompanyDashboardService
             'upgradeQuotes' => $upgradeQuotes,
             'annualForCurrent' => $annualForCurrent,
             'fieldSupervision' => $this->fieldSupervisionStrip->forToday($company),
+            'serviceFeed' => $operationFeeds['feed'],
+            'supervisorReviews' => $operationFeeds['reviews'],
         ];
     }
 
@@ -91,6 +96,8 @@ final class CompanyDashboardService
                 'open_shifts_table' => $ops['open_shifts_table'] ?? [],
                 'personnel' => $ops['personnel'] ?? [],
                 'product_quotas' => $ops['product_quotas'] ?? [],
+                'service_feed' => $full['serviceFeed'] ?? [],
+                'supervisor_reviews' => $full['supervisorReviews'] ?? [],
             ],
             'field' => $full['fieldSupervision'],
         ];

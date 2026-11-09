@@ -9,13 +9,18 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 final class StructureAppUserRepository
 {
-    public function paginateForClient(int $clientId, int $perPage = 20): LengthAwarePaginator
+    public function paginateForClient(int $clientId, int $perPage = 20, bool $includeArchived = false): LengthAwarePaginator
     {
-        return StructureAppUser::query()
+        $query = StructureAppUser::query()
             ->with(['member.structure.installation', 'client'])
             ->where('client_id', $clientId)
-            ->orderBy('username')
-            ->paginate($perPage);
+            ->orderBy('username');
+
+        if ($includeArchived) {
+            $query->onlyTrashed();
+        }
+
+        return $query->paginate($perPage);
     }
 
     public function usernameExists(int $clientId, string $username, ?int $exceptId = null): bool

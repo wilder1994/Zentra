@@ -79,7 +79,7 @@ final class InstallationProfile extends Model
             ->where(function (Builder $q) use ($includeId): void {
                 $q->where('is_active', true);
                 if ($includeId !== null) {
-                    $q->orWhereKey($includeId);
+                    $q->orWhere('id', $includeId);
                 }
             })
             ->orderBy('sort_order')

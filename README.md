@@ -385,7 +385,7 @@ Sidebar: **Mi empresa** · Facturación · Clientes · **Instalaciones** · **Ob
 |------|---------|
 | `GET /company/dashboard` | **Mi empresa** — Command Center (3 filas): mapa satélite, cartera/alertas, fuerza laboral, accesos, turnos, revistas mes/semana |
 | `GET /company/clients` | Cartera de **clientes** (acción única: **Ver**; vacío: «Aún no tienes clientes creados en la cartera») |
-| `GET /company/installations` | Tablero de instalaciones: selector de cliente en el header (`?client_id=`), KPIs, mapa, novedades de puesto, revistas e «Instalaciones y servicios» (puestos desplegables). Detalle en [`docs/CLIENTES-Y-ESTRUCTURA.md`](docs/CLIENTES-Y-ESTRUCTURA.md) |
+| `GET /company/installations` | Directorio: selector cliente, mapa + «Instalaciones y servicios» (puestos desplegables). Novedades/revistas en Mi empresa. Detalle en [`docs/CLIENTES-Y-ESTRUCTURA.md`](docs/CLIENTES-Y-ESTRUCTURA.md) |
 | `GET /company/ops/alerts.json` | Poll de pánico/Observatorio (overlay; no incluye a quien disparó) |
 | `POST /company/ops/panic` | Pánico por usuario de empresa (mismo canal que portería, cliente y APK) |
 | `GET /company/panics` | Atención de pánicos: fichas abiertas/cerradas (`ops.panic.attend`) |

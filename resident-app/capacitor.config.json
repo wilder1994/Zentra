@@ -1,0 +1,19 @@
+{
+  "appId": "cloud.wcodex.zentra.residentes",
+  "appName": "Zentra Residentes",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#0f172a",
+    "adjustMarginsForEdgeToEdge": "auto"
+  },
+  "server": {
+    "url": "https://zentra.wcodex.cloud/r/",
+    "cleartext": false,
+    "androidScheme": "https",
+    "allowNavigation": [
+      "zentra.wcodex.cloud",
+      "*.wcodex.cloud"
+    ]
+  }
+}

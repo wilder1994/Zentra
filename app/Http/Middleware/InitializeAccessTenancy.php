@@ -67,7 +67,7 @@ final class InitializeAccessTenancy
         }
 
         $request->session()->put($sessionKey, $client->id);
-        view()->share('activeClient', $client);
+        view()->share('activeClient', $client->loadMissing('structureType'));
 
         return $next($request);
     }

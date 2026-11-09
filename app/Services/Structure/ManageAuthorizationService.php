@@ -13,6 +13,7 @@ use App\Models\Installation;
 use App\Models\Structure;
 use App\Models\StructureMember;
 use App\Models\User;
+use App\Models\Vehicle;
 use App\Models\Visitor;
 use App\Models\VisitorPreAuthorization;
 use App\Services\Access\AuditLogger;
@@ -35,6 +36,7 @@ final class ManageAuthorizationService
      *     member_id?: int|null, authorized_text?: string|null,
      *     valid_from: string, valid_until?: string|null, multi_entry?: bool|null,
      *     vehicle_plate?: string|null, notes?: string|null, origin?: string,
+     *     vehicle?: array{plate?: string|null, brand?: string|null, model?: string|null, color?: string|null, type?: string|null}|null,
      *     guests: list<array{document_type?: string|null, document_number?: string|null, first_name: string, last_name?: string|null, phone?: string|null}>
      * }  $data
      */
@@ -125,10 +127,13 @@ final class ManageAuthorizationService
                 'created_by' => $actor?->id,
             ]);
 
+            $firstVisitorId = null;
             foreach ($guests as $guest) {
+                $visitorId = $this->resolveVisitor($clientId, $guest, $type)?->id;
+                $firstVisitorId ??= $visitorId;
                 $authorization->guests()->create([
                     'client_id' => $clientId,
-                    'visitor_id' => $this->resolveVisitor($clientId, $guest, $type)?->id,
+                    'visitor_id' => $visitorId,
                     'document_type' => $guest['document_type'],
                     'document_number' => $guest['document_number'],
                     'first_name' => $guest['first_name'],
@@ -137,10 +142,15 @@ final class ManageAuthorizationService
                 ]);
             }
 
+            if (is_array($data['vehicle'] ?? null)) {
+                $this->upsertVisitorVehicle($clientId, $structureId, $firstVisitorId, $data['vehicle']);
+            }
+
             $this->audit->record($authorization, 'authorization.create', null, [
                 'type' => $type->value,
                 'structure_id' => $structureId,
                 'guests' => count($guests),
+                'vehicle_plate' => $authorization->vehicle_plate,
                 'valid_from' => $from->toDateTimeString(),
                 'valid_until' => $until->toDateTimeString(),
                 'entry_window' => $timeFrom !== null ? "{$timeFrom}-{$timeUntil}" : null,
@@ -150,7 +160,56 @@ final class ManageAuthorizationService
         });
     }
 
-    public function cancel(User $actor, VisitorPreAuthorization $authorization): void
+    /**
+     * @param  array{plate?: string|null, brand?: string|null, model?: string|null, color?: string|null, type?: string|null}  $vehicle
+     */
+    private function upsertVisitorVehicle(int $clientId, ?int $structureId, ?int $visitorId, array $vehicle): void
+    {
+        $plate = strtoupper((string) ($this->clean($vehicle['plate'] ?? null) ?? ''));
+        if ($plate === '') {
+            throw ValidationException::withMessages(['vehicle_plate' => 'Indica la placa del vehículo.']);
+        }
+
+        $brand = $this->clean($vehicle['brand'] ?? null);
+        $model = $this->clean($vehicle['model'] ?? null);
+        $color = $this->clean($vehicle['color'] ?? null);
+        $type = $this->clean($vehicle['type'] ?? null) ?? 'carro';
+
+        if ($brand === null || $model === null || $color === null) {
+            throw ValidationException::withMessages([
+                'vehicle_brand' => 'Completa marca, modelo y color del vehículo.',
+            ]);
+        }
+
+        $existing = Vehicle::query()->where('client_id', $clientId)->where('plate', $plate)->first();
+        if ($existing !== null) {
+            $existing->update([
+                'brand' => $brand,
+                'model' => $model,
+                'color' => $color,
+                'type' => $type,
+                'visitor_id' => $existing->visitor_id ?: $visitorId,
+                'structure_id' => $existing->structure_id ?: $structureId,
+                'is_visitor_vehicle' => true,
+            ]);
+
+            return;
+        }
+
+        Vehicle::query()->create([
+            'client_id' => $clientId,
+            'plate' => $plate,
+            'brand' => $brand,
+            'model' => $model,
+            'color' => $color,
+            'type' => $type,
+            'visitor_id' => $visitorId,
+            'structure_id' => $structureId,
+            'is_visitor_vehicle' => true,
+        ]);
+    }
+
+    public function cancel(?User $actor, VisitorPreAuthorization $authorization): void
     {
         if (in_array($authorization->state(), [VisitorPreAuthorization::STATE_CANCELLED, VisitorPreAuthorization::STATE_EXPIRED], true)) {
             throw ValidationException::withMessages(['authorization' => 'La autorización ya no está vigente.']);
@@ -159,7 +218,7 @@ final class ManageAuthorizationService
         $authorization->update([
             'status' => AuthorizationStatus::Cancelled,
             'cancelled_at' => now(),
-            'cancelled_by' => $actor->id,
+            'cancelled_by' => $actor?->id,
         ]);
         $this->audit->record($authorization, 'authorization.cancel', null, ['status' => 'cancelled']);
     }

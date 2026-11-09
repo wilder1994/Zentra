@@ -52,9 +52,13 @@
         </label>
         @error('minor_treatment_accepted')<p class="text-xs text-red-400">{{ $message }}</p>@enderror
     </div>
-    <label class="sm:col-span-2 flex items-center gap-2 text-sm text-slate-300" x-show="!minor">
-        <input type="checkbox" name="has_app_access" value="1" class="rounded border-slate-600 bg-slate-950 text-teal-600" @checked(old('has_app_access', $member?->has_app_access))>
-        Acceso de persona (app / panel)
-    </label>
-    <p class="sm:col-span-2 text-xs text-slate-500" x-show="minor" x-cloak>Los menores no tienen acceso de persona ni se incluyen en descargas.</p>
+    @php($member = $member ?? null)
+    <p class="sm:col-span-2 text-xs text-slate-500" x-show="!minor">
+        El acceso a la app se gestiona en
+        <a href="{{ route('client.app-users.index') }}" class="text-teal-400 hover:text-teal-300">Usuarios app</a>.
+        @if ($member?->appUser)
+            · <a href="{{ route('client.app-users.show', $member->appUser) }}" class="text-teal-400 hover:text-teal-300">Ver cuenta</a>
+        @endif
+    </p>
+    <p class="sm:col-span-2 text-xs text-slate-500" x-show="minor" x-cloak>Los menores no tienen usuario app ni se incluyen en descargas.</p>
 </div>

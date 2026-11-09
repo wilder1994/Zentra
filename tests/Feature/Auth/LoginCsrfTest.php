@@ -54,7 +54,18 @@ final class LoginCsrfTest extends TestCase
         $response = $this->actingAs($user)->get(route('company.porteria.enter'));
         $response->assertRedirect(route('company.clients.index'));
 
-        $response = $this->actingAs($user)->post(route('company.clients.activate', $client));
+        $door = \App\Models\Location::query()
+            ->withoutGlobalScopes()
+            ->where('client_id', $client->id)
+            ->where('is_active', true)
+            ->whereNotNull('installation_id')
+            ->orderBy('id')
+            ->firstOrFail();
+
+        $response = $this->actingAs($user)->post(route('company.clients.activate', $client), [
+            'installation_id' => $door->installation_id,
+            'location_id' => $door->id,
+        ]);
         $response->assertRedirect(route('access.dashboard'));
     }
 

@@ -40,6 +40,24 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 9 nov 2026 · App residentes (Accesos) + Usuarios app + Descargas
+- Panel cliente: **Usuarios app** (alta en cascada, correo con credenciales, canal Android/iPhone web, cupo 4/unidad).
+- Descargas empresa/cliente: APK residentes + enlace/QR compartir (`/r/`).
+- App `/r/`: login, inicio (6 tarjetas), menú hamburguesa, autorizar persona/vehículo, correspondencia, reservas, bloqueos (consulta), mi unidad, perfil.
+- API Sanctum `resident/*` + registro device; push FCM (stub hasta `FCM_SERVER_KEY`).
+- Capacitor `resident-app/` → APK `public/downloads/zentra-residentes.apk` (producción `https://zentra.wcodex.cloud/r/`).
+- Migrates `2026_11_09_100000`, `2026_11_09_120000`.
+
+### 8 nov 2026 · Operar: menú único + modales
+- Botón **Operar** (Cliente → Instalación → Portería). Sin selects sueltos en la ficha.
+- Portería/instalación con 2+ opciones: modal centrado; 1 opción: entra directo.
+- Sesión portería: instalación + puerta. Docs: `PORTERIA.md`.
+
+### 8 nov 2026 · Instalaciones slim + feeds en Mi empresa
+- `/company/installations`: sin KPIs ni paneles Novedades/Revistas; solo mapa + lista con buscador.
+- Mi empresa → Operación del día: Novedades de servicio + Revistas del supervisor (live vía `feedsForCompany`).
+- Docs: `CLIENTES-Y-ESTRUCTURA.md`, README.
+
 ### 8 nov 2026 · Tarjeta instalación (layout final) + hub Ajustes + perfiles
 - Tarjeta full-width: mapa ~28% | detalle. Cabecera en una fila: Cliente · Perfil · Área · Administrador. Píldoras + Historial/Crear/Editar/Archivar/Ver ficha en una fila.
 - Crear = dropdown Puerta/Puesto/Vigilante. Puertas horizontales (código auto). Puestos con scroll; sin lat/lng; motivo solo en cambios de servicio.

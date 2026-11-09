@@ -40,84 +40,9 @@
          data-show-url="{{ route('company.installations.show', '__ID__') }}"
          data-board='@json($board)'>
 
-        {{-- KPIs --}}
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {{-- KPI compacto: ícono a la izquierda; etiqueta arriba; número + detalle en una línea --}}
-            <div class="{{ $card }} relative overflow-hidden px-3 py-2 flex items-center gap-3">
-                <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-indigo-500 to-sky-400"></div>
-                <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-300">
-                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linejoin="round" d="M4 20V9l8-5 8 5v11"/><path d="M9 20v-6h6v6"/></svg>
-                </span>
-                <div class="min-w-0 flex-1">
-                    <p class="text-[10px] uppercase tracking-wide text-slate-500 leading-tight">Instalaciones
-                        <x-ui.help-tip text="Instalaciones activas en este alcance. Sin ubicación = no tienen pin en el mapa." />
-                    </p>
-                    <p class="flex items-baseline gap-2 min-w-0">
-                        <span class="text-xl font-semibold text-white tabular-nums leading-tight" x-text="board.installations_count ?? 0">{{ $board['installations_count'] ?? 0 }}</span>
-                        <span class="truncate text-[11px]" :class="(board.installations_without_location || 0) > 0 ? 'text-amber-300' : 'text-emerald-300'"
-                              x-text="(board.installations_without_location || 0) > 0 ? (board.installations_without_location + ' sin ubicación') : 'Todas ubicadas'">{{ ($board['installations_without_location'] ?? 0) > 0 ? $board['installations_without_location'].' sin ubicación' : 'Todas ubicadas' }}</span>
-                    </p>
-                </div>
-            </div>
-
-            <div class="{{ $card }} relative overflow-hidden px-3 py-2 flex items-center gap-3">
-                <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-teal-500 to-emerald-400"></div>
-                <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-300">
-                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linejoin="round" d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/></svg>
-                </span>
-                <div class="min-w-0 flex-1">
-                    <p class="text-[10px] uppercase tracking-wide text-slate-500 leading-tight">Servicios hoy
-                        <x-ui.help-tip text="Puestos activos (un puesto es un servicio) y vigilantes asignados a ellos." />
-                    </p>
-                    <p class="flex items-baseline gap-2 min-w-0">
-                        <span class="text-xl font-semibold text-white tabular-nums leading-tight" x-text="board.services_today ?? 0">{{ $board['services_today'] ?? 0 }}</span>
-                        <span class="truncate text-[11px] text-slate-400"><span class="tabular-nums" x-text="board.staff_count ?? 0">{{ $board['staff_count'] ?? 0 }}</span> vigilantes</span>
-                    </p>
-                </div>
-            </div>
-
-            <div class="{{ $card }} relative overflow-hidden px-3 py-2 flex items-center gap-3">
-                <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-amber-500 to-yellow-300"></div>
-                <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-300">
-                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="6" y="4" width="12" height="17" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M9.5 12.5l2 2 3.5-4"/></svg>
-                </span>
-                <div class="min-w-0 flex-1">
-                    <p class="text-[10px] uppercase tracking-wide text-slate-500 leading-tight">Revistas hoy
-                        <x-ui.help-tip text="Revistas cumplidas de las esperadas hoy (06:00 a 06:00), según las revistas contratadas en cada puesto." />
-                    </p>
-                    <p class="flex items-baseline gap-2 min-w-0">
-                        <span class="text-xl font-semibold text-white tabular-nums leading-tight"><span x-text="board.reviews_done_today ?? 0">{{ $board['reviews_done_today'] ?? 0 }}</span><span class="text-sm font-normal text-slate-500">/<span x-text="board.reviews_expected_today ?? 0">{{ $board['reviews_expected_today'] ?? 0 }}</span></span></span>
-                        <span class="truncate text-[11px] text-slate-400" x-text="reviewsPct === null ? 'Sin programadas' : (reviewsPct + '% · ' + (board.reviews_today ?? 0) + ' reg.')">—</span>
-                    </p>
-                    <div class="mt-1 h-1 w-full overflow-hidden rounded-full bg-slate-800">
-                        <div class="h-full rounded-full transition-all duration-500"
-                             :class="{ 'bg-emerald-400': reviewsTone === 'emerald', 'bg-amber-400': reviewsTone === 'amber', 'bg-red-400': reviewsTone === 'red', 'bg-slate-600': reviewsTone === 'slate' }"
-                             :style="'width:' + (reviewsPct ?? 0) + '%'"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="{{ $card }} relative overflow-hidden px-3 py-2 flex items-center gap-3">
-                <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-orange-500 to-rose-400"></div>
-                <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
-                      :class="(board.novedades_today || 0) > 0 ? 'bg-orange-500/20 text-orange-300' : 'bg-slate-800 text-slate-400'">
-                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linejoin="round" d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path stroke-linecap="round" d="M10 20.5a2 2 0 0 0 4 0"/></svg>
-                </span>
-                <div class="min-w-0 flex-1">
-                    <p class="text-[10px] uppercase tracking-wide text-slate-500 leading-tight">Novedades hoy
-                        <x-ui.help-tip align="right" text="Cambios de servicio de hoy: altas, bajas, modalidad y vigilantes." />
-                    </p>
-                    <p class="flex items-baseline gap-2 min-w-0">
-                        <span class="text-xl font-semibold tabular-nums leading-tight" :class="(board.novedades_today || 0) > 0 ? 'text-orange-300' : 'text-white'" x-text="board.novedades_today ?? 0">{{ $board['novedades_today'] ?? 0 }}</span>
-                        <span class="truncate text-[11px] text-slate-400" x-text="board.last_novelty_at ? ('Última ' + board.last_novelty_at) : 'Sin cambios hoy'">{{ ! empty($board['last_novelty_at']) ? 'Última '.$board['last_novelty_at'] : 'Sin cambios hoy' }}</span>
-                    </p>
-                </div>
-            </div>
-        </div>
-
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {{-- Mapa --}}
-            <div class="{{ $card }} relative isolate overflow-hidden h-96">
+            <div class="{{ $card }} relative isolate overflow-hidden min-h-[28rem] h-[min(70vh,36rem)]">
                 <div x-ref="map" class="h-full w-full"></div>
                 <div class="pointer-events-none absolute left-3 right-3 top-3 z-[2] flex items-center justify-between gap-2">
                     <div class="pointer-events-auto inline-flex rounded-md border border-slate-700 bg-slate-950/90 p-0.5 text-xs" x-show="mapReady">
@@ -173,7 +98,7 @@
             </div>
 
             {{-- Instalaciones y servicios (junto al mapa) --}}
-            <div class="{{ $card }} p-3 flex flex-col h-96">
+            <div class="{{ $card }} p-3 flex flex-col min-h-[28rem] h-[min(70vh,36rem)]">
                 <div class="flex flex-wrap items-center justify-between gap-2 shrink-0">
                     <h3 class="text-sm font-semibold text-white">Instalaciones y servicios
                         <span class="ml-1 text-xs font-normal text-slate-500 tabular-nums" x-text="'(' + installations.length + ')'"></span>
@@ -237,46 +162,6 @@
                             <a x-show="!query" href="{{ route('company.installations.create', array_filter(['client_id' => $clientId])) }}" class="mt-3 inline-block text-xs font-semibold text-indigo-300 hover:text-indigo-200">Crear instalación</a>
                         @endcan
                     </div>
-                </div>
-            </div>
-
-            {{-- Novedades de servicio --}}
-            <div class="{{ $card }} p-3 flex flex-col h-96">
-                <div class="flex items-baseline justify-between gap-2 shrink-0">
-                    <h3 class="text-sm font-semibold text-white">Novedades de servicio</h3>
-                    <span class="text-[11px] text-slate-500">Altas, bajas, modalidad y vigilantes</span>
-                </div>
-                <div class="mt-2 flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-1">
-                    <template x-for="row in (board.feed || [])" :key="row.id">
-                        <div class="rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-1.5">
-                            <p class="text-[10px] text-slate-500 tabular-nums" x-text="row.at"></p>
-                            <p class="text-sm text-slate-200 leading-snug" x-text="row.body"></p>
-                        </div>
-                    </template>
-                    <p class="py-4 text-center text-sm text-slate-500" x-show="!(board.feed || []).length">Aún no hay cambios de servicio.</p>
-                </div>
-            </div>
-
-            {{-- Revistas del supervisor --}}
-            <div class="{{ $card }} p-3 flex flex-col h-96">
-                <div class="flex items-baseline justify-between gap-2 shrink-0">
-                    <h3 class="text-sm font-semibold text-white">Revistas del supervisor</h3>
-                    <span class="text-[11px] text-slate-500">Últimas 40</span>
-                </div>
-                <div class="mt-2 flex-1 min-h-0 overflow-y-auto flex flex-wrap content-start gap-1.5 pr-1">
-                    <template x-for="row in (board.reviews || [])" :key="row.id">
-                        <article class="w-full sm:w-[calc(50%-0.2rem)] rounded-xl border px-3 py-1.5"
-                                 :class="row.novelty ? 'border-amber-500/40 bg-amber-950/20' : 'border-slate-800 bg-slate-950/70'">
-                            <div class="flex items-center justify-between gap-2">
-                                <p class="text-[10px] text-slate-500 tabular-nums" x-text="row.at"></p>
-                                <span x-show="row.novelty" class="text-[10px] font-semibold text-amber-300">Novedad</span>
-                            </div>
-                            <p class="text-sm text-white leading-snug" x-text="row.supervisor"></p>
-                            <p class="text-[11px] text-slate-400 mt-0.5"><span x-text="row.post"></span><span class="text-slate-600"> · </span><span x-text="row.guard"></span></p>
-                            <p class="text-xs text-slate-300 mt-0.5 leading-snug line-clamp-2" x-text="row.record"></p>
-                        </article>
-                    </template>
-                    <p class="w-full py-4 text-center text-sm text-slate-500" x-show="!(board.reviews || []).length">Sin revistas en este alcance.</p>
                 </div>
             </div>
         </div>

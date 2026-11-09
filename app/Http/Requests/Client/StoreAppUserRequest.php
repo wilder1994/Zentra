@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Client;
 
+use App\Models\StructureAppUser;
 use App\Models\StructureMember;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
@@ -24,7 +25,7 @@ final class StoreAppUserRequest extends FormRequest
         $allowedIds = app(TenantContext::class)->installationIds();
 
         $memberRule = Rule::exists('structure_members', 'id')->where(function ($query) use ($clientId, $allowedIds): void {
-            $query->where('client_id', $clientId);
+            $query->where('client_id', $clientId)->where('is_active', true);
             if ($allowedIds !== null) {
                 $query->whereIn('structure_id', function ($sub) use ($allowedIds): void {
                     $sub->select('id')->from('structures')->whereIn('installation_id', $allowedIds);
@@ -34,10 +35,7 @@ final class StoreAppUserRequest extends FormRequest
 
         return [
             'member_id' => ['required', 'integer', $memberRule],
-            'username' => ['required', 'string', 'max:80', 'alpha_dash'],
-            'email' => ['nullable', 'email', 'max:150'],
-            'password' => ['required', 'string', 'min:8'],
-            'is_active' => ['boolean'],
+            'delivery_channel' => ['required', 'in:'.StructureAppUser::CHANNEL_ANDROID.','.StructureAppUser::CHANNEL_IOS_WEB],
         ];
     }
 
@@ -51,7 +49,7 @@ final class StoreAppUserRequest extends FormRequest
 
             $member = StructureMember::query()->find($id);
             if ($member?->isMinor()) {
-                $validator->errors()->add('member_id', 'No se crea acceso de persona para menores de edad.');
+                $validator->errors()->add('member_id', 'No se crea usuario app para menores de edad.');
             }
         });
     }

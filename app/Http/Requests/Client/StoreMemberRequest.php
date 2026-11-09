@@ -67,7 +67,6 @@ final class StoreMemberRequest extends FormRequest
             'phone_primary' => ['nullable', 'string', 'max:20'],
             'phone_secondary' => ['nullable', 'string', 'max:20'],
             'email' => ['nullable', 'email', 'max:150'],
-            'has_app_access' => ['boolean'],
             'is_active' => ['boolean'],
             'photo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
         ];

@@ -75,8 +75,10 @@ final class CompanyLayoutComposer
             } elseif ($user->security_company_id) {
                 $entitled = $user->securityCompany ?? SecurityCompany::query()->find($user->security_company_id);
             }
-            $canMod = array_fill_keys(CompanyEntitlements::for($entitled)->modules(), true);
-            $canMod['devices'] = (bool) $entitled?->hasSupervisionPackage();
+            $entitlements = CompanyEntitlements::for($entitled);
+            $canMod = array_fill_keys($entitlements->modules(), true);
+            $canMod['devices'] = $entitlements->hasSupervision();
+            $canMod['downloads'] = $entitlements->hasAccess() || $entitlements->hasSupervision();
         }
 
         $view->with('companyContext', $companyContext);

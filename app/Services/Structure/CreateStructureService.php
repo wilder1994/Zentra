@@ -43,7 +43,7 @@ final class CreateStructureService
 
                 if ($parent === null || (int) $parent->installation_id !== $data->installationId) {
                     throw ValidationException::withMessages([
-                        'parent_id' => 'El nodo padre debe pertenecer a la misma instalación.',
+                        'parent_id' => 'La unidad superior debe pertenecer a la misma sede.',
                     ]);
                 }
             }

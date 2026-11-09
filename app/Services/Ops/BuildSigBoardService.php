@@ -73,6 +73,21 @@ final class BuildSigBoardService
     }
 
     /**
+     * Feeds operativos de la empresa (Mi empresa): novedades de servicio + revistas del supervisor.
+     *
+     * @return array{feed: list<array<string, mixed>>, reviews: list<array<string, mixed>>}
+     */
+    public function feedsForCompany(int $companyId): array
+    {
+        $feeds = $this->feeds($companyId, null, []);
+
+        return [
+            'feed' => $feeds['feed'],
+            'reviews' => $feeds['reviews'],
+        ];
+    }
+
+    /**
      * @param  \Illuminate\Support\Collection<int, Installation>  $sites
      * @return array<string, mixed>
      */
@@ -112,30 +127,10 @@ final class BuildSigBoardService
             $cursor = $cursor->addMonth();
         }
 
-        $todayStart = CarbonImmutable::now()->startOfDay();
-
-        $feedBase = OperationalAlert::query()
-            ->where('type', OperationalAlertType::ServiceChange)
-            ->where('security_company_id', $companyId)
-            ->where('body', 'not like', 'Revista en%')
-            ->when($client !== null, fn ($q) => $q->where('client_id', $client->id))
-            ->when($siteIds !== [], fn ($q) => $q->where(function ($inner) use ($siteIds) {
-                $inner->whereIn('installation_id', $siteIds)->orWhereNull('installation_id');
-            }));
-
-        $reviewsBase = SupervisorShiftReview::query()
-            ->when($client !== null, fn ($q) => $q->where('client_id', $client->id))
-            ->when($siteIds !== [], fn ($q) => $q->whereHas('supervisorPost', fn ($p) => $p->whereIn('installation_id', $siteIds)))
-            ->when($siteIds === [] && $client === null, fn ($q) => $q->whereRaw('1 = 0'));
-
-        $novedadesToday = (clone $feedBase)->where('created_at', '>=', $todayStart)->count();
-        $reviewsToday = (clone $reviewsBase)->where('recorded_at', '>=', $todayStart)->count();
-
-        $feedQuery = (clone $feedBase)->latest('id')->limit(40);
-        $reviewsQuery = (clone $reviewsBase)
-            ->with(['shift.user', 'employee', 'supervisorPost', 'fieldLogs'])
-            ->latest('recorded_at')
-            ->limit(40);
+        $feeds = $this->feeds($companyId, $client, $siteIds);
+        $novedadesToday = (int) ($feeds['novedades_today'] ?? 0);
+        $reviewsToday = (int) ($feeds['reviews_today'] ?? 0);
+        $lastNovelty = $feeds['last_novelty_at_raw'] ?? null;
 
         $postsBySite = $posts->groupBy(fn (SupervisorPost $post) => (int) $post->installation_id);
         $todayRows = collect(app(BuildPostComplianceService::class)->day($companyId))
@@ -196,7 +191,6 @@ final class BuildSigBoardService
         }
 
         $servicesToday = $posts->count();
-        $lastNovelty = (clone $feedBase)->where('created_at', '>=', $todayStart)->latest('id')->value('created_at');
 
         return [
             'show_installations_kpi' => $sites->count() > 1,
@@ -238,13 +232,66 @@ final class BuildSigBoardService
                         && isset($parafiscalByEmployee[$employee->id]),
                 ];
             })->all(),
-            'feed' => $feedQuery->get()->map(fn (OperationalAlert $row) => [
-                'id' => $row->id,
-                'body' => $row->body,
-                'observations' => is_array($row->payload) ? ($row->payload['observations'] ?? null) : null,
-                'at' => $row->created_at?->format('d/m H:i'),
-            ])->all(),
-            'reviews' => $reviewsQuery->get()->map(function (SupervisorShiftReview $review): array {
+            'feed' => $feeds['feed'],
+            'reviews' => $feeds['reviews'],
+            'chart' => [
+                'labels' => array_map(
+                    fn (string $key) => CarbonImmutable::createFromFormat('Y-m', $key)->format('m/Y'),
+                    array_keys($months),
+                ),
+                'values' => array_values($months),
+            ],
+        ];
+    }
+
+    /**
+     * @param  list<int>  $siteIds
+     * @return array{
+     *     feed: list<array<string, mixed>>,
+     *     reviews: list<array<string, mixed>>,
+     *     novedades_today: int,
+     *     reviews_today: int,
+     *     last_novelty_at_raw: mixed
+     * }
+     */
+    private function feeds(int $companyId, ?Client $client, array $siteIds): array
+    {
+        $todayStart = CarbonImmutable::now()->startOfDay();
+
+        $feedBase = OperationalAlert::query()
+            ->where('type', OperationalAlertType::ServiceChange)
+            ->where('security_company_id', $companyId)
+            ->where('body', 'not like', 'Revista en%')
+            ->when($client !== null, fn ($q) => $q->where('client_id', $client->id))
+            ->when($siteIds !== [], fn ($q) => $q->where(function ($inner) use ($siteIds) {
+                $inner->whereIn('installation_id', $siteIds)->orWhereNull('installation_id');
+            }));
+
+        $reviewsBase = SupervisorShiftReview::query()
+            ->when($client !== null, fn ($q) => $q->where('client_id', $client->id))
+            ->when($siteIds !== [], fn ($q) => $q->whereHas('supervisorPost', fn ($p) => $p->whereIn('installation_id', $siteIds)))
+            ->when(
+                $client === null && $siteIds === [],
+                fn ($q) => $q->whereHas('client', fn ($c) => $c->where('security_company_id', $companyId))
+            );
+
+        $novedadesToday = (clone $feedBase)->where('created_at', '>=', $todayStart)->count();
+        $reviewsToday = (clone $reviewsBase)->where('recorded_at', '>=', $todayStart)->count();
+        $lastNovelty = (clone $feedBase)->where('created_at', '>=', $todayStart)->latest('id')->value('created_at');
+
+        $feed = (clone $feedBase)->latest('id')->limit(40)->get()->map(fn (OperationalAlert $row) => [
+            'id' => $row->id,
+            'body' => $row->body,
+            'observations' => is_array($row->payload) ? ($row->payload['observations'] ?? null) : null,
+            'at' => $row->created_at?->format('d/m H:i'),
+        ])->all();
+
+        $reviews = (clone $reviewsBase)
+            ->with(['shift.user', 'employee', 'supervisorPost', 'fieldLogs'])
+            ->latest('recorded_at')
+            ->limit(40)
+            ->get()
+            ->map(function (SupervisorShiftReview $review): array {
                 $modules = $review->fieldLogs
                     ->map(fn ($log) => $log->module?->label())
                     ->filter()
@@ -267,14 +314,14 @@ final class BuildSigBoardService
                     'record' => $record,
                     'novelty' => (bool) $review->has_novelty,
                 ];
-            })->all(),
-            'chart' => [
-                'labels' => array_map(
-                    fn (string $key) => CarbonImmutable::createFromFormat('Y-m', $key)->format('m/Y'),
-                    array_keys($months),
-                ),
-                'values' => array_values($months),
-            ],
+            })->all();
+
+        return [
+            'feed' => $feed,
+            'reviews' => $reviews,
+            'novedades_today' => $novedadesToday,
+            'reviews_today' => $reviewsToday,
+            'last_novelty_at_raw' => $lastNovelty,
         ];
     }
 

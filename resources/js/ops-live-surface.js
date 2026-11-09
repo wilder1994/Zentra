@@ -208,6 +208,12 @@ export function companyDashboardLive() {
         shifts() {
             return this.ops.open_shifts_table || [];
         },
+        serviceFeed() {
+            return this.ops.service_feed || [];
+        },
+        supervisorReviews() {
+            return this.ops.supervisor_reviews || [];
+        },
         fieldVal(key) {
             return this.field?.[key] ?? 0;
         },

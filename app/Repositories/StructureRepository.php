@@ -12,9 +12,9 @@ use Illuminate\Support\Facades\DB;
 final class StructureRepository
 {
     /** @return Collection<int, Structure> */
-    public function treeForInstallation(int $clientId, int $installationId): Collection
+    public function treeForInstallation(int $clientId, int $installationId, ?string $search = null): Collection
     {
-        return Structure::query()
+        $tree = Structure::query()
             ->where('client_id', $clientId)
             ->where('installation_id', $installationId)
             ->whereNull('parent_id')
@@ -25,6 +25,40 @@ final class StructureRepository
             ])
             ->orderBy('name')
             ->get();
+
+        $needle = trim((string) $search);
+        if ($needle === '') {
+            return $tree;
+        }
+
+        return $this->filterTreeByName($tree, $needle);
+    }
+
+    /**
+     * Conserva coincidencias y ancestros para no romper el árbol.
+     *
+     * @param  Collection<int, Structure>  $nodes
+     * @return Collection<int, Structure>
+     */
+    private function filterTreeByName(Collection $nodes, string $needle): Collection
+    {
+        $filtered = $nodes->map(function (Structure $node) use ($needle): ?Structure {
+            $children = $node->relationLoaded('children')
+                ? $this->filterTreeByName($node->children, $needle)
+                : collect();
+
+            $matches = str_contains(mb_strtolower($node->name), mb_strtolower($needle));
+            if (! $matches && $children->isEmpty()) {
+                return null;
+            }
+
+            $clone = clone $node;
+            $clone->setRelation('children', $children);
+
+            return $clone;
+        })->filter()->values();
+
+        return new Collection($filtered->all());
     }
 
     /**

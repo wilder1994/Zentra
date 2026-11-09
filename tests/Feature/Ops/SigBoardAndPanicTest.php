@@ -44,12 +44,18 @@ final class SigBoardAndPanicTest extends TestCase
         $this->actingAs($user)
             ->get(route('company.installations.index'))
             ->assertOk()
-            ->assertSee('Novedades de servicio')
-            ->assertSee('Servicios hoy')
-            ->assertSee('Revistas del supervisor')
             ->assertSee('Instalaciones y servicios')
             ->assertSee('Satélite')
+            ->assertDontSee('Novedades de servicio')
+            ->assertDontSee('Revistas del supervisor')
+            ->assertDontSee('Servicios hoy')
             ->assertDontSee('Personal operativo');
+
+        $this->actingAs($user)
+            ->get(route('company.dashboard'))
+            ->assertOk()
+            ->assertSee('Novedades de servicio')
+            ->assertSee('Revistas del supervisor');
     }
 
     public function test_panic_is_hidden_from_actor_and_from_client_admins(): void

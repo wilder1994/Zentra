@@ -21,10 +21,10 @@
         </div>
         @if ($installationId)
             <div>
-                <label for="structure_id" class="block text-xs uppercase tracking-wide text-slate-500 mb-1">Nodo</label>
+                <label for="structure_id" class="block text-xs uppercase tracking-wide text-slate-500 mb-1">Unidad</label>
                 <select id="structure_id" name="structure_id" onchange="this.form.submit()"
                         class="rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white min-w-[12rem]">
-                    <option value="">Todos los nodos</option>
+                    <option value="">Todas las unidades</option>
                     @foreach (($nodeOptions[(string) $installationId] ?? []) as $node)
                         <option value="{{ $node['id'] }}" @selected((string) $structureId === (string) $node['id'])>{{ str_repeat("\u{00A0}\u{00A0}", $node['depth']).$node['name'] }}</option>
                     @endforeach

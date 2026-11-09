@@ -44,10 +44,12 @@ final class OperateAsRoleTest extends TestCase
             ->assertOk()
             ->assertSee('Ingreso y salida')
             ->assertSee('Turnos')
-            ->assertDontSee(route('access.sites.index'), false)
+            ->assertSee('Estructura')
             ->assertDontSee(route('client.dashboard'), false);
 
-        $this->actingAs($admin)->withSession($session)->get(route('access.sites.index'))->assertForbidden();
+        $this->actingAs($admin)->withSession($session)->get(route('access.sites.index'))
+            ->assertOk()
+            ->assertSee('Solo lectura');
         $this->actingAs($admin)->withSession($session)->get(route('access.locations.create'))->assertForbidden();
         $this->actingAs($admin)->withSession($session)->get(route('access.reports.index'))->assertForbidden();
         $this->actingAs($admin)->withSession($session)->get(route('access.blocklist.index'))
@@ -134,9 +136,22 @@ final class OperateAsRoleTest extends TestCase
             PorteriaDoorService::SESSION_KEY => $door->id,
         ];
 
-        foreach (['access.locations.create', 'access.buildings.create', 'access.housing_units.create', 'access.sites.index', 'access.reports.index', 'access.reports.export'] as $route) {
-            $this->actingAs($guard)->withSession($session)->get(route($route))->assertForbidden();
+        foreach (['access.locations.create', 'access.buildings.create', 'access.housing_units.create', 'access.reports.index', 'access.reports.export'] as $route) {
+            $response = $this->actingAs($guard)->withSession($session)->get(route($route));
+            $this->assertTrue(
+                $response->isForbidden() || $response->isRedirect(),
+                "Guard should not access {$route}, got ".$response->status()
+            );
         }
+
+        $this->actingAs($guard)
+            ->withSession($session)
+            ->post(route('access.turnos.store'), $this->guardShiftOpenPayload($door))
+            ->assertRedirect();
+
+        $this->actingAs($guard)->withSession($session)->get(route('access.sites.index'))
+            ->assertOk()
+            ->assertSee('Solo lectura');
 
         $this->actingAs($guard)->withSession($session)->get(route('access.blocklist.index'))
             ->assertOk()

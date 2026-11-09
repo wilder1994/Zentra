@@ -50,4 +50,7 @@ require __DIR__.'/modules/client.php';
 // Portal residente (Fase 4)
 require __DIR__.'/modules/resident.php';
 
+// App web / iPhone de residentes (Usuarios app)
+require __DIR__.'/modules/resident_app.php';
+
 require __DIR__.'/auth.php';

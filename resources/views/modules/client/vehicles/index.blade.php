@@ -21,7 +21,7 @@
                     <tr>
                         <th class="px-4 py-3 text-left text-xs uppercase text-slate-500">Placa</th>
                         <th class="px-4 py-3 text-left text-xs uppercase text-slate-500">Vehículo</th>
-                        <th class="px-4 py-3 text-left text-xs uppercase text-slate-500">Nodo</th>
+                        <th class="px-4 py-3 text-left text-xs uppercase text-slate-500">Unidad</th>
                         <th class="px-4 py-3 text-left text-xs uppercase text-slate-500">SOAT</th>
                         <th class="px-4 py-3 text-left text-xs uppercase text-slate-500">Parqueadero</th>
                     </tr>

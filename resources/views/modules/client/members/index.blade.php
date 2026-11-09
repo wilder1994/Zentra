@@ -27,7 +27,7 @@
                 <thead class="bg-slate-950/60">
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Persona</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Nodo</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Unidad</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Tipo</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Código de acceso</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Acción</th>

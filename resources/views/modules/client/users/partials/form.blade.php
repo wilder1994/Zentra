@@ -85,14 +85,14 @@
         @endforelse
         <x-ui.field-error :messages="$errors->get('installation_ids')" />
         <div class="pt-2 space-y-2">
-            <p class="text-xs font-medium text-slate-300">Permiso en esas instalaciones</p>
+            <p class="text-xs font-medium text-slate-300">Permiso en esas sedes</p>
             <label class="flex items-center gap-2 text-sm text-slate-300">
                 <input type="radio" name="installation_permission" value="admin" @checked($selectedInstallationPermission === 'admin') class="border-slate-600 bg-slate-950 text-teal-600">
-                Admin · opera y puede borrar nodos
+                Admin · opera y puede borrar unidades
             </label>
             <label class="flex items-center gap-2 text-sm text-slate-300">
                 <input type="radio" name="installation_permission" value="support" @checked($selectedInstallationPermission === 'support') class="border-slate-600 bg-slate-950 text-teal-600">
-                Apoyo · mismas instalaciones, no borra nodos
+                Apoyo · mismas sedes, no borra unidades
             </label>
             <x-ui.field-error :messages="$errors->get('installation_permission')" />
         </div>

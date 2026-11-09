@@ -20,7 +20,7 @@ return [
     ],
 
     'default_modules' => [
-        'access' => ['dashboard', 'billing', 'clients', 'installations', 'panics', 'employees', 'users', 'profile', 'settings'],
+        'access' => ['dashboard', 'billing', 'clients', 'installations', 'panics', 'downloads', 'employees', 'users', 'profile', 'settings'],
         'supervision' => ['billing', 'clients', 'installations', 'supervision', 'panics', 'downloads', 'employees', 'users', 'profile', 'settings'],
         'indexing' => ['billing', 'employees', 'documents', 'users', 'profile', 'settings'],
         'observatory' => ['dashboard', 'billing', 'clients', 'installations', 'observatory', 'users', 'profile', 'settings'],

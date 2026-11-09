@@ -63,7 +63,7 @@
                 </div>
                 <div x-show="kind === 'member'" class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                        <label class="text-xs text-slate-500">Nodo</label>
+                        <label class="text-xs text-slate-500">Unidad</label>
                         <select name="structure_id" x-model="structureId" class="mt-1 w-full rounded-lg bg-slate-950 border-slate-700 text-white text-sm">
                             <option value="">Seleccionar</option>
                             @foreach($nodes as $node)

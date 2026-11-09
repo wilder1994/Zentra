@@ -42,8 +42,9 @@
                             @php
                                 $module = $item['module'] ?? null;
                                 $moduleOk = $module === null || (isset($activeClient) && $activeClient->panelModuleEnabled($module));
+                                $accessOk = empty($item['requires_access']) || (isset($activeClient) && $activeClient->has_access);
                             @endphp
-                            @if ($moduleOk)
+                            @if ($moduleOk && $accessOk)
                             @canany(array_values(array_filter([$item['permission'] ?? null, $item['any'] ?? null])))
                             <a href="{{ route($item['route']) }}"
                                class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium {{ request()->routeIs(str_replace('.index', '.*', $item['route'])) || request()->routeIs($item['route']) ? 'bg-teal-600 text-white' : 'text-slate-300 hover:bg-slate-800' }}">

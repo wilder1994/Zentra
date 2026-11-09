@@ -104,6 +104,14 @@ final class PorteriaDirectoryController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('modules.access.directory.sites', compact('sites'));
+        $trees = [];
+        foreach ($sites as $site) {
+            $trees[(int) $site->id] = $this->structures->treeForInstallation($clientId, (int) $site->id);
+        }
+
+        return view('modules.access.directory.sites', [
+            'sites' => $sites,
+            'trees' => $trees,
+        ]);
     }
 }

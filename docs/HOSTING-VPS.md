@@ -1,6 +1,8 @@
 # Hosting VPS (Zentra)
 
-**Última actualización:** 24 octubre 2026
+**Última actualización:** 9 noviembre 2026
+
+Corte 9 nov 2026 (app residentes Accesos: Usuarios app, `/r/`, APK `zentra-residentes.apk`, Descargas empresa/cliente, Sanctum devices, push stub): **con migrate** `2026_11_09_100000` + `2026_11_09_120000`. Pull + `composer install --no-dev` + `npm ci && npm run build` + `migrate --force` + `db:seed --class=RoleAndPermissionSeeder` + caches + `queue:restart`. APK residentes en `public/downloads/zentra-residentes.apk` (WebView → `https://zentra.wcodex.cloud/r/`). Enlace web/iPhone: `{APP_URL}/r/`. Opcional `.env`: `RESIDENT_APP_URL`, `FCM_SERVER_KEY` (push real). Sin seeder de datos.
 
 Corte 24 oct 2026 (exportación de clientes y empleados en el mismo formato de la plantilla de importación, compatible con Arzen): sin migrate y sin dependencias nuevas. Pull + `route:cache` + `view:cache` + `config:cache` + `queue:restart`. Sin `npm run build`.
 

@@ -7,6 +7,12 @@
 /field-app/android/.gradle
 /field-app/android/local.properties
 /field-app/android/captures
+/resident-app/android/app/build
+/resident-app/android/build
+/resident-app/android/.gradle
+/resident-app/android/local.properties
+/resident-app/android/captures
+/resident-app/node_modules
 *.jks
 *.keystore
 /public/build

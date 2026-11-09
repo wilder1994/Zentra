@@ -11,6 +11,7 @@ use App\Models\ObservatoryEvent;
 use App\Models\Resident;
 use App\Models\SecurityCompany;
 use App\Models\InstallationProfile;
+use App\Models\StructureAppUser;
 use App\Models\StructureType;
 use App\Models\SupervisorAlarmType;
 use App\Models\SupervisorChecklistItem;
@@ -45,6 +46,7 @@ use App\View\Composers\CompanyLayoutComposer;
 use App\View\Composers\OperateReturnLayoutComposer;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -103,5 +105,7 @@ class AppServiceProvider extends ServiceProvider
         View::composer('layouts.company', CompanyLayoutComposer::class);
         View::composer('layouts.access', AccessLayoutComposer::class);
         View::composer(['layouts.access', 'layouts.client'], OperateReturnLayoutComposer::class);
+
+        Route::bind('appUser', fn (string $value): StructureAppUser => StructureAppUser::withTrashed()->findOrFail($value));
     }
 }

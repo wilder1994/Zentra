@@ -165,19 +165,34 @@ final class StructureModuleTest extends TestCase
             ->get(route('client.structures.index'))
             ->assertRedirect(route('client.installations.index'));
 
-        $this->actingAs($admin)
+        $installationCount = Installation::query()
+            ->withoutGlobalScopes()
+            ->where('client_id', $client->id)
+            ->where('is_active', true)
+            ->count();
+
+        $index = $this->actingAs($admin)
             ->withSession(['tenancy.active_client_id' => $client->id])
-            ->get(route('client.installations.index'))
-            ->assertOk()
-            ->assertSee('Instalaciones')
-            ->assertSee($installation->name);
+            ->get(route('client.installations.index'));
+
+        if ($installationCount === 1) {
+            $index->assertRedirect(route('client.installations.show', $installation));
+        } else {
+            $index->assertOk()
+                ->assertSee('Mi estructura')
+                ->assertSee('Abrir estructura')
+                ->assertSee($installation->name);
+        }
 
         $this->actingAs($admin)
             ->withSession(['tenancy.active_client_id' => $client->id])
             ->get(route('client.installations.show', $installation))
             ->assertOk()
-            ->assertSee('>Instalaciones</h3>', false)
+            ->assertSee('Buscar en la estructura')
             ->assertSee('Crear dentro de')
+            ->assertDontSee('Nuevo nodo')
+            ->assertDontSee('Perfil de sitio')
+            ->assertDontSee('client-installation-pin-map', false)
             ->assertDontSee('El censo se arma por instalación')
             ->assertDontSee('name="code"', false);
     }

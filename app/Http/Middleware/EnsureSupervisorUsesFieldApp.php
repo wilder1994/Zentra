@@ -22,7 +22,7 @@ final class EnsureSupervisorUsesFieldApp
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
-        if ($user === null || ! $user->hasRole('supervisor')) {
+        if ($user === null || ! method_exists($user, 'hasRole') || ! $user->hasRole('supervisor')) {
             return $next($request);
         }
 

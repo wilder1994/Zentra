@@ -13,9 +13,9 @@ class AuditLogger
     public function record(?Model $model, string $action, ?array $old = null, ?array $new = null): AuditLog
     {
         $user = auth()->user();
-        $clientId = $user instanceof User
-            ? $user->primary_client_id
-            : app(TenantContext::class)->clientId();
+        $webUser = $user instanceof User ? $user : null;
+        $clientId = $webUser?->primary_client_id
+            ?? app(TenantContext::class)->clientId();
 
         $targetType = $model?->getMorphClass() ?? null;
         $targetId = $model?->getKey() ?? null;
@@ -30,7 +30,7 @@ class AuditLogger
 
         return AuditLog::create([
             'client_id' => $clientId,
-            'user_id' => auth()->id(),
+            'user_id' => $webUser?->id,
             'action' => $action,
             'auditable_type' => $targetType,
             'auditable_id' => $targetId,

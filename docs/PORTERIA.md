@@ -1,6 +1,6 @@
 # Portería (`/access`)
 
-**Última actualización:** 17 septiembre 2026
+**Última actualización:** 8 noviembre 2026
 
 Consola de **turno del vigilante**. Login rol `guardia` → `/access`. El admin de empresa entra con **Operar portería**. El supervisor de vigilancia **no** usa este panel (solo APK/PWA).
 
@@ -20,11 +20,23 @@ Detalle de fichas de empresa: [`EMPLEADOS-Y-CARGOS.md`](EMPLEADOS-Y-CARGOS.md). 
 
 ## Puerta de operación
 
-Tabla `locations` (no confundir con **puesto**). Solo el **vigilante** (`guardia`) al entrar a `/access`. **Operar portería** desde el expediente no pide puerta ni turno.
+Tabla `locations` (no confundir con **puesto**).
 
-1. **Una puerta activa:** el sistema la liga al vigilante. No pide elegir.
-2. **Varias puertas:** el vigilante elige al abrir turno. Queda en `guard_shifts.location_id` y en sesión.
-3. Sin puertas activas el vigilante no opera.
+### Vigilante (`guardia`)
+
+1. **Una puerta activa:** el sistema la liga. No pide elegir.
+2. **Varias puertas:** elige al abrir turno. Queda en `guard_shifts.location_id` y en sesión.
+3. Sin puertas activas no opera.
+
+### Operar (admin empresa, expediente)
+
+Un solo botón **Operar** (menú: Cliente → Instalación → Portería).
+
+- **Cliente:** entra al panel directo.
+- **Instalación:** si hay 2+, modal con lista; si hay 1, directo.
+- **Portería:** si hay 1 instalación y 1 puerta, directo; si no, modal centrado (select de instalación arriba si aplica + lista de puertas + **Operar**).
+
+Guarda instalación en `CompanyOperateContext` y puerta en sesión (`PorteriaDoorService`). No exige turno.
 
 El pánico del vigilante usa **ese usuario + esa puerta**. El admin de empresa en portería dispara pánico del cliente (sin elegir puerta).
 
