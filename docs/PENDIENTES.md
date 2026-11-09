@@ -48,7 +48,7 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
-### 9 nov 2026 · Portería multi-auth + km Resumen/PPTX + periodo + Echo prod
+### 9 nov 2026 · Portería multi-auth + km Resumen/PPTX + periodo + Echo prod (commit `be40fc4`)
 - Portería: lookup por cédula une invitados del cliente con visitante global; varias autorizaciones vigentes → selector de destino; `block_reason` seguro si `selected` es null.
 - Visitante unique global: `ManageAuthorizationService::resolveVisitor` sin ClientScope + reintento UniqueConstraint.
 - Supervisión: `ResolveSupervisorShiftTraveledKm` (odómetro absurdo / GPS basura no suman en Resumen/PPTX/tira); separadores de miles en tarjetas, tablas y ejes; etiquetas PPTX `#,##0`.
