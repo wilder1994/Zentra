@@ -293,7 +293,7 @@
                     <p class="text-xs text-red-400 font-semibold" x-show="selected?.blocked"
                        x-text="selected?.block_message || 'No puede ingresar.'"></p>
                     <p class="text-xs text-red-300/80 mt-1" x-show="selected?.blocked && selected?.block_reason"
-                       x-text="'Motivo (admin): ' + selected.block_reason"></p>
+                       x-text="'Motivo (admin): ' + (selected?.block_reason ?? '')"></p>
                 </div>
             </div>
 
@@ -325,6 +325,27 @@
                 </div>
             </template>
 
+            <template x-if="needsAuthChoice() && !selected.auth && !selected.inside && !selected.blocked">
+                <div class="rounded-xl border border-sky-500/40 bg-sky-500/10 p-3 space-y-2">
+                    <p class="text-sm font-semibold text-sky-200">Varias autorizaciones vigentes — ¿a cuál va?</p>
+                    <p class="text-xs text-slate-400">Elige el apartamento / destino antes de ingresar.</p>
+                    <div class="space-y-2">
+                        <template x-for="a in (selected.auth_choices || [])" :key="a.guest_id">
+                            <button type="button"
+                                    class="w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-left transition hover:border-sky-400/50"
+                                    @click="chooseAuth(a)">
+                                <div class="flex items-start justify-between gap-2">
+                                    <p class="text-sm font-semibold text-white" x-text="a.destination"></p>
+                                    <span class="shrink-0 text-[10px] uppercase tracking-wide text-emerald-300">Vigente</span>
+                                </div>
+                                <p class="mt-0.5 text-xs text-slate-300" x-text="'Autoriza: ' + (a.authorized_name || '—')"></p>
+                                <p class="text-[11px] text-slate-500" x-text="a.type + ' · ' + a.validity"></p>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
             <template x-if="selected?.auth && !selected.inside && !selected.blocked">
                 <div class="rounded-xl border p-3 text-sm"
                      :class="selected.auth.can_enter ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-amber-500/40 bg-amber-500/10'">
@@ -340,6 +361,9 @@
                         <div class="sm:col-span-2" x-show="selected.auth.notes"><dt class="text-xs text-slate-500">Notas</dt><dd class="text-slate-200" x-text="selected.auth.notes"></dd></div>
                     </dl>
                     <p class="mt-1 text-xs text-amber-200" x-show="!selected.auth.can_enter" x-text="selected.auth.message"></p>
+                    <button type="button" class="mt-2 text-xs text-sky-300 hover:text-sky-200 underline"
+                            x-show="(selected.auth_choices || []).length > 1"
+                            @click="selected.auth = null; step = null">Cambiar destino</button>
                 </div>
             </template>
 
@@ -427,8 +451,13 @@
                         <button name="action" value="enter" class="px-4 py-2 rounded-lg bg-yellow-400 text-slate-900 text-sm font-semibold">Ingresar</button>
                     </template>
                     <template x-if="selected && !selected.inside && !selected.blocked && !selected.census">
-                        <button type="button" @click="startEnter()" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold"
-                                x-text="selected.auth?.can_enter ? 'Ingresar autorizado' : 'Ingresar'"></button>
+                        <button type="button" @click="startEnter()"
+                                class="px-4 py-2 rounded-lg text-white text-sm font-semibold"
+                                :class="needsAuthChoice() && !selected.auth ? 'bg-slate-700 cursor-not-allowed opacity-60' : 'bg-emerald-600'"
+                                :disabled="needsAuthChoice() && !selected.auth"
+                                x-text="needsAuthChoice() && !selected.auth
+                                    ? 'Elige el destino'
+                                    : (selected.auth?.can_enter ? 'Ingresar autorizado' : 'Ingresar')"></button>
                     </template>
                     <button type="button" @click="cancel()" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-200 text-sm">Cancelar</button>
                 </div>
@@ -523,7 +552,16 @@
                     const l = this.selected?.last;
                     return l ? (l.authorized_name || l.authorized_text || '—') : '—';
                 },
+                needsAuthChoice() {
+                    return (this.selected?.auth_choices || []).length > 1;
+                },
+                chooseAuth(a) {
+                    if (!this.selected || !a) return;
+                    this.selected = { ...this.selected, auth: a };
+                    this.step = null;
+                },
                 startEnter() {
+                    if (this.needsAuthChoice() && !this.selected?.auth) return;
                     if (this.selected?.auth?.can_enter) { this.step = 'auth'; return; }
                     this.normalEnter();
                 },
@@ -533,7 +571,11 @@
                     this.step = hasLast ? 'confirm' : 'form';
                 },
                 pick(row) {
-                    this.selected = row;
+                    this.selected = {
+                        ...row,
+                        auth_choices: row.auth_choices || [],
+                        auths: row.auths || [],
+                    };
                     this.step = null;
                     if (row.blocked) {
                         this.destId = '';

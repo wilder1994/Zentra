@@ -32,20 +32,37 @@
                     <span class="text-xs text-slate-500" x-show="range" x-text="picking ? 'Elija el día final' : 'Elija desde y hasta'"></span>
                 </label>
 
-                <div class="mt-3 flex items-center justify-between">
-                    <button type="button" @click="shift(-1)" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Mes anterior">
+                <div class="mt-3 flex items-center gap-2">
+                    <button type="button" @click="shift(-1)" class="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Mes anterior">
                         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
                     </button>
-                    <button type="button" @click="shift(1)" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Mes siguiente">
+                    <div class="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-2">
+                        <label class="sr-only" for="supervision-period-month">Mes</label>
+                        <select id="supervision-period-month" x-model.number="viewMonth"
+                                class="h-9 max-w-[9.5rem] rounded-lg border border-slate-700 bg-slate-950 px-2 text-sm font-semibold text-white focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400/40">
+                            <template x-for="(name, idx) in monthNames" :key="idx">
+                                <option :value="idx" x-text="name"></option>
+                            </template>
+                        </select>
+                        <label class="sr-only" for="supervision-period-year">Año</label>
+                        <select id="supervision-period-year" x-model.number="viewYear"
+                                class="h-9 w-[5.5rem] rounded-lg border border-slate-700 bg-slate-950 px-2 text-sm font-semibold text-white focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400/40">
+                            <template x-for="y in yearOptions" :key="y">
+                                <option :value="y" x-text="y"></option>
+                            </template>
+                        </select>
+                        <span class="hidden text-xs text-slate-500 sm:inline" x-show="range" x-text="'+ ' + nextMonthTitle()"></span>
+                    </div>
+                    <button type="button" @click="shift(1)" class="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Mes siguiente">
                         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                     </button>
                 </div>
 
-                <div class="-mt-7 grid gap-5" :class="range ? 'sm:grid-cols-2' : ''">
+                <div class="mt-3 grid gap-5" :class="range ? 'sm:grid-cols-2' : ''">
                     <template x-for="(m, index) in months" :key="m.year + '-' + m.month">
                         <div :class="index > 0 ? 'hidden sm:block' : ''">
-                            <p class="text-center text-sm font-semibold text-white" x-text="title(m)"></p>
-                            <div class="mt-3 grid grid-cols-7 gap-0.5 text-center text-[11px] text-slate-500">
+                            <p class="text-center text-sm font-semibold text-white" x-show="range" x-text="title(m)"></p>
+                            <div class="grid grid-cols-7 gap-0.5 text-center text-[11px] text-slate-500" :class="range ? 'mt-3' : ''">
                                 <template x-for="(w, wi) in weekdays" :key="wi"><span x-text="w"></span></template>
                             </div>
                             <div class="mt-1 grid grid-cols-7 gap-0.5 text-center text-sm">

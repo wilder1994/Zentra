@@ -27,6 +27,7 @@ final class BuildSupervisionSummaryService
     public function __construct(
         private readonly BuildSupervisionPeriodCharts $charts,
         private readonly BuildPostComplianceService $compliance,
+        private readonly ResolveSupervisorShiftTraveledKm $traveledKm,
     ) {}
 
     public function execute(SecurityCompany $company, SupervisionQueryFilter $filter): SupervisionPeriodSnapshot
@@ -121,7 +122,7 @@ final class BuildSupervisionSummaryService
             sitesVisited: $sitesVisited,
             postsTotal: $postRows->count(),
             postsDone: $postRows->filter(fn (array $row) => $row['done'] >= $row['expected'])->count(),
-            kmTraveled: (int) $shifts->sum(fn (SupervisorShift $shift) => (int) ($shift->km_traveled ?? 0)),
+            kmTraveled: (int) $shifts->sum(fn (SupervisorShift $shift) => $this->traveledKm->execute($shift)),
             openShifts: $shifts->where('status', SupervisorShiftStatus::Open)->count(),
             fieldLogs: $logs->count(),
             semaphore: $semaphore,
@@ -221,7 +222,7 @@ final class BuildSupervisionSummaryService
                 'name' => $name,
                 'shifts' => $shifts->where('user_id', $userId)->count(),
                 'reviews' => $reviews->filter(fn (SupervisorShiftReview $review) => (int) $review->shift?->user_id === $userId)->count(),
-                'km' => (int) $shifts->where('user_id', $userId)->sum(fn (SupervisorShift $shift) => (int) ($shift->km_traveled ?? 0)),
+                'km' => (int) $shifts->where('user_id', $userId)->sum(fn (SupervisorShift $shift) => $this->traveledKm->execute($shift)),
                 'logs' => $ofUser->count(),
                 'alarms' => $ofUser->filter(fn (SupervisorFieldLog $log) => $log->module === SupervisorFieldModule::Alarms)->count(),
                 'supports' => $ofUser->filter(fn (SupervisorFieldLog $log) => $log->module === SupervisorFieldModule::Supports)->count(),

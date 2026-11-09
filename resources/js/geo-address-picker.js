@@ -3,8 +3,8 @@ import { fetchCaliComunas, locateCaliComuna, paintCaliLayer, caliComunasUrl } fr
 
 window.__geoMapsLoader = window.__geoMapsLoader || null;
 
-function loadGoogleMapsPlaces(apiKey) {
-    if (window.google?.maps?.places) {
+function loadGoogleMaps(apiKey) {
+    if (window.google?.maps?.importLibrary) {
         return Promise.resolve();
     }
     if (window.__geoMapsLoader) {
@@ -17,7 +17,7 @@ function loadGoogleMapsPlaces(apiKey) {
             delete window[cb];
         };
         const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places&callback=${cb}`;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&v=weekly&loading=async&callback=${cb}`;
         script.async = true;
         script.onerror = () => reject(new Error('No se pudo cargar Google Maps'));
         document.head.appendChild(script);
@@ -25,21 +25,50 @@ function loadGoogleMapsPlaces(apiKey) {
     return window.__geoMapsLoader;
 }
 
+function componentText(component) {
+    if (!component) {
+        return '';
+    }
+    return component.longText || component.long_name || component.shortText || component.short_name || '';
+}
+
 function parsePlaceComponents(components) {
     const get = (type) => {
-        const c = (components || []).find((x) => x.types.includes(type));
-        return c ? c.long_name : '';
+        const c = (components || []).find((x) => (x.types || []).includes(type));
+        return componentText(c);
     };
     const route = get('route');
     const number = get('street_number');
     const address = [route, number].filter(Boolean).join(' ') || '';
     const locality = get('locality') || get('administrative_area_level_2') || '';
-    const sublocality = get('sublocality') || '';
+    const sublocality = get('sublocality') || get('sublocality_level_1') || '';
     const city = locality || (classifyArea(sublocality, '') === 'none' ? sublocality : '') || '';
     const department = get('administrative_area_level_1') || '';
     const area = pickArea(components, city);
 
     return { address, city, department, area: area.name, areaKind: area.kind };
+}
+
+function latLngParts(location) {
+    if (!location) {
+        return null;
+    }
+    const lat = typeof location.lat === 'function' ? location.lat() : location.lat;
+    const lng = typeof location.lng === 'function' ? location.lng() : location.lng;
+    if (lat == null || lng == null) {
+        return null;
+    }
+    return { lat: Number(lat), lng: Number(lng) };
+}
+
+function placeDisplayName(place) {
+    if (!place) {
+        return '';
+    }
+    if (typeof place.displayName === 'string') {
+        return place.displayName;
+    }
+    return place.displayName?.text || '';
 }
 
 window.geoAddressPicker = function geoAddressPicker(config) {
@@ -53,7 +82,11 @@ window.geoAddressPicker = function geoAddressPicker(config) {
         open: false,
         map: null,
         marker: null,
-        autocomplete: null,
+        searchQuery: '',
+        suggestions: [],
+        searchTimer: null,
+        searching: false,
+        sessionToken: null,
         draftLat: null,
         draftLng: null,
         draftAddress: '',
@@ -76,12 +109,17 @@ window.geoAddressPicker = function geoAddressPicker(config) {
             this.draftAreaKind = 'none';
             this.draftComuna = null;
             this.draftLabel = this.address || '';
+            this.searchQuery = '';
+            this.suggestions = [];
             await this.$nextTick();
             if (!this.maps.apiKey) {
                 return;
             }
             try {
-                await loadGoogleMapsPlaces(this.maps.apiKey);
+                await loadGoogleMaps(this.maps.apiKey);
+                await google.maps.importLibrary('maps');
+                await google.maps.importLibrary('places');
+                this.sessionToken = new google.maps.places.AutocompleteSessionToken();
                 this.initMap();
             } catch (e) {
                 console.error(e);
@@ -90,6 +128,11 @@ window.geoAddressPicker = function geoAddressPicker(config) {
 
         closeMap() {
             this.open = false;
+            this.suggestions = [];
+            if (this.searchTimer) {
+                clearTimeout(this.searchTimer);
+                this.searchTimer = null;
+            }
         },
 
         initMap() {
@@ -128,40 +171,95 @@ window.geoAddressPicker = function geoAddressPicker(config) {
                 this.setDraftFromLatLng(e.latLng.lat(), e.latLng.lng());
             });
 
-            if (this.$refs.search) {
-                this.autocomplete = new google.maps.places.Autocomplete(this.$refs.search, {
-                    fields: ['formatted_address', 'geometry', 'address_components', 'name'],
-                    componentRestrictions: { country: 'co' },
-                });
-                this.autocomplete.bindTo('bounds', this.map);
-                this.autocomplete.addListener('place_changed', () => {
-                    const place = this.autocomplete.getPlace();
-                    if (!place.geometry?.location) {
-                        return;
-                    }
-                    const lat = place.geometry.location.lat();
-                    const lng = place.geometry.location.lng();
-                    this.map.setCenter(place.geometry.location);
-                    this.map.setZoom(16);
-                    this.marker.setPosition(place.geometry.location);
-                    const parsed = parsePlaceComponents(place.address_components);
-                    this.draftLat = lat;
-                    this.draftLng = lng;
-                    this.draftAddress = parsed.address || place.formatted_address || place.name || '';
-                    this.draftCity = parsed.city;
-                    this.draftDepartment = parsed.department;
-                    this.draftArea = parsed.area;
-                    this.draftAreaKind = parsed.areaKind;
-                    this.draftLabel = place.formatted_address || place.name || this.draftAddress;
-                    this.applyCaliComuna(lat, lng);
-                });
-            }
-
             if (hasCoords) {
                 this.draftLabel = this.address || `${this.draftLat}, ${this.draftLng}`;
             }
 
             this.loadCaliLayer();
+        },
+
+        onSearchInput() {
+            if (this.searchTimer) {
+                clearTimeout(this.searchTimer);
+            }
+            const q = (this.searchQuery || '').trim();
+            if (q.length < 2) {
+                this.suggestions = [];
+                return;
+            }
+            this.searchTimer = setTimeout(() => this.fetchSuggestions(q), 250);
+        },
+
+        async fetchSuggestions(query) {
+            if (!window.google?.maps?.places?.AutocompleteSuggestion) {
+                this.suggestions = [];
+                return;
+            }
+            this.searching = true;
+            try {
+                if (!this.sessionToken) {
+                    this.sessionToken = new google.maps.places.AutocompleteSessionToken();
+                }
+                const request = {
+                    input: query,
+                    includedRegionCodes: ['co'],
+                    language: 'es',
+                    sessionToken: this.sessionToken,
+                };
+                const { suggestions } = await google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
+                this.suggestions = (suggestions || [])
+                    .map((row) => row.placePrediction)
+                    .filter(Boolean)
+                    .slice(0, 6)
+                    .map((prediction) => ({
+                        prediction,
+                        label: prediction.text?.text
+                            || prediction.mainText?.text
+                            || prediction.toString?.()
+                            || 'Lugar',
+                        secondary: prediction.secondaryText?.text || '',
+                    }));
+            } catch (e) {
+                console.error(e);
+                this.suggestions = [];
+            } finally {
+                this.searching = false;
+            }
+        },
+
+        async selectSuggestion(item) {
+            if (!item?.prediction) {
+                return;
+            }
+            this.suggestions = [];
+            try {
+                const place = item.prediction.toPlace();
+                await place.fetchFields({
+                    fields: ['displayName', 'formattedAddress', 'location', 'addressComponents'],
+                });
+                this.sessionToken = new google.maps.places.AutocompleteSessionToken();
+                const coords = latLngParts(place.location);
+                if (!coords) {
+                    return;
+                }
+                this.map.setCenter(coords);
+                this.map.setZoom(16);
+                this.marker.setPosition(coords);
+                const parsed = parsePlaceComponents(place.addressComponents || []);
+                const name = placeDisplayName(place);
+                this.draftLat = coords.lat;
+                this.draftLng = coords.lng;
+                this.draftAddress = parsed.address || place.formattedAddress || name || item.label || '';
+                this.draftCity = parsed.city;
+                this.draftDepartment = parsed.department;
+                this.draftArea = parsed.area;
+                this.draftAreaKind = parsed.areaKind;
+                this.draftLabel = place.formattedAddress || name || this.draftAddress;
+                this.searchQuery = this.draftLabel;
+                this.applyCaliComuna(coords.lat, coords.lng);
+            } catch (e) {
+                console.error(e);
+            }
         },
 
         async loadCaliLayer() {
@@ -207,6 +305,7 @@ window.geoAddressPicker = function geoAddressPicker(config) {
                 this.draftArea = parsed.area;
                 this.draftAreaKind = parsed.areaKind;
                 this.draftLabel = results[0].formatted_address || this.draftLabel;
+                this.searchQuery = this.draftLabel;
                 this.applyCaliComuna(lat, lng);
             });
         },

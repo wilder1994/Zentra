@@ -21,6 +21,10 @@ use Illuminate\Support\Collection;
 
 final class BuildSupervisionPeriodCharts
 {
+    public function __construct(
+        private readonly ResolveSupervisorShiftTraveledKm $traveledKm,
+    ) {}
+
     /**
      * @param  Collection<int, SupervisorShiftReview>  $reviews
      * @param  Collection<int, SupervisorFieldLog>  $logs
@@ -85,7 +89,7 @@ final class BuildSupervisionPeriodCharts
             if (! array_key_exists($key, $kmCounts)) {
                 continue;
             }
-            $kmCounts[$key] += (int) ($shift->km_traveled ?? 0);
+            $kmCounts[$key] += $this->traveledKm->execute($shift);
         }
 
         return [

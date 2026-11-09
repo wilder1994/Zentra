@@ -2,6 +2,8 @@
 
 **Última actualización:** 9 noviembre 2026
 
+Corte 9 nov 2026 (tarde · portería multi-auth, km Resumen/PPTX, periodo, Echo): **sin migrate**. Pull + `npm ci && npm run build` **en el VPS** (o build local exportando `VITE_REVERB_HOST=zentra.wcodex.cloud`, `VITE_REVERB_PORT=443`, `VITE_REVERB_SCHEME=https`, `VITE_REVERB_APP_KEY` = la del `.env` del VPS) + `view:cache` + `config:cache` + `route:cache`. **No** subir un `public/build` compilado con `.env` Laragon (`REVERB_HOST=localhost` / puerto 8080): el navegador intenta `wss://localhost:8080` y falla. `echo.js` además ignora host local si la página no es local. Reverb: servicio `zentra-reverb` en `127.0.0.1:6001` + `location /app` en nginx.
+
 Corte 9 nov 2026 (app residentes Accesos: Usuarios app, `/r/`, APK `zentra-residentes.apk`, Descargas empresa/cliente, Sanctum devices, push stub): **con migrate** `2026_11_09_100000` + `2026_11_09_120000`. Pull + `composer install --no-dev` + `npm ci && npm run build` + `migrate --force` + `db:seed --class=RoleAndPermissionSeeder` + caches + `queue:restart`. APK residentes en `public/downloads/zentra-residentes.apk` (WebView → `https://zentra.wcodex.cloud/r/`). Enlace web/iPhone: `{APP_URL}/r/`. Opcional `.env`: `RESIDENT_APP_URL`, `FCM_SERVER_KEY` (push real). Sin seeder de datos.
 
 Corte 24 oct 2026 (exportación de clientes y empleados en el mismo formato de la plantilla de importación, compatible con Arzen): sin migrate y sin dependencias nuevas. Pull + `route:cache` + `view:cache` + `config:cache` + `queue:restart`. Sin `npm run build`.
@@ -151,7 +153,7 @@ Tableros en vivo (15 sep 2026): Observatorio + SIG + **Mi empresa**. JSON al cam
 
 Para WebSocket (si no, el sondeo basta):
 
-1. En `.env` del VPS: `BROADCAST_CONNECTION=reverb`, `REVERB_APP_ID` / `KEY` / `SECRET` (valores propios), `REVERB_HOST=zentra.wcodex.cloud`, `REVERB_PORT=443`, `REVERB_SCHEME=https`, `REVERB_SERVER_HOST=127.0.0.1`, `REVERB_SERVER_PORT=6001` (8080 es Varnish/PHP), `REVERB_BROADCAST_HOST=127.0.0.1`, `REVERB_BROADCAST_PORT=6001`, `REVERB_BROADCAST_SCHEME=http`. Las `VITE_REVERB_*` apuntan al dominio público (`443` / `https`); `npm run build` **después** de fijarlas.
+1. En `.env` del VPS: `BROADCAST_CONNECTION=reverb`, `REVERB_APP_ID` / `KEY` / `SECRET` (valores propios), `REVERB_HOST=zentra.wcodex.cloud`, `REVERB_PORT=443`, `REVERB_SCHEME=https`, `REVERB_SERVER_HOST=127.0.0.1`, `REVERB_SERVER_PORT=6001` (8080 es Varnish/PHP), `REVERB_BROADCAST_HOST=127.0.0.1`, `REVERB_BROADCAST_PORT=6001`, `REVERB_BROADCAST_SCHEME=http`. Las `VITE_REVERB_*` apuntan al dominio público (`443` / `https`); `npm run build` **después** de fijarlas (preferible en el VPS). Si se construye en Laragon para subir `public/build`, exportar esas cuatro variables de producción en el shell **antes** del build; si no, el bundle queda con `localhost:8080`.
 2. Proceso: `php8.3 artisan reverb:start --no-interaction` como `wcodex-zentra` (systemd o Supervisor). No hace falta `queue:work` (`ShouldBroadcastNow`).
 3. Nginx (directivas extra CloudPanel), luego `nginx -t && systemctl reload nginx`:
 

@@ -2,34 +2,35 @@
     $charts = $summary->charts;
     $grainLabel = ($charts['grain'] ?? 'day') === 'month' ? 'por mes' : 'por día';
     $chartsJson = json_encode($charts, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
+    $n = static fn (int|float|null $value): string => $value === null ? '—' : number_format((float) $value, 0, ',', '.');
 @endphp
 
 <section class="space-y-4">
     <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <div class="rounded-lg border p-3 {{ $semaphoreClass }}">
             <p class="text-[10px] uppercase tracking-wide">Cumplimiento por puesto</p>
-            <p class="text-2xl font-semibold tabular-nums">{{ $summary->coveragePercent !== null ? number_format($summary->coveragePercent, 1).'%' : '—' }}</p>
-            <p class="text-[11px] opacity-80">{{ $summary->sitesVisited }} de {{ $summary->sitesContracted }} revistas esperadas</p>
+            <p class="text-2xl font-semibold tabular-nums">{{ $summary->coveragePercent !== null ? number_format($summary->coveragePercent, 1, ',', '.').'%' : '—' }}</p>
+            <p class="text-[11px] opacity-80">{{ $n($summary->sitesVisited) }} de {{ $n($summary->sitesContracted) }} revistas esperadas</p>
             <p class="mt-0.5 text-[10px] opacity-70 leading-snug">Revistas contratadas por puesto en cada día de servicio (06:00 a 06:00). Por defecto 1.</p>
         </div>
         <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
             <p class="text-[10px] uppercase tracking-wide text-slate-500">Puestos cumplidos</p>
-            <p class="text-2xl font-semibold text-white tabular-nums">{{ $summary->postsDone }} <span class="text-sm font-normal text-slate-500">de {{ $summary->postsTotal }}</span></p>
-            <p class="text-[11px] text-slate-500">{{ $summary->postsTotal - $summary->postsDone }} con pendientes</p>
+            <p class="text-2xl font-semibold text-white tabular-nums">{{ $n($summary->postsDone) }} <span class="text-sm font-normal text-slate-500">de {{ $n($summary->postsTotal) }}</span></p>
+            <p class="text-[11px] text-slate-500">{{ $n($summary->postsTotal - $summary->postsDone) }} con pendientes</p>
         </div>
         <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
             <p class="text-[10px] uppercase tracking-wide text-slate-500">Revistas</p>
-            <p class="text-2xl font-semibold text-white tabular-nums">{{ $summary->reviews }}</p>
-            <p class="text-[11px] {{ $summary->reviewsWithNovelty > 0 ? 'text-orange-300' : 'text-slate-500' }}">{{ $summary->reviewsWithNovelty }} con novedad</p>
+            <p class="text-2xl font-semibold text-white tabular-nums">{{ $n($summary->reviews) }}</p>
+            <p class="text-[11px] {{ $summary->reviewsWithNovelty > 0 ? 'text-orange-300' : 'text-slate-500' }}">{{ $n($summary->reviewsWithNovelty) }} con novedad</p>
         </div>
         <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
             <p class="text-[10px] uppercase tracking-wide text-slate-500">Km recorridos</p>
-            <p class="text-2xl font-semibold text-amber-300 tabular-nums">{{ $summary->kmTraveled }}</p>
+            <p class="text-2xl font-semibold text-amber-300 tabular-nums">{{ $n($summary->kmTraveled) }}</p>
         </div>
         <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
             <p class="text-[10px] uppercase tracking-wide text-slate-500">Recomendaciones</p>
-            <p class="text-2xl font-semibold text-white tabular-nums">{{ $summary->recommendations['total'] }}</p>
-            <p class="text-[11px] text-slate-500">B {{ $summary->recommendations['low'] }} · M {{ $summary->recommendations['medium'] }} · A {{ $summary->recommendations['high'] }} · E {{ $summary->recommendations['extreme'] }}</p>
+            <p class="text-2xl font-semibold text-white tabular-nums">{{ $n($summary->recommendations['total']) }}</p>
+            <p class="text-[11px] text-slate-500">B {{ $n($summary->recommendations['low']) }} · M {{ $n($summary->recommendations['medium']) }} · A {{ $n($summary->recommendations['high']) }} · E {{ $n($summary->recommendations['extreme']) }}</p>
         </div>
     </div>
 
@@ -169,12 +170,12 @@
                                     @endif
                                 </span>
                             </td>
-                            <td class="py-1.5 text-right tabular-nums">{{ $row['installations'] }}</td>
-                            <td class="py-1.5 text-right tabular-nums">{{ $row['posts'] }}</td>
-                            <td class="py-1.5 text-right tabular-nums">{{ $row['posts_done'] }}</td>
-                            <td class="py-1.5 text-right tabular-nums">{{ $row['reviews'] }}</td>
-                            <td class="py-1.5 text-right tabular-nums {{ $row['novelty'] > 0 ? 'text-orange-300 font-medium' : 'text-slate-500' }}">{{ $row['novelty'] }}</td>
-                            <td class="py-1.5 pr-2 text-right tabular-nums">{{ $row['percent'] !== null ? number_format($row['percent'], 0).'%' : '—' }}</td>
+                            <td class="py-1.5 text-right tabular-nums">{{ $n($row['installations']) }}</td>
+                            <td class="py-1.5 text-right tabular-nums">{{ $n($row['posts']) }}</td>
+                            <td class="py-1.5 text-right tabular-nums">{{ $n($row['posts_done']) }}</td>
+                            <td class="py-1.5 text-right tabular-nums">{{ $n($row['reviews']) }}</td>
+                            <td class="py-1.5 text-right tabular-nums {{ $row['novelty'] > 0 ? 'text-orange-300 font-medium' : 'text-slate-500' }}">{{ $n($row['novelty']) }}</td>
+                            <td class="py-1.5 pr-2 text-right tabular-nums">{{ $row['percent'] !== null ? number_format($row['percent'], 0, ',', '.').'%' : '—' }}</td>
                         </tr>
                         @if ($row['pending'] !== [])
                             <tr x-show="open" x-cloak>
@@ -222,12 +223,12 @@
                     @forelse ($summary->bySupervisor as $row)
                         <tr class="border-t border-slate-800">
                             <td class="py-1.5 pr-2 text-slate-100">{{ $row['name'] }}</td>
-                            <td class="py-1.5 text-right tabular-nums">{{ $row['shifts'] }}</td>
-                            <td class="py-1.5 text-right tabular-nums">{{ $row['reviews'] }}</td>
-                            <td class="py-1.5 text-right tabular-nums">{{ $row['km'] }}</td>
-                            <td class="py-1.5 text-right tabular-nums">{{ $row['alarms'] }}</td>
-                            <td class="py-1.5 text-right tabular-nums">{{ $row['supports'] }}</td>
-                            <td class="py-1.5 text-right tabular-nums text-slate-500">{{ $row['logs'] }}</td>
+                            <td class="py-1.5 text-right tabular-nums">{{ $n($row['shifts']) }}</td>
+                            <td class="py-1.5 text-right tabular-nums">{{ $n($row['reviews']) }}</td>
+                            <td class="py-1.5 text-right tabular-nums">{{ $n($row['km']) }}</td>
+                            <td class="py-1.5 text-right tabular-nums">{{ $n($row['alarms']) }}</td>
+                            <td class="py-1.5 text-right tabular-nums">{{ $n($row['supports']) }}</td>
+                            <td class="py-1.5 text-right tabular-nums text-slate-500">{{ $n($row['logs']) }}</td>
                         </tr>
                     @empty
                         <tr><td colspan="7" class="py-4 text-slate-500">Sin actividad en el periodo.</td></tr>
@@ -259,22 +260,32 @@
                     });
                 },
             };
+            const num = (v) => new Intl.NumberFormat('es-CO').format(Number(v) || 0);
             const axis = {
                 ticks: { color: '#64748b', font: { size: 9 }, maxRotation: 0 },
                 grid: { color: 'rgba(148,163,184,0.08)', drawBorder: false },
+            };
+            const valueTicks = { ...axis.ticks, precision: 0, callback: (v) => num(v) };
+            const tooltipValue = {
+                callbacks: {
+                    label(ctx) {
+                        const raw = ctx.parsed.y ?? ctx.parsed.x ?? ctx.parsed ?? 0;
+                        return `${ctx.dataset.label || ''}: ${num(raw)}`.trim();
+                    },
+                },
             };
             const legend = { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 8, font: { size: 10 }, padding: 10 } };
             const lineOpts = {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend, tooltip: { mode: 'index', intersect: false } },
-                scales: { x: axis, y: { ...axis, beginAtZero: true, ticks: { ...axis.ticks, precision: 0 } } },
+                plugins: { legend, tooltip: { mode: 'index', intersect: false, ...tooltipValue } },
+                scales: { x: axis, y: { ...axis, beginAtZero: true, ticks: valueTicks } },
             };
             const barOpts = {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend },
-                scales: { x: axis, y: { ...axis, beginAtZero: true, ticks: { ...axis.ticks, precision: 0 } } },
+                plugins: { legend, tooltip: tooltipValue },
+                scales: { x: axis, y: { ...axis, beginAtZero: true, ticks: valueTicks } },
             };
             function lineSet(label, values, color) {
                 return {
@@ -299,7 +310,7 @@
                         ...barOpts,
                         scales: {
                             x: { ...axis, stacked: !!stacked },
-                            y: { ...axis, stacked: !!stacked, beginAtZero: true, ticks: { ...axis.ticks, precision: 0 } },
+                            y: { ...axis, stacked: !!stacked, beginAtZero: true, ticks: valueTicks },
                         },
                     },
                 });
@@ -414,9 +425,9 @@
                         indexAxis: 'y',
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend },
+                        plugins: { legend, tooltip: tooltipValue },
                         scales: {
-                            x: { ...axis, stacked: true, beginAtZero: true, ticks: { ...axis.ticks, precision: 0 } },
+                            x: { ...axis, stacked: true, beginAtZero: true, ticks: valueTicks },
                             y: { ...axis, stacked: true, ticks: { ...axis.ticks, font: { size: 10 }, color: '#94a3b8' } },
                         },
                     },

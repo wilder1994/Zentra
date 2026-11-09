@@ -4,6 +4,14 @@ Lista viva de lo definido y **no implementado**. Al implementar, mover a «Hecho
 
 ## Abiertos
 
+### 8. FCM_SERVER_KEY + Firebase en APK residentes (push)
+Definido 9 nov 2026. Código listo (`SendResidentPushService`); en VPS `FCM_SERVER_KEY=` vacío a propósito.
+
+- Crear/habilitar **Cloud Messaging API (heredada)** en Firebase `zentra-cf05a` → Server key en `.env` + `config:cache`.
+- En `resident-app/android/app/`: añadir `google-services.json` del app Android Firebase (`cloud.wcodex.zentra.residentes`), `cap sync`, rebuild APK.
+- Rehabilitar el script Push en `layouts/resident-app.blade.php` (hoy quitado: sin Firebase nativo `Push.register()` cerraba la APK tras login).
+- Sin eso: web `/r/` y APK sin push.
+
 ### 6. Integraciones API: cerrar el login personal y aviso en empresa
 Definido 21 oct 2026. Las API keys ya existen (ver Hecho 21 oct · Integraciones API).
 
@@ -40,6 +48,14 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 9 nov 2026 · Portería multi-auth + km Resumen/PPTX + periodo + Echo prod
+- Portería: lookup por cédula une invitados del cliente con visitante global; varias autorizaciones vigentes → selector de destino; `block_reason` seguro si `selected` es null.
+- Visitante unique global: `ManageAuthorizationService::resolveVisitor` sin ClientScope + reintento UniqueConstraint.
+- Supervisión: `ResolveSupervisorShiftTraveledKm` (odómetro absurdo / GPS basura no suman en Resumen/PPTX/tira); separadores de miles en tarjetas, tablas y ejes; etiquetas PPTX `#,##0`.
+- Periodo: flechas ya no tapadas; selectores mes/año.
+- Echo/Reverb: no conectar `wss://localhost` desde el dominio público; build de assets con `VITE_REVERB_*` de producción (`zentra.wcodex.cloud:443`).
+- Docs: `PORTERIA.md`, `SUPERVISION-CAMPO.md`, `HOSTING-VPS.md`.
+
 ### 9 nov 2026 · App residentes (Accesos) + Usuarios app + Descargas
 - Panel cliente: **Usuarios app** (alta en cascada, correo con credenciales, canal Android/iPhone web, cupo 4/unidad).
 - Descargas empresa/cliente: APK residentes + enlace/QR compartir (`/r/`).
@@ -47,6 +63,7 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 - API Sanctum `resident/*` + registro device; push FCM (stub hasta `FCM_SERVER_KEY`).
 - Capacitor `resident-app/` → APK `public/downloads/zentra-residentes.apk` (producción `https://zentra.wcodex.cloud/r/`).
 - Migrates `2026_11_09_100000`, `2026_11_09_120000`.
+- Nota: layout `/r/` sin Push nativo (ver Abierto §8); scroll del shell corregido en WebView.
 
 ### 8 nov 2026 · Operar: menú único + modales
 - Botón **Operar** (Cliente → Instalación → Portería). Sin selects sueltos en la ficha.

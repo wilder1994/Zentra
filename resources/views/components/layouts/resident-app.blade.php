@@ -1,7 +1,7 @@
 @props(['title' => null])
 
 <!DOCTYPE html>
-<html lang="es" class="h-full">
+<html lang="es" class="h-full overflow-hidden">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
@@ -14,7 +14,8 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         [x-cloak]{display:none!important}
-        html,body{overflow-x:hidden;overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent}
+        html,body{-webkit-tap-highlight-color:transparent}
+        .resident-shell,.resident-shell *{-webkit-overflow-scrolling:touch}
         .resident-shell input,
         .resident-shell select,
         .resident-shell textarea{font-size:16px!important;line-height:1.4}
@@ -22,10 +23,10 @@
         .resident-shell input[type="time"]{min-height:2.75rem}
     </style>
 </head>
-<body class="resident-shell min-h-dvh bg-slate-950 text-slate-100 antialiased" x-data="{ menu: false }">
-    <div class="mx-auto flex min-h-dvh w-full max-w-md flex-col px-4"
-         style="padding-top:max(0.75rem,env(safe-area-inset-top,0px));padding-bottom:max(1rem,env(safe-area-inset-bottom,0px));padding-left:max(1rem,env(safe-area-inset-left,0px));padding-right:max(1rem,env(safe-area-inset-right,0px))">
-        <header class="mb-3 flex min-h-11 items-center gap-2">
+<body class="resident-shell h-full overflow-hidden bg-slate-950 text-slate-100 antialiased" x-data="{ menu: false }">
+    <div class="mx-auto flex h-full max-h-dvh w-full max-w-md flex-col px-4"
+         style="padding-top:max(0.75rem,env(safe-area-inset-top,0px));padding-bottom:max(0.5rem,env(safe-area-inset-bottom,0px));padding-left:max(1rem,env(safe-area-inset-left,0px));padding-right:max(1rem,env(safe-area-inset-right,0px))">
+        <header class="mb-3 flex min-h-11 shrink-0 items-center gap-2">
             @auth('resident')
                 <button type="button"
                         @click="menu = true"
@@ -50,13 +51,13 @@
         </header>
 
         @if (session('success'))
-            <p class="mb-3 rounded-xl border border-teal-800/60 bg-teal-950/40 px-3 py-2.5 text-sm text-teal-100">{{ session('success') }}</p>
+            <p class="mb-3 shrink-0 rounded-xl border border-teal-800/60 bg-teal-950/40 px-3 py-2.5 text-sm text-teal-100">{{ session('success') }}</p>
         @endif
         @if (session('error'))
-            <p class="mb-3 rounded-xl border border-red-800/60 bg-red-950/40 px-3 py-2.5 text-sm text-red-100">{{ session('error') }}</p>
+            <p class="mb-3 shrink-0 rounded-xl border border-red-800/60 bg-red-950/40 px-3 py-2.5 text-sm text-red-100">{{ session('error') }}</p>
         @endif
 
-        <main class="min-w-0 flex-1">
+        <main class="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-y-contain pb-6">
             {{ $slot }}
         </main>
     </div>
@@ -101,32 +102,7 @@
             </aside>
         </div>
 
-        <script>
-            (function () {
-                const bootPush = async () => {
-                    if (!window.Capacitor?.Plugins?.PushNotifications) return;
-                    const Push = window.Capacitor.Plugins.PushNotifications;
-                    const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
-                    const register = async (token) => {
-                        if (!token || !csrf) return;
-                        await fetch(@json(route('resident-app.devices.store')), {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': csrf,
-                                'Accept': 'application/json',
-                            },
-                            body: JSON.stringify({ push_token: token, platform: 'android' }),
-                            credentials: 'same-origin',
-                        });
-                    };
-                    Push.addListener('registration', (t) => register(t.value));
-                    const perm = await Push.requestPermissions();
-                    if (perm.receive === 'granted') await Push.register();
-                };
-                document.addEventListener('DOMContentLoaded', () => { bootPush().catch(() => {}); });
-            })();
-        </script>
+        {{-- Push FCM: desactivado hasta google-services.json + FCM_SERVER_KEY (sin Firebase nativo el register() tumba la APK). --}}
     @endauth
 </body>
 </html>

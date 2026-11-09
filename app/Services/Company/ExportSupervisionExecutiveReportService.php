@@ -881,6 +881,8 @@ final class ExportSupervisionExecutiveReportService
             $grid->getOutline()->setWidth(1);
             $grid->getOutline()->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor(new Color(self::SLATE));
             $plot->getAxisY()->setMajorGridlines($grid);
+            $plot->getAxisX()->setFormatCode('#,##0');
+            $plot->getAxisY()->setFormatCode('#,##0');
         }
     }
 
@@ -902,7 +904,7 @@ final class ExportSupervisionExecutiveReportService
         $series->setShowLegendKey(false);
         $series->setShowValue(true);
         $series->setShowPercentage(false);
-        $series->setDlblNumFormat('0;-0;;');
+        $series->setDlblNumFormat('#,##0;-#,##0;;');
         $series->getFont()->setName('Calibri')->setSize(10)->setBold(true)->setColor(new Color(self::NAVY));
         foreach (array_values($colors) as $index => $color) {
             $series->getDataPointFill($index)->setFillType(Fill::FILL_SOLID)->setStartColor(new Color($color));
@@ -934,9 +936,7 @@ final class ExportSupervisionExecutiveReportService
         $series->setShowValue($showValues);
         $series->setFill($this->solid($color));
         $series->setLabelPosition($stacked ? Series::LABEL_CENTER : Series::LABEL_OUTSIDEEND);
-        if ($stacked) {
-            $series->setDlblNumFormat('0;-0;;');
-        }
+        $series->setDlblNumFormat('#,##0;-#,##0;;');
         $series->getFont()->setName('Calibri')->setSize(9)->setBold($stacked)->setColor(new Color($stacked ? self::NAVY : self::INK));
 
         return $series;
@@ -953,6 +953,7 @@ final class ExportSupervisionExecutiveReportService
         $series->setShowLegendKey(false);
         $series->setShowValue($showValues);
         $series->setLabelPosition(Series::LABEL_TOP);
+        $series->setDlblNumFormat('#,##0;-#,##0;;');
         $series->getFont()->setName('Calibri')->setSize(9)->setColor(new Color(self::INK));
 
         $outline = new Outline;

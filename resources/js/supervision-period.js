@@ -26,10 +26,24 @@ export function supervisionPeriodPicker(config) {
         viewYear: start.getFullYear(),
         viewMonth: start.getMonth(),
         weekdays: ['L', 'M', 'M', 'J', 'V', 'S', 'D'],
+        monthNames: MONTHS.map((name) => name.replace(/^./, (c) => c.toUpperCase())),
         form: null,
 
         init() {
             this.form = this.$el.closest('form');
+        },
+
+        get yearOptions() {
+            const current = today.getFullYear();
+            const selected = Number(this.viewYear) || current;
+            const from = Math.min(current - 6, selected - 1);
+            const to = Math.max(current + 1, selected + 1);
+            const years = [];
+            for (let y = from; y <= to; y++) {
+                years.push(y);
+            }
+
+            return years;
         },
 
         get label() {
@@ -54,13 +68,21 @@ export function supervisionPeriodPicker(config) {
         },
 
         get months() {
-            const list = [{ year: this.viewYear, month: this.viewMonth }];
+            const year = Number(this.viewYear);
+            const month = Number(this.viewMonth);
+            const list = [{ year, month }];
             if (this.range) {
-                const next = new Date(this.viewYear, this.viewMonth + 1, 1);
+                const next = new Date(year, month + 1, 1);
                 list.push({ year: next.getFullYear(), month: next.getMonth() });
             }
 
             return list;
+        },
+
+        nextMonthTitle() {
+            const next = new Date(Number(this.viewYear), Number(this.viewMonth) + 1, 1);
+
+            return this.title({ year: next.getFullYear(), month: next.getMonth() });
         },
 
         show() {
@@ -82,7 +104,7 @@ export function supervisionPeriodPicker(config) {
         },
 
         shift(delta) {
-            const d = new Date(this.viewYear, this.viewMonth + delta, 1);
+            const d = new Date(Number(this.viewYear), Number(this.viewMonth) + delta, 1);
             this.viewYear = d.getFullYear();
             this.viewMonth = d.getMonth();
         },

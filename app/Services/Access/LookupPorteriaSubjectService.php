@@ -143,7 +143,7 @@ final class LookupPorteriaSubjectService
      */
     private function visitors(int $clientId, string $q): array
     {
-        return Visitor::query()
+        $ids = Visitor::query()
             ->where('client_id', $clientId)
             ->where(function ($query) use ($q): void {
                 $query->where('first_name', 'like', "%{$q}%")
@@ -151,15 +151,48 @@ final class LookupPorteriaSubjectService
                     ->orWhere('document_number', 'like', "%{$q}%");
             })
             ->limit(8)
+            ->pluck('id');
+
+        // Invitados de este cliente (la fila visitors puede tener otro client_id por unique global del documento).
+        $fromGuests = AuthorizationGuest::query()
+            ->where('client_id', $clientId)
+            ->whereNotNull('visitor_id')
+            ->where(function ($query) use ($q): void {
+                $query->where('document_number', 'like', "%{$q}%")
+                    ->orWhere('first_name', 'like', "%{$q}%")
+                    ->orWhere('last_name', 'like', "%{$q}%");
+            })
+            ->whereHas('authorization', fn ($auth) => $auth->where('valid_until', '>=', now()->subDays(30)))
+            ->latest('id')
+            ->limit(8)
+            ->pluck('visitor_id');
+
+        $allIds = $ids->merge($fromGuests)->filter()->unique()->values()->take(8);
+        if ($allIds->isEmpty()) {
+            return [];
+        }
+
+        return Visitor::withoutGlobalScopes()
+            ->whereIn('id', $allIds->all())
             ->get()
-            ->map(fn (Visitor $visitor): array => $this->visitorCard($visitor, $this->bestGuestFor((int) $visitor->id)))
+            ->map(fn (Visitor $visitor): array => $this->visitorCard(
+                $visitor,
+                $this->guestsForClient($clientId, (int) $visitor->id),
+            ))
+            ->values()
             ->all();
     }
 
-    /** @return array<string, mixed> */
-    private function visitorCard(Visitor $visitor, ?AuthorizationGuest $guest): array
+    /**
+     * @param  list<AuthorizationGuest>  $guests  Orden: primero las que permiten entrar, luego vigencia.
+     * @return array<string, mixed>
+     */
+    private function visitorCard(Visitor $visitor, array $guests): array
     {
         $block = $this->blocklist->checkPerson(visitor: $visitor);
+        $payloads = array_map(fn (AuthorizationGuest $g): array => $this->authPayload($g), $guests);
+        $enterable = array_values(array_filter($payloads, fn (array $a): bool => ($a['can_enter'] ?? false) === true));
+        $best = $enterable[0] ?? ($payloads[0] ?? null);
 
         return [
             ...$this->card(
@@ -174,7 +207,10 @@ final class LookupPorteriaSubjectService
                 inside: $this->activeLog('visitor_id', (int) $visitor->id),
                 last: $this->lastVisit('visitor_id', (int) $visitor->id),
             ),
-            'auth' => $guest !== null ? $this->authPayload($guest) : null,
+            // Una sola auth si hay 0–1 vigentes; si hay varias enterables, auth queda null hasta que portería elija.
+            'auth' => count($enterable) > 1 ? null : $best,
+            'auths' => $payloads,
+            'auth_choices' => count($enterable) > 1 ? $enterable : [],
         ];
     }
 
@@ -206,7 +242,8 @@ final class LookupPorteriaSubjectService
         foreach ($authorization->guests as $guest) {
             $guest->setRelation('authorization', $authorization);
             if ($guest->visitor !== null) {
-                $hits[] = $this->visitorCard($guest->visitor, $guest);
+                // QR apunta a una autorización concreta: no ofrecer selector de otras.
+                $hits[] = $this->visitorCard($guest->visitor, [$guest]);
             } else {
                 $unregistered[] = $guest->fullName();
             }
@@ -227,18 +264,25 @@ final class LookupPorteriaSubjectService
         ];
     }
 
-    /** Autorización más relevante del visitante: primero la que permite entrar, luego la más reciente (máx. 30 días). */
-    private function bestGuestFor(int $visitorId): ?AuthorizationGuest
+    /**
+     * Autorizaciones recientes del visitante en este cliente.
+     * Orden: primero las que permiten entrar, luego valid_until más lejana.
+     *
+     * @return list<AuthorizationGuest>
+     */
+    private function guestsForClient(int $clientId, int $visitorId): array
     {
         return AuthorizationGuest::query()
             ->with(['authorization.structure', 'authorization.member'])
+            ->where('client_id', $clientId)
             ->where('visitor_id', $visitorId)
             ->whereHas('authorization', fn ($q) => $q->where('valid_until', '>=', now()->subDays(30)))
             ->latest('id')
-            ->limit(10)
+            ->limit(20)
             ->get()
             ->sortByDesc(fn (AuthorizationGuest $g) => ($g->canEnter() ? 1 : 0).'-'.$g->authorization->valid_until->format('YmdHis'))
-            ->first();
+            ->values()
+            ->all();
     }
 
     /** @return array<string, mixed> */

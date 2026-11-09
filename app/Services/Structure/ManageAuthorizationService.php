@@ -300,31 +300,62 @@ final class ManageAuthorizationService
             return null;
         }
 
-        $visitor = Visitor::withTrashed()
-            ->where('client_id', $clientId)
+        // Unique global (document_type+document_number): buscar sin ClientScope.
+        $visitor = Visitor::withoutGlobalScopes()
+            ->withTrashed()
             ->where('document_type', $guest['document_type'])
             ->where('document_number', $guest['document_number'])
             ->first();
+
         if ($visitor !== null) {
             if ($visitor->trashed()) {
                 $visitor->restore();
             }
+
+            $patch = [];
             if ($guest['phone'] !== null && empty($visitor->phone)) {
-                $visitor->update(['phone' => $guest['phone']]);
+                $patch['phone'] = $guest['phone'];
+            }
+            if ($guest['first_name'] !== '' && $visitor->first_name === '') {
+                $patch['first_name'] = $guest['first_name'];
+            }
+            if (($guest['last_name'] ?? null) !== null && ($visitor->last_name === null || $visitor->last_name === '')) {
+                $patch['last_name'] = $guest['last_name'];
+            }
+            if ($patch !== []) {
+                $visitor->update($patch);
             }
 
             return $visitor;
         }
 
-        return Visitor::query()->create([
-            'client_id' => $clientId,
-            'document_type' => $guest['document_type'],
-            'document_number' => $guest['document_number'],
-            'first_name' => $guest['first_name'],
-            'last_name' => $guest['last_name'] ?? '',
-            'phone' => $guest['phone'],
-            'visitor_type' => $type->visitorType(),
-        ]);
+        try {
+            return Visitor::query()->create([
+                'client_id' => $clientId,
+                'document_type' => $guest['document_type'],
+                'document_number' => $guest['document_number'],
+                'first_name' => $guest['first_name'],
+                'last_name' => $guest['last_name'] ?? '',
+                'phone' => $guest['phone'],
+                'visitor_type' => $type->visitorType(),
+            ]);
+        } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+            $again = Visitor::withoutGlobalScopes()
+                ->withTrashed()
+                ->where('document_type', $guest['document_type'])
+                ->where('document_number', $guest['document_number'])
+                ->first();
+            if ($again === null) {
+                throw ValidationException::withMessages([
+                    'guests' => 'No se pudo registrar el visitante. Revisa el documento e inténtalo de nuevo.',
+                ]);
+            }
+            if ($again->trashed()) {
+                $again->restore();
+            }
+
+            return $again;
+        }
     }
 
     /** @param list<int>|null $allowed */

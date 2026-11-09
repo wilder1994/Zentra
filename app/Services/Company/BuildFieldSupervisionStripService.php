@@ -17,6 +17,7 @@ final class BuildFieldSupervisionStripService
 {
     public function __construct(
         private readonly BuildSupervisorTrailService $trail,
+        private readonly ResolveSupervisorShiftTraveledKm $traveledKm,
     ) {}
 
     /** @return array<string, mixed>|null */
@@ -51,7 +52,8 @@ final class BuildFieldSupervisionStripService
             ->where('security_company_id', $companyId)
             ->where('status', SupervisorShiftStatus::Closed)
             ->whereBetween('started_at', [$from, $to])
-            ->sum('km_traveled');
+            ->get(['id', 'km_traveled', 'km_start', 'km_end'])
+            ->sum(fn (SupervisorShift $shift) => $this->traveledKm->execute($shift));
 
         $liveKm = 0.0;
         foreach ($openShifts as $shift) {

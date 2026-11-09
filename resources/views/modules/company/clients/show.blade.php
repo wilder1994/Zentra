@@ -159,63 +159,65 @@
                                     </div>
                                 </div>
 
-                                {{-- Modal: Operar portería --}}
-                                <div
-                                    x-show="modal === 'porteria'"
-                                    x-cloak
-                                    class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4"
-                                    role="dialog"
-                                    aria-modal="true"
-                                >
-                                    <div class="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-xl" @click.outside="closeModal()">
-                                        <div class="mb-4 flex items-start justify-between gap-3">
-                                            <div>
-                                                <h4 class="text-sm font-semibold text-white">Operar portería</h4>
-                                                <p class="mt-1 text-xs text-slate-500">Elige instalación y puerta.</p>
-                                            </div>
-                                            <button type="button" @click="closeModal()" class="text-xs text-slate-400 hover:text-white">Cerrar</button>
-                                        </div>
-                                        <form method="POST" action="{{ route('company.clients.activate', $client) }}" class="space-y-4">
-                                            @csrf
-                                            @if ($operateDoorSites->count() > 1)
+                                {{-- Modal: Operar portería (solo si hay instalaciones con puerta activa) --}}
+                                @if ($operateDoorSites->isNotEmpty())
+                                    <div
+                                        x-show="modal === 'porteria'"
+                                        x-cloak
+                                        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4"
+                                        role="dialog"
+                                        aria-modal="true"
+                                    >
+                                        <div class="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-xl" @click.outside="closeModal()">
+                                            <div class="mb-4 flex items-start justify-between gap-3">
                                                 <div>
-                                                    <label class="mb-1 block text-[11px] text-slate-500">Instalación</label>
-                                                    <select name="installation_id" x-model="siteId" @change="onSiteChange()" required
-                                                            class="h-10 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 text-sm text-white">
-                                                        <option value="">Seleccione…</option>
-                                                        @foreach ($operateDoorSites as $site)
-                                                            <option value="{{ $site->id }}">{{ $site->name }}</option>
-                                                        @endforeach
-                                                    </select>
+                                                    <h4 class="text-sm font-semibold text-white">Operar portería</h4>
+                                                    <p class="mt-1 text-xs text-slate-500">Elige instalación y puerta.</p>
                                                 </div>
-                                            @else
-                                                <input type="hidden" name="installation_id" value="{{ $operateDoorSites->first()->id }}">
-                                            @endif
-
-                                            <div>
-                                                <p class="mb-1 text-[11px] text-slate-500">Puerta</p>
-                                                <div class="max-h-64 space-y-1.5 overflow-y-auto" x-show="doors.length">
-                                                    <template x-for="door in doors" :key="door.id">
-                                                        <label class="flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5"
-                                                               :class="String(doorId) === String(door.id) ? 'border-indigo-500 bg-indigo-950/40' : 'border-slate-800 bg-slate-950/50 hover:border-slate-700'">
-                                                            <input type="radio" name="location_id" :value="door.id" x-model="doorId" class="border-slate-600 text-indigo-600" required>
-                                                            <span class="min-w-0">
-                                                                <span class="block text-sm text-white" x-text="door.name"></span>
-                                                                <span class="block font-mono text-[10px] text-slate-500" x-show="door.code" x-text="door.code"></span>
-                                                            </span>
-                                                        </label>
-                                                    </template>
-                                                </div>
-                                                <p class="py-4 text-center text-xs text-slate-500" x-show="!doors.length">Selecciona una instalación para ver sus puertas.</p>
+                                                <button type="button" @click="closeModal()" class="text-xs text-slate-400 hover:text-white">Cerrar</button>
                                             </div>
+                                            <form method="POST" action="{{ route('company.clients.activate', $client) }}" class="space-y-4">
+                                                @csrf
+                                                @if ($operateDoorSites->count() > 1)
+                                                    <div>
+                                                        <label class="mb-1 block text-[11px] text-slate-500">Instalación</label>
+                                                        <select name="installation_id" x-model="siteId" @change="onSiteChange()" required
+                                                                class="h-10 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 text-sm text-white">
+                                                            <option value="">Seleccione…</option>
+                                                            @foreach ($operateDoorSites as $site)
+                                                                <option value="{{ $site->id }}">{{ $site->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+                                                @else
+                                                    <input type="hidden" name="installation_id" value="{{ $operateDoorSites->first()->id }}">
+                                                @endif
 
-                                            <button type="submit" :disabled="!doorId"
-                                                    class="inline-flex h-9 w-full items-center justify-center rounded-lg bg-indigo-600 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-40">
-                                                Operar
-                                            </button>
-                                        </form>
+                                                <div>
+                                                    <p class="mb-1 text-[11px] text-slate-500">Puerta</p>
+                                                    <div class="max-h-64 space-y-1.5 overflow-y-auto" x-show="doors.length">
+                                                        <template x-for="door in doors" :key="door.id">
+                                                            <label class="flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5"
+                                                                   :class="String(doorId) === String(door.id) ? 'border-indigo-500 bg-indigo-950/40' : 'border-slate-800 bg-slate-950/50 hover:border-slate-700'">
+                                                                <input type="radio" name="location_id" :value="door.id" x-model="doorId" class="border-slate-600 text-indigo-600" required>
+                                                                <span class="min-w-0">
+                                                                    <span class="block text-sm text-white" x-text="door.name"></span>
+                                                                    <span class="block font-mono text-[10px] text-slate-500" x-show="door.code" x-text="door.code"></span>
+                                                                </span>
+                                                            </label>
+                                                        </template>
+                                                    </div>
+                                                    <p class="py-4 text-center text-xs text-slate-500" x-show="!doors.length">Selecciona una instalación para ver sus puertas.</p>
+                                                </div>
+
+                                                <button type="submit" :disabled="!doorId"
+                                                        class="inline-flex h-9 w-full items-center justify-center rounded-lg bg-indigo-600 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-40">
+                                                    Operar
+                                                </button>
+                                            </form>
+                                        </div>
                                     </div>
-                                </div>
+                                @endif
                             </div>
                         @endif
                         @if ($client->has_access || $client->has_supervision)

@@ -91,7 +91,7 @@
             aria-labelledby="{{ $uid }}-map-title"
         >
             <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" @click="closeMap()"></div>
-            <div class="relative w-full max-w-2xl rounded-xl border border-slate-700 bg-slate-900 shadow-2xl overflow-hidden">
+            <div class="relative w-full max-w-2xl rounded-xl border border-slate-700 bg-slate-900 shadow-2xl overflow-visible">
                 <div class="flex items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
                     <div>
                         <h3 id="{{ $uid }}-map-title" class="text-sm font-semibold text-white">Seleccionar ubicación</h3>
@@ -100,19 +100,43 @@
                     <button type="button" class="text-slate-400 hover:text-white text-sm" @click="closeMap()">Cerrar</button>
                 </div>
 
-                <div class="p-4 space-y-3">
+                <div class="p-4 space-y-3 overflow-visible">
                     <template x-if="!maps.apiKey">
                         <p class="text-sm text-amber-300 rounded-lg border border-amber-700/50 bg-amber-900/20 px-3 py-2">
-                            Configura <code class="text-amber-200">GOOGLE_MAPS_API_KEY</code> y habilita Maps JavaScript API + Places API.
+                            Configura <code class="text-amber-200">GOOGLE_MAPS_API_KEY</code> y habilita Maps JavaScript API + Places API (New).
                         </p>
                     </template>
 
-                    <input
-                        type="text"
-                        x-ref="search"
-                        placeholder="Buscar dirección, empresa o lugar…"
-                        class="w-full h-9 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white placeholder:text-slate-600 focus:border-violet-500 focus:ring-1 focus:ring-violet-500/30"
-                    >
+                    <div class="relative z-50">
+                        <input
+                            type="text"
+                            x-model="searchQuery"
+                            @input="onSearchInput()"
+                            @keydown.escape.window="suggestions = []"
+                            placeholder="Buscar dirección, empresa o lugar…"
+                            class="w-full h-9 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white placeholder:text-slate-600 focus:border-violet-500 focus:ring-1 focus:ring-violet-500/30"
+                            autocomplete="off"
+                        >
+                        <ul
+                            x-show="suggestions.length > 0"
+                            x-cloak
+                            class="absolute left-0 right-0 top-full mt-1 max-h-56 overflow-auto rounded-lg border border-slate-700 bg-slate-950 shadow-xl"
+                        >
+                            <template x-for="(item, idx) in suggestions" :key="idx">
+                                <li>
+                                    <button
+                                        type="button"
+                                        class="w-full px-3 py-2 text-left hover:bg-slate-800"
+                                        @click="selectSuggestion(item)"
+                                    >
+                                        <span class="block text-sm text-white" x-text="item.label"></span>
+                                        <span class="block text-xs text-slate-400" x-show="item.secondary" x-text="item.secondary"></span>
+                                    </button>
+                                </li>
+                            </template>
+                        </ul>
+                        <p x-show="searching" x-cloak class="mt-1 text-[11px] text-slate-500">Buscando…</p>
+                    </div>
 
                     <div x-ref="map" class="h-72 w-full rounded-lg border border-slate-800 bg-slate-950"></div>
 
