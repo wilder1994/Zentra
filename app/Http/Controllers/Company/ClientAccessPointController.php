@@ -24,12 +24,16 @@ final class ClientAccessPointController extends Controller
         $this->assertCompany($request, $client);
         abort_unless($client->has_access, 403);
 
-        $this->accessPoints->create($client, [
+        $payload = [
             'installation_id' => (int) $request->validated('installation_id'),
-            'code' => $request->validated('code'),
             'name' => $request->validated('name'),
             'is_active' => $request->boolean('is_active', true),
-        ]);
+        ];
+        if ($request->filled('code')) {
+            $payload['code'] = (string) $request->validated('code');
+        }
+
+        $this->accessPoints->create($client, $payload);
 
         return $this->backToClient($client, 'Puerta creada.');
     }
@@ -38,14 +42,35 @@ final class ClientAccessPointController extends Controller
     {
         $this->assertPoint($request, $client, $location);
 
-        $this->accessPoints->update($location, [
-            'installation_id' => (int) $request->validated('installation_id'),
-            'code' => $request->validated('code'),
+        $payload = [
             'name' => $request->validated('name'),
-            'is_active' => $request->boolean('is_active'),
-        ]);
+            'is_active' => $request->boolean('is_active', true),
+        ];
+        if ($request->filled('installation_id')) {
+            $payload['installation_id'] = (int) $request->validated('installation_id');
+        }
+
+        $this->accessPoints->update($location, $payload);
 
         return $this->backToClient($client, 'Puerta actualizada.');
+    }
+
+    public function archive(Request $request, Client $client, Location $location): RedirectResponse
+    {
+        $this->assertPoint($request, $client, $location);
+        $this->authorize('update', $client);
+        $this->accessPoints->archive($location);
+
+        return $this->backToClient($client, 'Puerta archivada.');
+    }
+
+    public function restore(Request $request, Client $client, Location $location): RedirectResponse
+    {
+        $this->assertPoint($request, $client, $location);
+        $this->authorize('update', $client);
+        $this->accessPoints->restore($location);
+
+        return $this->backToClient($client, 'Puerta restaurada.');
     }
 
     public function destroy(Request $request, Client $client, Location $location): RedirectResponse
@@ -81,7 +106,7 @@ final class ClientAccessPointController extends Controller
     private function backToClient(Client $client, string $message): RedirectResponse
     {
         return redirect()
-            ->route('company.clients.show', [$client, 'vista' => 'puertas'])
+            ->route('company.clients.show', [$client, 'vista' => 'sitio'])
             ->with('success', $message);
     }
 }

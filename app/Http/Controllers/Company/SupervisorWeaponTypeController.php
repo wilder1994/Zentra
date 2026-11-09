@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Company;
 
+use App\Support\Company\SettingsCatalog;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\StoreSupervisorNamedCatalogRequest;
 use App\Models\SupervisorWeaponType;
@@ -11,7 +12,6 @@ use App\Services\Company\ManageSupervisorCompanyCatalogService;
 use App\Support\Platform\ActingCompanyResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
 final class SupervisorWeaponTypeController extends Controller
 {
@@ -19,20 +19,13 @@ final class SupervisorWeaponTypeController extends Controller
         private readonly ManageSupervisorCompanyCatalogService $catalog,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): RedirectResponse
     {
         $this->authorize('viewAny', SupervisorWeaponType::class);
-        $companyId = $this->companyId($request);
-        $this->catalog->ensureDefaults($companyId);
 
-        $types = SupervisorWeaponType::query()
-            ->where('security_company_id', $companyId)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
-
-        return view('modules.company.supervision-catalogs.weapon-types', compact('types'));
+        return SettingsCatalog::hubRedirect('armas');
     }
+
 
     public function store(StoreSupervisorNamedCatalogRequest $request): RedirectResponse
     {

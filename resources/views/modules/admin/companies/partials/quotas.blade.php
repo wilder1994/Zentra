@@ -23,7 +23,9 @@
 
     <div class="flex flex-1 flex-col justify-center gap-4">
         @forelse ($q['products'] as $bar)
-            @php($pct = $bar['capacity'] ? (int) min(100, round($bar['used'] / $bar['capacity'] * 100)) : 0)
+            @php
+                $pct = $bar['capacity'] ? (int) min(100, round($bar['used'] / $bar['capacity'] * 100)) : 0;
+            @endphp
             <div>
                 <div class="flex items-baseline justify-between gap-2 text-xs">
                     <span class="text-slate-300">{{ $bar['label'] }}</span>

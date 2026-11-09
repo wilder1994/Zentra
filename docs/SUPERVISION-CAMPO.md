@@ -290,7 +290,7 @@ Apertura: todos los ítems EPP y vehículo en sí; si falta uno la API responde 
 
 Las columnas que eran `add_*` (username, email de zona, ruta, cola de cierre, branding, riesgos) viven en el `create_*` o en `2026_08_25_230000_add_supervision_packages_and_tracking`. Ese archivo **crea** las tablas de campo (zonas, turnos, flota, posts, revistas). Puestos↔empleados: `2026_09_10_220100_add_modality_and_employees_to_posts` (`supervisor_post_employee`).
 
-- `2026_07_06_080400_create_installations_table` (incluye `code`, `kind`, geo, rector)
+- `2026_07_06_080400_create_installations_table` (incluye `code`, geo, rector; `kind` migrado a `installation_profile_id` el 8 nov 2026)
 - `2026_07_06_080500_create_locations_table` (`installation_id`)
 - `2026_08_25_230000_add_supervision_packages_and_tracking`
 - `2026_08_26_110000_create_supervisor_field_ops_tables` (recomendaciones y logs, con campos de riesgo)

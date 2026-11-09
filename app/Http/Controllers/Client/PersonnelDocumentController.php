@@ -10,6 +10,7 @@ use App\Models\Client;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Repositories\EmployeeRepository;
+use App\Support\Catalog\CompanyEntitlements;
 use App\Support\Files\StoredFileResponder;
 use App\Support\Personnel\FolderChecklist;
 use App\Support\Personnel\SpreadsheetPreviewResponse;
@@ -93,8 +94,9 @@ final class PersonnelDocumentController extends Controller
 
     private function visibleClient(): Client
     {
-        $client = Client::query()->findOrFail((int) $this->tenantContext->clientId());
+        $client = Client::query()->with('securityCompany')->findOrFail((int) $this->tenantContext->clientId());
         abort_unless($client->has_access && $client->show_personnel_folders, 403);
+        abort_unless(CompanyEntitlements::for($client->securityCompany)->hasIndexing(), 403);
         abort_unless(auth()->user()?->can('company.documents.view'), 403);
 
         return $client;

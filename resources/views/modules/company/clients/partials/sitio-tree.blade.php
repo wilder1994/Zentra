@@ -3,91 +3,75 @@
     $installations = $installations ?? collect();
     $postModalities = $postModalities ?? [];
     $siteAdmins = $siteAdmins ?? [];
+    $openCreate = $canManageTree && old('__form') === 'installation_create';
 @endphp
 
-<section class="rounded-lg border border-slate-800 bg-slate-900/80 p-4 space-y-4">
-    <div>
-        <h3 class="text-sm font-semibold text-white">Instalaciones y puestos</h3>
-        <p class="mt-1 text-xs text-slate-500">
-            Sitio, modalidad y vigilantes. Una instalación tiene varios puestos; un puesto, varios vigilantes. No es una puerta.
-        </p>
+<section
+    class="space-y-4"
+    x-data="{ createOpen: @js($openCreate) }"
+>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+            <h3 class="text-sm font-semibold text-white">Instalaciones</h3>
+            <p class="mt-1 text-xs text-slate-500">
+                Cada instalación concentra sus puertas, puestos y vigilantes.
+                @if (! $client->has_access)
+                    Este cliente no tiene Accesos: solo puestos (sin puertas).
+                @endif
+            </p>
+        </div>
+        @if ($canManageTree)
+            <button type="button" @click="createOpen = true" class="inline-flex h-9 items-center rounded-lg bg-indigo-600 px-3 text-xs font-semibold text-white hover:bg-indigo-500">
+                + Instalación
+            </button>
+        @endif
     </div>
 
     @if ($canManageTree)
-        @include('modules.company.clients.partials.installation-form', ['client' => $client, 'vista' => 'sitio', 'accent' => 'indigo', 'siteAdmins' => $siteAdmins])
+        <div
+            x-show="createOpen"
+            x-cloak
+            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-installation-title"
+        >
+            <div class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-xl" @click.outside="createOpen = false">
+                <div class="mb-4 flex items-center justify-between gap-3">
+                    <h4 id="create-installation-title" class="text-base font-semibold text-white">Nueva instalación</h4>
+                    <button type="button" @click="createOpen = false" class="text-xs text-slate-400 hover:text-white">Cerrar</button>
+                </div>
+                @include('modules.company.clients.partials.installation-form', [
+                    'client' => $client,
+                    'vista' => 'sitio',
+                    'accent' => 'indigo',
+                    'siteAdmins' => $siteAdmins,
+                    'installationProfiles' => $installationProfiles ?? [],
+                ])
+            </div>
+        </div>
     @endif
 
-    <div class="space-y-3">
+    <div class="space-y-4">
         @forelse ($installations as $installation)
-            <article class="rounded-lg border border-slate-800 bg-slate-950/40 p-3 space-y-3" x-data="{ editing: false }">
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <p class="text-sm font-medium text-white">{{ $installation->name }}</p>
-                        <a href="{{ route('company.installations.show', $installation) }}" class="text-xs text-indigo-400 hover:text-indigo-300">Ver ficha</a>
-                        @if ($installation->is_client_site)
-                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-900/40 text-indigo-300">Mismo cliente</span>
-                        @endif
-                        <span class="text-[10px] px-2 py-0.5 rounded-full {{ $installation->is_active ? 'bg-emerald-900/40 text-emerald-300' : 'bg-slate-800 text-slate-400' }}">
-                            {{ $installation->is_active ? 'Activa' : 'Archivada' }}
-                        </span>
-                        @php
-                            $activePosts = $installation->supervisorPosts->where('is_active', true)->count();
-                            $postsLimit = \App\Support\Catalog\PostQuota::postsLimit($installation);
-                        @endphp
-                        <span class="text-xs text-slate-500" title="Puestos activos / permitidos por tu plan">{{ $activePosts }}/{{ $postsLimit }} puestos</span>
-                        @if ($installation->address || $installation->city)
-                            <span class="text-xs text-slate-500">{{ $installation->address }}{{ $installation->city ? ' · '.$installation->city : '' }}</span>
-                        @endif
-                    </div>
-                    @if ($canManageTree)
-                        <div class="flex items-center gap-2">
-                            <button type="button" @click="editing = !editing" class="text-xs text-indigo-300 hover:text-indigo-200">Editar</button>
-                            @if ($installation->is_active)
-                                <form method="POST" action="{{ route('company.clients.installations.archive', [$client, $installation]) }}" onsubmit="return confirm('¿Archivar esta instalación? Sus puestos también se archivan y libera un cupo.')">
-                                    @csrf
-                                    <button type="submit" class="text-xs text-amber-300 hover:text-amber-200">Archivar</button>
-                                </form>
-                            @else
-                                <form method="POST" action="{{ route('company.clients.installations.restore', [$client, $installation]) }}">
-                                    @csrf
-                                    <button type="submit" class="text-xs text-emerald-300 hover:text-emerald-200">Restaurar</button>
-                                </form>
-                                <form method="POST" action="{{ route('company.clients.installations.destroy', [$client, $installation]) }}" onsubmit="return confirm('¿Dar de baja esta instalación? No se puede deshacer.')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="text-xs text-rose-400 hover:text-rose-300">Dar de baja</button>
-                                </form>
-                            @endif
-                        </div>
-                    @endif
-                </div>
-
-                @if ($canManageTree)
-                    <div x-show="editing" x-cloak>
-                        @include('modules.company.clients.partials.installation-form', [
-                            'client' => $client,
-                            'installation' => $installation,
-                            'vista' => 'sitio',
-                            'accent' => 'indigo',
-                            'siteAdmins' => $siteAdmins,
-                        ])
-                    </div>
-                @endif
-
-                @if ($client->has_access || $client->has_supervision)
-                    @include('modules.company.clients.partials.posts-block', [
-                        'client' => $client,
-                        'installation' => $installation,
-                        'installations' => $installations,
-                        'vista' => 'sitio',
-                        'accent' => 'indigo',
-                        'canManageTree' => $canManageTree && $installation->is_active,
-                        'postModalities' => $postModalities,
-                    ])
-                @endif
-            </article>
+            @include('modules.company.clients.partials.installation-card', [
+                'client' => $client,
+                'installation' => $installation,
+                'installations' => $installations,
+                'canManageTree' => $canManageTree,
+                'postModalities' => $postModalities,
+                'siteAdmins' => $siteAdmins,
+                'maps' => $maps ?? ['api_key' => config('google-maps.api_key')],
+            ])
         @empty
-            <p class="text-sm text-slate-500">Aún no hay instalaciones. Créela aquí y luego sus puestos.</p>
+            <div class="rounded-xl border border-dashed border-slate-700 bg-slate-900/40 px-6 py-10 text-center">
+                <p class="text-sm text-slate-400">Aún no hay instalaciones.</p>
+                @if ($canManageTree)
+                    <button type="button" @click="createOpen = true" class="mt-3 inline-flex h-9 items-center rounded-lg bg-indigo-600 px-3 text-xs font-semibold text-white hover:bg-indigo-500">
+                        Crear la primera
+                    </button>
+                @endif
+            </div>
         @endforelse
     </div>
 </section>

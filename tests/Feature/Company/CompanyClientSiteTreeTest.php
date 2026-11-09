@@ -46,7 +46,7 @@ final class CompanyClientSiteTreeTest extends TestCase
             'installation_id' => $installation->id,
             'code' => 'BN-01',
             'name' => 'Vehicular norte',
-        ])->assertRedirect(route('company.clients.show', [$client, 'vista' => 'puertas']));
+        ])->assertRedirect(route('company.clients.show', [$client, 'vista' => 'sitio']));
 
         $this->assertTrue(
             Location::query()
@@ -72,6 +72,7 @@ final class CompanyClientSiteTreeTest extends TestCase
         $this->actingAs($user)
             ->get(route('company.clients.show', [$client, 'vista' => 'sitio']))
             ->assertOk()
+            ->assertSee('Crear')
             ->assertSee('Agregar puesto');
 
         $this->actingAs($user)->post(route('company.clients.posts.store', $client), [
@@ -116,15 +117,15 @@ final class CompanyClientSiteTreeTest extends TestCase
             ->assertOk()
             ->assertSee('Puesto compartido')
             ->assertSee('24 h')
-            ->assertSee('Agregar puesto')
-            ->assertDontSee('Agregar puerta');
+            ->assertSee('Crear')
+            ->assertSee('Agregar puesto');
 
         $this->actingAs($user)
             ->get(route('company.clients.show', [$client, 'vista' => 'puertas']))
             ->assertOk()
-            ->assertSee('Puertas')
-            ->assertSee('Agregar puerta')
-            ->assertDontSee('Agregar puesto');
+            ->assertSee('Instalaciones')
+            ->assertSee('Puesto compartido')
+            ->assertSee('Crear');
     }
 
     public function test_employee_cannot_join_a_second_post_from_the_site(): void

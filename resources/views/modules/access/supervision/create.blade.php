@@ -4,8 +4,10 @@
     </x-slot:actions>
 
     <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        @php($activeSupervisor = session('supervision.supervisor_name'))
-        @php($isManager = auth()->user()->isSupervisionManager())
+        @php
+            $activeSupervisor = session('supervision.supervisor_name');
+            $isManager = auth()->user()->isSupervisionManager();
+        @endphp
         <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
             <div class="px-6 py-4 border-b border-slate-800">
                 <h3 class="text-lg font-semibold text-white">Registrar Supervisión</h3>

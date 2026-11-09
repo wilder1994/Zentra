@@ -32,7 +32,9 @@
         @endif
 
         @if ($canEdit && $filterClients->count() > 1)
-            @php($others = $filterClients->reject(fn ($c) => (int) $c->id === (int) $filterClient->id)->values())
+            @php
+                $others = $filterClients->reject(fn ($c) => (int) $c->id === (int) $filterClient->id)->values();
+            @endphp
             <div class="mb-3 flex justify-end" x-data="{ open: false, q: '', all: false }">
                 <button type="button" @click="open = true"
                         class="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-700 px-3 text-sm text-slate-200 hover:bg-slate-800">

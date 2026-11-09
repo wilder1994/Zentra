@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Company;
 
-use App\Enums\InstallationKind;
 use App\Models\Client;
 use App\Models\Installation;
+use App\Models\InstallationProfile;
 use App\Support\Geo\GeoAddressRules;
 use App\Support\Platform\ActingCompanyResolver;
 use Illuminate\Foundation\Http\FormRequest;
@@ -48,9 +48,15 @@ final class StoreCompanyInstallationRequest extends FormRequest
             ],
             'name' => ['required', 'string', 'max:120'],
             'code' => ['nullable', 'string', 'max:40'],
-            'kind' => ['nullable', 'string', Rule::enum(InstallationKind::class)],
+            'installation_profile_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('installation_profiles', 'id')->where(
+                    fn ($q) => $q->where('security_company_id', $companyId)->where('is_active', true)
+                ),
+            ],
             'dane_code' => [
-                Rule::requiredIf(fn () => $this->input('kind') === InstallationKind::Colegio->value),
+                Rule::requiredIf(fn () => $this->profileRequiresDane($companyId)),
                 'nullable',
                 'string',
                 'regex:/^\d{8,12}$/',
@@ -71,7 +77,7 @@ final class StoreCompanyInstallationRequest extends FormRequest
             'client_id' => 'cliente',
             'name' => 'nombre',
             'code' => 'código',
-            'kind' => 'tipo de instalación',
+            'installation_profile_id' => 'perfil de sitio',
             'dane_code' => 'código DANE de la instalación',
             'commune' => 'área',
             'rector_user_id' => 'contacto en directorio',
@@ -88,8 +94,8 @@ final class StoreCompanyInstallationRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'dane_code.required' => 'El colegio debe tener código DANE de la instalación.',
-            'dane_code.required_if' => 'El colegio debe tener código DANE de la instalación.',
+            'dane_code.required' => 'Este perfil exige el código DANE de la instalación.',
+            'dane_code.required_if' => 'Este perfil exige el código DANE de la instalación.',
             'dane_code.regex' => 'El código DANE de la instalación debe tener entre 8 y 12 dígitos.',
             'dane_code.unique' => 'Ya existe una instalación con ese código DANE.',
         ];
@@ -100,5 +106,19 @@ final class StoreCompanyInstallationRequest extends FormRequest
         $id = (int) $this->input('client_id');
 
         return $id > 0 ? Client::query()->find($id) : null;
+    }
+
+    private function profileRequiresDane(int $companyId): bool
+    {
+        $id = (int) $this->input('installation_profile_id');
+        if ($id <= 0 || $companyId <= 0) {
+            return false;
+        }
+
+        return InstallationProfile::query()
+            ->where('security_company_id', $companyId)
+            ->whereKey($id)
+            ->where('requires_dane', true)
+            ->exists();
     }
 }

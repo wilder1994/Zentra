@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Company;
 
+use App\Support\Company\SettingsCatalog;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\StoreSupervisorNamedCatalogRequest;
 use App\Models\SupervisorRiskType;
@@ -11,7 +12,6 @@ use App\Services\Company\ManageSupervisorCompanyCatalogService;
 use App\Support\Platform\ActingCompanyResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
 final class SupervisorRiskTypeController extends Controller
 {
@@ -19,20 +19,13 @@ final class SupervisorRiskTypeController extends Controller
         private readonly ManageSupervisorCompanyCatalogService $catalog,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): RedirectResponse
     {
         $this->authorize('viewAny', SupervisorRiskType::class);
-        $companyId = $this->companyId($request);
-        $this->catalog->ensureDefaults($companyId);
 
-        $types = SupervisorRiskType::query()
-            ->where('security_company_id', $companyId)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
-
-        return view('modules.company.supervision-catalogs.risk-types', compact('types'));
+        return SettingsCatalog::hubRedirect('riesgos');
     }
+
 
     public function store(StoreSupervisorNamedCatalogRequest $request): RedirectResponse
     {

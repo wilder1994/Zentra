@@ -15,6 +15,7 @@
     $sameClient = (bool) old('is_client_site', $installation?->is_client_site ?? false);
     $clientHasGeo = $client->latitude !== null && $client->longitude !== null;
     $siteAdmins = $siteAdmins ?? [];
+    $installationProfiles = $installationProfiles ?? [];
     $formConfig = [
         'sameClient' => $sameClient,
         'name' => old('name', $installation?->name ?? ''),
@@ -25,6 +26,7 @@
     $areaLng = old('longitude', $installation?->longitude);
     $idescLocked = is_numeric($areaLat) && is_numeric($areaLng)
         && app(\App\Support\Geo\CaliComunaLayer::class)->locate((float) $areaLat, (float) $areaLng) !== null;
+    $clientStructureLabel = $client->structureType?->name;
 @endphp
 
 <form
@@ -36,6 +38,8 @@
     @csrf
     @if ($isEdit)
         @method('PUT')
+    @else
+        <input type="hidden" name="__form" value="installation_create">
     @endif
     <input type="hidden" name="vista" value="{{ $vista }}">
 
@@ -75,26 +79,12 @@
     </p>
     <x-ui.field-error :messages="$errors->get('is_client_site')" />
 
-    <div class="grid sm:grid-cols-2 gap-3">
-        <div>
-            <label class="block text-xs text-slate-400 mb-1">Código</label>
-            <input type="text" name="code" value="{{ old('code', $installation?->code) }}" placeholder="Se genera solo" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm text-white">
-        </div>
-        <div
-            x-data="installationAreaFields({
-                commune: @js(old('commune', $installation?->commune ?? '')),
-                city: @js(old('city', $installation?->city ?? $client->city ?? '')),
-                idescLocked: @js($idescLocked),
-            })"
-            @geo-place.window="applyPlace($event.detail)"
-        >
-            <label class="block text-xs text-slate-400 mb-1" x-text="areaLabel">Comuna</label>
-            <input type="text" name="commune" x-model="commune" @input="refreshKind()" placeholder="Se llena con el mapa"
-                   x-bind:readonly="idescLocked" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm text-white read-only:text-slate-400">
-            <p class="mt-1 text-[11px] text-slate-500" x-text="areaHint"></p>
-        </div>
-    </div>
-    @include('modules.company.installations.partials.kind-fields', ['installation' => $installation])
+    @include('modules.company.installations.partials.profile-fields', [
+        'installation' => $installation,
+        'installationProfiles' => $installationProfiles,
+        'clientStructureLabel' => $clientStructureLabel,
+    ])
+
     <div>
         <label class="block text-xs text-slate-400 mb-1">Contacto en directorio</label>
         <select name="rector_user_id" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm text-white">
@@ -103,10 +93,11 @@
                 <option value="{{ $row['id'] }}" @selected((int) old('rector_user_id', $installation?->rector_user_id) === (int) $row['id'])>{{ $row['label'] }}</option>
             @endforeach
         </select>
-        <p class="mt-1 text-[11px] text-slate-500">Opcional. El personal (admin o apoyo) se asigna en Usuarios.</p>
+        <p class="mt-1 text-[11px] text-slate-500">Opcional. Quien figura como contacto del directorio; el personal se asigna en Usuarios.</p>
+        <x-ui.field-error :messages="$errors->get('rector_user_id')" />
     </div>
 
-    <div x-show="!sameClient" x-cloak>
+    <div x-show="!sameClient" x-cloak class="space-y-3">
         <x-ui.geo-address-fields
             :address="old('address', $installation?->address)"
             :city="old('city', $installation?->city)"
@@ -116,7 +107,30 @@
             :accent="$accent === 'amber' ? 'default' : 'default'"
         />
         <x-ui.field-error :messages="$errors->get('latitude')" />
+
+        <div
+            x-data="installationAreaFields({
+                commune: @js(old('commune', $installation?->commune ?? '')),
+                city: @js(old('city', $installation?->city ?? $client->city ?? '')),
+                idescLocked: @js($idescLocked),
+            })"
+            @geo-place.window="applyPlace($event.detail)"
+        >
+            <label class="block text-xs text-slate-400 mb-1" x-text="areaLabel">Comuna / área</label>
+            <input type="text" name="commune" x-model="commune" @input="refreshKind()" placeholder="Se llena con el mapa"
+                   x-bind:readonly="idescLocked" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm text-white read-only:text-slate-400">
+            <p class="mt-1 text-[11px] text-slate-500" x-text="areaHint"></p>
+            <x-ui.field-error :messages="$errors->get('commune')" />
+        </div>
     </div>
+
+    @if ($isEdit)
+        <div>
+            <label class="block text-xs text-slate-400 mb-1">Código interno</label>
+            <input type="text" value="{{ $installation->code }}" readonly class="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-sm text-slate-400">
+            <p class="mt-1 text-[11px] text-slate-600">Se genera al crear; no se edita desde aquí.</p>
+        </div>
+    @endif
 
     <div class="flex flex-wrap items-center gap-3">
         @if ($isEdit)

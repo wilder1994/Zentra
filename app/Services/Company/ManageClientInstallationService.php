@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Company;
 
 use App\Domain\Geo\GeoAddressData;
-use App\Enums\InstallationKind;
 use App\Models\Client;
 use App\Models\ClientUserInstallationAssignment;
 use App\Models\Installation;
+use App\Models\InstallationProfile;
 use App\Models\User;
 use App\Services\Tenant\AssertInstallationSeats;
 use App\Support\Auth\AssignableRoles;
@@ -18,7 +18,17 @@ use Illuminate\Validation\ValidationException;
 final class ManageClientInstallationService
 {
     /**
-     * @param  array{name: string, is_client_site?: bool, is_active?: bool, code?: ?string, commune?: ?string, rector_user_id?: ?int, geo?: ?GeoAddressData}  $data
+     * @param  array{
+     *     name: string,
+     *     is_client_site?: bool,
+     *     is_active?: bool,
+     *     code?: ?string,
+     *     installation_profile_id?: ?int,
+     *     dane_code?: ?string,
+     *     commune?: ?string,
+     *     rector_user_id?: ?int,
+     *     geo?: ?GeoAddressData
+     * }  $data
      */
     public function create(Client $client, array $data): Installation
     {
@@ -47,14 +57,14 @@ final class ManageClientInstallationService
             $geo['longitude'] ?? null,
         );
 
-        $kind = $this->resolveKind($data['kind'] ?? null);
-        $dane = $this->resolveDane($kind, $data['dane_code'] ?? null);
+        $profile = $this->resolveProfile($client, $data['installation_profile_id'] ?? null);
+        $dane = $this->resolveDane($profile, $data['dane_code'] ?? null);
 
         $installation = Installation::query()->create(array_merge([
             'client_id' => $client->id,
             'name' => $name,
             'code' => $this->resolveCode($client, $data['code'] ?? null),
-            'kind' => $kind?->value,
+            'installation_profile_id' => $profile?->id,
             'dane_code' => $dane,
             'is_client_site' => $isClientSite,
             'is_active' => (bool) ($data['is_active'] ?? true),
@@ -67,7 +77,17 @@ final class ManageClientInstallationService
     }
 
     /**
-     * @param  array{name?: string, is_client_site?: bool, is_active?: bool, code?: ?string, commune?: ?string, rector_user_id?: ?int, geo?: ?GeoAddressData}  $data
+     * @param  array{
+     *     name?: string,
+     *     is_client_site?: bool,
+     *     is_active?: bool,
+     *     code?: ?string,
+     *     installation_profile_id?: ?int,
+     *     dane_code?: ?string,
+     *     commune?: ?string,
+     *     rector_user_id?: ?int,
+     *     geo?: ?GeoAddressData
+     * }  $data
      */
     public function update(Installation $installation, array $data): Installation
     {
@@ -95,14 +115,20 @@ final class ManageClientInstallationService
             $installation->refresh();
         }
 
-        if (array_key_exists('code', $data)) {
+        if (array_key_exists('code', $data) && filled($data['code'] ?? null)) {
             $installation->code = $this->resolveCode($client, $data['code'] ?? null, $installation->id);
         }
 
-        if (array_key_exists('kind', $data) || array_key_exists('dane_code', $data)) {
-            $kind = $this->resolveKind($data['kind'] ?? $installation->kind);
-            $installation->kind = $kind?->value;
-            $installation->dane_code = $this->resolveDane($kind, $data['dane_code'] ?? $installation->dane_code, $installation->id);
+        if (array_key_exists('installation_profile_id', $data) || array_key_exists('dane_code', $data)) {
+            $profile = array_key_exists('installation_profile_id', $data)
+                ? $this->resolveProfile($client, $data['installation_profile_id'] ?? null)
+                : $installation->profile;
+            $installation->installation_profile_id = $profile?->id;
+            $installation->dane_code = $this->resolveDane(
+                $profile,
+                $data['dane_code'] ?? $installation->dane_code,
+                $installation->id,
+            );
         }
 
         $installation->fill($this->geoAttributes($client, $isClientSite, $data['geo'] ?? null));
@@ -156,26 +182,43 @@ final class ManageClientInstallationService
         return $geo->toModelAttributes();
     }
 
-    private function resolveKind(mixed $value): ?InstallationKind
+    private function resolveProfile(Client $client, mixed $value): ?InstallationProfile
     {
-        if (! is_string($value) || $value === '') {
+        $id = is_numeric($value) ? (int) $value : 0;
+        if ($id <= 0) {
             return null;
         }
 
-        return InstallationKind::tryFrom($value);
-    }
+        $companyId = (int) $client->security_company_id;
+        app(EnsureInstallationProfilesService::class)->execute($companyId);
 
-    private function resolveDane(?InstallationKind $kind, mixed $value, ?int $ignoreId = null): ?string
-    {
-        $code = $this->nullableString($value);
+        $profile = InstallationProfile::query()
+            ->where('security_company_id', $companyId)
+            ->whereKey($id)
+            ->where('is_active', true)
+            ->first();
 
-        if ($kind?->requiresOfficialCode() && $code === null) {
+        if ($profile === null) {
             throw ValidationException::withMessages([
-                'dane_code' => 'El colegio debe tener el código DANE de la instalación.',
+                'installation_profile_id' => 'El perfil de sitio no es válido para esta empresa.',
             ]);
         }
 
-        if (! $kind?->requiresOfficialCode()) {
+        return $profile;
+    }
+
+    private function resolveDane(?InstallationProfile $profile, mixed $value, ?int $ignoreId = null): ?string
+    {
+        $code = $this->nullableString($value);
+        $requires = (bool) ($profile?->requires_dane);
+
+        if ($requires && $code === null) {
+            throw ValidationException::withMessages([
+                'dane_code' => 'Este perfil exige el código DANE de la instalación.',
+            ]);
+        }
+
+        if (! $requires) {
             return null;
         }
 

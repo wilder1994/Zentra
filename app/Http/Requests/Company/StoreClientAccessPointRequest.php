@@ -21,9 +21,11 @@ final class StoreClientAccessPointRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        $updating = $this->isMethod('PUT') || $this->isMethod('PATCH');
+
         return [
-            'installation_id' => ['required', 'integer', 'exists:installations,id'],
-            'code' => ['required', 'string', 'max:20'],
+            'installation_id' => [$updating ? 'sometimes' : 'required', 'integer', 'exists:installations,id'],
+            'code' => ['nullable', 'string', 'max:20'],
             'name' => ['required', 'string', 'max:100'],
             'is_active' => ['sometimes', 'boolean'],
             'vista' => ['nullable', 'in:sitio,puertas,accesos,supervision'],

@@ -37,7 +37,7 @@
                             <tr class="hover:bg-slate-800/30">
                                 <td class="px-4 py-3">
                                     <p class="font-medium text-slate-200">{{ $installation->name }}</p>
-                                    <p class="text-xs text-slate-500">{{ $installation->kindLabel() }}</p>
+                                    <p class="text-xs text-slate-500">{{ $installation->profileLabel() }}</p>
                                 </td>
                                 <td class="px-4 py-3 font-mono text-xs text-teal-300/90">
                                     {{ $installation->code ?: '—' }}

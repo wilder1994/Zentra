@@ -12,7 +12,45 @@
     @if (($vista ?? 'cliente') === 'cliente')
         <div class="max-w-3xl space-y-4">
             <section class="rounded-lg border border-slate-800 bg-slate-900/80 p-4 space-y-3">
-                <h3 class="text-sm font-semibold text-white">Ficha comercial</h3>
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <h3 class="text-sm font-semibold text-white">Ficha comercial</h3>
+                    <div class="flex flex-wrap items-center gap-2">
+                        @if ($canUpdate ?? false)
+                            <x-ui.button variant="secondary" :href="route('company.clients.edit', $client)" size="sm">Editar</x-ui.button>
+                        @endif
+                        @if ($canOperate ?? false)
+                            <form method="POST" action="{{ route('company.clients.activate', $client) }}" class="inline">
+                                @csrf
+                                <x-ui.button type="submit" size="sm">Operar portería</x-ui.button>
+                            </form>
+                        @endif
+                        @if ($canOperateClientPanel ?? false)
+                            <form method="POST" action="{{ route('company.clients.operate-client', $client) }}" class="inline">
+                                @csrf
+                                <x-ui.button type="submit" variant="secondary" size="sm">Operar cliente</x-ui.button>
+                            </form>
+                        @endif
+                        @if (($canOperateClientPanel ?? false) && $installations->isNotEmpty())
+                            <form method="POST" action="{{ route('company.clients.operate-installation', $client) }}" class="inline-flex flex-wrap items-center gap-2">
+                                @csrf
+                                @if ($installations->count() === 1)
+                                    <input type="hidden" name="installation_id" value="{{ $installations->first()->id }}">
+                                @else
+                                    <select name="installation_id" required class="h-9 rounded-lg border border-slate-700 bg-slate-950 px-2 text-xs text-white">
+                                        <option value="">Instalación…</option>
+                                        @foreach ($installations as $site)
+                                            <option value="{{ $site->id }}">{{ $site->name }}</option>
+                                        @endforeach
+                                    </select>
+                                @endif
+                                <x-ui.button type="submit" variant="secondary" size="sm">Operar instalación</x-ui.button>
+                            </form>
+                        @endif
+                        @if ($client->has_access || $client->has_supervision)
+                            <x-ui.button :href="route('company.clients.show', [$client, 'vista' => 'sitio'])" size="sm">Instalaciones</x-ui.button>
+                        @endif
+                    </div>
+                </div>
                 <dl class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                     <div>
                         <dt class="text-xs text-slate-500">Nombre comercial</dt>
@@ -52,77 +90,11 @@
                     </div>
                 </dl>
             </section>
-            @php
-                $showActionCards = ($canOperate ?? false)
-                    || ($canOperateClientPanel ?? false)
-                    || ($canUpdate ?? false)
-                    || $client->has_access
-                    || $client->has_supervision;
-                $actionCard = 'flex h-full min-h-[7.5rem] w-full flex-col items-start rounded-lg border border-slate-700 bg-slate-900/80 p-4 text-left text-inherit no-underline shadow-none appearance-none box-border hover:bg-slate-800/80 transition-colors';
-            @endphp
-            @if ($showActionCards)
-                <section class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-stretch">
-                    @if ($canOperate ?? false)
-                        <form method="POST" action="{{ route('company.clients.activate', $client) }}" class="flex h-full min-h-[7.5rem]">
-                            @csrf
-                            <button type="submit" class="{{ $actionCard }}">
-                                <p class="text-sm font-semibold text-white">Operar portería</p>
-                                <p class="mt-1 text-xs text-slate-400 leading-relaxed">Entra al módulo de accesos de este cliente.</p>
-                            </button>
-                        </form>
-                    @endif
-                    @if ($canOperateClientPanel ?? false)
-                        <form method="POST" action="{{ route('company.clients.operate-client', $client) }}" class="flex h-full min-h-[7.5rem]">
-                            @csrf
-                            <button type="submit" class="{{ $actionCard }}">
-                                <p class="text-sm font-semibold text-white">Operar cliente</p>
-                                <p class="mt-1 text-xs text-slate-400 leading-relaxed">Abre el panel de censo y estructura.</p>
-                            </button>
-                        </form>
-                        @if ($installations->isNotEmpty())
-                            <form method="POST" action="{{ route('company.clients.operate-installation', $client) }}"
-                                  class="flex h-full min-h-[7.5rem] w-full flex-col items-start rounded-lg border border-slate-700 bg-slate-900/80 p-4">
-                                @csrf
-                                <p class="text-sm font-semibold text-white">Operar instalación</p>
-                                @if ($installations->count() === 1)
-                                    <p class="mt-1 text-xs text-slate-400 leading-relaxed">Entra a {{ $installations->first()->name }}.</p>
-                                    <input type="hidden" name="installation_id" value="{{ $installations->first()->id }}">
-                                @else
-                                    <p class="mt-1 text-xs text-slate-400 leading-relaxed">Elige la instalación y entra a su panel.</p>
-                                    <select name="installation_id" required class="mt-2 w-full h-9 rounded-lg border border-slate-700 bg-slate-950 px-2 text-xs text-white">
-                                        <option value="">Selecciona…</option>
-                                        @foreach ($installations as $site)
-                                            <option value="{{ $site->id }}">{{ $site->name }}</option>
-                                        @endforeach
-                                    </select>
-                                @endif
-                                <button type="submit" class="mt-auto pt-3 text-xs font-semibold text-indigo-300 hover:text-indigo-200">Entrar</button>
-                            </form>
-                        @endif
-                    @endif
-                    @if ($canUpdate ?? false)
-                        <a href="{{ route('company.clients.edit', $client) }}" class="{{ $actionCard }}">
-                            <p class="text-sm font-semibold text-white">Editar</p>
-                            <p class="mt-1 text-xs text-slate-400 leading-relaxed">Cambia la ficha comercial y las líneas de servicio.</p>
-                        </a>
-                    @endif
-                    @if ($client->has_access || $client->has_supervision)
-                        <a href="{{ route('company.clients.show', [$client, 'vista' => 'sitio']) }}" class="{{ $actionCard }}">
-                            <p class="text-sm font-semibold text-white">Instalaciones y puestos</p>
-                            <p class="mt-1 text-xs text-slate-400 leading-relaxed">Sitio, modalidad y vigilantes.</p>
-                        </a>
-                    @endif
-                    @if ($client->has_access)
-                        <a href="{{ route('company.clients.show', [$client, 'vista' => 'puertas']) }}" class="{{ $actionCard }}">
-                            <p class="text-sm font-semibold text-white">Puertas</p>
-                            <p class="mt-1 text-xs text-slate-400 leading-relaxed">Quién entra y sale en cada instalación.</p>
-                        </a>
-                    @endif
-                </section>
-            @endif
+
             @if (($canUpdate ?? false) && $client->has_access)
                 @include('modules.company.clients.partials.modules-card', ['client' => $client])
             @endif
+
             <section class="rounded-lg border border-slate-800 bg-slate-900/80 p-4 space-y-2">
                 <h3 class="text-sm font-semibold text-white">Líneas de servicio</h3>
                 <p class="text-sm text-slate-400">
@@ -135,6 +107,9 @@
                         Supervisión activa: la revista se firma en la app de campo, en los puestos de este cliente.
                     @else
                         Sin Supervisión.
+                    @endif
+                    @if ($client->has_observatory)
+                        Observatorio activo.
                     @endif
                 </p>
                 @if ($client->has_supervision)
@@ -159,23 +134,14 @@
             </section>
         </div>
     @elseif (($vista ?? '') === 'sitio')
-        <div class="max-w-3xl space-y-4">
-            <x-ui.button variant="secondary" :href="route('company.clients.show', [$client, 'vista' => 'cliente'])" size="sm">← Cliente</x-ui.button>
+        <div class="w-full space-y-4">
             @include('modules.company.clients.partials.sitio-tree', [
                 'client' => $client,
                 'installations' => $installations ?? collect(),
                 'canManageTree' => $canManageTree ?? false,
                 'postModalities' => $postModalities ?? [],
                 'siteAdmins' => $siteAdmins ?? [],
-            ])
-        </div>
-    @elseif (($vista ?? '') === 'puertas')
-        <div class="max-w-3xl space-y-4">
-            <x-ui.button variant="secondary" :href="route('company.clients.show', [$client, 'vista' => 'cliente'])" size="sm">← Cliente</x-ui.button>
-            @include('modules.company.clients.partials.puertas-tree', [
-                'client' => $client,
-                'installations' => $installations ?? collect(),
-                'canManageTree' => $canManageTree ?? false,
+                'maps' => $maps ?? ['api_key' => config('google-maps.api_key')],
             ])
         </div>
     @elseif (($vista ?? '') === 'resumen' && $expediente)
@@ -260,3 +226,4 @@
         </script>
     @endpush
 </x-company-layout>
+

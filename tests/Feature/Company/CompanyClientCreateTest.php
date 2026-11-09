@@ -31,6 +31,33 @@ final class CompanyClientCreateTest extends TestCase
         $response->assertSee('Volver al listado');
         $response->assertDontSee('Sufijo login');
         $response->assertDontSee('+ Conjunto');
+        $response->assertSee('Accesos');
+        $response->assertSee('Supervisión');
+        $response->assertSee('Observatorio');
+        $response->assertSee('Compartir carpetas del personal con este cliente');
+        $response->assertDontSee('Mostrar indexación de carpetas');
+    }
+
+    public function test_create_form_hides_products_not_in_company_plan(): void
+    {
+        $this->seedWithPilot();
+
+        $user = User::query()->where('email', 'empresa@sj-seguridad.test')->firstOrFail();
+        $user->securityCompany->update([
+            'supervision_package_sku' => null,
+            'max_supervision_clients' => 0,
+            'supervision_package_size' => 0,
+            'indexing_seats' => 0,
+            'observatory_seats' => 0,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('company.clients.create'))
+            ->assertOk()
+            ->assertSee('Accesos')
+            ->assertDontSee('>Supervisión</span>', false)
+            ->assertDontSee('>Observatorio</span>', false)
+            ->assertDontSee('Compartir carpetas del personal con este cliente');
     }
 
     public function test_company_admin_can_create_commercial_client(): void

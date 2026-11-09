@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Company;
 
-use App\Enums\InstallationKind;
 use App\Models\Employee;
 use App\Models\Installation;
 use App\Models\SupervisorPost;
@@ -65,7 +64,7 @@ final class BuildSupervisorOfflinePackService
         $colegios = Installation::query()
             ->withoutGlobalScopes()
             ->where('is_active', true)
-            ->where('kind', InstallationKind::Colegio->value)
+            ->observatoryCommunity()
             ->whereHas('client', function ($q) use ($user): void {
                 $q->where('security_company_id', $user->security_company_id)
                     ->where('is_active', true);

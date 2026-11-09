@@ -9,11 +9,11 @@ use App\Http\Requests\Company\StoreCompanyStructureTypeRequest;
 use App\Http\Requests\Company\UpdateCompanyStructureTypeRequest;
 use App\Models\StructureType;
 use App\Services\Company\ManageCompanyStructureTypeService;
+use App\Support\Company\SettingsCatalog;
 use App\Support\Platform\ActingCompanyResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
 
 final class StructureTypeController extends Controller
 {
@@ -21,19 +21,11 @@ final class StructureTypeController extends Controller
         private readonly ManageCompanyStructureTypeService $manageCompanyStructureTypeService,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): RedirectResponse
     {
         $this->authorize('viewAny', StructureType::class);
-        $companyId = $this->companyId($request);
 
-        $types = StructureType::query()
-            ->where('security_company_id', $companyId)
-            ->withCount(['clients', 'structures'])
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
-
-        return view('modules.company.structure-types.index', compact('types'));
+        return SettingsCatalog::hubRedirect('estructuras');
     }
 
     public function store(StoreCompanyStructureTypeRequest $request): RedirectResponse
@@ -41,7 +33,6 @@ final class StructureTypeController extends Controller
         $this->manageCompanyStructureTypeService->create($this->companyId($request), [
             'name' => $request->validated('name'),
             'is_active' => $request->boolean('is_active', true),
-            'is_unit' => $request->boolean('is_unit'),
         ]);
 
         return redirect()
@@ -55,7 +46,6 @@ final class StructureTypeController extends Controller
         $this->manageCompanyStructureTypeService->update($structureType, [
             'name' => $request->validated('name'),
             'is_active' => $request->boolean('is_active'),
-            'is_unit' => $request->boolean('is_unit'),
         ]);
 
         return redirect()

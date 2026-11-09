@@ -271,7 +271,7 @@ final class ClientController extends Controller
             isActive: $request->boolean('is_active', true),
             hasAccess: $request->boolean('has_access'),
             hasSupervision: $request->boolean('has_supervision'),
-            showPersonnelFolders: $request->boolean('has_access') && $request->boolean('show_personnel_folders'),
+            showPersonnelFolders: $request->boolean('show_personnel_folders'),
             serviceStartedAt: $request->validated('service_started_at'),
             hasObservatory: $request->boolean('has_observatory'),
         ));
@@ -286,15 +286,22 @@ final class ClientController extends Controller
         $this->authorize('view', $client);
         $this->assertCompanyOwnership($request, $client);
 
-        $client->load(['securityCompany']);
+        $client->load(['securityCompany', 'structureType']);
         $vista = $this->resolveClientVista($request, $client);
         $expediente = $vista === 'resumen'
             ? $this->buildClientExpedienteService->execute($client)
             : null;
 
-        $installations = in_array($vista, ['cliente', 'sitio', 'puertas'], true)
+        $companyId = (int) $client->security_company_id;
+        if ($vista === 'sitio') {
+            app(\App\Services\Company\EnsureInstallationProfilesService::class)->execute($companyId);
+        }
+
+        $installations = in_array($vista, ['cliente', 'sitio'], true)
             ? $client->installations()
-                ->with($vista === 'cliente' ? [] : [
+                ->with($vista === 'cliente' ? ['profile'] : [
+                    'profile',
+                    'rector',
                     'locations' => fn ($q) => $q->orderBy('code'),
                     'supervisorPosts' => fn ($q) => $q->with(['employees.jobTitle'])->orderBy('name'),
                 ])
@@ -309,7 +316,7 @@ final class ClientController extends Controller
             'expediente' => $expediente,
             'installations' => $installations,
             'installationsCount' => $vista === 'resumen' ? $client->installations()->count() : $installations->count(),
-            'postModalities' => $this->postModalityOptions((int) $client->security_company_id),
+            'postModalities' => $this->postModalityOptions($companyId),
             'canManageTree' => $request->user()->can('update', $client),
             'canOperate' => $client->has_access && $request->user()->can('operate', $client),
             'canUpdate' => $request->user()->can('update', $client),
@@ -317,6 +324,12 @@ final class ClientController extends Controller
                 && $request->user()->can('client.structures.manage')
                 && $request->user()->can('operate', $client),
             'siteAdmins' => InstallationSiteAdmins::optionsForClients([$client->id]),
+            'installationProfiles' => $vista === 'sitio'
+                ? \App\Models\InstallationProfile::optionsForForm($companyId)
+                : [],
+            'maps' => $vista === 'sitio'
+                ? ['api_key' => config('google-maps.api_key')]
+                : null,
         ]);
     }
 
@@ -510,16 +523,15 @@ final class ClientController extends Controller
     private function resolveClientVista(Request $request, Client $client): string
     {
         $vista = $request->string('vista')->toString();
-        if (in_array($vista, ['accesos', 'supervision'], true)) {
+        if (in_array($vista, ['accesos', 'supervision', 'puertas'], true)) {
             $vista = 'sitio';
         }
 
         $allowed = ['cliente'];
-        if (! $client->isCatalogOnly()) {
+        if ($client->has_access || $client->has_supervision) {
             $allowed[] = 'sitio';
         }
         if ($client->has_access) {
-            $allowed[] = 'puertas';
             $allowed[] = 'resumen';
         }
 

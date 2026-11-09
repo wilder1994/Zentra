@@ -152,6 +152,8 @@ Documentos de venta (PDF/PPTX) para el súper admin: [`COMERCIAL-DOCUMENTOS.md`]
 
 **Desactivar línea en un cliente** (Editar → Líneas de servicio): al quitar Accesos, Supervisión u Observatorio el sistema pregunta **temporal** (libera cupo; datos intactos; reactivar exige cupo) o **archivar** (archivo operativo de puertas / puestos / folios; retención `config/retention.php` → `service_line_retention_days`; purga con `data:purge-retention`). No confundir con «Gestión de módulos» de la ficha (solo UI del panel cliente).
 
+**Líneas según plan:** el formulario de alta/editar cliente solo ofrece las casillas de productos contratados. «Compartir carpetas del personal» aparece solo con Indexación + Accesos (no es una línea comercial; comparte `/company/documents` con el panel cliente).
+
 ## Changelog
 
 | Fecha | Cambio |

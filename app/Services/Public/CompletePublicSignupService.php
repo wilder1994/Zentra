@@ -15,6 +15,7 @@ use App\Models\PlatformDocument;
 use App\Models\SecurityCompany;
 use App\Models\SubscriptionAcceptance;
 use App\Models\User;
+use App\Services\Company\EnsureInstallationProfilesService;
 use App\Services\Platform\IssueDemoInvoiceService;
 use App\Services\Platform\RecordLifecycleEvidenceService;
 use App\Services\Pricing\CompanyPriceHistory;
@@ -85,6 +86,7 @@ final class CompletePublicSignupService
             }
 
             $this->priceHistory->record($company, ['amount' => 0.0, 'plan' => ''], 'signup');
+            app(EnsureInstallationProfilesService::class)->execute((int) $company->id);
 
             $user = User::query()->create([
                 'name' => $intent->admin_name ?? $intent->legal_name,

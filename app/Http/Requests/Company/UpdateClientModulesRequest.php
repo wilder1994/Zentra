@@ -21,8 +21,10 @@ final class UpdateClientModulesRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        /** @var Client $client */
+        $client = $this->route('client');
         $rules = [];
-        foreach (ClientPanelModules::optional() as $key) {
+        foreach (array_keys(ClientPanelModules::availableLabelsFor($client)) as $key) {
             $rules['modules.'.$key] = ['sometimes', 'boolean'];
         }
 
@@ -34,8 +36,16 @@ final class UpdateClientModulesRequest extends FormRequest
     {
         /** @var Client $client */
         $client = $this->route('client');
-        $normalized = [];
-        foreach (ClientPanelModules::optional() as $key) {
+        $available = array_keys(ClientPanelModules::availableLabelsFor($client));
+        $normalized = ClientPanelModules::defaultOptional();
+
+        foreach ($normalized as $key => $default) {
+            if (! in_array($key, $available, true)) {
+                $normalized[$key] = false;
+
+                continue;
+            }
+
             $normalized[$key] = $this->boolean('modules.'.$key);
         }
 
@@ -45,4 +55,4 @@ final class UpdateClientModulesRequest extends FormRequest
 
         return $normalized;
     }
-}
+};

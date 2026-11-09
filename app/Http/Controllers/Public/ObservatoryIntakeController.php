@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Public;
 
-use App\Enums\InstallationKind;
 use App\Enums\ObservatoryReporterRole;
 use App\Enums\ObservatoryReportSource;
 use App\Http\Controllers\Controller;
@@ -53,7 +52,7 @@ final class ObservatoryIntakeController extends Controller
             ->withoutGlobalScopes()
             ->where('client_id', $row->id)
             ->where('is_active', true)
-            ->where('kind', InstallationKind::Colegio->value)
+            ->observatoryCommunity()
             ->when($search !== '', function ($q) use ($search) {
                 $q->where(function ($inner) use ($search) {
                     $inner->where('name', 'like', '%'.$search.'%')

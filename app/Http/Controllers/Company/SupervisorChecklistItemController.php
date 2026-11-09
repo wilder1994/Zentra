@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Company;
 
+use App\Support\Company\SettingsCatalog;
 use App\Enums\SupervisorChecklistKind;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\StoreSupervisorNamedCatalogRequest;
@@ -12,7 +13,6 @@ use App\Services\Company\ManageSupervisorCompanyCatalogService;
 use App\Support\Platform\ActingCompanyResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
 final class SupervisorChecklistItemController extends Controller
 {
@@ -20,27 +20,13 @@ final class SupervisorChecklistItemController extends Controller
         private readonly ManageSupervisorCompanyCatalogService $catalog,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): RedirectResponse
     {
         $this->authorize('viewAny', SupervisorChecklistItem::class);
-        $companyId = $this->companyId($request);
-        $this->catalog->ensureDefaults($companyId);
 
-        $ppe = SupervisorChecklistItem::query()
-            ->where('security_company_id', $companyId)
-            ->where('kind', SupervisorChecklistKind::Ppe)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
-        $vehicle = SupervisorChecklistItem::query()
-            ->where('security_company_id', $companyId)
-            ->where('kind', SupervisorChecklistKind::Vehicle)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
-
-        return view('modules.company.supervision-catalogs.preop', compact('ppe', 'vehicle'));
+        return SettingsCatalog::hubRedirect('preop');
     }
+
 
     public function store(StoreSupervisorNamedCatalogRequest $request): RedirectResponse
     {

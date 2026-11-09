@@ -76,7 +76,9 @@
                         Adjuntos ({{ $supervision->attachments->count() }})
                     </p>
 
-                    @php($photos = $supervision->attachments->where('kind', 'photo'))
+                    @php
+                        $photos = $supervision->attachments->where('kind', 'photo');
+                    @endphp
                     @if($photos->count() > 0)
                     <p class="text-sm font-semibold text-white mb-2">📷 Registros fotográficos</p>
                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
@@ -89,7 +91,9 @@
                     </div>
                     @endif
 
-                    @php($docs = $supervision->attachments->where('kind', 'document'))
+                    @php
+                        $docs = $supervision->attachments->where('kind', 'document');
+                    @endphp
                     @if($docs->count() > 0)
                     <p class="text-sm font-semibold text-white mb-2">📄 Documentos</p>
                     <div class="divide-y divide-slate-800 border border-slate-700 rounded-lg overflow-hidden">

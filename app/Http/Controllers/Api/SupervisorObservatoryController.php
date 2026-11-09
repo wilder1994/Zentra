@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
-use App\Enums\InstallationKind;
 use App\Enums\ObservatoryReporterRole;
 use App\Enums\ObservatoryReportSource;
 use App\Http\Controllers\Controller;
@@ -33,7 +32,7 @@ final class SupervisorObservatoryController extends Controller
         $sites = Installation::query()
             ->withoutGlobalScopes()
             ->where('is_active', true)
-            ->where('kind', InstallationKind::Colegio->value)
+            ->observatoryCommunity()
             ->whereHas('client', function ($q) use ($companyId): void {
                 $q->where('security_company_id', $companyId)
                     ->where('is_active', true);

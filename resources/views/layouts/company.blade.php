@@ -180,7 +180,7 @@
                 @if (! empty($canMod['profile']))
                 @can('company.profile.manage')
                 <a href="{{ route('company.settings.edit') }}"
-                   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium {{ request()->routeIs('company.settings.*') ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-800' }}">
+                   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium {{ request()->routeIs('company.settings.edit') ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-800' }}">
                     <span>Mis datos</span>
                 </a>
                 @endcan
@@ -191,6 +191,7 @@
                     $onAjustes = request()->routeIs('company.job-titles.*')
                         || request()->routeIs('company.collaborator-types.*')
                         || request()->routeIs('company.structure-types.*')
+                        || request()->routeIs('company.installation-profiles.*')
                         || request()->routeIs('company.supervision-zones.*')
                         || request()->routeIs('company.supervision-shifts.*')
                         || request()->routeIs('company.supervision-post-modalities.*')
@@ -205,8 +206,8 @@
                         || request()->routeIs('company.supervision-uniform-items.*')
                         || request()->routeIs('company.supervision-training-topics.*');
                 @endphp
-                <a href="{{ route('company.job-titles.index') }}"
-                   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium {{ $onAjustes ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-800' }}">
+                <a href="{{ route('company.settings.hub') }}"
+                   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium {{ $onAjustes || request()->routeIs('company.settings.hub*') ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-800' }}">
                     <span>Ajustes</span>
                 </a>
                 @endcanany
@@ -279,7 +280,7 @@
                             <div class="flex items-center gap-2 flex-wrap justify-end {{ ! empty($companyServiceSuspended) ? 'pointer-events-none opacity-40' : '' }}">
                             @isset($actions)
                                 {{ $actions }}
-                            @elseif (request()->routeIs('company.clients.*') && ! request()->routeIs('company.clients.create'))
+                            @elseif (request()->routeIs('company.clients.index'))
                                 @can('company.clients.manage')
                                     <x-ui.button :href="route('company.clients.create')" size="sm">
                                         + Cliente

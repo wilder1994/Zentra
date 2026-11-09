@@ -83,10 +83,10 @@ final class CompanyInstallationDirectoryTest extends TestCase
         $this->actingAs($admin)
             ->get(route('company.installations.create'))
             ->assertOk()
-            ->assertSee('Código', false)
+            ->assertSee('Perfil de sitio', false)
             ->assertSee('Comuna', false)
-            ->assertSee('Tipo de instalación', false)
-            ->assertSee('Contacto en directorio', false);
+            ->assertSee('Contacto en directorio', false)
+            ->assertDontSee('Código interno', false);
 
         $this->actingAs($admin)
             ->post(route('company.installations.store'), [
@@ -157,7 +157,7 @@ final class CompanyInstallationDirectoryTest extends TestCase
         $payload = [
             'client_id' => $client->id,
             'name' => 'Santa Librada',
-            'kind' => 'conjunto',
+            'installation_profile_id' => $this->installationProfileId('conjunto'),
             'address' => 'Calle 5 # 50-00',
             'city' => 'Cali',
             'department' => 'Valle del Cauca',
@@ -179,7 +179,7 @@ final class CompanyInstallationDirectoryTest extends TestCase
         $base = [
             'client_id' => $client->id,
             'name' => 'INEM Norte',
-            'kind' => 'colegio',
+            'installation_profile_id' => $this->installationProfileId(),
             'address' => 'Calle 5 # 50-00',
             'city' => 'Cali',
             'department' => 'Valle del Cauca',

@@ -10,6 +10,7 @@ use App\Enums\ClientPlanTier;
 use App\Models\Client;
 use App\Models\SecurityCompany;
 use App\Services\Client\ManageClientMemberTypeService;
+use App\Support\Catalog\CompanyEntitlements;
 use Illuminate\Support\Str;
 
 final class CreateClientService
@@ -56,7 +57,9 @@ final class CreateClientService
             'has_supervision' => $data->hasSupervision,
             'has_observatory' => $data->hasObservatory,
             'archived_at' => $data->isActive ? null : now(),
-            'show_personnel_folders' => $data->hasAccess && $data->showPersonnelFolders,
+            'show_personnel_folders' => $data->hasAccess
+                && $data->showPersonnelFolders
+                && CompanyEntitlements::for($company)->hasIndexing(),
             'service_started_at' => $data->serviceStartedAt ?? now()->toDateString(),
             'lifecycle' => ClientLifecycle::Active,
         ]);

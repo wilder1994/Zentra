@@ -2,18 +2,20 @@
     use App\Support\Client\ClientPanelModules;
     $modules = $client->panelModules();
     $hasDoors = $client->hasDoors();
+    $available = ClientPanelModules::availableLabelsFor($client);
 @endphp
 
+@if ($available !== [])
 <section class="rounded-lg border border-slate-800 bg-slate-900/80 p-4 space-y-3">
     <div>
         <h3 class="text-sm font-semibold text-white">Gestión de módulos</h3>
-        <p class="mt-1 text-xs text-slate-500">Qué ve el panel del cliente. Fijos: Resumen, Instalaciones, Personas, Usuarios, Accesos y Ajustes.</p>
+        <p class="mt-1 text-xs text-slate-500">Qué ve el panel del cliente. Solo se listan módulos permitidos por las líneas activas. Fijos: Resumen, Instalaciones, Personas, Usuarios, Accesos y Ajustes.</p>
     </div>
     <form method="POST" action="{{ route('company.clients.modules.update', $client) }}" class="space-y-3">
         @csrf
         @method('PUT')
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            @foreach (ClientPanelModules::optionalLabels() as $key => $label)
+            @foreach ($available as $key => $label)
                 @php
                     $on = (bool) ($modules[$key] ?? true);
                     $doorsLocked = $key === ClientPanelModules::DOORS && ! $hasDoors;
@@ -41,3 +43,4 @@
         <x-ui.button type="submit" size="sm">Guardar módulos</x-ui.button>
     </form>
 </section>
+@endif

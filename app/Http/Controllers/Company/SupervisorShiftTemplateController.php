@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Company;
 
+use App\Support\Company\SettingsCatalog;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\StoreSupervisorNamedCatalogRequest;
 use App\Models\SupervisorShiftTemplate;
@@ -11,7 +12,6 @@ use App\Services\Company\ManageSupervisorCompanyCatalogService;
 use App\Support\Platform\ActingCompanyResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
 final class SupervisorShiftTemplateController extends Controller
 {
@@ -19,20 +19,13 @@ final class SupervisorShiftTemplateController extends Controller
         private readonly ManageSupervisorCompanyCatalogService $catalog,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): RedirectResponse
     {
         $this->authorize('viewAny', SupervisorShiftTemplate::class);
-        $companyId = $this->companyId($request);
-        $this->catalog->ensureDefaults($companyId);
 
-        $templates = SupervisorShiftTemplate::query()
-            ->where('security_company_id', $companyId)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
-
-        return view('modules.company.supervision-catalogs.shifts', compact('templates'));
+        return SettingsCatalog::hubRedirect('turnos');
     }
+
 
     public function store(StoreSupervisorNamedCatalogRequest $request): RedirectResponse
     {

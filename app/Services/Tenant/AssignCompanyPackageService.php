@@ -63,10 +63,17 @@ final class AssignCompanyPackageService
     /** Instalaciones de Indexación y Observatorio; no cambia el periodo. */
     public function assignProducts(SecurityCompany $company, int $indexing, int $observatory): SecurityCompany
     {
+        $indexing = max(0, $indexing);
         $company->update([
-            'indexing_seats' => max(0, $indexing),
+            'indexing_seats' => $indexing,
             'observatory_seats' => max(0, $observatory),
         ]);
+
+        if ($indexing < 1) {
+            $company->clients()->where('show_personnel_folders', true)->update([
+                'show_personnel_folders' => false,
+            ]);
+        }
 
         return $this->planPricer->sync($company);
     }

@@ -103,6 +103,34 @@ final class PersonnelDocumentTest extends TestCase
         $this->assertFalse($client->fresh()->show_personnel_folders);
     }
 
+    public function test_without_indexing_product_company_documents_are_forbidden(): void
+    {
+        $this->seedWithPilot();
+        $admin = $this->companyAdmin();
+        $admin->securityCompany->update(['indexing_seats' => 0]);
+
+        $this->actingAs($admin)
+            ->get(route('company.personnel-documents.index'))
+            ->assertForbidden();
+    }
+
+    public function test_without_indexing_product_cannot_enable_personnel_folders(): void
+    {
+        $this->seedWithPilot();
+        $admin = $this->companyAdmin();
+        $admin->securityCompany->update(['indexing_seats' => 0]);
+        $client = Client::query()->where('slug', 'palmas-del-ingenio')->firstOrFail();
+        $client->update(['has_access' => true, 'show_personnel_folders' => false]);
+
+        $this->actingAs($admin)
+            ->put(route('company.clients.update', $client), $this->clientPayload($client, [
+                'has_access' => '1',
+                'show_personnel_folders' => '1',
+            ]));
+
+        $this->assertFalse($client->fresh()->show_personnel_folders);
+    }
+
     public function test_client_panel_only_lists_employees_assigned_to_its_posts(): void
     {
         $this->seedWithPilot();

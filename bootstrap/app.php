@@ -17,6 +17,7 @@ use App\Http\Middleware\EnsureCompanyServiceAccess;
 use App\Http\Middleware\EnsureSingleSession;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\InitializeAccessTenancy;
+use App\Http\Middleware\RedirectSettingsHubForms;
 use App\Support\Platform\SupportCompanyContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Application;
@@ -45,6 +46,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             EnsureSupervisorUsesFieldApp::class,
             EnsureSingleSession::class,
+            RedirectSettingsHubForms::class,
         ]);
         $middleware->alias([
             'active' => EnsureUserIsActive::class,

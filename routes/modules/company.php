@@ -23,6 +23,8 @@ use App\Http\Controllers\Company\PersonnelDocumentController;
 use App\Http\Controllers\Company\PorteriaController;
 use App\Http\Controllers\Company\QuotaRequestController;
 use App\Http\Controllers\Company\SettingsController;
+use App\Http\Controllers\Company\SettingsHubController;
+use App\Http\Controllers\Company\InstallationProfileController;
 use App\Http\Controllers\Company\StructureTypeController;
 use App\Http\Controllers\Company\SupervisionFieldSheetController;
 use App\Http\Controllers\Company\SupervisionMapController;
@@ -213,6 +215,9 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
         });
 
         Route::middleware('permission:company.settings.view|company.settings.manage')->group(function () {
+            Route::get('/ajustes', [SettingsHubController::class, 'index'])->name('settings.hub');
+            Route::get('/ajustes/panel/{catalog}', [SettingsHubController::class, 'panel'])->name('settings.hub.panel');
+
             Route::get('/job-titles', [JobTitleController::class, 'index'])->name('job-titles.index');
             Route::post('/job-titles', [JobTitleController::class, 'store'])->name('job-titles.store');
             Route::put('/job-titles/{jobTitle}', [JobTitleController::class, 'update'])->name('job-titles.update');
@@ -227,6 +232,11 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
             Route::post('/structure-types', [StructureTypeController::class, 'store'])->name('structure-types.store');
             Route::put('/structure-types/{structureType}', [StructureTypeController::class, 'update'])->name('structure-types.update');
             Route::delete('/structure-types/{structureType}', [StructureTypeController::class, 'destroy'])->name('structure-types.destroy');
+
+            Route::get('/installation-profiles', [InstallationProfileController::class, 'index'])->name('installation-profiles.index');
+            Route::post('/installation-profiles', [InstallationProfileController::class, 'store'])->name('installation-profiles.store');
+            Route::put('/installation-profiles/{installationProfile}', [InstallationProfileController::class, 'update'])->name('installation-profiles.update');
+            Route::delete('/installation-profiles/{installationProfile}', [InstallationProfileController::class, 'destroy'])->name('installation-profiles.destroy');
 
             Route::get('/supervision-zones', [SupervisorZoneController::class, 'index'])->name('supervision-zones.index');
             Route::post('/supervision-zones', [SupervisorZoneController::class, 'store'])->name('supervision-zones.store');
@@ -408,6 +418,9 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
         Route::get('/installations/{installation}', [CompanyInstallationController::class, 'show'])
             ->middleware('permission:company.installations.view')
             ->name('installations.show');
+        Route::get('/installations/{installation}/history', [CompanyInstallationController::class, 'history'])
+            ->middleware('permission:company.installations.view')
+            ->name('installations.history');
         Route::get('/installations/{installation}/edit', [CompanyInstallationController::class, 'edit'])
             ->middleware('permission:company.installations.manage')
             ->name('installations.edit');
@@ -437,6 +450,12 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
         Route::put('/clients/{client}/locations/{location}', [ClientAccessPointController::class, 'update'])
             ->middleware('permission:company.clients.manage')
             ->name('clients.locations.update');
+        Route::post('/clients/{client}/locations/{location}/archive', [ClientAccessPointController::class, 'archive'])
+            ->middleware('permission:company.clients.manage')
+            ->name('clients.locations.archive');
+        Route::post('/clients/{client}/locations/{location}/restore', [ClientAccessPointController::class, 'restore'])
+            ->middleware('permission:company.clients.manage')
+            ->name('clients.locations.restore');
         Route::delete('/clients/{client}/locations/{location}', [ClientAccessPointController::class, 'destroy'])
             ->middleware('permission:company.clients.manage')
             ->name('clients.locations.destroy');
@@ -456,6 +475,9 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
         Route::delete('/clients/{client}/posts/{post}', [ClientSupervisorPostController::class, 'destroy'])
             ->middleware('permission:company.clients.manage')
             ->name('clients.posts.destroy');
+        Route::post('/clients/{client}/posts/{post}/employees/{employee}/detach', [ClientSupervisorPostController::class, 'detachEmployee'])
+            ->middleware('permission:company.clients.manage')
+            ->name('clients.posts.employees.detach');
 
         Route::post('/clients/{client}/archive', [ClientController::class, 'archive'])
             ->middleware('permission:company.clients.manage')

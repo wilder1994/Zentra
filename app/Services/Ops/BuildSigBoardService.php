@@ -157,7 +157,7 @@ final class BuildSigBoardService
                 'dane' => $site->dane_code,
                 'city' => $site->city,
                 'address' => PlaceLabel::of($site),
-                'kind' => $site->kindLabel(),
+                'kind' => $site->profileLabel(),
                 'has_location' => $hasLocation,
                 'posts_count' => $sitePosts->count(),
                 'guards_count' => $guards,

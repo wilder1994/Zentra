@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Company;
 
+use App\Support\Company\SettingsCatalog;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\StoreCompanyCollaboratorTypeRequest;
 use App\Http\Requests\Company\UpdateCompanyCollaboratorTypeRequest;
@@ -13,7 +14,6 @@ use App\Support\Platform\ActingCompanyResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
 
 final class CollaboratorTypeController extends Controller
 {
@@ -21,20 +21,13 @@ final class CollaboratorTypeController extends Controller
         private readonly ManageCompanyCollaboratorTypeService $manageCompanyCollaboratorTypeService,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): RedirectResponse
     {
         $this->authorize('viewAny', CompanyCollaboratorType::class);
-        $companyId = $this->companyId($request);
 
-        $collaboratorTypes = CompanyCollaboratorType::query()
-            ->where('security_company_id', $companyId)
-            ->withCount('employees')
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
-
-        return view('modules.company.collaborator-types.index', compact('collaboratorTypes'));
+        return SettingsCatalog::hubRedirect('tipos');
     }
+
 
     public function store(StoreCompanyCollaboratorTypeRequest $request): RedirectResponse
     {

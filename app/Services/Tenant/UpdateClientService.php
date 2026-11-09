@@ -7,6 +7,7 @@ namespace App\Services\Tenant;
 use App\Enums\PartyType;
 use App\Models\Client;
 use App\Services\Company\ManageArchiveService;
+use App\Support\Catalog\CompanyEntitlements;
 use App\Support\Catalog\ServiceLine;
 use Illuminate\Validation\ValidationException;
 
@@ -51,7 +52,11 @@ final class UpdateClientService
         $nextActive = array_key_exists('is_active', $attributes) ? $this->toBool($attributes['is_active']) : (bool) $client->is_active;
         unset($attributes['is_active']);
 
-        if (! $desired[ServiceLine::ACCESS]) {
+        $client->loadMissing('securityCompany');
+        $canShareFolders = $desired[ServiceLine::ACCESS]
+            && CompanyEntitlements::for($client->securityCompany)->hasIndexing();
+
+        if (! $canShareFolders) {
             $attributes['show_personnel_folders'] = false;
         } elseif (array_key_exists('show_personnel_folders', $attributes)) {
             $attributes['show_personnel_folders'] = $this->toBool($attributes['show_personnel_folders']);

@@ -89,7 +89,7 @@ Rojo = obligatorio en el archivo. Gris = opcional en el archivo.
 
 Tras V (gris, opcionales): teléfono, residencia, dirección, escolaridad, estado civil, hijos, vinculación, cotizante, tipo de contrato, ingreso, vencimiento, retiro, EPS/AFP (código y nombre), caja, ARL y nivel de riesgo. Un archivo WM solo A–Z sigue valiendo.
 
-**No van en este Excel:** razón social, instalaciones, sector, puesto. Eso es del **cliente** y se arma a mano en la ficha (Instalaciones y puestos / Puertas). «Sector» era ciudad; la ciudad del cliente está en el Excel de clientes. Ver [`CLIENTES-Y-ESTRUCTURA.md`](CLIENTES-Y-ESTRUCTURA.md).
+**No van en este Excel:** razón social, instalaciones, sector, puesto. Eso es del **cliente** y se arma en la ficha (pestaña Instalaciones / tarjeta unificada). «Sector» era ciudad; la ciudad del cliente está en el Excel de clientes. Ver [`CLIENTES-Y-ESTRUCTURA.md`](CLIENTES-Y-ESTRUCTURA.md).
 
 No se archiva desde el Excel. Documento que ya existe: **aviso** (se actualiza la ficha, incluido el cargo). Correo de **otro** empleado: error. No se crea usuario desde el Excel. La foto no viaja en el Excel.
 
@@ -132,7 +132,7 @@ Miniaturas del lote: el worker de pdf.js es un `.mjs`. CloudPanel lo sirve como 
 
 Tablas: `employee_documents`, `employee_document_batches`. Disco: `storage/app/companies/{id}/employees/{id}/{carpeta}/`. Borrar PDF solo durante 12 h.
 
-El cliente **solo** ve esas carpetas si tiene Accesos y `show_personnel_folders`. En Operar cliente: `/client/documents`, solo empleados con puesto en ese cliente. **Ver** = preview; **Gestionar** = descargar. Reasignar puesto cambia la visibilidad; los PDF siguen en la empresa.
+El indexador `/company/documents` exige el producto **Indexación** (`indexing_seats` > 0). El cliente **solo** ve carpetas si la empresa tiene Indexación, el cliente tiene Accesos y `show_personnel_folders`. En Operar cliente: `/client/documents`, solo empleados con puesto en ese cliente. **Ver** = preview; **Gestionar** = descargar. Reasignar puesto cambia la visibilidad; los PDF siguen en la empresa.
 
 ## Pendiente (otro corte)
 

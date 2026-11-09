@@ -9,11 +9,11 @@ use App\Http\Requests\Company\StoreCompanyJobTitleRequest;
 use App\Http\Requests\Company\UpdateCompanyJobTitleRequest;
 use App\Models\CompanyJobTitle;
 use App\Services\Company\ManageCompanyJobTitleService;
+use App\Support\Company\SettingsCatalog;
 use App\Support\Platform\ActingCompanyResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
 
 final class JobTitleController extends Controller
 {
@@ -21,19 +21,11 @@ final class JobTitleController extends Controller
         private readonly ManageCompanyJobTitleService $manageCompanyJobTitleService,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): RedirectResponse
     {
         $this->authorize('viewAny', CompanyJobTitle::class);
-        $companyId = $this->companyId($request);
 
-        $jobTitles = CompanyJobTitle::query()
-            ->where('security_company_id', $companyId)
-            ->withCount('employees')
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
-
-        return view('modules.company.job-titles.index', compact('jobTitles'));
+        return SettingsCatalog::hubRedirect('cargos');
     }
 
     public function store(StoreCompanyJobTitleRequest $request): RedirectResponse

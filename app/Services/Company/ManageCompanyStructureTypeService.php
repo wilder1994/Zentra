@@ -10,7 +10,7 @@ use Illuminate\Validation\ValidationException;
 
 final class ManageCompanyStructureTypeService
 {
-    /** @param array{name: string, is_active?: bool, is_unit?: bool} $data */
+    /** @param array{name: string, is_active?: bool} $data */
     public function create(int $companyId, array $data): StructureType
     {
         $name = trim($data['name']);
@@ -25,13 +25,12 @@ final class ManageCompanyStructureTypeService
             'code' => $this->uniqueCodeFromName($companyId, $name),
             'name' => $name,
             'description' => null,
-            'is_unit' => (bool) ($data['is_unit'] ?? false),
             'is_active' => (bool) ($data['is_active'] ?? true),
             'sort_order' => $max + 10,
         ]);
     }
 
-    /** @param array{name?: string, is_active?: bool, is_unit?: bool} $data */
+    /** @param array{name?: string, is_active?: bool} $data */
     public function update(StructureType $type, array $data): StructureType
     {
         if (isset($data['name'])) {
@@ -42,10 +41,6 @@ final class ManageCompanyStructureTypeService
 
         if (array_key_exists('is_active', $data)) {
             $type->is_active = (bool) $data['is_active'];
-        }
-
-        if (array_key_exists('is_unit', $data)) {
-            $type->is_unit = (bool) $data['is_unit'];
         }
 
         $type->save();

@@ -16,7 +16,6 @@ return new class extends Migration
             $table->string('code', 50);
             $table->string('name', 100);
             $table->string('description', 255)->nullable();
-            $table->boolean('is_unit')->default(false);
             $table->boolean('is_active')->default(true);
             $table->unsignedSmallInteger('sort_order')->default(0);
             $table->timestamps();

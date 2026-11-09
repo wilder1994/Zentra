@@ -308,9 +308,16 @@ final class PreviewClientImportService
             }
 
             if (! empty($payload['has_supervision'])) {
+                if (! $company->hasSupervisionPackage()) {
+                    $rows[$index]['status'] = 'error';
+                    $rows[$index]['messages'][] = 'Tu plan no incluye Supervisión. Deja Supervisión en NO o contrátala en Facturación.';
+                    $rows[$index]['payload'] = null;
+
+                    continue;
+                }
                 if ($proLeft < 1) {
                     $rows[$index]['status'] = 'error';
-                    $rows[$index]['messages'][] = 'Sin cupo de Supervisión. Deja Supervisión en NO o contrata el paquete.';
+                    $rows[$index]['messages'][] = 'Sin cupo de Supervisión. Deja Supervisión en NO o amplía el paquete.';
                     $rows[$index]['payload'] = null;
 
                     continue;

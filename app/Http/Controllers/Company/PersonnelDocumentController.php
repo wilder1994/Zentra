@@ -14,7 +14,9 @@ use App\Http\Requests\Personnel\StoreLaborHistoryBatchRequest;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\EmployeeDocumentBatch;
+use App\Models\SecurityCompany;
 use App\Repositories\EmployeeRepository;
+use App\Support\Catalog\CompanyEntitlements;
 use App\Services\Personnel\CommitParafiscalPlanillaService;
 use App\Services\Personnel\DeleteEmployeeDocumentService;
 use App\Services\Personnel\IndexLaborHistoryPdfService;
@@ -363,7 +365,11 @@ final class PersonnelDocumentController extends Controller
 
     private function companyId(Request $request): int
     {
-        return app(ActingCompanyResolver::class)->requireId($request->user());
+        $companyId = app(ActingCompanyResolver::class)->requireId($request->user());
+        $company = SecurityCompany::query()->findOrFail($companyId);
+        abort_unless(CompanyEntitlements::for($company)->hasIndexing(), 403);
+
+        return $companyId;
     }
 
     private function assertCompany(Request $request, Employee $employee): void

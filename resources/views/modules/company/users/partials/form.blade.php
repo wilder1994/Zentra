@@ -1,7 +1,9 @@
 @php
     use App\Enums\AccessGrantScope;
+    use App\Models\SecurityCompany;
     use App\Support\Auth\AssignableRoles;
     use App\Support\Auth\GrantableModules;
+    use App\Support\Platform\ActingCompanyResolver;
     $isEdit = $managedUser !== null;
     $employee = $managedUser?->employee;
     $selectedRole = old('role', $managedUser?->getRoleNames()->first() ?? 'supervisor');
@@ -14,8 +16,14 @@
         ->all();
     $selectedInstallationPermission = old('installation_permission', $managedUser?->assignedInstallations?->first()?->pivot?->installation_permission ?? 'admin');
     $selectedOrigin = old('origin', $managedUser?->admin_origin ?? 'internal');
+    $entitledCompanyId = app(ActingCompanyResolver::class)->id(auth()->user());
+    $entitledCompany = $entitledCompanyId !== null
+        ? SecurityCompany::query()->find($entitledCompanyId)
+        : auth()->user()?->securityCompany;
+    $companyModulesCatalog = GrantableModules::forEntitledCompany($entitledCompany, AccessGrantScope::Company);
+    $scopedModulesCatalog = GrantableModules::forEntitledCompany($entitledCompany, AccessGrantScope::Client);
     $companyGrantLevels = [];
-    foreach (array_keys(GrantableModules::forScope(AccessGrantScope::Company)) as $module) {
+    foreach (array_keys($companyModulesCatalog) as $module) {
         $companyGrantLevels[$module] = 'none';
     }
     $clientGrantLevels = [];
@@ -54,11 +62,11 @@
             'id' => (string) $client->id,
             'name' => $client->name,
         ])->values()->all(),
-        'companyModules' => collect(GrantableModules::forScope(AccessGrantScope::Company))
+        'companyModules' => collect($companyModulesCatalog)
             ->map(fn ($row, $key) => ['key' => $key, 'label' => $row['label']])
             ->values()
             ->all(),
-        'scopedModules' => collect(GrantableModules::forScope(AccessGrantScope::Client))
+        'scopedModules' => collect($scopedModulesCatalog)
             ->map(fn ($row, $key) => ['key' => $key, 'label' => $row['label']])
             ->values()
             ->all(),

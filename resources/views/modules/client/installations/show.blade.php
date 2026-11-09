@@ -22,8 +22,8 @@
                 </div>
                 <dl class="space-y-3 text-sm">
                     <div>
-                        <dt class="text-xs text-slate-500">Tipo</dt>
-                        <dd class="text-slate-200">{{ $installation->kindLabel() }}</dd>
+                        <dt class="text-xs text-slate-500">Perfil de sitio</dt>
+                        <dd class="text-slate-200">{{ $installation->profileLabel() }}</dd>
                     </div>
                     <div>
                         <dt class="text-xs text-slate-500">Código</dt>

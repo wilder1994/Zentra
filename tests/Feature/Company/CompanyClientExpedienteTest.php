@@ -47,8 +47,8 @@ final class CompanyClientExpedienteTest extends TestCase
         $response->assertSee('Operar instalación');
         $response->assertSee('Inicio de servicio');
         $response->assertSee('Editar');
-        $response->assertSee('Instalaciones y puestos');
-        $response->assertSee('Puertas');
+        $response->assertSee('Instalaciones');
+        $response->assertDontSee('>Puertas</p>', false);
         $response->assertSee('Ficha comercial');
         $response->assertSee('Gestión de módulos');
         $response->assertSee('← Cartera');
@@ -65,19 +65,20 @@ final class CompanyClientExpedienteTest extends TestCase
 
         $sitio = $this->actingAs($user)->get(route('company.clients.show', [$client, 'vista' => 'sitio']));
         $sitio->assertOk();
-        $sitio->assertSee('Instalaciones y puestos');
+        $sitio->assertSee('Instalaciones');
         $sitio->assertSee('Portería principal');
-        $sitio->assertSee('← Cliente');
+        $sitio->assertSee('+ Instalación');
         $sitio->assertDontSee('Personas (censo)');
         $sitio->assertDontSee('Operar portería');
         $sitio->assertDontSee('Operar cliente');
-        $sitio->assertDontSee('Agregar puerta');
+        $sitio->assertSee('Crear');
+        $sitio->assertSee('Historial');
 
         $puertas = $this->actingAs($user)->get(route('company.clients.show', [$client, 'vista' => 'puertas']));
         $puertas->assertOk();
+        $puertas->assertSee('Instalaciones');
         $puertas->assertSee('Puerta principal');
-        $puertas->assertSee('Agregar puerta');
-        $puertas->assertDontSee('Agregar puesto');
+        $puertas->assertSee('Crear');
         $puertas->assertDontSee('Personas (censo)');
     }
 

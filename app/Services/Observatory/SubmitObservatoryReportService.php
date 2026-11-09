@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Observatory;
 
-use App\Enums\InstallationKind;
 use App\Enums\ObservatoryEventStatus;
 use App\Enums\ObservatoryReporterRole;
 use App\Enums\ObservatoryReportSource;
@@ -40,7 +39,7 @@ final class SubmitObservatoryReportService
             ->whereKey((int) $data['installation_id'])
             ->when(
                 $source === ObservatoryReportSource::Comunidad,
-                fn ($q) => $q->where('kind', InstallationKind::Colegio->value),
+                fn ($q) => $q->observatoryCommunity(),
             )
             ->first();
 

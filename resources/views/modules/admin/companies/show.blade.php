@@ -152,7 +152,9 @@
                     </thead>
                     <tbody class="divide-y divide-slate-800/80">
                         @foreach (CommercialProduct::cases() as $product)
-                            @php($seats = $companyPlan->seats($product))
+                            @php
+                                $seats = $companyPlan->seats($product);
+                            @endphp
                             @continue($seats < 1)
                             <tr>
                                 <td class="py-2 text-slate-200">

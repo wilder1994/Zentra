@@ -11,6 +11,7 @@
     $areaLng = old('longitude', $installation?->longitude);
     $idescLocked = is_numeric($areaLat) && is_numeric($areaLng)
         && app(\App\Support\Geo\CaliComunaLayer::class)->locate((float) $areaLat, (float) $areaLng) !== null;
+    $installationProfiles = $installationProfiles ?? [];
 @endphp
 
 <div
@@ -83,29 +84,10 @@
         </label>
     </div>
 
-    <div class="grid sm:grid-cols-2 gap-3">
-        <div>
-            <x-ui.label for="code">Código</x-ui.label>
-            <x-ui.input id="code" name="code" :value="old('code', $installation?->code)" placeholder="Se genera si lo dejas vacío" />
-            <x-ui.field-error :messages="$errors->get('code')" />
-        </div>
-        <div
-            x-data="installationAreaFields({
-                commune: @js(old('commune', $installation?->commune ?? '')),
-                city: @js(old('city', $installation?->city ?? '')),
-                idescLocked: @js($idescLocked),
-            })"
-            @geo-place.window="applyPlace($event.detail)"
-        >
-            <x-ui.label for="commune" x-text="areaLabel">Comuna</x-ui.label>
-            <x-ui.input id="commune" name="commune" x-model="commune" @input="refreshKind()" placeholder="Se llena con el mapa"
-                        class="read-only:text-slate-400" x-bind:readonly="idescLocked" />
-            <p class="mt-1 text-[11px] text-slate-500" x-text="areaHint"></p>
-            <x-ui.field-error :messages="$errors->get('commune')" />
-        </div>
-    </div>
-
-    @include('modules.company.installations.partials.kind-fields', ['installation' => $installation])
+    @include('modules.company.installations.partials.profile-fields', [
+        'installation' => $installation,
+        'installationProfiles' => $installationProfiles,
+    ])
 
     <div>
         <x-ui.label for="rector_user_id">Contacto en directorio</x-ui.label>
@@ -131,7 +113,7 @@
     <p x-show="sameClient && !clientHasGeo" x-cloak class="text-xs text-amber-400">Este cliente no tiene pin. Complétalo en la ficha o crea la instalación con el mapa.</p>
     <x-ui.field-error :messages="$errors->get('is_client_site')" />
 
-    <div x-show="!sameClient" x-cloak>
+    <div x-show="!sameClient" x-cloak class="space-y-3">
         <x-ui.geo-address-fields
             :address="old('address', $installation?->address)"
             :city="old('city', $installation?->city)"
@@ -140,7 +122,30 @@
             :longitude="old('longitude', $installation?->longitude)"
         />
         <x-ui.field-error :messages="$errors->get('latitude')" />
+
+        <div
+            x-data="installationAreaFields({
+                commune: @js(old('commune', $installation?->commune ?? '')),
+                city: @js(old('city', $installation?->city ?? '')),
+                idescLocked: @js($idescLocked),
+            })"
+            @geo-place.window="applyPlace($event.detail)"
+        >
+            <x-ui.label for="commune" x-text="areaLabel">Comuna / área</x-ui.label>
+            <x-ui.input id="commune" name="commune" x-model="commune" @input="refreshKind()" placeholder="Se llena con el mapa"
+                        class="read-only:text-slate-400" x-bind:readonly="idescLocked" />
+            <p class="mt-1 text-[11px] text-slate-500" x-text="areaHint"></p>
+            <x-ui.field-error :messages="$errors->get('commune')" />
+        </div>
     </div>
+
+    @if ($isEdit)
+        <div>
+            <x-ui.label for="code_readonly">Código interno</x-ui.label>
+            <x-ui.input id="code_readonly" :value="$installation->code" disabled />
+            <p class="mt-1 text-[11px] text-slate-600">Se genera al crear.</p>
+        </div>
+    @endif
 
     @if ($isEdit)
         <label class="inline-flex items-center gap-2 text-xs text-slate-300">

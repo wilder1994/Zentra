@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Observatory;
 
-use App\Enums\InstallationKind;
 use App\Models\Client;
 use App\Models\Installation;
 use App\Models\ObservatoryEvent;
@@ -188,12 +187,12 @@ final class ObservatoryApiTest extends TestCase
         $this->seedWithPilot();
         $client = Client::query()->where('slug', 'palmas-del-ingenio')->firstOrFail();
         $conjunto = Installation::query()->where('client_id', $client->id)->firstOrFail();
-        $conjunto->update(['kind' => InstallationKind::Conjunto->value]);
+        $conjunto->update(['installation_profile_id' => $this->installationProfileId('conjunto')]);
 
         $colegio = Installation::query()->create([
             'client_id' => $client->id,
             'name' => 'IE Santa Librada',
-            'kind' => InstallationKind::Colegio->value,
+            'installation_profile_id' => $this->installationProfileId(),
             'dane_code' => '176001000201',
             'is_client_site' => false,
             'is_active' => true,
@@ -203,7 +202,7 @@ final class ObservatoryApiTest extends TestCase
         $other = Installation::query()->create([
             'client_id' => $client->id,
             'name' => 'IE Republica del Peru',
-            'kind' => InstallationKind::Colegio->value,
+            'installation_profile_id' => $this->installationProfileId(),
             'dane_code' => '176001000202',
             'is_client_site' => false,
             'is_active' => true,

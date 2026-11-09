@@ -63,10 +63,15 @@
                 <p class="text-xs text-slate-500 sm:ml-auto sm:text-right whitespace-nowrap">
                     {{ $clients->total() }} {{ $clients->total() === 1 ? 'cliente' : 'clientes' }}
                     · Instalaciones libres {{ $metrics['installations_remaining'] }}/{{ $metrics['installation_capacity'] }}
-                    @if ($metrics['max_clients'] > 0)
+                    @if ($metrics['has_access_product'] ?? ($metrics['max_clients'] > 0))
                         · Accesos {{ $metrics['access_remaining'] }}/{{ $metrics['max_clients'] }}
                     @endif
-                    · Supervisión {{ ($metrics['supervision_unlimited'] ?? false) ? 'Ilimitada' : (($metrics['supervision_remaining'] ?? 0).'/'.($metrics['max_supervision_clients'] ?? 0)) }}
+                    @if ($metrics['has_supervision_product'] ?? false)
+                        · Supervisión {{ ($metrics['supervision_unlimited'] ?? false) ? 'Ilimitada' : (($metrics['supervision_remaining'] ?? 0).'/'.($metrics['max_supervision_clients'] ?? 0)) }}
+                    @endif
+                    @if ($metrics['has_observatory_product'] ?? false)
+                        · Observatorio {{ $metrics['observatory_remaining'] }}/{{ $metrics['max_observatory'] }}
+                    @endif
                 </p>
             @else
                 <p class="text-xs text-slate-500 sm:ml-auto sm:text-right whitespace-nowrap">

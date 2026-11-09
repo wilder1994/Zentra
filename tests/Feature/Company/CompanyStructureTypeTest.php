@@ -23,13 +23,12 @@ final class CompanyStructureTypeTest extends TestCase
             ->get(route('company.structure-types.index'))
             ->assertOk()
             ->assertSee('Estructuras')
-            ->assertSee('Unidad ocupable');
+            ->assertDontSee('Unidad ocupable');
 
         $this->actingAs($admin)
             ->post(route('company.structure-types.store'), [
                 'name' => 'Clínica',
                 'is_active' => true,
-                'is_unit' => true,
             ])
             ->assertRedirect(route('company.structure-types.index'));
 
@@ -38,13 +37,11 @@ final class CompanyStructureTypeTest extends TestCase
             ->where('name', 'Clínica')
             ->firstOrFail();
         $this->assertSame('clinica', $type->code);
-        $this->assertTrue($type->is_unit);
 
         $this->actingAs($admin)
             ->put(route('company.structure-types.update', $type), [
                 'name' => 'Clínica ambulatoria',
                 'is_active' => false,
-                'is_unit' => false,
             ])
             ->assertRedirect(route('company.structure-types.index'));
 
@@ -54,7 +51,6 @@ final class CompanyStructureTypeTest extends TestCase
             'code' => 'clinica',
             'name' => 'Clínica ambulatoria',
             'is_active' => 0,
-            'is_unit' => 0,
         ]);
     }
 

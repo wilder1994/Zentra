@@ -36,7 +36,7 @@ Plataforma SaaS B2B de **control de accesos y vigilancia** para empresas de segu
 | **Empleados** | Ficha SJ-SIG (4 bloques + foto) + Excel WM ampliado (preview → alta o **actualización** por documento). Sidebar propio; Ajustes = cargos/tipos + catálogos de Supervisión | ✅ Implementada |
 | **Documentos (personal)** | Indexador de carpetas (HV, contratación, certificados, cursos, afiliaciones, otros). Cliente: flag Accesos + puestos del cliente. **Ver** = preview; **Gestionar** = descargar/indexar. Distinto de Normoteca | ✅ Implementada |
 | **Supervisión campo** | PWA captura (8 módulos, rito de turno, catálogos). Mapa En vivo/Historial, cierre automático, cola offline por usuario. Fuente de verdad: Zentra | ✅ Implementada |
-| **Árbol del cliente** | Una tarjeta **Instalaciones y puestos**; otra **Puertas** (solo Accesos). Modalidad + vigilantes en el puesto | ✅ Implementada |
+| **Árbol del cliente** | Tarjeta de instalación unificada (mapa + Cliente/Perfil/Área/Admin · Crear dropdown · puertas · puestos/historial). Perfiles de sitio; hub Ajustes | ✅ Implementada (8 nov 2026) |
 
 Documentación detallada: [`docs/INFORME-VISION-PRODUCTO-W-CODEX.md`](docs/INFORME-VISION-PRODUCTO-W-CODEX.md) · [`docs/PLAN-INICIO-PROYECTO-ZENTRA.md`](docs/PLAN-INICIO-PROYECTO-ZENTRA.md) · [`docs/REFERENCIA-PLATAFORMA-CONTROL-ACCESOS.md`](docs/REFERENCIA-PLATAFORMA-CONTROL-ACCESOS.md) · [`docs/MODELO-COMERCIAL-PAQUETES.md`](docs/MODELO-COMERCIAL-PAQUETES.md) · [**Documentos comerciales (PDF/PPTX)**](docs/COMERCIAL-DOCUMENTOS.md) · [**Paquetes Accesos y Supervisión**](docs/PAQUETES-ACCESOS-Y-SUPERVISION.md) · [**Supervisión de campo**](docs/SUPERVISION-CAMPO.md) · [**Portería**](docs/PORTERIA.md) · [**Observatorio**](docs/OBSERVATORIO.md) · [**Landing y contratación**](docs/LANDING-Y-CONTRATACION.md) · [**Usuarios y perfiles**](docs/USUARIOS-Y-PERFILES.md) · [**Empleados y cargos**](docs/EMPLEADOS-Y-CARGOS.md) · [**Clientes y estructura**](docs/CLIENTES-Y-ESTRUCTURA.md) · [**Billing local**](docs/BILLING-LOCAL-Y-MIGRACION.md) · [**Diseño UI**](docs/DISENO-UI-ZENTRA.md) · [**Panel Plataforma**](docs/PLATAFORMA-ADMIN.md) · [**Módulo Documentos**](docs/MODULO-DOCUMENTOS.md) (v1.1 normoteca por SKU + inmutabilidad; fases futuras §12) · [**Hosting VPS**](docs/HOSTING-VPS.md) · [**Pendientes**](docs/PENDIENTES.md)
 
@@ -47,7 +47,7 @@ Documentación detallada: [`docs/INFORME-VISION-PRODUCTO-W-CODEX.md`](docs/INFOR
 | Panel | Prefijo | Rol(es) | Descripción |
 |-------|---------|---------|-------------|
 | **Plataforma** | `/admin` | `super-admin` | Dashboard, **Comercial** (propuesta/cotización PDF + PPTX), **Descargas**, precios, empresas, documentos, **Ajustes** (tipos de documento) |
-| **Empresa** | `/company` | `company-admin` | Command Center (**Mi empresa**), cartera, **Empleados**, **Documentos**, **Mis datos**, **Ajustes** (cargos/tipos + zonas/turnos/preoperacional), usuarios, billing, **Observatorio**, Supervisión, **Descargas** |
+| **Empresa** | `/company` | `company-admin` | Command Center (**Mi empresa**), cartera, **Empleados**, **Documentos**, **Mis datos**, **Ajustes** (hub `/company/ajustes`: Empresa · Clientes/sitio · App de campo), usuarios, billing, **Observatorio**, Supervisión, **Descargas** |
 | **Cliente** | `/client` | `client-admin`, `client-installation-admin` | Censo: nodos (`structures`, tipo heredado del cliente), personas, vehículos, mascotas, autorizaciones. **Observatorio**. Admin instalaciones: solo sus instalaciones (cierran estados, unen folios, sacan reportes); Ajustes solo ver |
 | **Portería** | `/access` | `guardia` (Vigilante), `supervisor` (Supervisor de vigilancia), `client-admin` | Ops diarias + **accesos** (puertas de una instalación del cliente) |
 | **Residente** | `/resident` | `resident`, `anfitrion` | Portal web: pre-autorizaciones y correspondencia |
@@ -379,7 +379,7 @@ Config acceso: `config/subscription.php` · detalle: [`docs/PLATAFORMA-ADMIN.md`
 
 ### Panel Empresa (`/company`)
 
-Sidebar: **Mi empresa** (dashboard) · Facturación · Clientes · **Instalaciones** · **Observatorio** · Supervisión · **Atención de pánicos** · **Descargas** · **Empleados** · **Documentos** · Usuarios · **Mis datos** (perfil) · **Ajustes** (Cargos | Tipos | Estructuras | Zonas | Turnos | Preoperacional | Documentos | Libros | Tipos de arma | Marcas | Riesgos | Alarmas | Apoyos).
+Sidebar: **Mi empresa** · Facturación · Clientes · **Instalaciones** · **Observatorio** · Supervisión · **Atención de pánicos** · **Descargas** · **Empleados** · **Documentos** · Usuarios · **Mis datos** · **Ajustes** (`/company/ajustes`: hub Empresa · Clientes/sitio · App de campo; índices viejos redirigen).
 
 | Ruta | Función |
 |------|---------|
@@ -449,7 +449,7 @@ Acciones: anticipar/renovar/reactivar online · cancelar · deshacer cancelació
 
 #### Expediente de conjunto (`/company/clients/{id}`)
 
-Pestañas: **Cliente** (ficha + Operar portería / Operar cliente si Accesos, Editar, **Instalaciones y puestos**, **Puertas** si Accesos) · **Resumen** (si `has_access`: KPIs de portería). Árboles: `?vista=sitio` y `?vista=puertas`. El sitio no lista revistas (van a `/company/supervision`). Un puesto puede tener varios vigilantes; un empleado solo un puesto.
+Pestañas: **Cliente** · **Resumen** (si Accesos) · **Instalaciones** (`?vista=sitio`; `?vista=puertas` redirige). Tarjeta unificada: mapa ~28% + Cliente/Perfil/Área/Admin · Crear (Puerta/Puesto/Vigilante) · historial. Perfiles de sitio en Ajustes. Revistas en `/company/supervision`. Un puesto: varios vigilantes; un empleado: un puesto.
 
 El Excel de clientes **solo** carga la ficha. Instalaciones, puestos y puertas se crean a mano aquí. Detalle: [`docs/CLIENTES-Y-ESTRUCTURA.md`](docs/CLIENTES-Y-ESTRUCTURA.md).
 
@@ -480,12 +480,12 @@ Ver [`docs/CLIENTES-Y-ESTRUCTURA.md`](docs/CLIENTES-Y-ESTRUCTURA.md).
 
 | Concepto | Dónde | Detalle |
 |----------|-------|---------|
-| Tipos de estructura | `/company/structure-types` | Por empresa. Nombre + activo + unidad ocupable; código interno automático; no borrar si hay clientes o nodos |
+| Tipos de estructura | `/company/structure-types` | Por empresa. Nombre + activo; código interno automático; no borrar si hay clientes o nodos |
 | Tipos de documento | `/admin/settings/document-types` | CC/CE/NIT…; alta cliente + clickwrap legal |
 | Tipo fijo del cliente | Alta/edición `/company/clients` | Solo tipos de **esa** empresa. Los nodos nuevos heredan ese tipo |
 | Instalaciones | Tarjetas Accesos / Supervisión de la ficha | Catálogo compartido + mapa; «mismo cliente» copia nombre y ubicación |
-| Accesos (puertas) | Tarjeta Puertas o `/access/locations` | `locations.installation_id` obligatorio |
-| Puestos | Tarjeta Instalaciones y puestos | `supervisor_posts`; modalidad 8/12/24 h + empleados; la app no usa puertas |
+| Accesos (puertas) | Tarjeta instalación (Crear → Puerta) o `/access/locations` | `locations`; código auto; `installation_id` obligatorio |
+| Puestos | Tarjeta instalación (Crear → Puesto) | `supervisor_posts`; modalidad + vigilantes; sin lat/lng en alta |
 | Seed mínimo | `IdentityDocumentTypeSeeder` | Documentos de identidad |
 | Seed opcional | `PilotDemoSeeder` | empresa/clientes + 4 tipos de estructura del piloto + árbol Palmas/Torres + censo |
 

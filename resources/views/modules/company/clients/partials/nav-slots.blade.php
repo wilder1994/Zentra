@@ -4,6 +4,7 @@
     $statusTone = $client->is_active ? 'text-emerald-400' : 'text-slate-500';
     $locationBits = array_filter([(string) $client->city, (string) $client->department]);
     $locationLabel = $locationBits !== [] ? implode(', ', $locationBits) : null;
+    $showSitio = $client->has_access || $client->has_supervision;
 @endphp
 
 <x-slot:subtitle>
@@ -50,14 +51,13 @@
                 <x-ui.button type="submit" variant="secondary" size="sm">Dar de baja</x-ui.button>
             </form>
         @endif
-        <x-ui.button :href="route('company.clients.create')" size="sm">+ Cliente</x-ui.button>
     @endcan
 </x-slot:actions>
 
 <x-slot:headerTabs>
     <a
         href="{{ route('company.clients.show', [$client, 'vista' => 'cliente']) }}"
-        @class(['admin-header-tab', 'is-active' => in_array($vista, ['cliente', 'sitio', 'puertas', 'accesos', 'supervision'], true)])
+        @class(['admin-header-tab', 'is-active' => $vista === 'cliente'])
     >
         Cliente
     </a>
@@ -68,6 +68,15 @@
             @class(['admin-header-tab', 'is-active' => $vista === 'resumen'])
         >
             Resumen
+        </a>
+    @endif
+
+    @if ($showSitio)
+        <a
+            href="{{ route('company.clients.show', [$client, 'vista' => 'sitio']) }}"
+            @class(['admin-header-tab', 'is-active' => $vista === 'sitio'])
+        >
+            Instalaciones
         </a>
     @endif
 </x-slot:headerTabs>

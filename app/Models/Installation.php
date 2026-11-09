@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\ColombianAreaKind;
-use App\Enums\InstallationKind;
 use App\Models\Concerns\BelongsToClient;
 use App\Support\Company\InstallationSiteAdmins;
 use App\Support\Geo\ColombianArea;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -25,7 +25,7 @@ final class Installation extends Model
         'client_id',
         'name',
         'code',
-        'kind',
+        'installation_profile_id',
         'dane_code',
         'commune',
         'area_kind',
@@ -103,14 +103,44 @@ final class Installation extends Model
         return $this->belongsTo(User::class, 'rector_user_id');
     }
 
-    public function kindLabel(): string
+    public function profile(): BelongsTo
     {
-        return InstallationKind::tryFrom((string) $this->kind)?->label() ?? '—';
+        return $this->belongsTo(InstallationProfile::class, 'installation_profile_id');
+    }
+
+    public function profileLabel(): string
+    {
+        $profile = $this->relationLoaded('profile')
+            ? $this->profile
+            : $this->profile()->first();
+
+        return $profile?->name ?? '—';
     }
 
     public function requiresOfficialCode(): bool
     {
-        return InstallationKind::tryFrom((string) $this->kind)?->requiresOfficialCode() ?? false;
+        $profile = $this->relationLoaded('profile')
+            ? $this->profile
+            : $this->profile()->first();
+
+        return (bool) ($profile?->requires_dane);
+    }
+
+    public function allowsObservatoryCommunity(): bool
+    {
+        $profile = $this->relationLoaded('profile')
+            ? $this->profile
+            : $this->profile()->first();
+
+        return (bool) ($profile?->observatory_community);
+    }
+
+    /** @param Builder<self> $query */
+    public function scopeObservatoryCommunity(Builder $query): Builder
+    {
+        return $query->whereHas('profile', static function (Builder $q): void {
+            $q->where('observatory_community', true)->where('is_active', true);
+        });
     }
 
     public function addressLine(): string

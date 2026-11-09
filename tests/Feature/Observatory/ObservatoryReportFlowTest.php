@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Observatory;
 
-use App\Enums\InstallationKind;
 use App\Enums\ObservatoryEventStatus;
 use App\Enums\SupervisionPackageSku;
 use App\Models\Client;
@@ -1000,12 +999,12 @@ final class ObservatoryReportFlowTest extends TestCase
         $this->seedWithPilot();
         $client = Client::query()->where('slug', 'palmas-del-ingenio')->firstOrFail();
         $conjunto = Installation::query()->where('client_id', $client->id)->firstOrFail();
-        $conjunto->update(['kind' => InstallationKind::Conjunto->value]);
+        $conjunto->update(['installation_profile_id' => $this->installationProfileId('conjunto')]);
 
         $colegio = Installation::query()->create([
             'client_id' => $client->id,
             'name' => 'IE Santa Librada',
-            'kind' => InstallationKind::Colegio->value,
+            'installation_profile_id' => $this->installationProfileId(),
             'dane_code' => '176001000101',
             'is_client_site' => false,
             'is_active' => true,
@@ -1015,7 +1014,7 @@ final class ObservatoryReportFlowTest extends TestCase
         $other = Installation::query()->create([
             'client_id' => $client->id,
             'name' => 'IE Republica del Peru',
-            'kind' => InstallationKind::Colegio->value,
+            'installation_profile_id' => $this->installationProfileId(),
             'dane_code' => '176001000102',
             'is_client_site' => false,
             'is_active' => true,

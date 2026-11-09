@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Observatory;
 
-use App\Enums\InstallationKind;
 use App\Models\Client;
 use App\Models\Installation;
 use App\Models\ObservatoryReportType;
@@ -63,7 +62,7 @@ final class ObservatoryCatalogTest extends TestCase
         $colegio = Installation::query()->create([
             'client_id' => $client->id,
             'name' => 'IE Catalogo',
-            'kind' => InstallationKind::Colegio->value,
+            'installation_profile_id' => $this->installationProfileId(),
             'dane_code' => '176001000199',
             'is_client_site' => false,
             'is_active' => true,
@@ -126,7 +125,7 @@ final class ObservatoryCatalogTest extends TestCase
         $high = Installation::query()->create([
             'client_id' => $client->id,
             'name' => 'IE Alto Riesgo',
-            'kind' => InstallationKind::Colegio->value,
+            'installation_profile_id' => $this->installationProfileId(),
             'dane_code' => '176001000201',
             'is_client_site' => false,
             'is_active' => true,
@@ -134,7 +133,7 @@ final class ObservatoryCatalogTest extends TestCase
         $low = Installation::query()->create([
             'client_id' => $client->id,
             'name' => 'IE Bajo Riesgo',
-            'kind' => InstallationKind::Colegio->value,
+            'installation_profile_id' => $this->installationProfileId(),
             'dane_code' => '176001000202',
             'is_client_site' => false,
             'is_active' => true,

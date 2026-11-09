@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Company;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\StoreClientSupervisorPostRequest;
 use App\Models\Client;
+use App\Models\Employee;
 use App\Models\SupervisorPost;
 use App\Services\Company\ManageSupervisorPostService;
 use App\Support\Platform\ActingCompanyResolver;
@@ -89,6 +90,41 @@ final class ClientSupervisorPostController extends Controller
     public function destroy(Request $request, Client $client, SupervisorPost $post): RedirectResponse
     {
         return $this->lifecycle($request, $client, $post, fn () => $this->posts->delete($post, $request->input('observations')), 'Puesto dado de baja.');
+    }
+
+    public function detachEmployee(Request $request, Client $client, SupervisorPost $post, Employee $employee): RedirectResponse
+    {
+        $this->assertPost($request, $client, $post);
+        $this->authorize('update', $client);
+        abort_unless((int) $employee->security_company_id === (int) $client->security_company_id, 404);
+        abort_unless($post->employees()->whereKey($employee->id)->exists(), 404);
+
+        $remaining = $post->employees()
+            ->whereKeyNot($employee->id)
+            ->pluck('employees.id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        try {
+            $this->posts->update($post, [
+                'installation_id' => (int) $post->installation_id,
+                'name' => $post->name,
+                'modality' => (int) $post->modality,
+                'is_active' => (bool) $post->is_active,
+                'employee_ids' => $remaining,
+                'observations' => 'Retiro de vigilante desde la tarjeta de instalación.',
+            ]);
+        } catch (ValidationException $e) {
+            return $this->backToClient(
+                $client,
+                $request,
+                $e->validator->errors()->first() ?: 'No se pudo quitar el vigilante.',
+                error: true,
+            );
+        }
+
+        return $this->backToClient($client, $request, 'Vigilante quitado del puesto.');
     }
 
     private function lifecycle(Request $request, Client $client, SupervisorPost $post, \Closure $action, string $message): RedirectResponse

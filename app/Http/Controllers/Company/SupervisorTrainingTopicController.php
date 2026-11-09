@@ -8,11 +8,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\StoreSupervisorNamedCatalogRequest;
 use App\Models\SupervisorTrainingTopic;
 use App\Services\Supervision\ResolveTrainingTopicService;
+use App\Support\Company\SettingsCatalog;
 use App\Support\Platform\ActingCompanyResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
 
 final class SupervisorTrainingTopicController extends Controller
 {
@@ -20,29 +20,11 @@ final class SupervisorTrainingTopicController extends Controller
         private readonly ResolveTrainingTopicService $topics,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): RedirectResponse
     {
         $this->authorize('viewAny', SupervisorTrainingTopic::class);
 
-        $companyId = $this->companyId($request);
-        $filter = in_array($request->query('filter'), ['app', 'inactive'], true) ? (string) $request->query('filter') : 'all';
-        $base = SupervisorTrainingTopic::query()->where('security_company_id', $companyId);
-        $counts = [
-            'all' => (clone $base)->count(),
-            'app' => (clone $base)->where('created_from', SupervisorTrainingTopic::FROM_APP)->count(),
-            'inactive' => (clone $base)->where('is_active', false)->count(),
-        ];
-
-        $topics = $base
-            ->when($filter === 'app', fn ($q) => $q->where('created_from', SupervisorTrainingTopic::FROM_APP))
-            ->when($filter === 'inactive', fn ($q) => $q->where('is_active', false))
-            ->withCount('trainings')
-            ->with('createdBy:id,name')
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
-
-        return view('modules.company.supervision-catalogs.training-topics', compact('topics', 'filter', 'counts'));
+        return SettingsCatalog::hubRedirect('temas');
     }
 
     public function store(StoreSupervisorNamedCatalogRequest $request): RedirectResponse

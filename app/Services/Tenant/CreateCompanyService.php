@@ -9,6 +9,7 @@ use App\Domain\Pricing\Data\PlanSelection;
 use App\Enums\BillingCycle;
 use App\Enums\PartyType;
 use App\Models\SecurityCompany;
+use App\Services\Company\EnsureInstallationProfilesService;
 use App\Services\Pricing\CompanyPriceHistory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -85,6 +86,7 @@ final class CreateCompanyService
             }
 
             $this->priceHistory->record($company, $before, 'signup');
+            app(EnsureInstallationProfilesService::class)->execute((int) $company->id);
 
             return $company->fresh();
         });

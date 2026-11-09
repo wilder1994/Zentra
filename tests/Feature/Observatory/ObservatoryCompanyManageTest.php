@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Observatory;
 
-use App\Enums\InstallationKind;
 use App\Enums\ObservatoryEventStatus;
 use App\Models\Client;
 use App\Models\Installation;
@@ -187,7 +186,7 @@ final class ObservatoryCompanyManageTest extends TestCase
         $make = fn (string $name, string $dane): Installation => Installation::query()->create([
             'client_id' => $client->id,
             'name' => $name,
-            'kind' => InstallationKind::Colegio->value,
+            'installation_profile_id' => $this->installationProfileId(),
             'dane_code' => $dane,
             'is_client_site' => false,
             'is_active' => true,

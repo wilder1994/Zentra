@@ -9,7 +9,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\StoreCompanyInstallationRequest;
 use App\Models\Client;
 use App\Models\Installation;
+use App\Models\InstallationProfile;
 use App\Models\SupervisorPostModality;
+use App\Services\Company\BuildInstallationHistoryService;
+use App\Services\Company\EnsureInstallationProfilesService;
 use App\Services\Company\ManageClientInstallationService;
 use App\Services\Company\SeedSupervisorIntakeDefaultsService;
 use App\Services\Ops\BuildSigBoardService;
@@ -17,6 +20,7 @@ use App\Support\Company\InstallationSiteAdmins;
 use App\Support\Platform\ActingCompanyResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -85,20 +89,51 @@ final class CompanyInstallationController extends Controller
 
         $installation->load([
             'client',
+            'profile',
             'rector',
             'assignedAdmins',
+            'locations' => fn ($q) => $q->orderBy('code'),
             'supervisorPosts' => fn ($q) => $q->with(['employees.jobTitle'])->orderBy('name'),
         ]);
 
+        $client = $installation->client;
+        $companyId = (int) $client->security_company_id;
+
         return view('modules.company.installations.show', [
             'installation' => $installation,
+            'client' => $client,
             'maps' => [
                 'api_key' => config('google-maps.api_key'),
                 'zoom' => 17,
             ],
-            'postModalities' => $this->postModalityOptions((int) $installation->client->security_company_id),
-            'canManageTree' => $request->user()?->can('company.installations.manage') ?? false,
+            'postModalities' => $this->postModalityOptions($companyId),
+            'siteAdmins' => InstallationSiteAdmins::optionsForClients([$client->id]),
+            'installationProfiles' => InstallationProfile::optionsForForm($companyId),
+            'canManageTree' => (bool) (
+                $request->user()?->can('company.installations.manage')
+                || $request->user()?->can('company.clients.manage')
+            ),
         ]);
+    }
+
+    public function history(Request $request, Installation $installation): Response
+    {
+        $this->assertCompany($request, $installation);
+        abort_unless(
+            $request->user()?->can('company.installations.view')
+            || $request->user()?->can('company.clients.view')
+            || $request->user()?->can('company.clients.manage'),
+            403
+        );
+
+        $entries = app(BuildInstallationHistoryService::class)->execute($installation);
+
+        return response()
+            ->view('modules.company.installations.partials.history-feed', [
+                'installation' => $installation,
+                'entries' => $entries,
+            ])
+            ->header('Cache-Control', 'no-store');
     }
 
     public function edit(Request $request, Installation $installation): View
@@ -108,7 +143,7 @@ final class CompanyInstallationController extends Controller
 
         return view('modules.company.installations.edit', array_merge(
             $this->formData($request),
-            ['installation' => $installation->load(['client', 'rector'])],
+            ['installation' => $installation->load(['client', 'rector', 'profile'])],
         ));
     }
 
@@ -136,7 +171,7 @@ final class CompanyInstallationController extends Controller
         return [
             'name' => $request->validated('name'),
             'code' => $request->validated('code'),
-            'kind' => $request->validated('kind'),
+            'installation_profile_id' => $request->validated('installation_profile_id'),
             'dane_code' => $request->validated('dane_code'),
             'commune' => $request->validated('commune'),
             'rector_user_id' => $request->validated('rector_user_id'),
@@ -148,10 +183,17 @@ final class CompanyInstallationController extends Controller
         ];
     }
 
-    /** @return array{clients: Collection<int, Client>, siteAdmins: list<array{id: int, name: string, label: string, client_id: int}>} */
+    /**
+     * @return array{
+     *     clients: Collection<int, Client>,
+     *     siteAdmins: list<array{id: int, name: string, label: string, client_id: int}>,
+     *     installationProfiles: list<array{id: int, name: string, requires_dane: bool, observatory_community: bool}>
+     * }
+     */
     private function formData(Request $request): array
     {
         $companyId = $this->companyId($request);
+        app(EnsureInstallationProfilesService::class)->execute($companyId);
 
         $clients = Client::query()
             ->where('security_company_id', $companyId)
@@ -161,6 +203,7 @@ final class CompanyInstallationController extends Controller
         return [
             'clients' => $clients,
             'siteAdmins' => InstallationSiteAdmins::optionsForClients($clients->pluck('id')),
+            'installationProfiles' => InstallationProfile::optionsForForm($companyId),
         ];
     }
 

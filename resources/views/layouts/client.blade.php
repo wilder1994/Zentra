@@ -52,7 +52,12 @@
                             @endcanany
                             @endif
                         @endforeach
-                        @if (isset($activeClient) && $activeClient->has_access && $activeClient->show_personnel_folders)
+                        @if (
+                            isset($activeClient)
+                            && $activeClient->has_access
+                            && $activeClient->show_personnel_folders
+                            && \App\Support\Catalog\CompanyEntitlements::for($activeClient->securityCompany)->hasIndexing()
+                        )
                         @can('company.documents.view')
                         <a href="{{ route('client.personnel-documents.index') }}"
                            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium {{ request()->routeIs('client.personnel-documents.*') ? 'bg-teal-600 text-white' : 'text-slate-300 hover:bg-slate-800' }}">

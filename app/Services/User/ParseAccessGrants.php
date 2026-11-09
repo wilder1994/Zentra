@@ -7,6 +7,7 @@ namespace App\Services\User;
 use App\Domain\User\AccessGrantData;
 use App\Enums\AccessGrantLevel;
 use App\Enums\AccessGrantScope;
+use App\Models\SecurityCompany;
 use App\Support\Auth\GrantableModules;
 
 final class ParseAccessGrants
@@ -17,6 +18,7 @@ final class ParseAccessGrants
      */
     public function fromInput(array $raw, int $companyId): array
     {
+        $company = SecurityCompany::query()->find($companyId);
         $grants = [];
 
         foreach (['company', 'client', 'installation'] as $scopeKey) {
@@ -26,8 +28,10 @@ final class ParseAccessGrants
                 continue;
             }
 
+            $allowedKeys = array_keys(GrantableModules::forEntitledCompany($company, $scope));
+
             if ($scope === AccessGrantScope::Company) {
-                foreach (GrantableModules::keys($scope) as $module) {
+                foreach ($allowedKeys as $module) {
                     $level = $this->levelOf($bucket[$module] ?? null);
                     if ($level === null) {
                         continue;
@@ -51,7 +55,7 @@ final class ParseAccessGrants
                         $modules[$alias] = $modules[$alias] ?? $modules['census'];
                     }
                 }
-                foreach (GrantableModules::keys($scope) as $module) {
+                foreach ($allowedKeys as $module) {
                     $level = $this->levelOf($modules[$module] ?? null);
                     if ($level === null) {
                         continue;

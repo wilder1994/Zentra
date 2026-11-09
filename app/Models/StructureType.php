@@ -17,7 +17,6 @@ final class StructureType extends Model
         'code',
         'name',
         'description',
-        'is_unit',
         'is_active',
         'sort_order',
     ];
@@ -25,7 +24,6 @@ final class StructureType extends Model
     protected function casts(): array
     {
         return [
-            'is_unit' => 'boolean',
             'is_active' => 'boolean',
             'sort_order' => 'integer',
         ];

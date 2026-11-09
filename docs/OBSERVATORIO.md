@@ -27,7 +27,7 @@ Anónimo (todas las superficies): aviso «se oculta tu nombre y teléfono; solo 
 
 ## Público `/o/{slug}`
 
-Ejemplo: `/o/palmas-del-ingenio`. Solo instalaciones `kind=colegio` y activas. Tres pasos, móvil, sin app:
+Ejemplo: `/o/palmas-del-ingenio`. Solo instalaciones con perfil de sitio `observatory_community` (por defecto Colegio) y activas. Tres pasos, móvil, sin app:
 
 1. Colegio (nombre o DANE)
 2. Qué pasó + tipo (amenaza / riña / hurto / otro) + mapa satélite (pin en el colegio; se arrastra) + hasta 3 fotos (cámara y miniatura; opcional)
@@ -119,7 +119,7 @@ Puntaje del colegio = suma de niveles de sus reportes. Tablero: líneas por tipo
 
 ## Mapa
 
-Círculo = instalación activa con coordenadas (cualquier `kind`). Gota = reporte. Modos: Pines · Calor instalación · Calor riesgo (círculos propios; Google quitó `HeatmapLayer` en Maps JS 3.65). Requiere `GOOGLE_MAPS_API_KEY`. El intake público `/o/{slug}` sigue siendo solo `kind=colegio`.
+Círculo = instalación activa con coordenadas (cualquier perfil). Gota = reporte. Modos: Pines · Calor instalación · Calor riesgo (círculos propios; Google quitó `HeatmapLayer` en Maps JS 3.65). Requiere `GOOGLE_MAPS_API_KEY`. El intake público `/o/{slug}` solo lista perfiles con Observatorio comunidad.
 
 Capa y filtro: **22 comunas urbanas de Cali** (IDESC), ruta relativa `/geo/cali-comunas.geojson`. **Todas** (sin `?comuna=`) encuadra Cali y pinta las 22. Una comuna recorta y hace zoom a ese polígono. Fuera del perímetro: **Fuera de Cali**.
 

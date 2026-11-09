@@ -15,6 +15,11 @@
     $obsDisabled = $obsMax < 1 || ($obsRemaining < 1 && ! $obsOn);
     $impact = $lineImpact ?? ['installations' => 0, 'doors' => 0, 'posts' => 0, 'events' => 0];
     $retentionDays = (int) config('retention.service_line_retention_days', 365);
+    $offerAccess = (bool) ($metrics['has_access_product'] ?? ($accessMax > 0));
+    $offerSupervision = (bool) ($metrics['has_supervision_product'] ?? false);
+    $offerObservatory = (bool) ($metrics['has_observatory_product'] ?? ($obsMax > 0));
+    $offerFolders = (bool) ($metrics['has_indexing_product'] ?? false) && $offerAccess;
+    $lineCount = (int) $offerAccess + (int) $offerSupervision + (int) $offerObservatory;
 @endphp
 
 <div
@@ -24,47 +29,77 @@
     data-initial='@json(['access' => $accessOn, 'supervision' => $proOn, 'observatory' => $obsOn])'
 >
     <p class="text-sm font-medium text-white">Líneas de servicio</p>
-    <p class="text-xs text-slate-500 mt-0.5">Tu plan cuenta <strong>instalaciones activas</strong>: {{ $metrics['installations_remaining'] ?? 0 }} libres de {{ $metrics['installation_capacity'] ?? 0 }}. Cada línea activa en el cliente usa un cupo de esa línea por cada instalación.</p>
+    <p class="text-xs text-slate-500 mt-0.5">Solo aparecen los productos de tu plan. Cupo de instalaciones: {{ $metrics['installations_remaining'] ?? 0 }} libres de {{ $metrics['installation_capacity'] ?? 0 }}. Cada línea activa usa un cupo de esa línea por instalación.</p>
     @unless ($errorsListedAbove ?? false)
         <x-ui.field-error name="package" />
         <x-ui.field-error :messages="$errors->get('has_access')" />
         <x-ui.field-error :messages="$errors->get('has_supervision')" />
         <x-ui.field-error :messages="$errors->get('has_observatory')" />
+        <x-ui.field-error :messages="$errors->get('show_personnel_folders')" />
     @endunless
 
     <input type="hidden" name="line_deactivate_mode_access" id="line_deactivate_mode_access" value="{{ old('line_deactivate_mode_access', '') }}">
     <input type="hidden" name="line_deactivate_mode_supervision" id="line_deactivate_mode_supervision" value="{{ old('line_deactivate_mode_supervision', '') }}">
     <input type="hidden" name="line_deactivate_mode_observatory" id="line_deactivate_mode_observatory" value="{{ old('line_deactivate_mode_observatory', '') }}">
 
-    <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <label class="rounded-xl border px-4 py-3 cursor-pointer {{ $accessOn ? 'border-indigo-500 bg-indigo-950/30' : 'border-slate-800 bg-slate-950/40' }}">
-            <input type="hidden" name="has_access" value="0">
-            <input type="checkbox" name="has_access" value="1" data-line="access" class="js-service-line rounded border-slate-600 text-indigo-600" @checked($accessOn) @disabled(($accessMax < 1 || ($accessRemaining < 1 && ! $accessOn)))>
-            <span class="ml-2 text-sm font-semibold text-white">Accesos</span>
-            <p class="mt-1 text-[11px] text-slate-400 leading-relaxed">Portería, censo y puntos de acceso. Cupo {{ $accessRemaining }}/{{ $accessMax }}.</p>
-        </label>
-        <label class="rounded-xl border px-4 py-3 cursor-pointer {{ $proOn ? 'border-amber-500 bg-amber-950/20' : 'border-slate-800 bg-slate-950/40' }}">
-            <input type="hidden" name="has_supervision" value="0">
-            <input type="checkbox" name="has_supervision" value="1" data-line="supervision" class="js-service-line rounded border-slate-600 text-amber-500" @checked($proOn) @disabled($supervisionDisabled)>
-            <span class="ml-2 text-sm font-semibold text-white">Supervisión</span>
-            <p class="mt-1 text-[11px] text-slate-400 leading-relaxed">App, GPS y revista en puestos de Supervisión. Cupo {{ $supervisionCap }}.</p>
-        </label>
-        <label class="rounded-xl border px-4 py-3 cursor-pointer {{ $obsOn ? 'border-sky-500 bg-sky-950/20' : 'border-slate-800 bg-slate-950/40' }}">
-            <input type="hidden" name="has_observatory" value="0">
-            <input type="checkbox" name="has_observatory" value="1" data-line="observatory" class="js-service-line rounded border-slate-600 text-sky-500" @checked($obsOn) @disabled($obsDisabled)>
-            <span class="ml-2 text-sm font-semibold text-white">Observatorio</span>
-            <p class="mt-1 text-[11px] text-slate-400 leading-relaxed">Tablero y reportes del cliente. Cupo {{ $obsRemaining }}/{{ $obsMax }}.</p>
-        </label>
-    </div>
+    @if ($lineCount < 1)
+        <p class="mt-3 rounded-lg border border-amber-800/50 bg-amber-950/20 px-3 py-2 text-xs text-amber-200">
+            Tu plan no incluye Accesos, Supervisión ni Observatorio. Contrátalos en
+            <a href="{{ route('company.billing.index') }}" class="underline hover:no-underline">Facturación</a>.
+        </p>
+    @else
+        <div @class([
+            'mt-3 grid grid-cols-1 gap-3',
+            'sm:grid-cols-2' => $lineCount === 2,
+            'sm:grid-cols-3' => $lineCount >= 3,
+        ])>
+            @if ($offerAccess)
+                <label class="rounded-xl border px-4 py-3 cursor-pointer {{ $accessOn ? 'border-indigo-500 bg-indigo-950/30' : 'border-slate-800 bg-slate-950/40' }}">
+                    <input type="hidden" name="has_access" value="0">
+                    <input type="checkbox" name="has_access" value="1" data-line="access" class="js-service-line rounded border-slate-600 text-indigo-600" @checked($accessOn) @disabled(($accessMax < 1 || ($accessRemaining < 1 && ! $accessOn)))>
+                    <span class="ml-2 text-sm font-semibold text-white">Accesos</span>
+                    <p class="mt-1 text-[11px] text-slate-400 leading-relaxed">Portería, censo y puntos de acceso. Cupo {{ $accessRemaining }}/{{ $accessMax }}.</p>
+                </label>
+            @else
+                <input type="hidden" name="has_access" value="0">
+            @endif
 
-    <label id="personnel-folders-flag" class="mt-3 flex items-start gap-3 rounded-xl border px-4 py-3 {{ $accessOn ? '' : 'hidden' }} {{ $foldersOn ? 'border-indigo-500 bg-indigo-950/30' : 'border-slate-800 bg-slate-950/40' }}">
+            @if ($offerSupervision)
+                <label class="rounded-xl border px-4 py-3 cursor-pointer {{ $proOn ? 'border-amber-500 bg-amber-950/20' : 'border-slate-800 bg-slate-950/40' }}">
+                    <input type="hidden" name="has_supervision" value="0">
+                    <input type="checkbox" name="has_supervision" value="1" data-line="supervision" class="js-service-line rounded border-slate-600 text-amber-500" @checked($proOn) @disabled($supervisionDisabled)>
+                    <span class="ml-2 text-sm font-semibold text-white">Supervisión</span>
+                    <p class="mt-1 text-[11px] text-slate-400 leading-relaxed">App, GPS y revista en puestos. Cupo {{ $supervisionCap }}.</p>
+                </label>
+            @else
+                <input type="hidden" name="has_supervision" value="0">
+            @endif
+
+            @if ($offerObservatory)
+                <label class="rounded-xl border px-4 py-3 cursor-pointer {{ $obsOn ? 'border-sky-500 bg-sky-950/20' : 'border-slate-800 bg-slate-950/40' }}">
+                    <input type="hidden" name="has_observatory" value="0">
+                    <input type="checkbox" name="has_observatory" value="1" data-line="observatory" class="js-service-line rounded border-slate-600 text-sky-500" @checked($obsOn) @disabled($obsDisabled)>
+                    <span class="ml-2 text-sm font-semibold text-white">Observatorio</span>
+                    <p class="mt-1 text-[11px] text-slate-400 leading-relaxed">Tablero y reportes del cliente. Cupo {{ $obsRemaining }}/{{ $obsMax }}.</p>
+                </label>
+            @else
+                <input type="hidden" name="has_observatory" value="0">
+            @endif
+        </div>
+    @endif
+
+    @if ($offerFolders)
+        <label id="personnel-folders-flag" class="mt-3 flex items-start gap-3 rounded-xl border px-4 py-3 {{ $accessOn ? '' : 'hidden' }} {{ $foldersOn ? 'border-indigo-500 bg-indigo-950/30' : 'border-slate-800 bg-slate-950/40' }}">
+            <input type="hidden" name="show_personnel_folders" value="0">
+            <input type="checkbox" name="show_personnel_folders" value="1" class="mt-0.5 rounded border-slate-600 text-indigo-600" @checked($foldersOn && $accessOn)>
+            <span>
+                <span class="text-sm font-semibold text-white">Compartir carpetas del personal con este cliente</span>
+                <p class="mt-1 text-[11px] text-slate-400 leading-relaxed">En Operar cliente ve las carpetas (producto Indexación) solo de empleados asignados a un puesto de este cliente. Solo lectura. Requiere Accesos.</p>
+            </span>
+        </label>
+    @else
         <input type="hidden" name="show_personnel_folders" value="0">
-        <input type="checkbox" name="show_personnel_folders" value="1" class="mt-0.5 rounded border-slate-600 text-indigo-600" @checked($foldersOn && $accessOn)>
-        <span>
-            <span class="text-sm font-semibold text-white">Mostrar indexación de carpetas</span>
-            <p class="mt-1 text-[11px] text-slate-400 leading-relaxed">En Operar cliente, el cliente ve las carpetas de empleados asignados a un puesto. Solo lectura. Requiere Accesos.</p>
-        </span>
-    </label>
+    @endif
 
     <div id="service-line-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" role="dialog" aria-modal="true" aria-labelledby="service-line-modal-title">
         <div class="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-xl">

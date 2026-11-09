@@ -7,25 +7,19 @@ namespace App\Http\Controllers\Company;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\StoreSupervisorNamedCatalogRequest;
 use App\Models\SupervisorUniformItem;
+use App\Support\Company\SettingsCatalog;
 use App\Support\Platform\ActingCompanyResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
 
 final class SupervisorUniformItemController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request): RedirectResponse
     {
         $this->authorize('viewAny', SupervisorUniformItem::class);
 
-        $items = SupervisorUniformItem::query()
-            ->where('security_company_id', $this->companyId($request))
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
-
-        return view('modules.company.supervision-catalogs.uniform-items', compact('items'));
+        return SettingsCatalog::hubRedirect('presentacion');
     }
 
     public function store(StoreSupervisorNamedCatalogRequest $request): RedirectResponse

@@ -11,6 +11,24 @@ class Location extends Model
 {
     use BelongsToClient, HasFactory, SoftDeletes;
 
+    public static function nextAvailableCode(Client $client, ?int $ignoreId = null): string
+    {
+        $n = 1;
+
+        do {
+            $candidate = 'P'.str_pad((string) $n, 2, '0', STR_PAD_LEFT);
+            $taken = self::query()
+                ->withoutGlobalScopes()
+                ->where('client_id', $client->id)
+                ->where('code', $candidate)
+                ->when($ignoreId !== null, fn ($q) => $q->whereKeyNot($ignoreId))
+                ->exists();
+            $n++;
+        } while ($taken);
+
+        return $candidate;
+    }
+
     protected $fillable = [
         'client_id',
         'installation_id',

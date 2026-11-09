@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Access;
 
-use App\Enums\InstallationKind;
 use App\Enums\ObservatoryReporterRole;
 use App\Enums\ObservatoryReportSource;
 use App\Http\Controllers\Controller;
@@ -215,7 +214,7 @@ class GuardLogController extends Controller
             return false;
         }
 
-        return (string) $installation->kind === InstallationKind::Colegio->value;
+        return $installation->allowsObservatoryCommunity();
     }
 
     private function porteriaCompanyId(): ?int

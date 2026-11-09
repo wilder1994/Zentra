@@ -23,7 +23,6 @@ final class UpdateCompanyStructureTypeRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:100'],
             'is_active' => ['sometimes', 'boolean'],
-            'is_unit' => ['sometimes', 'boolean'],
         ];
     }
 

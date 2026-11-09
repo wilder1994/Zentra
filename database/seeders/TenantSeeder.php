@@ -29,6 +29,7 @@ use App\Models\StructureType;
 use App\Models\SupervisorPost;
 use App\Models\Vehicle;
 use App\Models\Visitor;
+use App\Services\Company\EnsureInstallationProfilesService;
 use App\Services\Company\SeedSupervisorIntakeDefaultsService;
 use App\Services\Tenant\AssignCompanyPackageService;
 use App\Services\Tenant\AssignCompanySupervisionPackageService;
@@ -77,6 +78,7 @@ final class TenantSeeder extends Seeder
         ]);
 
         app(SeedSupervisorIntakeDefaultsService::class)->execute((int) $company->id);
+        app(EnsureInstallationProfilesService::class)->execute((int) $company->id);
         $this->seedPilotVigilante((int) $company->id);
         $this->ensurePilotStructureTypes((int) $company->id);
 
@@ -257,10 +259,10 @@ final class TenantSeeder extends Seeder
     private function ensurePilotStructureTypes(int $companyId): void
     {
         $types = [
-            ['code' => 'general_area', 'name' => 'Conjunto / Zona', 'is_unit' => false, 'sort_order' => 10],
-            ['code' => 'ph', 'name' => 'Propiedad horizontal', 'is_unit' => false, 'sort_order' => 20],
-            ['code' => 'block', 'name' => 'Torre / Bloque', 'is_unit' => false, 'sort_order' => 40],
-            ['code' => 'apartment', 'name' => 'Apartamento', 'is_unit' => true, 'sort_order' => 50],
+            ['code' => 'general_area', 'name' => 'Conjunto / Zona', 'sort_order' => 10],
+            ['code' => 'ph', 'name' => 'Propiedad horizontal', 'sort_order' => 20],
+            ['code' => 'block', 'name' => 'Torre / Bloque', 'sort_order' => 40],
+            ['code' => 'apartment', 'name' => 'Apartamento', 'sort_order' => 50],
         ];
 
         foreach ($types as $type) {
@@ -271,7 +273,6 @@ final class TenantSeeder extends Seeder
                 ],
                 [
                     'name' => $type['name'],
-                    'is_unit' => $type['is_unit'],
                     'is_active' => true,
                     'sort_order' => $type['sort_order'],
                 ],

@@ -9,6 +9,7 @@ use App\Models\Client;
 use App\Models\CompanyCollaboratorType;
 use App\Models\CompanyJobTitle;
 use App\Models\Employee;
+use App\Models\InstallationProfile;
 use App\Models\Location;
 use App\Models\SecurityCompany;
 use App\Models\SupervisorChecklistItem;
@@ -17,6 +18,7 @@ use App\Models\SupervisorShiftTemplate;
 use App\Models\SupervisorZone;
 use App\Models\User;
 use App\Services\Access\PorteriaDoorService;
+use App\Services\Company\EnsureInstallationProfilesService;
 use App\Services\Company\GrantEmployeeAccessService;
 use App\Services\Company\SeedSupervisorIntakeDefaultsService;
 use App\Services\User\EnsureCompanyAdminCatalog;
@@ -65,6 +67,14 @@ abstract class TestCase extends BaseTestCase
     protected function pilotCompanyId(): int
     {
         return (int) $this->pilotCompany()->id;
+    }
+
+    protected function installationProfileId(string $code = InstallationProfile::CODE_COLEGIO, ?int $companyId = null): int
+    {
+        $companyId ??= $this->pilotCompanyId();
+        app(EnsureInstallationProfilesService::class)->execute($companyId);
+
+        return InstallationProfile::idByCode($companyId, $code);
     }
 
     protected function companySupervisor(

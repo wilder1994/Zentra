@@ -7,10 +7,50 @@ namespace App\Support\Auth;
 use App\Domain\User\AccessGrantData;
 use App\Enums\AccessGrantLevel;
 use App\Enums\AccessGrantScope;
+use App\Models\SecurityCompany;
 use App\Models\User;
+use App\Support\Catalog\CompanyEntitlements;
 
 final class GrantableModules
 {
+    /**
+     * Módulos que se pueden otorgar según productos contratados de la empresa.
+     *
+     * @return array<string, array{label: string, view: list<string>, manage: list<string>, route?: string}>
+     */
+    public static function forEntitledCompany(?SecurityCompany $company, AccessGrantScope $scope): array
+    {
+        $modules = self::forScope($scope);
+        if ($company === null) {
+            return $modules;
+        }
+
+        $entitlements = CompanyEntitlements::for($company);
+        $allowed = array_fill_keys($entitlements->modules(), true);
+
+        if ($scope === AccessGrantScope::Company) {
+            if ($company->hasSupervisionPackage()) {
+                $allowed['devices'] = true;
+                $allowed['geo'] = true;
+            }
+
+            return array_filter(
+                $modules,
+                static fn (array $row, string $key): bool => isset($allowed[$key]),
+                ARRAY_FILTER_USE_BOTH,
+            );
+        }
+
+        if (! $entitlements->hasObservatory()) {
+            unset($modules['observatory']);
+        }
+        if (! $entitlements->hasIndexing()) {
+            unset($modules['documents']);
+        }
+
+        return $modules;
+    }
+
     /**
      * @return array<string, array{label: string, view: list<string>, manage: list<string>, route?: string}>
      */

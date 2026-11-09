@@ -40,6 +40,24 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 8 nov 2026 · Tarjeta instalación (layout final) + hub Ajustes + perfiles
+- Tarjeta full-width: mapa ~28% | detalle. Cabecera en una fila: Cliente · Perfil · Área · Administrador. Píldoras + Historial/Crear/Editar/Archivar/Ver ficha en una fila.
+- Crear = dropdown Puerta/Puesto/Vigilante. Puertas horizontales (código auto). Puestos con scroll; sin lat/lng; motivo solo en cambios de servicio.
+- Historial por instalación. `/company/ajustes` hub morph. `installation_profiles` reemplaza `kind`. Docs: `CLIENTES-Y-ESTRUCTURA.md`.
+
+### 8 nov 2026 · Hub Ajustes (tarjetas → morph → catálogo) + @php frágil
+- `/company/ajustes`: 3 tarjetas (Empresa · Clientes/sitio · App de campo) → modal morph con mini-cards → panel AJAX (lista + alta).
+- Catálogos antiguos redirigen al hub; forms POST llevan `_settings_hub` y `RedirectSettingsHubForms` vuelve al mismo catálogo.
+- Blade: `@php($x = f(...))` anidados pasan a bloque `@php`/`@endphp` (billing, admin, observatorio, acceso, empleados).
+- Verificado en browser: hub, 17 paneles 200, crear/eliminar cargo, perfiles, zonas, facturación, form instalación con perfiles.
+
+### 8 nov 2026 · Perfiles de sitio + Ajustes reagrupados
+- Catálogo `installation_profiles` por empresa (Colegio de sistema fijo: DANE + Observatorio comunidad; resto CRUD/desactivar).
+- `installations.kind` (enum) → `installation_profile_id`; Observatorio comunidad filtra por flag del perfil.
+- Formulario instalación: sin código en alta, área bajo el mapa, perfil con hints; clasificación del cliente ≠ perfil del sitio.
+- Ajustes en grupos: Empresa · Clientes/sitio · App de campo (según productos).
+- Tests: `CompanyInstallationProfileTest` + directorio/Observatorio actualizados.
+
 ### 21 oct 2026 · Turnos del supervisor: relevo anticipado y turno cerrado por el sistema (commit 487a92a + c0e8af9, desplegado 21 oct)
 Reporte de campo: «abro a las 17:30 y a las 18:00 me cierra» y «cierro sesión, entro con otra zona y me sale sin turno pero me deja pasar revista, luego no aparece». Causa común: `ResolveSupervisorShiftDeadlineService` calculaba el fin del turno en la mañana del mismo día (Noche abierto antes de las 18:00) o en el pasado (Día abierto después de las 18:00) → el cierre automático (cada 5 min) lo cerraba al instante. Casos en datos: Giors 12 oct (Noche 17:53), Esneyder 14 oct (Día 20:10), Jorge 14 oct (Día 18:18 y 23:17, 0 revistas).
 

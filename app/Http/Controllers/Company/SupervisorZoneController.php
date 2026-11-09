@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Company;
 
+use App\Support\Company\SettingsCatalog;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\StoreSupervisorNamedCatalogRequest;
 use App\Models\SupervisorZone;
@@ -13,7 +14,6 @@ use App\Support\Platform\ActingCompanyResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
 final class SupervisorZoneController extends Controller
 {
@@ -22,26 +22,13 @@ final class SupervisorZoneController extends Controller
         private readonly AssignClientZonesService $assignments,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): RedirectResponse
     {
         $this->authorize('viewAny', SupervisorZone::class);
-        $companyId = $this->companyId($request);
-        $this->catalog->ensureDefaults($companyId);
 
-        $zones = SupervisorZone::query()
-            ->where('security_company_id', $companyId)
-            ->withCount(['clients', 'sharedClients'])
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
-
-        return view('modules.company.supervision-catalogs.zones', [
-            'zones' => $zones,
-            'clientRows' => $this->assignments->rows($companyId),
-            'unassigned' => $this->assignments->unassignedCount($companyId),
-            'canManage' => (bool) $request->user()?->can('company.settings.manage'),
-        ]);
+        return SettingsCatalog::hubRedirect('zonas');
     }
+
 
     public function store(StoreSupervisorNamedCatalogRequest $request): RedirectResponse
     {

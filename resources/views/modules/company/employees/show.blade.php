@@ -55,7 +55,9 @@
                     </button>
                 @endif
             </div>
-            @php($currentPost = $currentPost ?? $employee->supervisorPosts->first())
+            @php
+                $currentPost = $currentPost ?? $employee->supervisorPosts->first();
+            @endphp
             <p class="text-sm text-slate-400">
                 @if ($currentPost)
                     Puesto: {{ $currentPost->name }}

@@ -181,8 +181,9 @@ final class ManageSupervisorPostService
                 return $post->refresh()->load('employees');
             }
 
-            $firstStaffOnly = ! $hadStaff && $staffLine !== null && count($parts) === 1;
-            $this->assertObservations($data['observations'] ?? null, required: ! $firstStaffOnly);
+            // Solo cambio de vigilantes: no exigir motivo (alta o retiro de personal).
+            $staffOnly = $staffLine !== null && count($parts) === 1;
+            $this->assertObservations($data['observations'] ?? null, required: ! $staffOnly);
 
             $installation = $post->installation;
             if ($installation instanceof Installation) {

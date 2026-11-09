@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
-use App\Models\Client;
 use App\Models\Installation;
 use App\Models\Structure;
-use App\Models\StructureType;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -147,39 +145,5 @@ final class StructureRepository
         }
 
         return $counts;
-    }
-
-    public function leafUnitsCount(int $clientId): int
-    {
-        $unitTypeIds = $this->unitTypeIdsForClient($clientId);
-
-        return Structure::query()
-            ->where('client_id', $clientId)
-            ->whereIn('structure_type_id', $unitTypeIds)
-            ->count();
-    }
-
-    /** @return Collection<int, Structure> */
-    public function leafUnitsForClient(int $clientId): Collection
-    {
-        $unitTypeIds = $this->unitTypeIdsForClient($clientId);
-
-        return Structure::query()
-            ->where('client_id', $clientId)
-            ->whereIn('structure_type_id', $unitTypeIds)
-            ->with('structureType')
-            ->orderBy('name')
-            ->get();
-    }
-
-    /** @return \Illuminate\Support\Collection<int, int> */
-    private function unitTypeIdsForClient(int $clientId)
-    {
-        $companyId = (int) Client::query()->whereKey($clientId)->value('security_company_id');
-
-        return StructureType::query()
-            ->where('security_company_id', $companyId)
-            ->where('is_unit', true)
-            ->pluck('id');
     }
 }

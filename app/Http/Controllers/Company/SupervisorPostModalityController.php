@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Company;
 
+use App\Support\Company\SettingsCatalog;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\StoreSupervisorPostModalityRequest;
 use App\Models\SupervisorPostModality;
@@ -11,7 +12,6 @@ use App\Services\Company\ManageSupervisorCompanyCatalogService;
 use App\Support\Platform\ActingCompanyResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
 final class SupervisorPostModalityController extends Controller
 {
@@ -19,20 +19,13 @@ final class SupervisorPostModalityController extends Controller
         private readonly ManageSupervisorCompanyCatalogService $catalog,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): RedirectResponse
     {
         $this->authorize('viewAny', SupervisorPostModality::class);
-        $companyId = $this->companyId($request);
-        $this->catalog->ensureDefaults($companyId);
 
-        $modalities = SupervisorPostModality::query()
-            ->where('security_company_id', $companyId)
-            ->orderBy('sort_order')
-            ->orderBy('hours')
-            ->get();
-
-        return view('modules.company.supervision-catalogs.post-modalities', compact('modalities'));
+        return SettingsCatalog::hubRedirect('modalidades');
     }
+
 
     public function store(StoreSupervisorPostModalityRequest $request): RedirectResponse
     {

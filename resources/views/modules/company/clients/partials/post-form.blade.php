@@ -154,20 +154,13 @@
         </p>
     </div>
 
-    <div>
-        <label class="block text-[11px] text-slate-500 mb-1">Lat. puesto (opcional)</label>
-        <input type="text" name="latitude" value="{{ old('latitude', $post?->latitude) }}" placeholder="La de la instalación" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-2 py-1.5 text-xs text-white">
-    </div>
-    <div>
-        <label class="block text-[11px] text-slate-500 mb-1">Lng. puesto (opcional)</label>
-        <input type="text" name="longitude" value="{{ old('longitude', $post?->longitude) }}" placeholder="Sin pin propio" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-2 py-1.5 text-xs text-white">
-    </div>
-    <p class="sm:col-span-2 text-[11px] text-slate-500">Crear o editar el puesto no pide GPS. La revista sí: {{ $post ? app(\App\Support\Supervision\SupervisorReviewGeofence::class)->radiusFor($post) : \App\Models\SupervisionReviewSettings::current()->default_radius_m }} m del pin del puesto o, si no hay, de la instalación. Un pin lejos de la instalación se anota; no se bloquea el alta.</p>
-
-    <div class="sm:col-span-2">
-        <label class="block text-[11px] text-slate-500 mb-1">Observaciones @if ($isEdit)<span class="text-slate-600">(obligatorio si el servicio ya está armado)</span>@else<span class="text-slate-600">(opcional en el alta)</span>@endif</label>
-        <textarea name="observations" rows="2" maxlength="2000" placeholder="{{ $isEdit ? 'Por qué cambia modalidad, vigilantes o estado…' : 'Opcional' }}" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-2 py-1.5 text-xs text-white">{{ old('observations') }}</textarea>
-    </div>
+    @if ($isEdit)
+        <div class="sm:col-span-2">
+            <label class="block text-[11px] text-slate-500 mb-1">Motivo del cambio <span class="text-slate-600">(solo si cambias modalidad, días o estado)</span></label>
+            <textarea name="observations" rows="2" maxlength="2000" placeholder="Ej. Cambio de jornada por solicitud del cliente" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-2 py-1.5 text-xs text-white">{{ old('observations') }}</textarea>
+            <p class="mt-1 text-[11px] text-slate-500">Agregar o quitar vigilantes no exige motivo. El GPS de la revista usa el pin de la instalación.</p>
+        </div>
+    @endif
 
     <div class="flex items-center gap-2 sm:col-span-2">
         @if ($isEdit)

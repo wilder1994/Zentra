@@ -1,6 +1,6 @@
 # Clientes, instalaciones, Accesos y Supervisión
 
-**Última actualización:** 16 octubre 2026
+**Última actualización:** 8 noviembre 2026
 
 Fuente de verdad del **cliente comercial** y de los dos árboles operativos. El censo (nodos `structures`) cuelga de la **instalación**, no del cliente suelto.
 
@@ -14,18 +14,19 @@ Zentra **no** cobra al cliente final por vigilancia; solo registra `service_star
 |---------|-------------|--------|
 | **Cliente** | Ficha comercial (`clients`). PH, oficinas, bodegas, etc. | Alta / Excel de **clientes** / pestaña Cliente |
 | **Ciudad** | Ubicación del cliente (`clients.city` + `department`). **No es un nodo del árbol.** Lo que en el Excel viejo de empleados decía «Sector» era ciudad. | Ficha y Excel de clientes |
-| **Instalación** | Sitio físico del cliente, **siempre con georreferencia**. Tipo, código interno, DANE si es colegio, **área**, **Administrador** y **Apoyo**. El nombre puede repetirse. Puede ser **el mismo cliente** (copia nombre + pin de la ficha). URL pública del Observatorio: `/o/{slug}` (solo colegios). | Módulo `/company/installations` · `/client/installations` · ficha del cliente · [`OBSERVATORIO.md`](OBSERVATORIO.md) |
-| **Puerta** | Punto de portería (peatonal, vehicular, principal). Tabla `locations` (`type = access_point`). Solo Accesos. **No** es un puesto. | Tarjeta **Puertas** |
-| **Puesto** | Puesto de vigilancia (`supervisor_posts`): modalidad en horas (catálogo Ajustes → Modalidades), días de servicio, **revistas contratadas por día** (por defecto 1; ver [`SUPERVISION-CAMPO.md`](SUPERVISION-CAMPO.md) § Cumplimiento) y vigilantes asignados. En el tablero SIG es un **servicio**. Un catálogo. **Nunca** un `location`. | Tarjeta **Instalaciones y puestos** |
-| **Tipo de estructura** | Catálogo **por empresa** (`structure_types.security_company_id`), fijo en el alta (`clients.structure_type_id`). | Ajustes → Estructuras / ficha cliente |
+| **Instalación** | Sitio físico del cliente, **siempre con georreferencia**. Perfil de sitio, código interno (auto), DANE si el perfil lo exige, **área**, **Administrador** y **Apoyo**. El nombre puede repetirse. Puede ser **el mismo cliente** (copia nombre + pin de la ficha). URL pública del Observatorio: `/o/{slug}` (perfiles con Observatorio comunidad). | Módulo `/company/installations` · `/client/installations` · ficha del cliente · [`OBSERVATORIO.md`](OBSERVATORIO.md) |
+| **Perfil de sitio** | Catálogo por empresa (`installation_profiles`): reglas del sitio (DANE, Observatorio comunidad). **Colegio** es de sistema (fijo). Distinto del tipo de estructura del cliente. | Ajustes → Clientes/sitio → Perfiles de sitio |
+| **Puerta** | Punto de portería (peatonal, vehicular, principal). Tabla `locations` (`type = access_point`). Solo Accesos. Código **automático** (`P01`…). **No** es un puesto. | Tarjeta de instalación (fila Puertas) |
+| **Puesto** | Puesto de vigilancia (`supervisor_posts`): modalidad en horas (catálogo Ajustes → Modalidades), días de servicio, **revistas contratadas por día** (por defecto 1; ver [`SUPERVISION-CAMPO.md`](SUPERVISION-CAMPO.md) § Cumplimiento) y vigilantes asignados. GPS de revista = pin de la instalación (sin lat/lng en el alta del puesto). **Nunca** un `location`. | Tarjeta de instalación (Puestos y vigilantes) |
+| **Tipo de estructura** | Catálogo **por empresa** (`structure_types.security_company_id`), fijo en el alta (`clients.structure_type_id`). Clasificación del cliente (censo); **no** es el perfil del sitio. | Ajustes → Clientes/sitio → Estructuras / ficha cliente |
 | **Nodo / subnodo** | Censo (`structures`, `parent_id` + `installation_id`). Torre, salón, apto. Distinto de puesto/acceso. | Ficha de instalación (`/client/installations/{id}`) |
 | **Persona (censo)** | `structure_members` en un nodo. Tipo de documento + fecha de nacimiento. Menores: dato reservado salvo 4 admins; portería solo nombre. **No es empleado de la empresa.** | Panel cliente · portería Personas |
 | **Empleado** | Colaborador de la empresa de seguridad (`employees`). El vigilante opera portería; no es una persona del nodo. | `/company/employees` |
 | **Acceso de persona** | `structure_app_users` de esa persona. Login `usuario@login_suffix` para app o panel. | `/client/app-users` |
 
-La ficha corta por **objeto**, no por línea comercial. **Instalación y puesto** se editan una sola vez. Las **puertas** son otra tarjeta, solo si hay Accesos. Operar portería / operar cliente también exigen Accesos. Supervisión de campo se opera en la app y en `/company/supervision`, no en un segundo árbol.
+La ficha corta por **objeto**, no por línea comercial. Instalación, puertas y puestos se editan en **una** tarjeta (puertas solo con Accesos). Operar portería / operar cliente también exigen Accesos. Supervisión de campo se opera en la app y en `/company/supervision`.
 
-Al **Ver** el cliente, el header es **Cliente | Resumen**. Resumen (si `has_access`) son los KPIs de portería. El **panel cliente** (`/client/dashboard`) y **Instalaciones** muestran el tablero SIG: mapa, **servicios hoy** (puestos activos), novedades de **puesto** (alta/baja/modalidad/vigilantes + observaciones), **revistas del supervisor**, tabla Servicio/Modalidad/Vigilantes, gráfica de servicios por mes y salud afiliatoria. Un puesto es un servicio. Observaciones opcionales en el alta y en la primera asignación de vigilantes; obligatorias en cambios posteriores. Las revistas no van en novedades de servicio. El pánico (portería, admin cliente/instalaciones, supervisor) es el mismo: `operational_alerts`; lo atiende la empresa en **Atención de pánicos** (`/company/panics`, permiso `ops.panic.attend`). El vigilante elige puerta si hay varias; **Operar portería** no. Ver [`PORTERIA.md`](PORTERIA.md). Tarjetas: **Instalaciones y puestos** (`?vista=sitio`, si Accesos o Supervisión) y **Puertas** (`?vista=puertas`, solo Accesos). `?vista=accesos` y `?vista=supervision` redirigen al sitio.
+Al **Ver** el cliente, el header es **Cliente | Resumen | Instalaciones** (sin «+ Cliente»; el alta de cliente solo en cartera). Resumen (si `has_access`) son los KPIs de portería. **Instalaciones** (`?vista=sitio`) usa la **tarjeta de instalación** unificada (mapa ~28% + detalle). `?vista=puertas` / `accesos` / `supervision` redirigen a sitio. Un puesto es un servicio. Motivo del cambio solo si se altera modalidad/días/estado; **agregar o quitar vigilantes no exige motivo**. Las revistas no van en novedades de servicio. El pánico es `operational_alerts` → **Atención de pánicos**. Ver [`PORTERIA.md`](PORTERIA.md).
 
 ---
 
@@ -50,36 +51,32 @@ Instalaciones las crea **solo la empresa**, en `/company/installations` (con cli
 
 ## Directorio de instalaciones
 
-`/company/installations` (rediseño 17 oct 2026): header con selector **Cliente** (lista al abrir, filtra al escribir sin tildes, ↑↓ Enter; `x-ui.filter-picker`) y **+ Instalación** (preselecciona el cliente filtrado). El cliente elegido (`?client_id=`) filtra toda la pantalla y el refresco en vivo (`GET /company/sig/live.json?client_id=`). KPIs compactos (~65 px, ícono a la izquierda, número y detalle en una línea): Instalaciones (+ sin ubicación), Servicios hoy (+ vigilantes), Revistas hoy (cumplidas/esperadas, barra con semáforo) y Novedades hoy (+ hora de la última). Contenedores de 384 px, en dos filas: **Mapa** | **Instalaciones y servicios**; **Novedades de servicio** | **Revistas del supervisor**. Mapa con gotas agrupadas por zoom (ver `DISENO-UI-ZENTRA.md` §10.1) y tarjeta fija en la esquina con **Ver instalación** y **Compartir**. **Instalaciones y servicios** (una fila por instalación con servicios y vigilantes; clic despliega sus puestos con modalidad, revistas/día y vigilantes; buscador interno por nombre, código o DANE; botón ubicar en el mapa). Ya no hay tabla paginada ni buscador abajo (`installationsBoard`). **Crear** siempre con cliente. La ficha: mapa a la izquierda, datos a la derecha. Debajo del nombre va la **dirección**. Luego tipo, código interno, DANE si es colegio, área, **Administrador** y **Apoyo** (cada uno `cargo · nombre`). El **nombre puede repetirse** en el mismo cliente. `code` interno (INE-01) sigue único por cliente y se genera si no se escribe; **no** es DANE. `kind` opcional: colegio · conjunto · bodega · oficina · otro. `dane_code` es obligatorio y único **solo** si `kind=colegio`; no sale del mapa. Se escribe a mano (8 a 12 dígitos). **No** hay catálogo MEN ni typeahead: Zentra no trae el directorio oficial de colegios. Un combo filtrable queda para cuando exista ese maestro (p. ej. listado de la Secretaría). El área: si el pin cae en el perímetro urbano de Cali, la **comuna es IDESC** (polígono oficial, p. ej. Comuna 09) y el campo **no se edita**. Fuera de capa (pueblo, vereda, corregimiento) el usuario sí la escribe. En un pueblo sin subdivisión no se guarda (`installations.commune` + `area_kind`). También puestos (modalidad + empleados). El alta también se puede hacer en la ficha del cliente.
+`/company/installations` (rediseño 17 oct 2026): header con selector **Cliente** (lista al abrir, filtra al escribir sin tildes, ↑↓ Enter; `x-ui.filter-picker`) y **+ Instalación** (preselecciona el cliente filtrado). El cliente elegido (`?client_id=`) filtra toda la pantalla y el refresco en vivo (`GET /company/sig/live.json?client_id=`). KPIs compactos (~65 px, ícono a la izquierda, número y detalle en una línea): Instalaciones (+ sin ubicación), Servicios hoy (+ vigilantes), Revistas hoy (cumplidas/esperadas, barra con semáforo) y Novedades hoy (+ hora de la última). Contenedores de 384 px, en dos filas: **Mapa** | **Instalaciones y servicios**; **Novedades de servicio** | **Revistas del supervisor**. Mapa con gotas agrupadas por zoom (ver `DISENO-UI-ZENTRA.md` §10.1) y tarjeta fija en la esquina con **Ver instalación** y **Compartir**. **Instalaciones y servicios** (una fila por instalación con servicios y vigilantes; clic despliega sus puestos con modalidad, revistas/día y vigilantes; buscador interno por nombre, código o DANE; botón ubicar en el mapa). Ya no hay tabla paginada ni buscador abajo (`installationsBoard`). **Crear** siempre con cliente. La ficha `/company/installations/{id}` y `?vista=sitio` comparten la **misma tarjeta**: mapa estático (~28%) | detalle a todo el ancho. Cabecera en **una fila**: Cliente (nombre + dirección debajo) · Perfil de sitio · Área · Administrador. Fila de acciones: píldoras (Puerta / Puesto / Vigilantes / Activa) a la izquierda; **Historial · Crear · Editar · Archivar · Ver ficha** a la derecha. **Crear** es dropdown (Puerta / Puesto / Vigilante). Puertas en fila horizontal (Editar / Archivar). Puestos y vigilantes con scroll. Historial = novedades `service_change` de esa instalación. El **nombre puede repetirse**. `code` interno se genera solo; **no** es DANE. El perfil (`installation_profiles`) reemplaza el enum `kind`: DANE obligatorio solo si el perfil lo exige (p. ej. Colegio de sistema). Área: comuna IDESC en Cali (no editable); fuera, el usuario la escribe. Alta también desde la ficha del cliente.
 
 Los asignados (`client_user_installation_assignments`) se parten en dos bloques: **Administrador** (`installation_permission=admin`) y **Apoyo** (`support`). Formato `cargo · nombre`. Si un bloque está vacío, se muestra — . `rector_user_id` es solo el **contacto del directorio**, no el único admin. El permiso es el mismo en todas las instalaciones de esa persona. Apoyo opera el censo y no borra nodos. El panel cliente tiene el mismo directorio (sin crear) y el árbol de nodos en la ficha.
 
-## Árbol del sitio (tarjeta Instalaciones y puestos)
+## Árbol del sitio (tarjeta de instalación)
 
-Si `has_access` o `has_supervision`. Abre `/company/clients/{id}?vista=sitio`:
+Si `has_access` o `has_supervision`. Abre `/company/clients/{id}?vista=sitio` (misma UI que `/company/installations/{id}`):
 
-1. Crea **instalaciones** (casilla «La instalación es el mismo cliente» o nombre + mapa). Toda instalación lleva georreferencia.
-2. Crea **puestos** (`supervisor_posts`: modalidad, días de servicio, festivos y vigilantes). Días de servicio: Lun..Dom (atajos Lun a Vie / Lun a Sáb; por defecto todos). «¿Presta servicio en festivos?» (festivos de Colombia; por defecto Sí). Solo en esos días el puesto espera revista (ver [`SUPERVISION-CAMPO.md`](SUPERVISION-CAMPO.md), cumplimiento por puesto). Una instalación admite **varios** puestos (el alta queda visible; el nombre no se puede repetir). Un puesto admite **varios** empleados. Un empleado solo puede estar en **un** puesto; si ya tiene uno, se reasigna desde su ficha (buscador por cédula/nombre).
+1. Crea **instalaciones** (+ Instalación; casilla «La instalación es el mismo cliente» o nombre + mapa). Toda instalación lleva georreferencia.
+2. En cada tarjeta, **Crear** → Puerta / Puesto / Vigilante.
+3. **Puestos** (`supervisor_posts`: modalidad, días, festivos, revistas/día, vigilantes). Sin lat/lng en el form. Una instalación admite varios puestos; un empleado solo un puesto (reasignar desde su ficha).
 
-Esta tarjeta **no** lista revistas. Las revistas de campo viven en `/company/supervision`.
+Las revistas de campo viven en `/company/supervision`. Historial de la tarjeta = `OperationalAlert` tipo novedad de servicio de esa instalación (incluye altas/cambios de puertas y puestos).
 
 ```
 Cliente
   └── Instalación (puede ser el propio cliente)
-        └── Puesto (8 / 12 / 24 h + días + empleados)  ← supervisor_posts
+        ├── Puerta (locations, código auto)     ← solo Accesos
+        └── Puesto (modalidad + días + vigilantes)  ← supervisor_posts
 ```
 
-El censo (torres, salones, aptos, personas) se define en la **ficha de la instalación** del panel cliente (`/client/installations/{id}`).
+El censo (torres, salones, aptos, personas) se define en la ficha del panel cliente (`/client/installations/{id}`).
 
 La app de campo (`GET /api/supervision/posts`) lista **estos puestos**, nunca `locations`. Sin puestos no se guarda revista.
 
----
-
-## Puertas (tarjeta Puertas)
-
-Solo si `has_access`. Abre `/company/clients/{id}?vista=puertas`. Cuelga `locations` de instalaciones ya creadas. No se crea la instalación aquí.
-
-Solo Supervisión: ve el sitio, no puertas ni Operar. Solo Accesos: sitio + puertas + Operar. Ambas: el mismo árbol de instalaciones y puestos.
+Solo Supervisión: sitio sin puertas ni Operar. Solo Accesos: sitio + puertas + Operar.
 
 ---
 
@@ -92,7 +89,11 @@ Casilla **«La instalación es el mismo cliente»** (`is_client_site`):
 
 Toda instalación queda con georreferencia. No se usa «sector» ni ciudad como nivel intermedio del árbol.
 
-Las instalaciones y los puestos se editan en **una** tarjeta. Las **puertas** son otra, solo Accesos.
+Instalaciones, puertas y puestos se gestionan en **una** tarjeta por instalación (puertas solo si Accesos).
+
+### Ajustes empresa (`/company/ajustes`)
+
+Hub con 3 bloques (Empresa · Clientes/sitio · App de campo). Cada catálogo abre en modal (lista + alta). Los índices viejos redirigen al hub; los POST llevan `_settings_hub` y vuelven al mismo catálogo.
 
 ---
 
@@ -102,10 +103,11 @@ Create en la migración original de cada dominio; **sin ALTER sueltos**.
 
 | Acción | Tabla | Rol |
 |--------|--------|-----|
-| **Creada** | `installations` | Sitio físico. `client_id`, nombre, flag mismo-cliente, activo, dirección/ciudad/depto/lat/lng |
-| **Creada** | `supervisor_posts` | Puesto compartido. `client_id`, `installation_id`, nombre, `modality` (horas del catálogo `supervisor_post_modalities`), `service_days` (máscara Lun..Dom), `serves_holidays`, activo |
+| **Creada** | `installation_profiles` | Catálogo por empresa: nombre, `requires_dane`, `observatory_community`, `is_system` (Colegio fijo) |
+| **Creada** | `installations` | Sitio físico. `client_id`, `installation_profile_id`, nombre, flag mismo-cliente, activo, geo, `dane_code` si el perfil lo exige |
+| **Creada** | `supervisor_posts` | Puesto compartido. `client_id`, `installation_id`, nombre, `modality`, `service_days`, `serves_holidays`, `reviews_per_day`, activo |
 | **Creada** | `supervisor_post_employee` | Vigilantes asignados al puesto |
-| **Ajustada** | `locations` | Puerta de portería. `installation_id` obligatorio. No es el puesto |
+| **Ajustada** | `locations` | Puerta. `installation_id` obligatorio; `code` auto (`P01`…). No es el puesto |
 | **Ajustada** | `structures` | Censo por instalación (`installation_id`) |
 | **Ajustada** | `supervisor_shift_reviews` | `supervisor_post_id` (ya no `location_id`) |
 
@@ -163,7 +165,7 @@ Tipos de persona: tabla `member_types` (`client_id`, nombre, slug, activo). `str
 | `structure_type_id` | Tipo de estructura fijado |
 | `address`, `city`, `department` | Ubicación (ciudad ≠ instalación) |
 | `has_access`, `has_supervision`, `has_observatory` | Líneas de servicio (cupo). Al desactivar en Editar: **temporal** (libera cupo, datos intactos) o **archivar** (archivo operativo + retención `service_line_retention_days`, purga en `data:purge-retention`). Reactivar exige cupo. Distinto de «Gestión de módulos» (solo qué ve el panel). |
-| `show_personnel_folders` | Si Accesos: el cliente ve carpetas de empleados asignados a un puesto. Solo lectura. |
+| `show_personnel_folders` | Si la empresa tiene **Indexación** y el cliente Accesos: comparte carpetas del personal (solo empleados en puestos de ese cliente). No es el producto Indexación; es el flag de compartir. |
 | `panel_modules` | JSON opcional: `vehicles`, `pets`, `authorizations`, `doors`. Null = todos on. `doors` exige `locations` activas. |
 | `slug`, `login_suffix` | Internos; auto |
 
@@ -181,12 +183,11 @@ Migraciones de ficha:
 
 Listado `/company/clients` vacío: **«Aún no tienes clientes creados en la cartera»** + **Crear cliente** (no «conjunto»).
 
-Pestañas de ficha empresa (`/company/clients/{id}`): **Cliente** | **Resumen** (si `has_access`).
+Pestañas de ficha empresa (`/company/clients/{id}`): **Cliente** | **Resumen** (si `has_access`) | **Instalaciones**.
 
-- Cliente: ficha (incluye **inicio de servicio**) + **Operar portería** / **Operar cliente** / **Operar instalación** (una instalación o selector), **Editar**, **Instalaciones y puestos**, **Puertas** (solo Accesos), **Gestión de módulos**.
-- Sitio: instalaciones + puestos (modalidad y vigilantes). Sin revistas aquí.
-- Puertas: `locations` de esas instalaciones.
-- Operar cliente + flag: sidebar **Documentos** (`/client/documents`), solo empleados con puesto en ese cliente. Ver = preview; Gestionar = descargar.
+- Cliente: ficha + Operar portería / Operar cliente / Operar instalación, Editar, Gestión de módulos. Sin «+ Cliente» aquí.
+- Instalaciones (`?vista=sitio`): tarjeta unificada por instalación (mapa, perfil, puertas, puestos, Crear, Historial). Sin revistas aquí.
+- Operar cliente + flag: sidebar **Documentos** (`/client/documents`), solo empleados con puesto en ese cliente.
 
 Sidebar del panel cliente:
 
@@ -213,7 +214,9 @@ El panel `/client/installations` es el directorio de instalaciones (tabla + fich
 | Método | Ruta | Uso |
 |--------|------|-----|
 | GET | `/company/installations` | Tablero de instalaciones: filtro por cliente (`?client_id=`), KPIs, mapa, novedades, revistas e instalaciones con sus servicios |
-| GET/PUT | `/company/installations/{id}` | Ficha / editar (dirección, tipo, código, DANE, área, administrador, apoyo, mapa, puestos) |
+| GET/PUT | `/company/installations/{id}` | Ficha (misma tarjeta que sitio) / editar (perfil, geo, DANE, área, admin/apoyo, puestos) |
+| GET | `/company/ajustes` | Hub Ajustes (Empresa · Clientes/sitio · App de campo); paneles AJAX |
+| GET | `/company/ajustes/panel/{key}` | Panel JSON de un catálogo (lista + alta) |
 | GET | `/client/installations` | Directorio del cliente (admin cliente: todas; admin de instalación: las suyas) |
 | GET | `/client/installations/{id}` | Ficha + estructura (nodos). Sin alta de instalación ni puestos |
 | POST/PUT/DELETE | `/company/clients/{id}/installations` | Alta rápida en el árbol del cliente |
