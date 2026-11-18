@@ -6,6 +6,7 @@ namespace Tests\Feature\Auth;
 
 use App\Models\User;
 use App\Services\Auth\ClaimSingleUserSession;
+use Database\Seeders\RoleAndPermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -28,6 +29,43 @@ final class SingleSessionTest extends TestCase
 
         $this->assertAuthenticatedAs($user);
         $this->assertNotSame('ocupada', $user->fresh()->single_session_token);
+    }
+
+    public function test_super_admin_opens_another_session_without_closing_the_first(): void
+    {
+        $this->seed(RoleAndPermissionSeeder::class);
+        $user = User::factory()->create();
+        $user->assignRole('super-admin');
+        $user->forceFill(['single_session_token' => 'ocupada', 'single_session_device' => 'otro-equipo'])->save();
+
+        $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'password',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertAuthenticatedAs($user);
+        $this->assertSame('ocupada', $user->fresh()->single_session_token);
+
+        $user->forceFill(['single_session_token' => 'sigue-la-otra'])->save();
+        $this->get(route('profile.edit'))->assertOk();
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_replaced_session_logs_out_anyone_except_super_admin(): void
+    {
+        $user = User::factory()->create();
+
+        $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'password',
+        ])->assertRedirect();
+
+        $user->forceFill(['single_session_token' => 'otra'])->save();
+        $this->app['auth']->forgetGuards();
+
+        $this->get(route('profile.edit'))
+            ->assertRedirect(route('login'));
+        $this->assertGuest();
     }
 
     public function test_same_device_does_not_ask_again(): void

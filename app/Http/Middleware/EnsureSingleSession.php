@@ -23,7 +23,7 @@ final class EnsureSingleSession
             return $next($request);
         }
 
-        if ($request->session()->get('single_session_token') === $expected) {
+        if ($request->session()->get('single_session_token') === $expected || $user->hasRole('super-admin')) {
             return $next($request);
         }
 

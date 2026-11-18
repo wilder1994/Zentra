@@ -23,9 +23,14 @@ final class ClaimSingleUserSession
 
     public const PENDING_SECONDS = 120;
 
+    public function allowsManySessions(User $user): bool
+    {
+        return $user->hasRole('super-admin');
+    }
+
     public function isOccupied(User $user, ?string $device = null): bool
     {
-        if (! filled($user->single_session_token)) {
+        if ($this->allowsManySessions($user) || ! filled($user->single_session_token)) {
             return false;
         }
 
@@ -45,6 +50,14 @@ final class ClaimSingleUserSession
 
     public function signIn(Request $request, User $user, string $device, bool $remember): void
     {
+        if ($this->allowsManySessions($user)) {
+            Auth::login($user, $remember);
+            $request->session()->forget('single_session_token');
+            $request->session()->forget(self::PENDING_KEY);
+
+            return;
+        }
+
         $token = $this->claim($user, $device);
         Auth::login($user, $remember);
         $request->session()->put('single_session_token', $token);
