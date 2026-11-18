@@ -262,6 +262,30 @@
     gap: 0.75rem;
 }
 
+.index-load {
+    margin-bottom: 0.75rem;
+}
+
+.index-load-track {
+    height: 0.25rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #1e293b;
+}
+
+.index-load-bar {
+    width: 0%;
+    height: 100%;
+    background: #6366f1;
+    transition: width 120ms linear;
+}
+
+.index-load-label {
+    margin: 0.35rem 0 0;
+    color: #94a3b8;
+    font-size: 0.75rem;
+}
+
 .index-pages-scroll {
     overflow: auto;
     max-height: calc(100vh - 16rem);
@@ -296,9 +320,13 @@
 .page-thumb-hit canvas {
     width: 100%;
     height: auto;
-    display: block;
+    display: none;
     color-scheme: only light;
     background: #fff;
+}
+
+.page-thumb.is-ready .page-thumb-hit canvas {
+    display: block;
 }
 
 .page-thumb-fallback {

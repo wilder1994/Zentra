@@ -2,6 +2,25 @@ function previewDownloadUrl(url) {
     return url.replace('/preview', '/download').replace(/#.*$/, '');
 }
 
+const PDF_WORKER_BLOB = '__zentraPdfWorkerBlob';
+
+async function pdfWorkerSrc() {
+    const existing = globalThis[PDF_WORKER_BLOB];
+    if (typeof existing === 'string' && existing !== '') {
+        return existing;
+    }
+    const { default: url } = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error('No se pudo cargar el worker de PDF.');
+    }
+    const buffer = await response.arrayBuffer();
+    const blobUrl = URL.createObjectURL(new Blob([buffer], { type: 'application/javascript' }));
+    globalThis[PDF_WORKER_BLOB] = blobUrl;
+
+    return blobUrl;
+}
+
 function initDocumentPreview() {
     const layer = document.getElementById('preview-layer');
     const frame = document.getElementById('preview-iframe');
@@ -589,51 +608,124 @@ function initHistoryIndexer() {
     });
     paintSelection();
 
-    async function pdfWorkerSrc() {
-        const { default: url } = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error('No se pudo cargar el worker de PDF.');
+    function showPdfLoad(percent, label) {
+        const box = document.getElementById('index-load');
+        const bar = document.getElementById('index-load-bar');
+        const text = document.getElementById('index-load-label');
+        const track = document.getElementById('index-load-track');
+        if (!box || !bar || !text || !track) {
+            return;
         }
-        const buffer = await response.arrayBuffer();
+        const value = Math.max(0, Math.min(100, Math.round(percent)));
+        box.hidden = false;
+        bar.style.width = `${value}%`;
+        text.textContent = label;
+        track.setAttribute('aria-valuenow', String(value));
+    }
 
-        return URL.createObjectURL(new Blob([buffer], { type: 'application/javascript' }));
+    function hidePdfLoad() {
+        const box = document.getElementById('index-load');
+        if (box) {
+            box.hidden = true;
+        }
+    }
+
+    function thumbnailOrder() {
+        const scroll = thumbs.closest('.index-pages-scroll');
+        const view = scroll ? scroll.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+        const visible = [];
+        const rest = [];
+        thumbs.querySelectorAll('.page-thumb').forEach((card) => {
+            const page = Number(card.getAttribute('data-page'));
+            if (!page) {
+                return;
+            }
+            const rect = card.getBoundingClientRect();
+            const inView = rect.bottom > view.top - 48 && rect.top < view.bottom + 48;
+            (inView ? visible : rest).push(page);
+        });
+
+        return visible.concat(rest);
     }
 
     async function paintThumbnails() {
         if (!meta.preview_url) {
             return;
         }
+        let shown = 0;
+        const advance = (percent, label) => {
+            shown = Math.max(shown, percent);
+            showPdfLoad(shown, label);
+        };
         try {
+            advance(0, 'Preparando visor…');
             const pdfjs = await import('pdfjs-dist');
             pdfjs.GlobalWorkerOptions.workerSrc = await pdfWorkerSrc();
-            const doc = await pdfjs.getDocument({
+            advance(0, 'Cargando PDF 0%');
+            const task = pdfjs.getDocument({
                 url: meta.preview_url,
                 withCredentials: true,
-                disableRange: true,
-                disableStream: true,
-            }).promise;
-            for (let pageNum = 1; pageNum <= doc.numPages; pageNum += 1) {
+            });
+            task.onProgress = (progress) => {
+                const total = Number(progress?.total) || 0;
+                const loaded = Number(progress?.loaded) || 0;
+                const fromBytes = total > 0 ? Math.round((loaded / total) * 100) : Number.NaN;
+                const reported = Number(progress?.percent);
+                const percent = Number.isFinite(reported) ? reported : fromBytes;
+                if (!Number.isFinite(percent)) {
+                    advance(shown, 'Cargando PDF…');
+                    return;
+                }
+                const capped = Math.min(99, Math.round(percent));
+                const next = Math.max(shown, capped);
+                advance(next, `Cargando PDF ${next}%`);
+            };
+            const doc = await task.promise;
+            const order = thumbnailOrder();
+            const total = order.length;
+            let done = 0;
+            advance(shown, total > 0 ? `Pintando 0 de ${total}` : 'Pintando páginas');
+            for (const pageNum of order) {
                 const card = thumbs.querySelector(`.page-thumb[data-page="${pageNum}"]`);
                 const canvas = card?.querySelector('canvas');
-                if (!card || !canvas) {
+                if (!card || !(canvas instanceof HTMLCanvasElement)) {
+                    done += 1;
+                    advance(total > 0 ? Math.round((done / total) * 100) : 100, `Pintando ${done} de ${total}`);
                     continue;
                 }
                 const page = await doc.getPage(pageNum);
-                const viewport = page.getViewport({ scale: 0.48 });
-                canvas.width = viewport.width;
-                canvas.height = viewport.height;
+                const cssWidth = Math.min(Math.max(Math.round(card.clientWidth || 220), 180), 360);
+                const ratio = Math.min(window.devicePixelRatio || 1, 1.5);
+                const base = page.getViewport({ scale: 1 });
+                const scale = base.width > 0 ? (cssWidth * ratio) / base.width : 0.5;
+                const viewport = page.getViewport({ scale });
+                canvas.width = Math.floor(viewport.width);
+                canvas.height = Math.floor(viewport.height);
                 const ctx = canvas.getContext('2d', { alpha: false });
                 if (!ctx) {
+                    page.cleanup();
+                    done += 1;
+                    advance(total > 0 ? Math.round((done / total) * 100) : 100, `Pintando ${done} de ${total}`);
                     continue;
                 }
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                await page.render({ canvasContext: ctx, viewport, background: '#ffffff' }).promise;
+                await page.render({
+                    canvasContext: ctx,
+                    viewport,
+                    background: '#ffffff',
+                    annotationMode: pdfjs.AnnotationMode.DISABLE,
+                }).promise;
+                page.cleanup();
                 card.classList.add('is-ready');
+                done += 1;
+                const paintPct = total > 0 ? Math.round((done / total) * 100) : 100;
+                advance(paintPct, `Pintando ${done} de ${total}`);
             }
+            hidePdfLoad();
         } catch (error) {
             console.error('No se pudieron pintar las miniaturas del lote.', error);
+            showPdfLoad(shown, 'No se pudieron cargar las páginas. Use Ampliar para ver el PDF.');
         }
     }
 

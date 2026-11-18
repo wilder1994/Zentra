@@ -18,7 +18,7 @@ use App\Support\Personnel\XlsxPreviewHtml;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 final class PersonnelDocumentController extends Controller
 {
@@ -71,7 +71,7 @@ final class PersonnelDocumentController extends Controller
         ]);
     }
 
-    public function preview(EmployeeDocument $document): StreamedResponse|View
+    public function preview(EmployeeDocument $document): BinaryFileResponse|View
     {
         $file = $this->locate($document);
         abort_unless($file->hasFile(), 404);
@@ -83,7 +83,7 @@ final class PersonnelDocumentController extends Controller
         return StoredFileResponder::stream($file->disk_path, $file->label(), (string) $file->mime, true);
     }
 
-    public function download(EmployeeDocument $document): StreamedResponse
+    public function download(EmployeeDocument $document): BinaryFileResponse
     {
         abort_unless(auth()->user()?->can('company.documents.manage'), 403);
         $file = $this->locate($document);

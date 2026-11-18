@@ -7,11 +7,11 @@ namespace App\Support\Personnel;
 use App\Services\Personnel\RenderSpreadsheetPdfPreviewService;
 use App\Support\Files\StoredFileResponder;
 use Illuminate\View\View;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 final class SpreadsheetPreviewResponse
 {
-    public static function make(string $diskPath, string $title): StreamedResponse|View
+    public static function make(string $diskPath, string $title): BinaryFileResponse|View
     {
         $absolute = StoredFileResponder::absolute($diskPath);
         $renderer = app(RenderSpreadsheetPdfPreviewService::class);

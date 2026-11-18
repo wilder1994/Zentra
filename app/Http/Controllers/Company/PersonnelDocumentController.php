@@ -16,13 +16,13 @@ use App\Models\EmployeeDocument;
 use App\Models\EmployeeDocumentBatch;
 use App\Models\SecurityCompany;
 use App\Repositories\EmployeeRepository;
-use App\Support\Catalog\CompanyEntitlements;
 use App\Services\Personnel\CommitParafiscalPlanillaService;
 use App\Services\Personnel\DeleteEmployeeDocumentService;
 use App\Services\Personnel\IndexLaborHistoryPdfService;
 use App\Services\Personnel\MarkLaborHistoryNotApplicableService;
 use App\Services\Personnel\PreviewParafiscalPlanillaService;
 use App\Services\Personnel\StoreLaborHistoryBatchService;
+use App\Support\Catalog\CompanyEntitlements;
 use App\Support\Files\StoredFileResponder;
 use App\Support\Personnel\FolderChecklist;
 use App\Support\Personnel\IndexedFolder;
@@ -36,7 +36,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use InvalidArgumentException;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 final class PersonnelDocumentController extends Controller
 {
@@ -129,18 +129,18 @@ final class PersonnelDocumentController extends Controller
                 'catalogs' => collect(DocumentFolder::cases())
                     ->filter(fn (DocumentFolder $folder) => $folder->isIndexed())
                     ->map(fn (DocumentFolder $folder) => [
-                    'value' => $folder->value,
-                    'label' => $folder->label(),
-                    'course_fields' => $folder === DocumentFolder::Cursos,
-                    'other_fields' => $folder === DocumentFolder::Otros,
-                    'types' => collect(IndexedFolder::types($folder))->map(fn ($type) => [
-                        'value' => $type->value,
-                        'label' => $type->label(),
-                        'name' => $type->suggestedName($employee),
-                        'req' => $type->requirement()->label(),
-                        'other' => method_exists($type, 'isRepeatable') && $type->isRepeatable(),
+                        'value' => $folder->value,
+                        'label' => $folder->label(),
+                        'course_fields' => $folder === DocumentFolder::Cursos,
+                        'other_fields' => $folder === DocumentFolder::Otros,
+                        'types' => collect(IndexedFolder::types($folder))->map(fn ($type) => [
+                            'value' => $type->value,
+                            'label' => $type->label(),
+                            'name' => $type->suggestedName($employee),
+                            'req' => $type->requirement()->label(),
+                            'other' => method_exists($type, 'isRepeatable') && $type->isRepeatable(),
+                        ])->values(),
                     ])->values(),
-                ])->values(),
             ],
         ]);
     }
@@ -180,7 +180,7 @@ final class PersonnelDocumentController extends Controller
             ->with('success', 'Lote indexado: '.count($slices).' documento(s).');
     }
 
-    public function previewBatch(Request $request, Employee $employee, EmployeeDocumentBatch $batch): StreamedResponse
+    public function previewBatch(Request $request, Employee $employee, EmployeeDocumentBatch $batch): BinaryFileResponse
     {
         $this->assertCompany($request, $employee);
         $lote = $this->batchForEmployee($employee, $batch);
@@ -202,7 +202,7 @@ final class PersonnelDocumentController extends Controller
             ->with('success', $type->label().' marcado como no aplica.');
     }
 
-    public function preview(Request $request, EmployeeDocument $document): StreamedResponse|View
+    public function preview(Request $request, EmployeeDocument $document): BinaryFileResponse|View
     {
         $file = $this->locate($request, $document);
         abort_unless($file->hasFile(), 404);
@@ -214,7 +214,7 @@ final class PersonnelDocumentController extends Controller
         return StoredFileResponder::stream($file->disk_path, $file->label(), (string) $file->mime, true);
     }
 
-    public function download(Request $request, EmployeeDocument $document): StreamedResponse
+    public function download(Request $request, EmployeeDocument $document): BinaryFileResponse
     {
         abort_unless($this->canUpload($request), 403);
         $file = $this->locate($request, $document);

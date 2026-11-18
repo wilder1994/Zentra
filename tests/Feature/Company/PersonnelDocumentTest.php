@@ -22,6 +22,7 @@ use Illuminate\Http\UploadedFile;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 final class PersonnelDocumentTest extends TestCase
@@ -84,6 +85,30 @@ final class PersonnelDocumentTest extends TestCase
             ->get(route('company.personnel-documents.folder', $employee))
             ->assertOk()
             ->assertSee('1 de 26');
+    }
+
+    public function test_batch_preview_serves_a_byte_range(): void
+    {
+        $this->seedWithPilot();
+        $admin = $this->companyAdmin();
+        $employee = $this->pilotVigilante();
+        $batch = $this->uploadLote($admin, $employee, ['Pagina uno'], 'rango.pdf');
+        $url = route('company.personnel-documents.batch.preview', [$employee, $batch]);
+
+        $full = $this->actingAs($admin)->get($url);
+        $full->assertOk();
+        $full->assertHeader('Accept-Ranges', 'bytes');
+        $this->assertStringContainsString('inline', (string) $full->headers->get('Content-Disposition'));
+
+        $partial = $this->actingAs($admin)->withHeaders(['Range' => 'bytes=0-7'])->get($url);
+        $partial->assertStatus(206);
+        $this->assertMatchesRegularExpression('/^bytes 0-7\/\d+$/', (string) $partial->headers->get('Content-Range'));
+
+        ob_start();
+        $partial->baseResponse->sendContent();
+        $body = ob_get_clean();
+        $this->assertSame(8, strlen($body));
+        $this->assertStringStartsWith('%PDF-', $body);
     }
 
     public function test_supervision_only_client_cannot_enable_personnel_folders(): void
@@ -417,7 +442,7 @@ final class PersonnelDocumentTest extends TestCase
         }
         $user->unsetRelation('permissions');
         $user->load('permissions');
-        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
     }
 
     private function storedPersonnelPdf(Employee $employee): EmployeeDocument

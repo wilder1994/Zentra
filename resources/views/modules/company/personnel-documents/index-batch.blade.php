@@ -50,6 +50,12 @@
 
         <article class="rounded-xl border border-slate-800 bg-slate-900/60 px-5 py-4 min-h-0">
             <p class="text-xs uppercase tracking-wider text-slate-500 mb-3">Páginas por indexar</p>
+            <div class="index-load" id="index-load" hidden>
+                <div class="index-load-track" id="index-load-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Carga del PDF">
+                    <div class="index-load-bar" id="index-load-bar"></div>
+                </div>
+                <p class="index-load-label" id="index-load-label">Cargando PDF…</p>
+            </div>
             <div class="index-pages-scroll">
                 <div class="page-thumbs" id="page-thumbs">
                     @for ($page = 1; $page <= $batch->page_count; $page++)

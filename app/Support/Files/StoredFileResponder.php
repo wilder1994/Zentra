@@ -2,7 +2,7 @@
 
 namespace App\Support\Files;
 
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 final class StoredFileResponder
 {
@@ -11,24 +11,17 @@ final class StoredFileResponder
         return storage_path('app/'.$diskPath);
     }
 
-    public static function stream(string $diskPath, string $downloadName, string $mime, bool $inline): StreamedResponse
+    public static function stream(string $diskPath, string $downloadName, string $mime, bool $inline): BinaryFileResponse
     {
         $absolute = self::absolute($diskPath);
         abort_unless(is_file($absolute), 404);
 
+        $safe = str_replace(['"', "\r", "\n"], '', $downloadName);
         $disposition = $inline ? 'inline' : 'attachment';
 
-        return response()->stream(function () use ($absolute): void {
-            $handle = fopen($absolute, 'rb');
-            if ($handle === false) {
-                return;
-            }
-            fpassthru($handle);
-            fclose($handle);
-        }, 200, [
+        return new BinaryFileResponse($absolute, 200, [
             'Content-Type' => $mime !== '' ? $mime : 'application/octet-stream',
-            'Content-Disposition' => $disposition.'; filename="'.str_replace('"', '', $downloadName).'"',
-            'Content-Length' => (string) filesize($absolute),
-        ]);
+            'Content-Disposition' => $disposition.'; filename="'.$safe.'"',
+        ], false, null, false, false);
     }
 }

@@ -1,6 +1,8 @@
 # Hosting VPS (Zentra)
 
-**Última actualización:** 9 noviembre 2026
+**Última actualización:** 18 noviembre 2026
+
+Corte 18 nov 2026 (indexador de documentos: miniaturas sin hoja en blanco, barra de carga y rangos HTTP en la vista previa): **sin migrate** y sin seeder. Pull + `npm ci && npm run build` en el VPS + `view:cache` + `config:cache` + `route:cache` + `queue:restart`. No sube `public/build` de Laragon. No `migrate:fresh` ni `db:wipe`.
 
 Corte 9 nov 2026 (tarde · portería multi-auth, km Resumen/PPTX, periodo, Echo): **sin migrate**. Pull + `npm ci && npm run build` **en el VPS** (o build local exportando `VITE_REVERB_HOST=zentra.wcodex.cloud`, `VITE_REVERB_PORT=443`, `VITE_REVERB_SCHEME=https`, `VITE_REVERB_APP_KEY` = la del `.env` del VPS) + `view:cache` + `config:cache` + `route:cache`. **No** subir un `public/build` compilado con `.env` Laragon (`REVERB_HOST=localhost` / puerto 8080): el navegador intenta `wss://localhost:8080` y falla. `echo.js` además ignora host local si la página no es local. Reverb: servicio `zentra-reverb` en `127.0.0.1:6001` + `location /app` en nginx.
 
