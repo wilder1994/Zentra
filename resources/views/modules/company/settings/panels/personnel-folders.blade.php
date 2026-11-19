@@ -52,6 +52,7 @@
         @php
             $folderCount = (int) ($folderCounts[$folder->slug] ?? 0);
         @endphp
+        <template x-teleport="body">
         <div class="expediente-modal" x-show="open === {{ $folder->id }}" x-cloak @click.self="open = null">
             <div class="expediente-modal-card" role="dialog" aria-modal="true" aria-label="{{ $folder->name }}">
                 <div class="expediente-modal-bar">
@@ -156,5 +157,6 @@
                 </div>
             </div>
         </div>
+        </template>
     @endforeach
 </div>
