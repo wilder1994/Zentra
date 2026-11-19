@@ -334,6 +334,20 @@ function initHistoryIndexer() {
         return;
     }
 
+    const criteria = form.querySelector('.index-criteria');
+    const history = form.querySelector('.index-history');
+    const syncHistoryHeight = () => {
+        if (!criteria || !history) {
+            return;
+        }
+        history.style.height = `${Math.round(criteria.getBoundingClientRect().height)}px`;
+    };
+    syncHistoryHeight();
+    if (criteria && typeof ResizeObserver !== 'undefined') {
+        const historyObserver = new ResizeObserver(syncHistoryHeight);
+        historyObserver.observe(criteria);
+    }
+
     const meta = JSON.parse(metaNode.textContent || '{}');
     const catalogs = meta.catalogs || [];
     const selected = new Set();
