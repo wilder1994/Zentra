@@ -325,7 +325,9 @@ final class PersonnelDocumentController extends Controller
                 ->with('error', 'No hay una revisión vigente. Vuelve a cargar la planilla.');
         }
 
-        return view('modules.company.personnel-documents.parafiscal-preview', compact('preview'));
+        $conflicts = $this->parafiscalCommit->conflictCount($this->companyId($request), (int) $request->user()->id);
+
+        return view('modules.company.personnel-documents.parafiscal-preview', compact('preview', 'conflicts'));
     }
 
     public function commitParafiscal(Request $request): RedirectResponse|JsonResponse
@@ -334,9 +336,12 @@ final class PersonnelDocumentController extends Controller
         $companyId = $this->companyId($request);
         $userId = (int) $request->user()->id;
 
+        $mode = $request->string('mode')->toString();
+        $mode = in_array($mode, ['replace', 'version'], true) ? $mode : null;
+
         if ($request->expectsJson()) {
             try {
-                $started = $this->parafiscalCommit->start($companyId, $userId);
+                $started = $this->parafiscalCommit->start($companyId, $userId, $mode);
             } catch (ValidationException $e) {
                 return response()->json([
                     'ok' => false,
@@ -353,7 +358,7 @@ final class PersonnelDocumentController extends Controller
         }
 
         try {
-            $count = $this->parafiscalCommit->execute($companyId, $userId);
+            $count = $this->parafiscalCommit->execute($companyId, $userId, $mode);
         } catch (ValidationException $e) {
             return redirect()
                 ->route('company.personnel-documents.index')

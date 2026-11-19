@@ -26,9 +26,9 @@ final class CommitParafiscalPlanillaService
         private readonly PilaPlanillaClipper $clipper,
     ) {}
 
-    public function execute(int $companyId, int $userId): int
+    public function execute(int $companyId, int $userId, ?string $mode = null): int
     {
-        $this->start($companyId, $userId);
+        $this->start($companyId, $userId, $mode);
         $saved = 0;
         do {
             $tick = $this->tick($companyId, $userId, 80);
@@ -38,8 +38,33 @@ final class CommitParafiscalPlanillaService
         return $saved;
     }
 
+    public function conflictCount(int $companyId, int $userId): int
+    {
+        $cached = $this->preview->get($companyId, $userId);
+        if ($cached === null) {
+            return 0;
+        }
+
+        $base = $this->periodBase(
+            is_string($cached['pension_period'] ?? null) ? $cached['pension_period'] : null,
+            is_string($cached['salud_period'] ?? null) ? $cached['salud_period'] : null,
+        );
+        $ids = Employee::query()
+            ->where('security_company_id', $companyId)
+            ->where('indexing_enabled', true)
+            ->whereIn('id', collect(is_array($cached['matched'] ?? null) ? $cached['matched'] : [])
+                ->pluck('employee_id')
+                ->filter(fn ($id) => is_numeric($id))
+                ->map(fn ($id) => (int) $id)
+                ->all())
+            ->pluck('id')
+            ->all();
+
+        return $this->samePeriodDocuments($ids, $base)->count();
+    }
+
     /** @return array{total: int} */
-    public function start(int $companyId, int $userId): array
+    public function start(int $companyId, int $userId, ?string $mode = null): array
     {
         @set_time_limit(180);
 
@@ -97,6 +122,15 @@ final class CommitParafiscalPlanillaService
 
         $pension = is_string($parsed['pension_period'] ?? null) ? $parsed['pension_period'] : null;
         $salud = is_string($parsed['salud_period'] ?? null) ? $parsed['salud_period'] : null;
+        $base = $this->periodBase($pension, $salud);
+        $choice = in_array($mode, ['replace', 'version'], true) ? $mode : null;
+        $conflicts = $this->samePeriodDocuments(array_column($items, 'employee_id'), $base)->count();
+        if ($conflicts > 0 && $choice === null) {
+            throw ValidationException::withMessages([
+                'file' => 'Ya hay documentos con estas fechas. Elige si se reemplazan o se crea un archivo nuevo.',
+            ]);
+        }
+
         $payloadPath = $dir.'/items.json';
         File::put($payloadPath, json_encode($items, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
 
@@ -109,7 +143,8 @@ final class CommitParafiscalPlanillaService
             'total' => count($items),
             'header_row' => (int) $parsed['header_row'],
             'valor_cell' => (string) $parsed['valor_cell'],
-            'display' => $this->displayName($pension, $salud),
+            'period_base' => $base,
+            'mode' => $conflicts > 0 ? $choice : 'add',
             'taken_on' => $pension !== null
                 ? Carbon::createFromFormat('Y-m-d', $pension.'-01')->startOfMonth()->toDateString()
                 : ($salud !== null
@@ -174,19 +209,23 @@ final class CommitParafiscalPlanillaService
                 $dest,
             );
 
-            $this->replacePrevious($employee, $folder, $type);
+            $base = (string) ($state['period_base'] ?? '');
+            if (($state['mode'] ?? '') === 'replace') {
+                $this->deleteSamePeriod($employee, $folder, $type, $base);
+            }
+            $display = $this->storedName($employee, $folder, $type, $base, ($state['mode'] ?? '') === 'version');
 
             EmployeeDocument::query()->create([
                 'security_company_id' => $employee->security_company_id,
                 'employee_id' => $employee->id,
                 'folder' => $folder,
                 'document_type' => $type->value,
-                'display_name' => $state['display'],
+                'display_name' => $display,
                 'page_from' => null,
                 'page_to' => null,
                 'pages' => null,
                 'not_applicable' => false,
-                'original_name' => $state['display'],
+                'original_name' => $display,
                 'disk_path' => $relative,
                 'mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 'size_bytes' => is_file($dest) ? (int) filesize($dest) : 0,
@@ -267,33 +306,96 @@ final class CommitParafiscalPlanillaService
         return "parafiscal-commit.{$companyId}.{$userId}";
     }
 
-    private function displayName(?string $pension, ?string $salud): string
+    private function periodBase(?string $pension, ?string $salud): string
     {
         if ($pension !== null && $salud !== null) {
-            return 'Parafiscales pensión '.$pension.' · salud '.$salud.'.xlsx';
+            return 'Parafiscales pensión '.$pension.' · salud '.$salud;
         }
 
         if ($pension !== null) {
-            return 'Parafiscales pensión '.$pension.'.xlsx';
+            return 'Parafiscales pensión '.$pension;
         }
 
         if ($salud !== null) {
-            return 'Parafiscales salud '.$salud.'.xlsx';
+            return 'Parafiscales salud '.$salud;
         }
 
-        return 'Parafiscales '.now()->format('Y-m').'.xlsx';
+        return 'Parafiscales '.now()->format('Y-m');
     }
 
-    private function replacePrevious(
+    /**
+     * @param  list<int>  $employeeIds
+     */
+    private function samePeriodDocuments(array $employeeIds, string $base): \Illuminate\Support\Collection
+    {
+        if ($employeeIds === [] || $base === '') {
+            return collect();
+        }
+
+        return EmployeeDocument::query()
+            ->whereIn('employee_id', $employeeIds)
+            ->where('folder', DocumentFolder::Parafiscales)
+            ->where('document_type', ParafiscalDocumentType::Planilla->value)
+            ->get()
+            ->filter(fn (EmployeeDocument $document): bool => $this->samePeriod((string) $document->display_name, $base))
+            ->values();
+    }
+
+    private function samePeriod(string $label, string $base): bool
+    {
+        return $this->versionOf($label, $base) > 0;
+    }
+
+    private function versionOf(string $label, string $base): int
+    {
+        $name = (string) preg_replace('/\.xlsx$/i', '', trim($label));
+        if ($name === $base) {
+            return 1;
+        }
+
+        if (preg_match('/^'.preg_quote($base, '/').' v(\d+)$/', $name, $match) === 1) {
+            return max(1, (int) $match[1]);
+        }
+
+        return 0;
+    }
+
+    private function storedName(
         Employee $employee,
         DocumentFolder $folder,
         ParafiscalDocumentType $type,
+        string $base,
+        bool $versioned,
+    ): string {
+        if (! $versioned) {
+            return $base.'.xlsx';
+        }
+
+        $max = 0;
+        $existing = EmployeeDocument::query()
+            ->where('employee_id', $employee->id)
+            ->where('folder', $folder)
+            ->where('document_type', $type->value)
+            ->get();
+        foreach ($existing as $document) {
+            $max = max($max, $this->versionOf((string) $document->display_name, $base));
+        }
+
+        return $max === 0 ? $base.'.xlsx' : $base.' v'.($max + 1).'.xlsx';
+    }
+
+    private function deleteSamePeriod(
+        Employee $employee,
+        DocumentFolder $folder,
+        ParafiscalDocumentType $type,
+        string $base,
     ): void {
         $previous = EmployeeDocument::query()
             ->where('employee_id', $employee->id)
             ->where('folder', $folder)
             ->where('document_type', $type->value)
-            ->get();
+            ->get()
+            ->filter(fn (EmployeeDocument $document): bool => $this->samePeriod((string) $document->display_name, $base));
 
         foreach ($previous as $document) {
             if ($document->hasFile()) {

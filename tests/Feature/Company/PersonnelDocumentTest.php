@@ -254,7 +254,7 @@ final class PersonnelDocumentTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_company_admin_can_commit_parafiscal_planilla_and_replace_previous(): void
+    public function test_company_admin_keeps_parafiscal_planillas_from_other_months(): void
     {
         $this->seedWithPilot();
         $admin = $this->companyAdmin();
@@ -326,11 +326,79 @@ final class PersonnelDocumentTest extends TestCase
         $docs = EmployeeDocument::query()
             ->where('employee_id', $employee->id)
             ->where('folder', DocumentFolder::Parafiscales)
+            ->orderBy('id')
             ->get();
-        $this->assertCount(1, $docs);
-        $replaced = storage_path('app/'.$docs->first()->disk_path);
-        $this->assertSame(200000.0, (float) IOFactory::load($replaced)->getActiveSheet()->getCell('BJ15')->getCalculatedValue());
-        $this->assertFalse(is_file($absolute));
+        $this->assertCount(2, $docs);
+        $this->assertTrue(is_file($absolute));
+        $added = storage_path('app/'.$docs->last()->disk_path);
+        $this->assertSame(200000.0, (float) IOFactory::load($added)->getActiveSheet()->getCell('BJ15')->getCalculatedValue());
+        $this->assertSame('2026-10-01', $docs->last()->taken_on?->format('Y-m-d'));
+    }
+
+    public function test_same_period_planilla_asks_before_replace_or_version(): void
+    {
+        $this->seedWithPilot();
+        $admin = $this->companyAdmin();
+        $employee = $this->pilotVigilante();
+        $people = [
+            ['document' => $employee->document_number, 'name' => 'PILOT UNO', 'totals' => [180400]],
+        ];
+
+        $this->actingAs($admin)
+            ->post(route('company.personnel-documents.parafiscales.preview.store'), [
+                'file' => $this->planillaUpload('pila-agosto.xlsx', $people),
+            ]);
+        $this->actingAs($admin)
+            ->post(route('company.personnel-documents.parafiscales.commit'))
+            ->assertRedirect(route('company.personnel-documents.index'));
+
+        $first = EmployeeDocument::query()->where('employee_id', $employee->id)->firstOrFail();
+        $firstPath = storage_path('app/'.$first->disk_path);
+
+        $this->actingAs($admin)
+            ->post(route('company.personnel-documents.parafiscales.preview.store'), [
+                'file' => $this->planillaUpload('pila-agosto-2.xlsx', $people, '2026-08', '2026-09'),
+            ]);
+        $this->actingAs($admin)
+            ->get(route('company.personnel-documents.parafiscales.preview'))
+            ->assertOk()
+            ->assertSee('data-conflict="1"', false);
+        $this->actingAs($admin)
+            ->post(route('company.personnel-documents.parafiscales.commit'))
+            ->assertRedirect(route('company.personnel-documents.index'))
+            ->assertSessionHas('error');
+        $this->assertTrue(is_file($firstPath));
+        $this->assertSame(1, EmployeeDocument::query()->where('employee_id', $employee->id)->count());
+
+        $this->actingAs($admin)
+            ->post(route('company.personnel-documents.parafiscales.preview.store'), [
+                'file' => $this->planillaUpload('pila-agosto-3.xlsx', $people, '2026-08', '2026-09'),
+            ]);
+        $this->actingAs($admin)
+            ->post(route('company.personnel-documents.parafiscales.commit'), ['mode' => 'version'])
+            ->assertRedirect(route('company.personnel-documents.index'));
+
+        $docs = EmployeeDocument::query()->where('employee_id', $employee->id)->orderBy('id')->get();
+        $this->assertCount(2, $docs);
+        $this->assertTrue(is_file($firstPath));
+        $this->assertStringContainsString(' v2.xlsx', (string) $docs->last()->display_name);
+
+        $this->actingAs($admin)
+            ->post(route('company.personnel-documents.parafiscales.preview.store'), [
+                'file' => $this->planillaUpload('pila-agosto-4.xlsx', [
+                    ['document' => $employee->document_number, 'name' => 'PILOT UNO', 'totals' => [220000]],
+                ], '2026-08', '2026-09'),
+            ]);
+        $this->actingAs($admin)
+            ->post(route('company.personnel-documents.parafiscales.commit'), ['mode' => 'replace'])
+            ->assertRedirect(route('company.personnel-documents.index'));
+
+        $left = EmployeeDocument::query()->where('employee_id', $employee->id)->get();
+        $this->assertCount(1, $left);
+        $this->assertFalse(is_file($firstPath));
+        $this->assertStringNotContainsString(' v', (string) $left->first()->display_name);
+        $replaced = storage_path('app/'.$left->first()->disk_path);
+        $this->assertSame(220000.0, (float) IOFactory::load($replaced)->getActiveSheet()->getCell('BJ15')->getCalculatedValue());
     }
 
     public function test_parafiscal_preview_finds_cedulas_on_pila_sheet_after_aportante_header(): void

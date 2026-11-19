@@ -4,8 +4,9 @@
             @csrf
             <x-ui.button type="submit" variant="secondary" size="sm">Cancelar</x-ui.button>
         </form>
-        <form method="POST" action="{{ route('company.personnel-documents.parafiscales.commit') }}" id="parafiscal-commit">
+        <form method="POST" action="{{ route('company.personnel-documents.parafiscales.commit') }}" id="parafiscal-commit" data-conflict="{{ ($conflicts ?? 0) > 0 ? '1' : '0' }}">
             @csrf
+            <input type="hidden" name="mode" value="">
             <x-ui.button type="submit" size="sm" id="parafiscal-commit-btn">Aceptar y cargar</x-ui.button>
         </form>
     </x-slot:actions>
@@ -100,6 +101,18 @@
         @endif
     </div>
 
+    <div id="parafiscal-choice" class="load-block" hidden>
+        <div class="load-block-card">
+            <p class="text-sm font-semibold text-white">Ya hay documentos con estas fechas.</p>
+            <p class="mt-1 text-xs text-slate-400">¿Desea reemplazarlos o crear un archivo nuevo? Reemplazar borra solo este periodo. Un archivo nuevo se guarda al lado, como v2, v3.</p>
+            <div class="mt-4 flex flex-wrap gap-2">
+                <button type="button" class="inline-flex h-9 items-center justify-center rounded-lg border border-slate-700 px-4 text-sm font-medium text-slate-200 hover:bg-slate-800" id="parafiscal-replace">Reemplazar</button>
+                <button type="button" class="inline-flex h-9 items-center justify-center rounded-lg bg-indigo-600 px-4 text-sm font-medium text-white hover:bg-indigo-500" id="parafiscal-version">Crear archivo nuevo</button>
+                <button type="button" class="inline-flex h-9 items-center justify-center rounded-lg px-3 text-sm text-slate-400 hover:text-white" id="parafiscal-choice-close">Volver</button>
+            </div>
+        </div>
+    </div>
+
     <div id="parafiscal-load" class="load-block" hidden>
         <div class="load-block-card">
             <p class="text-sm font-semibold text-white" id="parafiscal-load-title">Procesando planilla</p>
@@ -129,8 +142,25 @@
                 if (text) msg.textContent = text;
             }
 
+            const choice = document.getElementById('parafiscal-choice');
+            const mode = form.querySelector('[name="mode"]');
+            const choose = function (value) {
+                if (mode) mode.value = value;
+                if (choice) choice.hidden = true;
+                form.requestSubmit();
+            };
+            document.getElementById('parafiscal-replace')?.addEventListener('click', function () { choose('replace'); });
+            document.getElementById('parafiscal-version')?.addEventListener('click', function () { choose('version'); });
+            document.getElementById('parafiscal-choice-close')?.addEventListener('click', function () {
+                if (choice) choice.hidden = true;
+            });
+
             form.addEventListener('submit', async function (event) {
                 event.preventDefault();
+                if (form.dataset.conflict === '1' && mode && mode.value === '') {
+                    if (choice) choice.hidden = false;
+                    return;
+                }
                 if (btn) btn.disabled = true;
                 if (cancelBtn) cancelBtn.disabled = true;
                 show(0, 'Preparando la plantilla original…');
