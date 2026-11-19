@@ -709,7 +709,8 @@ header:has([data-expediente-search]) > div:last-child {
 
 .expediente-modal-card {
     width: min(40rem, 100%);
-    max-height: min(80vh, 40rem);
+    height: calc(100vh - 2.5rem);
+    max-height: calc(100vh - 2.5rem);
     display: flex;
     flex-direction: column;
     border: 1px solid #1e293b;
@@ -727,11 +728,27 @@ header:has([data-expediente-search]) > div:last-child {
 }
 
 .expediente-modal-bar {
+    flex: 0 0 auto;
     padding: 0.85rem 1rem;
     border-bottom: 1px solid #1e293b;
 }
 
+.expediente-modal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    flex: 0 0 auto;
+}
+
+.expediente-modal-actions form {
+    display: inline-flex;
+}
+
 .expediente-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
     padding: 0.85rem 1rem 1rem;
     overflow: auto;
 }

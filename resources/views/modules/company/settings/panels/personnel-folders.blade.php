@@ -59,11 +59,8 @@
                         <p class="text-white font-semibold truncate">{{ $folder->name }}</p>
                         <p class="text-xs text-slate-500">{{ $folderCount }} {{ $folderCount === 1 ? 'documento' : 'documentos' }} · {{ $folder->is_active ? 'Activa' : 'Desactivada' }}</p>
                     </div>
-                    <button type="button" class="folder-link" @click="open = null">Cerrar</button>
-                </div>
-                <div class="expediente-modal-body">
-                    @if ($canManage)
-                        <div class="flex flex-wrap items-center gap-2 mb-3">
+                    <div class="expediente-modal-actions">
+                        @if ($canManage)
                             <button type="button" class="folder-link" @click="editingFolder = editingFolder === {{ $folder->id }} ? null : {{ $folder->id }}">Editar</button>
                             @if ($folder->is_active)
                                 <form method="POST" action="{{ route('company.personnel-folders.deactivate', $folder) }}">
@@ -87,7 +84,12 @@
                                 </form>
                             @endif
                             <button type="button" class="folder-link" @click="creatingType = creatingType === {{ $folder->id }} ? null : {{ $folder->id }}">Crear tipo</button>
-                        </div>
+                        @endif
+                        <button type="button" class="folder-link" @click="open = null">Cerrar</button>
+                    </div>
+                </div>
+                <div class="expediente-modal-body">
+                    @if ($canManage)
                         <form x-show="editingFolder === {{ $folder->id }}" x-cloak method="POST" action="{{ route('company.personnel-folders.update', $folder) }}" class="mb-3 flex flex-wrap gap-2">
                             @csrf
                             @method('PUT')
