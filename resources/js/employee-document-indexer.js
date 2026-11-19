@@ -605,6 +605,82 @@ function initDropzones() {
     });
 }
 
+function foldCombo(value) {
+    return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function bindSearchSelect(select, input) {
+    const list = input?.parentElement?.querySelector('.combo-list');
+    if (!select || !(input instanceof HTMLInputElement) || !list) {
+        return;
+    }
+
+    const selectedLabel = () => {
+        const current = [...select.options].find((option) => option.value === select.value) || select.options[0];
+        return current ? current.textContent || '' : '';
+    };
+    const showSelected = () => {
+        input.value = selectedLabel();
+    };
+    const paint = (needle) => {
+        const items = [...select.options].filter((option) => needle === '' || foldCombo(option.textContent || '').includes(needle));
+        list.replaceChildren();
+        if (items.length === 0) {
+            const empty = document.createElement('p');
+            empty.className = 'combo-empty';
+            empty.textContent = 'Ninguna coincidencia.';
+            list.append(empty);
+        } else {
+            items.forEach((option) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'combo-option';
+                if (option.value === select.value) {
+                    button.classList.add('is-on');
+                }
+                button.textContent = option.textContent || '';
+                button.addEventListener('mousedown', (event) => {
+                    event.preventDefault();
+                    select.value = option.value;
+                    input.value = option.textContent || '';
+                    list.hidden = true;
+                    select.dispatchEvent(new Event('change'));
+                });
+                list.append(button);
+            });
+        }
+        list.hidden = false;
+    };
+
+    input.addEventListener('focus', () => {
+        input.select();
+        paint('');
+    });
+    input.addEventListener('input', () => paint(foldCombo(input.value.trim())));
+    input.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            list.hidden = true;
+            showSelected();
+            input.blur();
+        }
+        if (event.key === 'Enter') {
+            const first = list.querySelector('.combo-option');
+            if (first instanceof HTMLButtonElement) {
+                event.preventDefault();
+                first.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+            }
+        }
+    });
+    input.addEventListener('blur', () => {
+        window.setTimeout(() => {
+            list.hidden = true;
+            showSelected();
+        }, 120);
+    });
+    new MutationObserver(showSelected).observe(select, { childList: true });
+    showSelected();
+}
+
 function initHistoryIndexer() {
     const metaNode = document.getElementById('history-meta');
     const form = document.getElementById('index-form');
@@ -614,6 +690,8 @@ function initHistoryIndexer() {
     const hint = document.getElementById('page-hint');
     const folderSelect = document.getElementById('slice-folder');
     const typeSelect = document.getElementById('slice-type');
+    bindSearchSelect(folderSelect, document.getElementById('slice-folder-search'));
+    bindSearchSelect(typeSelect, document.getElementById('slice-type-search'));
     const typeField = document.getElementById('type-field');
     const tipoField = document.getElementById('tipo-field');
     const tipoInput = document.getElementById('slice-tipo');

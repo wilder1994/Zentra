@@ -21,10 +21,18 @@
                         <p class="text-sm text-rose-400">{{ $errors->first() }}</p>
                     @endif
                     <label class="block text-sm text-slate-300">Carpeta
-                        <select id="slice-folder" class="mt-1 w-full h-9 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm"></select>
+                        <div class="combo mt-1">
+                            <input type="search" class="combo-input" id="slice-folder-search" placeholder="Buscar carpeta" autocomplete="off" aria-controls="slice-folder">
+                            <div class="combo-list" hidden></div>
+                            <select id="slice-folder" class="combo-native" tabindex="-1" aria-hidden="true"></select>
+                        </div>
                     </label>
                     <label class="block text-sm text-slate-300" id="type-field">Tipo para la selección
-                        <select id="slice-type" class="mt-1 w-full h-9 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm"></select>
+                        <div class="combo mt-1">
+                            <input type="search" class="combo-input" id="slice-type-search" placeholder="Buscar tipo" autocomplete="off" aria-controls="slice-type">
+                            <div class="combo-list" hidden></div>
+                            <select id="slice-type" class="combo-native" tabindex="-1" aria-hidden="true"></select>
+                        </div>
                     </label>
                     <label class="block text-sm text-slate-300" id="tipo-field" hidden>Tipo
                         <input id="slice-tipo" maxlength="80" placeholder="Ej. RUT Cámara de Comercio" class="mt-1 w-full h-9 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm">
