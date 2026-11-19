@@ -326,6 +326,54 @@ function initDocumentPreview() {
     });
 }
 
+function foldSearch(value) {
+    return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function initExpedienteSearch() {
+    const input = document.querySelector('[data-expediente-search]');
+    const browse = document.querySelector('[data-expediente-browse]');
+    const results = document.querySelector('[data-expediente-results]');
+    if (!(input instanceof HTMLInputElement) || !browse || !results) {
+        return;
+    }
+
+    const groups = [...results.querySelectorAll('[data-expediente-folder]')];
+    const empty = results.querySelector('[data-expediente-empty]');
+    const apply = () => {
+        const needle = foldSearch(input.value.trim());
+        if (needle === '') {
+            results.hidden = true;
+            browse.hidden = false;
+            return;
+        }
+
+        browse.hidden = true;
+        results.hidden = false;
+        let any = false;
+        groups.forEach((group) => {
+            const folderHit = foldSearch(group.getAttribute('data-folder-name') || '').includes(needle);
+            let visible = false;
+            group.querySelectorAll('[data-expediente-file]').forEach((file) => {
+                const hit = folderHit || foldSearch(file.getAttribute('data-search') || '').includes(needle);
+                file.hidden = !hit;
+                if (hit) {
+                    visible = true;
+                }
+            });
+            group.hidden = !visible;
+            if (visible) {
+                any = true;
+            }
+        });
+        if (empty) {
+            empty.hidden = any;
+        }
+    };
+
+    input.addEventListener('input', apply);
+}
+
 function initFolderModal() {
     const layer = document.getElementById('folder-layer');
     if (!layer) {
@@ -991,6 +1039,7 @@ function initHistoryIndexer() {
 
 export function employeeDocumentIndexer() {
     initDocumentPreview();
+    initExpedienteSearch();
     initFolderModal();
     initUploadModal();
     initDropzones();

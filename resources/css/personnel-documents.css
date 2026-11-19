@@ -211,6 +211,49 @@
     padding: 0 0.75rem;
 }
 
+.folder-search.is-toolbar {
+    margin-bottom: 0;
+}
+
+header:has([data-expediente-search]) > div:first-child {
+    border-bottom: 0;
+    padding-bottom: 0.35rem;
+}
+
+header:has([data-expediente-search]) > div:last-child {
+    background: rgba(15, 23, 42, 0.8);
+    border-bottom: 1px solid #1e293b;
+    backdrop-filter: blur(8px);
+    padding-top: 0.15rem;
+    padding-bottom: 0.75rem;
+}
+
+[data-expediente-results][hidden],
+[data-expediente-browse][hidden],
+[data-expediente-folder][hidden],
+[data-expediente-file][hidden],
+[data-expediente-empty][hidden] {
+    display: none !important;
+}
+
+.expediente-tree-folder {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.7rem 0.15rem 0.25rem;
+    color: #fff;
+    font-weight: 600;
+}
+
+.expediente-tree-file {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-left: 2.15rem;
+    padding: 0.45rem 0.2rem;
+    border-bottom: 1px solid #1e293b;
+}
+
 .folder-doc-row {
     display: grid;
     grid-template-columns: auto 1fr auto;

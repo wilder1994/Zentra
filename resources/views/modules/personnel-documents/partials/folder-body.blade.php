@@ -8,9 +8,11 @@
     $downloadRoute = $downloadRoute ?? 'company.personnel-documents.download';
     $destroyRoute = $destroyRoute ?? 'company.personnel-documents.destroy';
     $batchCreateRoute = $batchCreateRoute ?? route('company.personnel-documents.batch.create', $employee);
+    $showIdentity = $showIdentity ?? true;
 @endphp
 
 <div class="space-y-6 personnel-docs">
+    @if ($showIdentity)
     <article class="rounded-xl border border-slate-800 bg-slate-900/60 px-5 py-4 flex flex-wrap items-center justify-between gap-4">
         <div>
             <p class="text-xs uppercase tracking-wider text-slate-500">Carpeta del empleado</p>
@@ -35,8 +37,9 @@
             @endif
         </div>
     </article>
+    @endif
 
-    <section>
+    <section data-expediente-browse>
         <p class="text-xs uppercase tracking-wider text-slate-500 mb-3">Carpetas</p>
         <div class="folder-grid">
             @foreach ($indexedChecklists as $block)
@@ -55,6 +58,38 @@
                 </article>
             @endforeach
         </div>
+    </section>
+
+    <section data-expediente-results hidden>
+        @foreach ($indexedChecklists as $block)
+            @php
+                $treeParafiscal = $block['folder'] === \App\Enums\DocumentFolder::Parafiscales;
+                $treeFiles = array_values(array_filter($block['rows'], fn ($row) => $row['status'] === 'loaded' && $row['document']));
+                $treeLabel = $block['label'] ?? $block['folder']->label();
+            @endphp
+            @if (count($treeFiles))
+                <div data-expediente-folder data-folder-name="{{ mb_strtolower($treeLabel) }}">
+                    <div class="expediente-tree-folder">
+                        <span class="folder-card-icon" aria-hidden="true">
+                            <svg width="22" height="22" viewBox="0 0 24 24">
+                                <path fill="#818cf8" d="M3 7.25A1.75 1.75 0 0 1 4.75 5.5H9l1.7 1.7h8.55A1.75 1.75 0 0 1 21 8.95v9.3A1.75 1.75 0 0 1 19.25 20H4.75A1.75 1.75 0 0 1 3 18.25v-11Z"/>
+                                <path fill="#a5b4fc" d="M3 9.5h18v8.75A1.75 1.75 0 0 1 19.25 20H4.75A1.75 1.75 0 0 1 3 18.25V9.5Z"/>
+                            </svg>
+                        </span>
+                        <span>{{ $treeLabel }}</span>
+                    </div>
+                    @foreach ($treeFiles as $row)
+                        @php $doc = $row['document']; @endphp
+                        <div class="expediente-tree-file" data-expediente-file data-search="{{ mb_strtolower($doc->label().' '.$row['type']->label()) }}">
+                            <span class="drop-icon {{ $treeParafiscal ? 'drop-icon-xlsx' : 'drop-icon-pdf' }}" aria-hidden="true">{{ $treeParafiscal ? 'XLS' : 'PDF' }}</span>
+                            <p class="min-w-0 flex-1 truncate text-white">{{ $doc->label() }}</p>
+                            <button class="folder-link" type="button" data-preview="{{ route($previewRoute, $doc) }}" data-name="{{ $doc->label() }}">Ver</button>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        @endforeach
+        <p class="text-sm text-slate-400" data-expediente-empty hidden>Ningún documento corresponde a la búsqueda.</p>
     </section>
 </div>
 
