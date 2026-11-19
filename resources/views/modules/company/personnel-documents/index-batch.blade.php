@@ -54,7 +54,7 @@
             </section>
         </form>
 
-        <article class="rounded-xl border border-slate-800 bg-slate-900/60 px-5 py-4 min-h-0">
+        <article class="index-pages rounded-xl border border-slate-800 bg-slate-900/60 px-5 py-4 min-h-0">
             <p class="text-xs uppercase tracking-wider text-slate-500 mb-3">Páginas por indexar</p>
             <div class="index-load" id="index-load" hidden>
                 <div class="index-load-track" id="index-load-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Carga del PDF">

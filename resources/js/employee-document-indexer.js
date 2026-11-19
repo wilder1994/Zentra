@@ -694,7 +694,7 @@ function initHistoryIndexer() {
                     continue;
                 }
                 const page = await doc.getPage(pageNum);
-                const cssWidth = Math.min(Math.max(Math.round(card.clientWidth || 220), 180), 360);
+                const cssWidth = Math.min(720, Math.max(64, Math.round(card.clientWidth || 120)));
                 const ratio = Math.min(window.devicePixelRatio || 1, 1.5);
                 const base = page.getViewport({ scale: 1 });
                 const scale = base.width > 0 ? (cssWidth * ratio) / base.width : 0.5;

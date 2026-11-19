@@ -299,15 +299,24 @@
     font-size: 0.75rem;
 }
 
+.index-pages {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+}
+
 .index-pages-scroll {
+    container: index-pages / size;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow: auto;
-    max-height: calc(100vh - 16rem);
 }
 
 .page-thumbs {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 0.75rem;
+    gap: clamp(0.35rem, 2cqw, 0.75rem);
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, clamp(4.25rem, 22cqw, 18rem)), 1fr));
 }
 
 .page-thumb {
@@ -326,13 +335,16 @@
     position: relative;
     display: block;
     width: 100%;
-    min-height: 16rem;
+    min-height: 0;
+    aspect-ratio: 3 / 4;
     background: #020617;
 }
 
 .page-thumb-hit canvas {
     width: 100%;
-    height: auto;
+    height: 100%;
+    object-fit: contain;
+    object-position: top center;
     display: none;
     color-scheme: only light;
     background: #fff;
@@ -396,5 +408,13 @@
     .index-workspace {
         grid-template-columns: 1fr;
         min-height: auto;
+    }
+
+    .index-pages {
+        height: auto;
+    }
+
+    .index-pages-scroll {
+        min-height: 18rem;
     }
 }
