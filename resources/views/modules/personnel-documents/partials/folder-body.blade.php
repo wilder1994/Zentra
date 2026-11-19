@@ -163,18 +163,32 @@
 <div class="preview-layer" id="preview-layer" hidden>
     <div class="preview-frame">
         <div class="preview-bar">
+            <div class="preview-tools">
+                <button class="preview-burger" type="button" id="preview-pages" aria-pressed="false" aria-label="Páginas del documento">
+                    <span></span><span></span><span></span>
+                </button>
+                <span id="preview-page-label">1</span>
+                <button class="folder-link" type="button" id="preview-zoom-out" aria-label="Reducir">−</button>
+                <button class="folder-link" type="button" id="preview-zoom-fit" aria-label="Ajustar al ancho">Ajustar</button>
+                <button class="folder-link" type="button" id="preview-zoom-in" aria-label="Aumentar">+</button>
+                <span id="preview-zoom-label">100%</span>
+            </div>
             <span id="preview-title">Documento</span>
             <div class="flex gap-2">
-                    @if ($canDownload)
-                        <a class="folder-link" id="preview-download" href="#">Descargar</a>
-                    @endif
-                    <button class="folder-link" type="button" id="preview-close">Cerrar</button>
-                </div>
+                @if ($canDownload)
+                    <a class="folder-link" id="preview-download" href="#">Descargar</a>
+                @endif
+                <button class="folder-link" type="button" id="preview-close">Cerrar</button>
+            </div>
         </div>
-        <div class="preview-stage" id="preview-stage">
-            <p class="preview-note" id="preview-note">Esta vista pinta el PDF aquí, sin el visor del navegador. Si al abrirlo Chrome lo descarga, elija «Abrir los PDF en Chrome» en chrome://settings/content/pdfDocuments. Si esa opción está bloqueada, puede ser una política de la empresa.</p>
-            <p class="preview-status" id="preview-status" hidden>Cargando la página…</p>
-            <canvas id="preview-canvas" hidden></canvas>
+        <div class="preview-body">
+            <aside class="preview-pages" id="preview-pages-panel" hidden>
+                <div id="preview-thumbs"></div>
+            </aside>
+            <div class="preview-stage" id="preview-stage">
+                <p class="preview-status" id="preview-status" hidden>Cargando la página…</p>
+                <canvas id="preview-canvas" hidden></canvas>
+            </div>
         </div>
     </div>
 </div>

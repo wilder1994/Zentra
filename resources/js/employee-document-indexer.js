@@ -44,12 +44,23 @@ function initDocumentPreview() {
         return;
     }
 
+    const zoomSteps = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3];
+    const pagesBtn = document.getElementById('preview-pages');
+    const pagesPanel = document.getElementById('preview-pages-panel');
+    const thumbs = document.getElementById('preview-thumbs');
+    const pageLabel = document.getElementById('preview-page-label');
+    const zoomLabel = document.getElementById('preview-zoom-label');
     let previewToken = 0;
+    let thumbToken = 0;
     let openDoc = null;
     let openDocUrl = '';
+    let pdfjsLib = null;
+    let currentPage = 1;
+    let zoomIndex = 2;
 
     const closePreview = () => {
         previewToken += 1;
+        thumbToken += 1;
         layer.classList.remove('is-open');
         layer.hidden = true;
         canvas.hidden = true;
@@ -66,41 +77,95 @@ function initDocumentPreview() {
         status.textContent = message;
     };
 
-    const paintPreview = async (url) => {
+    const fitWidth = () => Math.max(240, Math.round(stage.clientWidth - 32));
+
+    const markThumb = () => {
+        thumbs?.querySelectorAll('.preview-thumb').forEach((button) => {
+            button.classList.toggle('is-on', Number(button.getAttribute('data-page')) === currentPage);
+        });
+        const current = thumbs?.querySelector('.preview-thumb.is-on');
+        current?.scrollIntoView({ block: 'nearest' });
+    };
+
+    const updateLabels = () => {
+        const total = openDoc?.numPages || 1;
+        if (pageLabel) {
+            pageLabel.textContent = `${currentPage} / ${total}`;
+        }
+        if (zoomLabel) {
+            zoomLabel.textContent = `${Math.round(zoomSteps[zoomIndex] * 100)}%`;
+        }
+    };
+
+    const paintThumbs = async () => {
+        if (!thumbs || !openDoc || !pdfjsLib || pagesPanel?.hidden) {
+            return;
+        }
+        const token = ++thumbToken;
+        const doc = openDoc;
+        thumbs.replaceChildren();
+        for (let number = 1; number <= doc.numPages; number += 1) {
+            if (token !== thumbToken) {
+                return;
+            }
+            const page = await doc.getPage(number);
+            if (token !== thumbToken) {
+                page.cleanup();
+                return;
+            }
+            const base = page.getViewport({ scale: 1 });
+            const viewport = page.getViewport({ scale: base.width > 0 ? 120 / base.width : 0.2 });
+            const thumb = document.createElement('canvas');
+            thumb.width = Math.floor(viewport.width);
+            thumb.height = Math.floor(viewport.height);
+            const context = thumb.getContext('2d', { alpha: false });
+            if (context) {
+                context.fillStyle = '#ffffff';
+                context.fillRect(0, 0, thumb.width, thumb.height);
+                await page.render({
+                    canvasContext: context,
+                    viewport,
+                    background: '#ffffff',
+                    annotationMode: pdfjsLib.AnnotationMode.DISABLE,
+                }).promise;
+            }
+            page.cleanup();
+            if (token !== thumbToken) {
+                return;
+            }
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'preview-thumb';
+            button.dataset.page = String(number);
+            button.append(thumb, document.createTextNode(String(number)));
+            thumbs.append(button);
+        }
+        markThumb();
+    };
+
+    const paintPreview = async () => {
         const token = previewToken;
-        const target = previewTarget(url);
         canvas.hidden = true;
         showStatus('Cargando la página…');
         try {
-            const pdfjs = await import('pdfjs-dist');
-            pdfjs.GlobalWorkerOptions.workerSrc = await pdfWorkerSrc();
-            if (token !== previewToken) {
+            if (!openDoc) {
                 return;
             }
-            if (!openDoc || openDocUrl !== target.fileUrl) {
-                openDoc?.destroy?.();
-                openDoc = await pdfjs.getDocument({
-                    url: target.fileUrl,
-                    withCredentials: true,
-                }).promise;
-                openDocUrl = target.fileUrl;
-            }
-            if (token !== previewToken) {
-                return;
-            }
-            const pageNumber = Math.min(target.page, openDoc.numPages);
-            const page = await openDoc.getPage(pageNumber);
+            currentPage = Math.min(Math.max(currentPage, 1), openDoc.numPages);
+            updateLabels();
+            const page = await openDoc.getPage(currentPage);
             if (token !== previewToken) {
                 page.cleanup();
                 return;
             }
-            const width = Math.max(280, Math.round(stage.clientWidth - 32));
+            const width = Math.round(fitWidth() * zoomSteps[zoomIndex]);
             const ratio = Math.min(window.devicePixelRatio || 1, 2);
             const base = page.getViewport({ scale: 1 });
             const scale = base.width > 0 ? (width * ratio) / base.width : 1;
             const viewport = page.getViewport({ scale });
             canvas.width = Math.floor(viewport.width);
             canvas.height = Math.floor(viewport.height);
+            canvas.style.width = `${width}px`;
             const context = canvas.getContext('2d', { alpha: false });
             if (!context) {
                 page.cleanup();
@@ -113,7 +178,7 @@ function initDocumentPreview() {
                 canvasContext: context,
                 viewport,
                 background: '#ffffff',
-                annotationMode: pdfjs.AnnotationMode.DISABLE,
+                annotationMode: pdfjsLib.AnnotationMode.DISABLE,
             }).promise;
             page.cleanup();
             if (token !== previewToken) {
@@ -123,6 +188,7 @@ function initDocumentPreview() {
             if (status) {
                 status.hidden = true;
             }
+            markThumb();
         } catch (error) {
             if (token !== previewToken) {
                 return;
@@ -133,7 +199,7 @@ function initDocumentPreview() {
         }
     };
 
-    const openPreview = (url, name) => {
+    const openPreview = async (url, name) => {
         if (title) {
             title.textContent = name;
         }
@@ -141,11 +207,89 @@ function initDocumentPreview() {
             download.href = previewDownloadUrl(url);
             download.hidden = false;
         }
+        const target = previewTarget(url);
         previewToken += 1;
+        const token = previewToken;
+        zoomIndex = 2;
+        currentPage = target.page;
         layer.hidden = false;
         layer.classList.add('is-open');
-        paintPreview(url);
+        canvas.hidden = true;
+        showStatus('Cargando la página…');
+        try {
+            pdfjsLib = await import('pdfjs-dist');
+            pdfjsLib.GlobalWorkerOptions.workerSrc = await pdfWorkerSrc();
+            if (token !== previewToken) {
+                return;
+            }
+            if (!openDoc || openDocUrl !== target.fileUrl) {
+                openDoc?.destroy?.();
+                openDoc = null;
+                openDocUrl = '';
+                thumbs?.replaceChildren();
+                openDoc = await pdfjsLib.getDocument({
+                    url: target.fileUrl,
+                    withCredentials: true,
+                }).promise;
+                openDocUrl = target.fileUrl;
+            }
+            if (token !== previewToken) {
+                return;
+            }
+            currentPage = Math.min(target.page, openDoc.numPages);
+            updateLabels();
+            paintPreview();
+            paintThumbs();
+        } catch (error) {
+            if (token !== previewToken) {
+                return;
+            }
+            console.error('No se pudo ampliar el PDF.', error);
+            showStatus('No se pudo pintar esta página. Use Descargar para abrir el archivo.');
+        }
     };
+
+    pagesBtn?.addEventListener('click', () => {
+        if (!pagesPanel) {
+            return;
+        }
+        const open = pagesPanel.hidden;
+        pagesPanel.hidden = !open;
+        pagesBtn.setAttribute('aria-pressed', open ? 'true' : 'false');
+        if (open) {
+            paintThumbs();
+        }
+        previewToken += 1;
+        paintPreview();
+    });
+    document.getElementById('preview-zoom-in')?.addEventListener('click', () => {
+        zoomIndex = Math.min(zoomSteps.length - 1, zoomIndex + 1);
+        updateLabels();
+        previewToken += 1;
+        paintPreview();
+    });
+    document.getElementById('preview-zoom-out')?.addEventListener('click', () => {
+        zoomIndex = Math.max(0, zoomIndex - 1);
+        updateLabels();
+        previewToken += 1;
+        paintPreview();
+    });
+    document.getElementById('preview-zoom-fit')?.addEventListener('click', () => {
+        zoomIndex = 2;
+        updateLabels();
+        previewToken += 1;
+        paintPreview();
+    });
+    thumbs?.addEventListener('click', (event) => {
+        const button = event.target.closest('.preview-thumb');
+        if (!button) {
+            return;
+        }
+        currentPage = Number(button.getAttribute('data-page')) || 1;
+        updateLabels();
+        previewToken += 1;
+        paintPreview();
+    });
 
     document.addEventListener('click', (event) => {
         const trigger = event.target.closest('[data-preview]');

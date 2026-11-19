@@ -73,22 +73,97 @@
     height: 90vh;
 }
 
+.preview-tools {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+.preview-burger {
+    width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.22rem;
+    padding: 0 0.45rem;
+    border: 1px solid #334155;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: #cbd5e1;
+}
+
+.preview-burger span {
+    display: block;
+    height: 2px;
+    border-radius: 1px;
+    background: currentColor;
+}
+
+.preview-burger[aria-pressed="true"] {
+    border-color: #6366f1;
+    color: #fff;
+}
+
+.preview-zoom-label,
+#preview-page-label {
+    min-width: 2.6rem;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 0.75rem;
+}
+
+.preview-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+}
+
+.preview-pages {
+    width: 9.5rem;
+    flex: 0 0 auto;
+    overflow: auto;
+    border-right: 1px solid #1e293b;
+    background: #020617;
+    padding: 0.6rem;
+}
+
+.preview-pages[hidden] {
+    display: none;
+}
+
+.preview-thumb {
+    display: block;
+    width: 100%;
+    margin: 0 0 0.6rem;
+    padding: 0.3rem;
+    border: 1px solid #1e293b;
+    border-radius: 0.45rem;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 0.7rem;
+    text-align: center;
+}
+
+.preview-thumb.is-on {
+    border-color: #6366f1;
+}
+
+.preview-thumb canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-bottom: 0.25rem;
+    background: #fff;
+}
+
 .preview-stage {
     flex: 1;
     min-height: 0;
     overflow: auto;
     background: #020617;
     padding: 0.75rem 1rem 1rem;
-}
-
-.preview-note {
-    margin: 0 0 0.75rem;
-    padding: 0.55rem 0.75rem;
-    border-radius: 0.6rem;
-    background: rgba(30, 41, 59, 0.85);
-    color: #cbd5e1;
-    font-size: 0.75rem;
-    line-height: 1.45;
 }
 
 .preview-status {
@@ -99,7 +174,7 @@
 
 .preview-stage canvas {
     display: block;
-    width: 100%;
+    width: auto;
     height: auto;
     margin: 0 auto;
     background: #fff;
