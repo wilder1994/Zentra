@@ -51,11 +51,11 @@
 
             <div
                 x-ref="stage"
-                class="settings-hub-stage absolute overflow-hidden border border-slate-700 bg-slate-900 shadow-2xl shadow-black/50"
+                class="settings-hub-stage absolute flex flex-col overflow-hidden border border-slate-700 bg-slate-900 shadow-2xl shadow-black/50"
                 :class="layer === 'catalog' ? 'settings-hub-stage-catalog' : 'settings-hub-stage-group'"
                 :style="stageStyle()"
             >
-                <div class="flex items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
+                <div class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
                     <div class="min-w-0">
                         <button type="button" @click="back()" class="text-[11px] font-semibold uppercase tracking-wide text-indigo-300 hover:text-indigo-200">
                             <span x-text="layer === 'catalog' ? ('← ' + groupLabel()) : '← Ajustes'"></span>
@@ -65,7 +65,7 @@
                     <button type="button" @click="closeAll()" class="rounded-lg px-2 py-1 text-xs text-slate-400 hover:bg-slate-800 hover:text-white">Cerrar</button>
                 </div>
 
-                <div class="max-h-[min(78vh,760px)] overflow-y-auto p-4" x-show="layer === 'group'">
+                <div class="settings-hub-scroll" x-show="layer === 'group'">
                     <div class="grid gap-3 sm:grid-cols-2">
                         <template x-for="item in items()" :key="item.key">
                             <button
@@ -80,7 +80,7 @@
                     </div>
                 </div>
 
-                <div class="max-h-[min(78vh,760px)] overflow-y-auto p-4" x-show="layer === 'catalog'" x-cloak>
+                <div class="settings-hub-scroll" x-show="layer === 'catalog'" x-cloak>
                     <div x-show="loading" class="py-16 text-center text-sm text-slate-500">Cargando…</div>
                     <div x-show="error" class="rounded-lg border border-rose-800/50 bg-rose-950/30 px-3 py-2 text-sm text-rose-200" x-text="error"></div>
                     <div x-ref="panel" x-show="!loading && !error" x-html="panelHtml"></div>
