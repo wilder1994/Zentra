@@ -73,11 +73,36 @@
     height: 90vh;
 }
 
-.preview-frame iframe {
+.preview-stage {
     flex: 1;
-    width: 100%;
-    border: 0;
+    min-height: 0;
+    overflow: auto;
     background: #020617;
+    padding: 0.75rem 1rem 1rem;
+}
+
+.preview-note {
+    margin: 0 0 0.75rem;
+    padding: 0.55rem 0.75rem;
+    border-radius: 0.6rem;
+    background: rgba(30, 41, 59, 0.85);
+    color: #cbd5e1;
+    font-size: 0.75rem;
+    line-height: 1.45;
+}
+
+.preview-status {
+    margin: 0.25rem 0 0.75rem;
+    color: #94a3b8;
+    font-size: 0.875rem;
+}
+
+.preview-stage canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 0 auto;
+    background: #fff;
 }
 
 .preview-bar {

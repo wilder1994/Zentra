@@ -90,7 +90,11 @@
                     <button class="folder-link" type="button" id="preview-close">Cerrar</button>
                 </div>
             </div>
-            <iframe id="preview-iframe" title="Vista previa"></iframe>
+            <div class="preview-stage" id="preview-stage">
+                <p class="preview-note" id="preview-note">Esta vista pinta el PDF aquí, sin el visor del navegador. Si al abrirlo Chrome lo descarga, elija «Abrir los PDF en Chrome» en chrome://settings/content/pdfDocuments. Si esa opción está bloqueada, puede ser una política de la empresa.</p>
+                <p class="preview-status" id="preview-status" hidden>Cargando la página…</p>
+                <canvas id="preview-canvas" hidden></canvas>
+            </div>
         </div>
     </div>
 

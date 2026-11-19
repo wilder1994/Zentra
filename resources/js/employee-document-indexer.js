@@ -21,31 +21,130 @@ async function pdfWorkerSrc() {
     return blobUrl;
 }
 
+function previewTarget(url) {
+    const hash = url.split('#')[1] || '';
+    const pageMatch = hash.match(/page=(\d+)/);
+    const page = pageMatch ? Number(pageMatch[1]) : 1;
+
+    return {
+        fileUrl: url.replace(/#.*$/, ''),
+        page: page > 0 ? page : 1,
+    };
+}
+
 function initDocumentPreview() {
     const layer = document.getElementById('preview-layer');
-    const frame = document.getElementById('preview-iframe');
+    const stage = document.getElementById('preview-stage');
+    const canvas = document.getElementById('preview-canvas');
+    const status = document.getElementById('preview-status');
     const title = document.getElementById('preview-title');
     const download = document.getElementById('preview-download');
     const closeBtn = document.getElementById('preview-close');
-    if (!layer || !frame) {
+    if (!layer || !stage || !(canvas instanceof HTMLCanvasElement)) {
         return;
     }
 
+    let previewToken = 0;
+    let openDoc = null;
+    let openDocUrl = '';
+
     const closePreview = () => {
+        previewToken += 1;
         layer.classList.remove('is-open');
         layer.hidden = true;
-        frame.src = '';
+        canvas.hidden = true;
+        if (status) {
+            status.hidden = true;
+        }
+    };
+
+    const showStatus = (message) => {
+        if (!status) {
+            return;
+        }
+        status.hidden = false;
+        status.textContent = message;
+    };
+
+    const paintPreview = async (url) => {
+        const token = previewToken;
+        const target = previewTarget(url);
+        canvas.hidden = true;
+        showStatus('Cargando la página…');
+        try {
+            const pdfjs = await import('pdfjs-dist');
+            pdfjs.GlobalWorkerOptions.workerSrc = await pdfWorkerSrc();
+            if (token !== previewToken) {
+                return;
+            }
+            if (!openDoc || openDocUrl !== target.fileUrl) {
+                openDoc?.destroy?.();
+                openDoc = await pdfjs.getDocument({
+                    url: target.fileUrl,
+                    withCredentials: true,
+                }).promise;
+                openDocUrl = target.fileUrl;
+            }
+            if (token !== previewToken) {
+                return;
+            }
+            const pageNumber = Math.min(target.page, openDoc.numPages);
+            const page = await openDoc.getPage(pageNumber);
+            if (token !== previewToken) {
+                page.cleanup();
+                return;
+            }
+            const width = Math.max(280, Math.round(stage.clientWidth - 32));
+            const ratio = Math.min(window.devicePixelRatio || 1, 2);
+            const base = page.getViewport({ scale: 1 });
+            const scale = base.width > 0 ? (width * ratio) / base.width : 1;
+            const viewport = page.getViewport({ scale });
+            canvas.width = Math.floor(viewport.width);
+            canvas.height = Math.floor(viewport.height);
+            const context = canvas.getContext('2d', { alpha: false });
+            if (!context) {
+                page.cleanup();
+                showStatus('No se pudo pintar esta página. Use Descargar para abrir el archivo.');
+                return;
+            }
+            context.fillStyle = '#ffffff';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            await page.render({
+                canvasContext: context,
+                viewport,
+                background: '#ffffff',
+                annotationMode: pdfjs.AnnotationMode.DISABLE,
+            }).promise;
+            page.cleanup();
+            if (token !== previewToken) {
+                return;
+            }
+            canvas.hidden = false;
+            if (status) {
+                status.hidden = true;
+            }
+        } catch (error) {
+            if (token !== previewToken) {
+                return;
+            }
+            console.error('No se pudo ampliar el PDF.', error);
+            canvas.hidden = true;
+            showStatus('No se pudo pintar esta página. Use Descargar para abrir el archivo.');
+        }
     };
 
     const openPreview = (url, name) => {
-        title.textContent = name;
+        if (title) {
+            title.textContent = name;
+        }
         if (download) {
             download.href = previewDownloadUrl(url);
             download.hidden = false;
         }
-        frame.src = url;
+        previewToken += 1;
         layer.hidden = false;
         layer.classList.add('is-open');
+        paintPreview(url);
     };
 
     document.addEventListener('click', (event) => {
