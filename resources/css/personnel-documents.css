@@ -314,9 +314,10 @@
 }
 
 .page-thumbs {
+    --thumb-gap: clamp(0.5rem, 2cqw, 0.75rem);
     display: grid;
-    gap: clamp(0.5rem, 2cqw, 0.75rem);
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--thumb-gap);
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, max(calc((100% - 3 * var(--thumb-gap)) / 4), clamp(9rem, 24cqw, 16rem))), 1fr));
     padding-bottom: 0.25rem;
 }
 
