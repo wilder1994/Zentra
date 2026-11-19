@@ -19,6 +19,7 @@ use App\Models\PersonnelFolderType;
 use App\Models\SecurityCompany;
 use App\Repositories\EmployeeRepository;
 use App\Services\Personnel\CommitParafiscalPlanillaService;
+use App\Services\Personnel\EmployeeIndexingQuota;
 use App\Services\Personnel\EnsurePersonnelCatalogService;
 use App\Services\Personnel\PersonnelIndexingCatalog;
 use App\Services\Personnel\DeleteEmployeeDocumentService;
@@ -27,6 +28,7 @@ use App\Services\Personnel\MarkLaborHistoryNotApplicableService;
 use App\Services\Personnel\PreviewParafiscalPlanillaService;
 use App\Services\Personnel\StoreLaborHistoryBatchService;
 use App\Support\Catalog\CompanyEntitlements;
+use App\Support\Files\StorageUsage;
 use App\Support\Files\StoredFileResponder;
 use App\Support\Personnel\FolderChecklist;
 use App\Support\Personnel\IndexedFolder;
@@ -54,22 +56,40 @@ final class PersonnelDocumentController extends Controller
         private readonly CommitParafiscalPlanillaService $parafiscalCommit,
         private readonly PersonnelIndexingCatalog $indexingCatalog,
         private readonly EnsurePersonnelCatalogService $personnelCatalog,
+        private readonly EmployeeIndexingQuota $indexingQuota,
     ) {}
 
     public function index(Request $request): View
     {
         $companyId = $this->companyId($request);
-        $q = $request->string('q')->toString();
-
-        return view('modules.company.personnel-documents.index', [
+        $q = trim($request->string('q')->toString());
+        $tenure = $this->tenureFilter($request);
+        $indexing = $this->indexingFilter($request);
+        $data = [
             'employees' => $this->employees->paginateForPersonnelDocuments(
                 $companyId,
                 $q !== '' ? $q : null,
+                24,
+                null,
+                null,
+                $tenure !== '' ? $tenure : null,
+                $indexing !== '' ? $indexing : null,
             ),
             'folderTotal' => count(DocumentFolder::cases()),
             'q' => $q,
-            'canUpload' => $this->canUpload($request),
-        ]);
+            'tenure' => $tenure,
+            'indexing' => $indexing,
+            'searching' => $q !== '' || $tenure !== '' || $indexing !== '',
+        ];
+
+        if ($request->ajax()) {
+            return view('modules.company.personnel-documents.partials.results', $data);
+        }
+
+        $data['canUpload'] = $this->canUpload($request);
+        $data['storageLabel'] = StorageUsage::label(StorageUsage::bytesForCompany($companyId));
+
+        return view('modules.company.personnel-documents.index', $data);
     }
 
     public function folder(Request $request, Employee $employee): View
@@ -93,17 +113,45 @@ final class PersonnelDocumentController extends Controller
             ];
         }
 
+        $canUpload = $this->canUpload($request);
+
         return view('modules.company.personnel-documents.folder', [
             'employee' => $employee,
-            'canUpload' => $this->canUpload($request),
+            'canUpload' => $canUpload && $employee->indexing_enabled,
+            'canManageIndexing' => $canUpload,
             'cargar' => $request->boolean('cargar'),
             'indexedChecklists' => $indexedChecklists,
         ]);
     }
 
+    public function toggleIndexing(Request $request, Employee $employee): RedirectResponse
+    {
+        $this->assertCompany($request, $employee);
+        abort_unless($this->canUpload($request), 403);
+
+        try {
+            if ($employee->indexing_enabled) {
+                $this->indexingQuota->disable($employee);
+                $message = 'Indexación desactivada. Los archivos se conservan.';
+            } else {
+                $this->indexingQuota->enable($employee);
+                $message = 'Indexación activada.';
+            }
+        } catch (ValidationException $exception) {
+            return redirect()
+                ->route('company.personnel-documents.folder', $employee)
+                ->with('error', $exception->validator->errors()->first('indexing') ?: 'No se pudo cambiar la indexación.');
+        }
+
+        return redirect()
+            ->route('company.personnel-documents.folder', $employee)
+            ->with('success', $message);
+    }
+
     public function storeBatch(StoreLaborHistoryBatchRequest $request, Employee $employee): RedirectResponse
     {
         $this->assertCompany($request, $employee);
+        $this->assertIndexingEnabled($employee);
         $file = $request->file('file');
         abort_if($file === null, 422);
 
@@ -145,6 +193,7 @@ final class PersonnelDocumentController extends Controller
     public function storeBatchIndex(IndexLaborHistoryRequest $request, Employee $employee, EmployeeDocumentBatch $batch): RedirectResponse
     {
         $this->assertCompany($request, $employee);
+        $this->assertIndexingEnabled($employee);
         $lote = $this->batchForEmployee($employee, $batch);
 
         $slices = [];
@@ -200,6 +249,7 @@ final class PersonnelDocumentController extends Controller
     public function markNa(MarkLaborHistoryNaRequest $request, Employee $employee, string $folder): RedirectResponse
     {
         $this->assertCompany($request, $employee);
+        $this->assertIndexingEnabled($employee);
         $resolved = DocumentFolder::tryFrom($folder);
         abort_if($resolved === null || $resolved === DocumentFolder::Otros || $resolved === DocumentFolder::Parafiscales, 404);
 
@@ -360,6 +410,31 @@ final class PersonnelDocumentController extends Controller
         $this->parafiscalCommit->abort($this->companyId($request), (int) $request->user()->id);
 
         return redirect()->route('company.personnel-documents.index');
+    }
+
+    private function assertIndexingEnabled(Employee $employee): void
+    {
+        if ($employee->indexing_enabled) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'indexing' => 'La indexación de este empleado está desactivada.',
+        ]);
+    }
+
+    private function tenureFilter(Request $request): string
+    {
+        $tenure = $request->string('tenure')->toString();
+
+        return in_array($tenure, ['lt1', 'y1_3', 'y3_5', 'gt5', 'none'], true) ? $tenure : '';
+    }
+
+    private function indexingFilter(Request $request): string
+    {
+        $indexing = $request->string('indexing')->toString();
+
+        return in_array($indexing, ['on', 'off'], true) ? $indexing : '';
     }
 
     private function canUpload(Request $request): bool

@@ -74,6 +74,11 @@ final class QuotaOverview
 
         $selection = PlanSelection::fromCompany($company);
         $employeesUsed = Employee::query()->where('security_company_id', $company->id)->where('is_active', true)->count();
+        $indexingUsed = Employee::query()
+            ->where('security_company_id', $company->id)
+            ->where('is_active', true)
+            ->where('indexing_enabled', true)
+            ->count();
         $lineOf = [
             CommercialProduct::Access->value => InstallationQuota::ACCESS,
             CommercialProduct::Supervision->value => InstallationQuota::SUPERVISION,
@@ -88,7 +93,7 @@ final class QuotaOverview
             $line = $lineOf[$product->value] ?? null;
             $capacity = $line !== null ? $quota->capacity($line) : $seats;
             $used = match ($product) {
-                CommercialProduct::Indexing => $employeesUsed,
+                CommercialProduct::Indexing => $indexingUsed,
                 default => $line !== null ? $quota->used($line) : 0,
             };
             $products[] = [

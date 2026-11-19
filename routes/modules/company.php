@@ -210,6 +210,7 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
             Route::get('/documents/parafiscales/progress', [PersonnelDocumentController::class, 'progressParafiscal'])->name('personnel-documents.parafiscales.progress');
             Route::post('/documents/parafiscales/cancel', [PersonnelDocumentController::class, 'cancelParafiscal'])->name('personnel-documents.parafiscales.cancel');
             Route::delete('/documents/file/{document}', [PersonnelDocumentController::class, 'destroy'])->name('personnel-documents.destroy');
+            Route::post('/documents/{employee}/indexing', [PersonnelDocumentController::class, 'toggleIndexing'])->whereNumber('employee')->name('personnel-documents.indexing');
             Route::post('/documents/{employee}/batches', [PersonnelDocumentController::class, 'storeBatch'])->name('personnel-documents.batch.create');
             Route::post('/documents/{employee}/batches/{batch}', [PersonnelDocumentController::class, 'storeBatchIndex'])->name('personnel-documents.batch.store');
             Route::post('/documents/{employee}/folders/{folder}/na', [PersonnelDocumentController::class, 'markNa'])->name('personnel-documents.na');

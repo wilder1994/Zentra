@@ -1,5 +1,6 @@
 @php
     $canUpload = $canUpload ?? false;
+    $canManageIndexing = $canManageIndexing ?? false;
     $canDownload = $canDownload ?? false;
     $cargar = $cargar ?? false;
     $indexRoute = $indexRoute ?? route('company.personnel-documents.index');
@@ -15,9 +16,20 @@
             <p class="text-xs uppercase tracking-wider text-slate-500">Carpeta del empleado</p>
             <h2 class="text-2xl font-semibold text-white">{{ $employee->fullName() }}</h2>
             <p class="text-sm text-slate-400">{{ $employee->document_type }} {{ $employee->document_number }}</p>
+            <p class="mt-1 text-xs {{ $employee->indexing_enabled ? 'text-emerald-300' : 'text-slate-500' }}">
+                Indexación {{ $employee->indexing_enabled ? 'activa' : 'desactivada' }}
+            </p>
         </div>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2">
             <x-ui.button variant="secondary" size="sm" :href="$indexRoute">Volver</x-ui.button>
+            @if ($canManageIndexing)
+                <form method="POST" action="{{ route('company.personnel-documents.indexing', $employee) }}">
+                    @csrf
+                    <button type="submit" class="inline-flex h-9 items-center justify-center rounded-lg border border-slate-700 px-4 text-sm font-medium text-slate-200 hover:bg-slate-800">
+                        {{ $employee->indexing_enabled ? 'Desactivar indexación' : 'Activar indexación' }}
+                    </button>
+                </form>
+            @endif
             @if ($canUpload)
                 <button class="inline-flex h-9 items-center justify-center rounded-lg bg-indigo-600 px-4 text-sm font-medium text-white hover:bg-indigo-500" type="button" data-open-upload>Cargar documentos</button>
             @endif

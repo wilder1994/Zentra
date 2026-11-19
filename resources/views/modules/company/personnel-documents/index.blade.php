@@ -1,75 +1,86 @@
 <x-company-layout title="Documentos">
-    @php
-        $hasPeople = $employees->isNotEmpty();
-        $searching = filled($q);
-    @endphp
-
-    <div class="space-y-4">
-        <div>
-            <p class="text-xs uppercase tracking-wider text-slate-500">Personal</p>
-            <h2 class="text-2xl font-semibold text-white">Carpetas de empleados</h2>
-            <p class="text-sm text-slate-400 mt-1">HV, contratación, certificados, cursos, afiliaciones, parafiscales y otros. No es la Normoteca de plataforma.</p>
-        </div>
-
-        <form method="get" class="flex flex-wrap items-end gap-2">
+    <div
+        class="space-y-4"
+        x-data="documentBrowser(@js([
+            'q' => $q,
+            'tenure' => $tenure,
+            'indexing' => $indexing,
+            'url' => route('company.personnel-documents.index'),
+        ]))"
+    >
+        <form method="get" action="{{ route('company.personnel-documents.index') }}" class="flex flex-wrap items-center gap-2" @submit.prevent="run()">
             <div class="min-w-[16rem] flex-1">
-                <x-ui.input name="q" :value="$q" placeholder="Nombre o cédula" />
+                <x-ui.input name="q" x-model="q" placeholder="Nombre o cédula" autocomplete="off" @input="schedule()" />
             </div>
-            <x-ui.button type="submit" variant="secondary" size="sm">Buscar</x-ui.button>
+            <div class="relative">
+                <button type="button" class="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-700 px-3 text-sm text-slate-200 hover:bg-slate-800" @click="open = !open" :class="tenure || indexing ? 'border-indigo-500 text-white' : ''">
+                    Filtros
+                </button>
+                <div x-show="open" x-cloak @click.outside="open = false" class="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-slate-700 bg-slate-900 p-3 shadow-xl">
+                    <label class="block text-xs text-slate-400">
+                        Antigüedad
+                        <select x-model="tenure" @change="run()" class="mt-1 h-9 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 text-sm text-white">
+                            <option value="">Todas</option>
+                            <option value="lt1">Menos de 1 año</option>
+                            <option value="y1_3">De 1 a 3 años</option>
+                            <option value="y3_5">De 3 a 5 años</option>
+                            <option value="gt5">Más de 5 años</option>
+                            <option value="none">Sin fecha de ingreso</option>
+                        </select>
+                    </label>
+                    <label class="mt-3 block text-xs text-slate-400">
+                        Indexación
+                        <select x-model="indexing" @change="run()" class="mt-1 h-9 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 text-sm text-white">
+                            <option value="">Todas</option>
+                            <option value="on">Activo</option>
+                            <option value="off">Desactivado</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+            <div class="shrink-0 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5">
+                <p class="text-xs uppercase tracking-wide text-slate-500 leading-none">Ocupado</p>
+                <p class="mt-1 text-sm font-semibold text-white leading-none">{{ $storageLabel }}</p>
+            </div>
             @if ($canUpload ?? false)
                 <x-ui.button type="button" size="sm" onclick="window.dispatchEvent(new CustomEvent('open-parafiscal-import'))">Carga masiva planilla</x-ui.button>
             @endif
         </form>
 
-        @if (! $hasPeople && ! $searching)
-            <div class="rounded-xl border border-slate-800 bg-slate-900/60 px-6 py-10 text-center">
-                <p class="text-white font-medium">No hay carpetas de personal</p>
-                <p class="text-sm text-slate-400 mt-1">Aparecen cuando hay empleados activos. Primero registra personal.</p>
-                <div class="mt-4">
-                    <x-ui.button :href="route('company.employees.index')" size="sm">Ir a Empleados</x-ui.button>
-                </div>
-            </div>
-        @else
-            <div class="rounded-lg border border-slate-800 overflow-hidden">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-slate-900/80 text-slate-400 text-xs uppercase">
-                        <tr>
-                            <th class="px-4 py-3 text-left">Cédula</th>
-                            <th class="px-4 py-3 text-left">Nombre</th>
-                            <th class="px-4 py-3 text-left">Carpetas</th>
-                            <th class="px-4 py-3 text-left">Documentos</th>
-                            <th class="px-4 py-3 text-left">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-800">
-                        @forelse ($employees as $employee)
-                            <tr class="bg-slate-950/40">
-                                <td class="px-4 py-3 text-slate-300">
-                                    <span class="text-slate-500">{{ $employee->document_type }}</span>
-                                    {{ $employee->document_number }}
-                                </td>
-                                <td class="px-4 py-3 text-white">{{ $employee->fullName() }}</td>
-                                <td class="px-4 py-3 text-slate-300">{{ (int) $employee->folders_count }}/{{ $folderTotal }}</td>
-                                <td class="px-4 py-3 text-slate-300">{{ (int) $employee->documents_count }}</td>
-                                <td class="px-4 py-3">
-                                    <a class="inline-flex items-center gap-2 text-indigo-300 hover:text-white" href="{{ route('company.personnel-documents.folder', $employee) }}">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-                                            <path fill="#818cf8" d="M3 7.25A1.75 1.75 0 0 1 4.75 5.5H9l1.7 1.7h8.55A1.75 1.75 0 0 1 21 8.95v9.3A1.75 1.75 0 0 1 19.25 20H4.75A1.75 1.75 0 0 1 3 18.25v-11Z"/>
-                                            <path fill="#a5b4fc" d="M3 9.5h18v8.75A1.75 1.75 0 0 1 19.25 20H4.75A1.75 1.75 0 0 1 3 18.25V9.5Z"/>
-                                        </svg>
-                                        Ver carpeta
-                                    </a>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="5" class="px-4 py-8 text-center text-slate-400">No hay coincidencias para esa búsqueda.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-            <div>{{ $employees->links() }}</div>
-        @endif
+        <div x-ref="results">
+            @include('modules.company.personnel-documents.partials.results')
+        </div>
     </div>
+
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('documentBrowser', (config) => ({
+                q: config.q || '',
+                tenure: config.tenure || '',
+                indexing: config.indexing || '',
+                open: false,
+                token: 0,
+                timer: null,
+                schedule() {
+                    clearTimeout(this.timer);
+                    this.timer = setTimeout(() => this.run(), 250);
+                },
+                async run() {
+                    const current = ++this.token;
+                    const url = new URL(config.url, window.location.origin);
+                    const term = this.q.trim();
+                    if (term !== '') url.searchParams.set('q', term);
+                    if (this.tenure) url.searchParams.set('tenure', this.tenure);
+                    if (this.indexing) url.searchParams.set('indexing', this.indexing);
+                    const res = await fetch(url, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'text/html' },
+                        credentials: 'same-origin',
+                    });
+                    if (current !== this.token || !res.ok) return;
+                    this.$refs.results.innerHTML = await res.text();
+                    window.history.replaceState({}, '', url);
+                },
+            }));
+        });
+    </script>
 </x-company-layout>

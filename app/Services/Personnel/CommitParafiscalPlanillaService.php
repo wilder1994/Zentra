@@ -64,6 +64,7 @@ final class CommitParafiscalPlanillaService
 
         $employees = Employee::query()
             ->where('security_company_id', $companyId)
+            ->where('indexing_enabled', true)
             ->get(['id', 'security_company_id', 'document_number']);
 
         $byDocument = [];

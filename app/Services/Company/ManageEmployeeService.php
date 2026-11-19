@@ -9,11 +9,16 @@ use App\Models\CompanyCollaboratorType;
 use App\Models\CompanyJobTitle;
 use App\Models\Employee;
 use App\Models\SecurityCompany;
+use App\Services\Personnel\EmployeeIndexingQuota;
 use App\Support\Catalog\CompanyEntitlements;
 use Illuminate\Validation\ValidationException;
 
 final class ManageEmployeeService
 {
+    public function __construct(
+        private readonly EmployeeIndexingQuota $indexingQuota,
+    ) {}
+
     public function create(SaveEmployeeData $data): Employee
     {
         $this->assertJobTitle($data);
@@ -24,6 +29,7 @@ final class ManageEmployeeService
 
         return Employee::query()->create($this->attributes($data) + [
             'is_active' => true,
+            'indexing_enabled' => $this->indexingQuota->canEnable($data->securityCompanyId),
             'ceased_at' => null,
         ]);
     }
@@ -64,8 +70,14 @@ final class ManageEmployeeService
 
         $this->assertEmployeeCap((int) $employee->security_company_id, 'No puedes restaurar este empleado:');
 
+        $indexing = (bool) $employee->indexing_enabled;
+        if ($indexing && ! $this->indexingQuota->canEnable((int) $employee->security_company_id)) {
+            $indexing = false;
+        }
+
         $employee->update([
             'is_active' => true,
+            'indexing_enabled' => $indexing,
             'ceased_at' => null,
         ]);
 

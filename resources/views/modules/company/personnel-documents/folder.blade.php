@@ -3,6 +3,7 @@
         'employee' => $employee,
         'indexedChecklists' => $indexedChecklists,
         'canUpload' => $canUpload,
+        'canManageIndexing' => $canManageIndexing ?? false,
         'canDownload' => $canUpload,
         'cargar' => $cargar,
         'indexRoute' => route('company.personnel-documents.index'),
