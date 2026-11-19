@@ -20,7 +20,7 @@ final class FolderChecklist
     public static function for(Employee $employee, DocumentFolder $folder): array
     {
         $files = $employee->documents
-            ->filter(fn (EmployeeDocument $doc) => $doc->folder === $folder)
+            ->filter(fn (EmployeeDocument $doc) => (string) $doc->folder === $folder->value)
             ->values();
 
         if ($folder === DocumentFolder::Otros || $folder === DocumentFolder::Parafiscales) {
@@ -51,7 +51,7 @@ final class FolderChecklist
 
             if ($match === null && $folder === DocumentFolder::Certificados) {
                 $match = $employee->documents->first(
-                    fn (EmployeeDocument $doc) => $doc->folder === DocumentFolder::HojaVida
+                    fn (EmployeeDocument $doc) => (string) $doc->folder === DocumentFolder::HojaVida->value
                         && $doc->document_type === $type->value,
                 );
             }

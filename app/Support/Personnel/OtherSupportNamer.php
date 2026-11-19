@@ -111,7 +111,7 @@ final class OtherSupportNamer
     public static function loadedCount(Employee $employee): int
     {
         return $employee->documents
-            ->filter(fn (EmployeeDocument $doc) => $doc->folder === DocumentFolder::Otros && $doc->hasFile())
+            ->filter(fn (EmployeeDocument $doc) => (string) $doc->folder === DocumentFolder::Otros->value && $doc->hasFile())
             ->count();
     }
 

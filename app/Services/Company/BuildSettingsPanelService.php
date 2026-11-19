@@ -22,6 +22,7 @@ use App\Models\SupervisorUniformItem;
 use App\Models\SupervisorWeaponBrand;
 use App\Models\SupervisorWeaponType;
 use App\Models\SupervisorZone;
+use App\Http\Controllers\Company\PersonnelFolderController;
 use App\Models\User;
 use App\Support\Company\SettingsCatalog;
 use Illuminate\Support\Collection;
@@ -78,6 +79,7 @@ final class BuildSettingsPanelService
     private function viewFor(string $key): string
     {
         return match ($key) {
+            'expediente' => 'modules.company.settings.panels.personnel-folders',
             'perfiles' => 'modules.company.settings.panels.profiles',
             'zonas' => 'modules.company.settings.panels.zones',
             'preop' => 'modules.company.settings.panels.preop',
@@ -91,6 +93,7 @@ final class BuildSettingsPanelService
     private function payload(string $key, int $companyId, bool $canManage): array
     {
         return match ($key) {
+            'expediente' => app(PersonnelFolderController::class)->panelData($companyId),
             'cargos' => $this->named(
                 CompanyJobTitle::query()->where('security_company_id', $companyId)->withCount('employees')->orderBy('sort_order')->orderBy('name')->get(),
                 'company.job-titles',

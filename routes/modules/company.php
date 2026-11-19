@@ -20,6 +20,7 @@ use App\Http\Controllers\Company\ObservatoryEventController;
 use App\Http\Controllers\Company\ObservatoryReportTypeController;
 use App\Http\Controllers\Company\PanicAttentionController;
 use App\Http\Controllers\Company\PersonnelDocumentController;
+use App\Http\Controllers\Company\PersonnelFolderController;
 use App\Http\Controllers\Company\PorteriaController;
 use App\Http\Controllers\Company\QuotaRequestController;
 use App\Http\Controllers\Company\SettingsController;
@@ -217,6 +218,18 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
         Route::middleware('permission:company.settings.view|company.settings.manage')->group(function () {
             Route::get('/ajustes', [SettingsHubController::class, 'index'])->name('settings.hub');
             Route::get('/ajustes/panel/{catalog}', [SettingsHubController::class, 'panel'])->name('settings.hub.panel');
+
+            Route::get('/personnel-folders', [PersonnelFolderController::class, 'index'])->name('personnel-folders.index');
+            Route::post('/personnel-folders', [PersonnelFolderController::class, 'store'])->name('personnel-folders.store');
+            Route::put('/personnel-folders/{personnelFolder}', [PersonnelFolderController::class, 'update'])->name('personnel-folders.update');
+            Route::post('/personnel-folders/{personnelFolder}/deactivate', [PersonnelFolderController::class, 'deactivate'])->name('personnel-folders.deactivate');
+            Route::post('/personnel-folders/{personnelFolder}/activate', [PersonnelFolderController::class, 'activate'])->name('personnel-folders.activate');
+            Route::delete('/personnel-folders/{personnelFolder}', [PersonnelFolderController::class, 'destroy'])->name('personnel-folders.destroy');
+            Route::post('/personnel-folders/{personnelFolder}/types', [PersonnelFolderController::class, 'storeType'])->name('personnel-folders.types.store');
+            Route::put('/personnel-folder-types/{personnelFolderType}', [PersonnelFolderController::class, 'updateType'])->name('personnel-folder-types.update');
+            Route::post('/personnel-folder-types/{personnelFolderType}/deactivate', [PersonnelFolderController::class, 'deactivateType'])->name('personnel-folder-types.deactivate');
+            Route::post('/personnel-folder-types/{personnelFolderType}/activate', [PersonnelFolderController::class, 'activateType'])->name('personnel-folder-types.activate');
+            Route::delete('/personnel-folder-types/{personnelFolderType}', [PersonnelFolderController::class, 'destroyType'])->name('personnel-folder-types.destroy');
 
             Route::get('/job-titles', [JobTitleController::class, 'index'])->name('job-titles.index');
             Route::post('/job-titles', [JobTitleController::class, 'store'])->name('job-titles.store');

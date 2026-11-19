@@ -36,7 +36,7 @@
                         </svg>
                     </div>
                     <div class="min-w-0">
-                        <p class="font-medium text-white">{{ $block['folder']->label() }}</p>
+                        <p class="font-medium text-white">{{ $block['label'] ?? $block['folder']->label() }}</p>
                         <p class="text-xs text-slate-400">{{ \App\Support\Personnel\FolderChecklist::countLabel($block['summary']) }}</p>
                     </div>
                     <button class="folder-link" type="button" data-open-folder="{{ $block['panel'] }}">Abrir</button>
@@ -61,7 +61,7 @@
         <div class="folder-frame" data-folder-pane="{{ $block['panel'] }}" hidden>
             <div class="preview-bar">
                 <span class="folder-modal-title">
-                    {{ $block['folder']->label() }}
+                    {{ $block['label'] ?? $block['folder']->label() }}
                     <span class="text-slate-400 font-normal"> · {{ \App\Support\Personnel\FolderChecklist::countLabel($block['summary']) }}</span>
                 </span>
                 <button class="folder-link" type="button" data-close-folder>Cerrar</button>

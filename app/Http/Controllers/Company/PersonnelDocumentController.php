@@ -14,9 +14,13 @@ use App\Http\Requests\Personnel\StoreLaborHistoryBatchRequest;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\EmployeeDocumentBatch;
+use App\Models\PersonnelFolder;
+use App\Models\PersonnelFolderType;
 use App\Models\SecurityCompany;
 use App\Repositories\EmployeeRepository;
 use App\Services\Personnel\CommitParafiscalPlanillaService;
+use App\Services\Personnel\EnsurePersonnelCatalogService;
+use App\Services\Personnel\PersonnelIndexingCatalog;
 use App\Services\Personnel\DeleteEmployeeDocumentService;
 use App\Services\Personnel\IndexLaborHistoryPdfService;
 use App\Services\Personnel\MarkLaborHistoryNotApplicableService;
@@ -48,6 +52,8 @@ final class PersonnelDocumentController extends Controller
         private readonly DeleteEmployeeDocumentService $deleteDocument,
         private readonly PreviewParafiscalPlanillaService $parafiscalPreview,
         private readonly CommitParafiscalPlanillaService $parafiscalCommit,
+        private readonly PersonnelIndexingCatalog $indexingCatalog,
+        private readonly EnsurePersonnelCatalogService $personnelCatalog,
     ) {}
 
     public function index(Request $request): View
@@ -70,11 +76,16 @@ final class PersonnelDocumentController extends Controller
     {
         $this->assertCompany($request, $employee);
         $employee->load('documents');
+        $this->personnelCatalog->ensure((int) $employee->security_company_id);
+        $names = PersonnelFolder::query()
+            ->where('security_company_id', $employee->security_company_id)
+            ->pluck('name', 'slug');
 
         $indexedChecklists = [];
         foreach (DocumentFolder::cases() as $folder) {
             $indexedChecklists[] = [
                 'folder' => $folder,
+                'label' => (string) ($names[$folder->value] ?? $folder->label()),
                 'rows' => FolderChecklist::for($employee, $folder),
                 'summary' => FolderChecklist::summary($employee, $folder),
                 'panel' => $folder->value.'-list',
@@ -126,21 +137,7 @@ final class PersonnelDocumentController extends Controller
                 'reserved' => OtherSupportNamer::reserved($employee),
                 'existing_count' => OtherSupportNamer::loadedCount($employee),
                 'max_others' => OtherDocumentType::MAX,
-                'catalogs' => collect(DocumentFolder::cases())
-                    ->filter(fn (DocumentFolder $folder) => $folder->isIndexed())
-                    ->map(fn (DocumentFolder $folder) => [
-                        'value' => $folder->value,
-                        'label' => $folder->label(),
-                        'course_fields' => $folder === DocumentFolder::Cursos,
-                        'other_fields' => $folder === DocumentFolder::Otros,
-                        'types' => collect(IndexedFolder::types($folder))->map(fn ($type) => [
-                            'value' => $type->value,
-                            'label' => $type->label(),
-                            'name' => $type->suggestedName($employee),
-                            'req' => $type->requirement()->label(),
-                            'other' => method_exists($type, 'isRepeatable') && $type->isRepeatable(),
-                        ])->values(),
-                    ])->values(),
+                'catalogs' => $this->indexingCatalog->forEmployee($employee),
             ],
         ]);
     }
@@ -161,10 +158,22 @@ final class PersonnelDocumentController extends Controller
                 }
             }
 
-            $folder = DocumentFolder::from($row['folder']);
+            $stored = PersonnelFolder::query()
+                ->where('security_company_id', $employee->security_company_id)
+                ->where('slug', $row['folder'])
+                ->where('is_active', true)
+                ->with('types')
+                ->first();
+            abort_if($stored === null, 422);
+            $type = $stored->types->first(
+                fn (PersonnelFolderType $item): bool => $item->slug === $row['document_type'] && $item->is_active,
+            );
+            abort_if($type === null, 422);
             $slices[] = [
-                'folder' => $folder,
-                'type' => IndexedFolder::resolve($folder, $row['document_type']),
+                'folder' => $stored->slug,
+                'type_slug' => $type->slug,
+                'repeatable' => $type->is_repeatable,
+                'fallback_name' => $this->indexingCatalog->suggestedName($stored, $type, $employee),
                 'display_name' => $row['display_name'],
                 'pages' => $pages,
                 'taken_on' => $row['taken_on'] ?? null,

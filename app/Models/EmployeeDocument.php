@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Casts\PersonnelFolderSlugCast;
 use App\Enums\AffiliationDocumentType;
 use App\Enums\CertificateDocumentType;
 use App\Enums\ContractingDocumentType;
@@ -44,7 +45,7 @@ final class EmployeeDocument extends Model
     protected function casts(): array
     {
         return [
-            'folder' => DocumentFolder::class,
+            'folder' => PersonnelFolderSlugCast::class,
             'document_type' => 'string',
             'not_applicable' => 'boolean',
             'page_from' => 'integer',
@@ -63,12 +64,13 @@ final class EmployeeDocument extends Model
 
     public function typed(): LaborHistoryDocumentType|AffiliationDocumentType|CertificateDocumentType|ContractingDocumentType|CourseDocumentType|OtherDocumentType|ParafiscalDocumentType|null
     {
-        if (! is_string($this->document_type) || $this->document_type === '' || $this->folder === null) {
+        $folder = DocumentFolder::tryFrom((string) $this->folder);
+        if (! is_string($this->document_type) || $this->document_type === '' || $folder === null) {
             return null;
         }
 
         try {
-            return IndexedFolder::resolve($this->folder, $this->document_type);
+            return IndexedFolder::resolve($folder, $this->document_type);
         } catch (InvalidArgumentException) {
             return null;
         }

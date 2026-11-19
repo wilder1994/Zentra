@@ -23,7 +23,7 @@ use setasign\Fpdi\Fpdi;
 final class IndexLaborHistoryPdfService
 {
     /**
-     * @param  list<array{folder?: DocumentFolder, type: LaborHistoryDocumentType|AffiliationDocumentType|CertificateDocumentType|ContractingDocumentType|CourseDocumentType|OtherDocumentType, display_name: string, pages: list<int>, taken_on?: ?string, provider?: ?string, tipo?: ?string}>  $slices
+     * @param  list<array{folder?: DocumentFolder|string, type?: LaborHistoryDocumentType|AffiliationDocumentType|CertificateDocumentType|ContractingDocumentType|CourseDocumentType|OtherDocumentType, type_slug?: string, repeatable?: bool, fallback_name?: string, display_name: string, pages: list<int>, taken_on?: ?string, provider?: ?string, tipo?: ?string}>  $slices
      * @return list<EmployeeDocument>
      */
     public function execute(EmployeeDocumentBatch $batch, Employee $employee, array $slices): array
@@ -42,19 +42,26 @@ final class IndexLaborHistoryPdfService
     }
 
     /**
-     * @param  array{folder?: DocumentFolder, type: LaborHistoryDocumentType|AffiliationDocumentType|CertificateDocumentType|ContractingDocumentType|CourseDocumentType|OtherDocumentType, display_name: string, pages: list<int>, taken_on?: ?string, provider?: ?string, tipo?: ?string}  $slice
+     * @param  array{folder?: DocumentFolder|string, type?: LaborHistoryDocumentType|AffiliationDocumentType|CertificateDocumentType|ContractingDocumentType|CourseDocumentType|OtherDocumentType, type_slug?: string, repeatable?: bool, fallback_name?: string, display_name: string, pages: list<int>, taken_on?: ?string, provider?: ?string, tipo?: ?string}  $slice
      */
     private function storeSlice(EmployeeDocumentBatch $batch, Employee $employee, string $source, array $slice): EmployeeDocument
     {
         $pages = $this->normalizePages($slice['pages'], $batch->page_count);
-        $folder = $slice['folder'] ?? $batch->folder ?? DocumentFolder::HojaVida;
+        $folderValue = $slice['folder'] ?? $batch->folder ?? DocumentFolder::HojaVida->value;
+        $folder = $folderValue instanceof DocumentFolder ? $folderValue->value : (string) $folderValue;
+        $type = $slice['type'] ?? null;
+        $typeSlug = is_object($type) ? $type->value : (string) ($slice['type_slug'] ?? '');
+        $repeatable = is_object($type)
+            ? method_exists($type, 'isRepeatable') && $type->isRepeatable()
+            : (bool) ($slice['repeatable'] ?? false);
+        $fallbackName = is_object($type) ? $type->suggestedName($employee) : (string) ($slice['fallback_name'] ?? $typeSlug);
 
         $relative = sprintf(
             'companies/%d/employees/%d/%s/%s-%s.pdf',
             $employee->security_company_id,
             $employee->id,
-            $folder->value,
-            $slice['type']->value,
+            $folder,
+            $typeSlug,
             Str::uuid()->toString(),
         );
         $absolute = storage_path('app/'.$relative);
@@ -62,7 +69,7 @@ final class IndexLaborHistoryPdfService
 
         $this->extractPages($source, $absolute, $pages, $batch->page_count);
 
-        $name = $slice['display_name'] !== '' ? $slice['display_name'] : $slice['type']->suggestedName($employee);
+        $name = $slice['display_name'] !== '' ? $slice['display_name'] : $fallbackName;
         if (! str_ends_with(strtolower($name), '.pdf')) {
             $name .= '.pdf';
         }
@@ -71,12 +78,11 @@ final class IndexLaborHistoryPdfService
             $label = $name;
         }
 
-        $repeatable = method_exists($slice['type'], 'isRepeatable') && $slice['type']->isRepeatable();
         if (! $repeatable) {
             EmployeeDocument::query()
                 ->where('employee_id', $employee->id)
                 ->where('folder', $folder)
-                ->where('document_type', $slice['type']->value)
+                ->where('document_type', $typeSlug)
                 ->delete();
         }
 
@@ -84,7 +90,7 @@ final class IndexLaborHistoryPdfService
             'security_company_id' => $employee->security_company_id,
             'employee_id' => $employee->id,
             'folder' => $folder,
-            'document_type' => $slice['type']->value,
+            'document_type' => $typeSlug,
             'display_name' => $label,
             'page_from' => $pages[0],
             'page_to' => $pages[array_key_last($pages)],

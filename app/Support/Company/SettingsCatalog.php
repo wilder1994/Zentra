@@ -26,6 +26,11 @@ final class SettingsCatalog
                         'blurb' => 'Clasificación operativa del empleado.',
                         'route' => 'company.collaborator-types.index',
                     ],
+                    'expediente' => [
+                        'label' => 'Carpetas de expediente',
+                        'blurb' => 'Carpetas y tipos de selección al indexar documentos.',
+                        'route' => 'company.personnel-folders.index',
+                    ],
                     'presentacion' => [
                         'label' => 'Presentación personal',
                         'blurb' => 'Ítems de uniforme en revistas.',

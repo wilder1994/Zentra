@@ -7,12 +7,11 @@ namespace App\Http\Requests\Personnel;
 use App\Enums\DocumentFolder;
 use App\Enums\OtherDocumentType;
 use App\Models\EmployeeDocumentBatch;
-use App\Support\Personnel\IndexedFolder;
+use App\Models\PersonnelFolder;
+use App\Services\Personnel\EnsurePersonnelCatalogService;
 use App\Support\Personnel\OtherSupportNamer;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
-use InvalidArgumentException;
 
 final class IndexLaborHistoryRequest extends FormRequest
 {
@@ -26,7 +25,7 @@ final class IndexLaborHistoryRequest extends FormRequest
     {
         return [
             'slices' => ['required', 'array', 'min:1'],
-            'slices.*.folder' => ['required', Rule::enum(DocumentFolder::class)],
+            'slices.*.folder' => ['required', 'string', 'max:32'],
             'slices.*.document_type' => ['required', 'string'],
             'slices.*.display_name' => ['required', 'string', 'max:180'],
             'slices.*.tipo' => ['nullable', 'string', 'max:80'],
@@ -44,6 +43,10 @@ final class IndexLaborHistoryRequest extends FormRequest
             $batchId = $routeBatch instanceof EmployeeDocumentBatch ? $routeBatch->id : (int) $routeBatch;
             $batch = EmployeeDocumentBatch::query()->with('employee.documents')->find($batchId);
             $employee = $batch?->employee;
+            $companyId = (int) ($employee->security_company_id ?? 0);
+            if ($companyId > 0) {
+                app(EnsurePersonnelCatalogService::class)->ensure($companyId);
+            }
             $seenTipos = [];
             $otrosIncoming = 0;
 
@@ -53,26 +56,31 @@ final class IndexLaborHistoryRequest extends FormRequest
                     $validator->errors()->add('slices.'.$index.'.pages', 'Hay páginas repetidas en este corte.');
                 }
 
-                $folder = DocumentFolder::tryFrom((string) ($slice['folder'] ?? ''));
-                if ($folder === null) {
+                $stored = $companyId > 0
+                    ? PersonnelFolder::query()
+                        ->where('security_company_id', $companyId)
+                        ->where('slug', (string) ($slice['folder'] ?? ''))
+                        ->first()
+                    : null;
+                if ($stored === null || ! $stored->is_active) {
+                    $validator->errors()->add('slices.'.$index.'.folder', 'Carpeta no disponible.');
+
                     continue;
                 }
 
-                if (isset($slice['document_type'])) {
-                    try {
-                        IndexedFolder::resolve($folder, (string) $slice['document_type']);
-                    } catch (InvalidArgumentException) {
-                        $validator->errors()->add('slices.'.$index.'.document_type', 'Tipo no válido para esta carpeta.');
-                    }
+                $typeSlug = (string) ($slice['document_type'] ?? '');
+                $typeActive = $typeSlug !== '' && $stored->types()->where('slug', $typeSlug)->where('is_active', true)->exists();
+                if (! $typeActive) {
+                    $validator->errors()->add('slices.'.$index.'.document_type', 'Tipo no válido para esta carpeta.');
                 }
 
-                if ($folder === DocumentFolder::Parafiscales) {
+                if ($stored->behavior === PersonnelFolder::PARAFISCAL) {
                     $validator->errors()->add('slices.'.$index.'.folder', 'Las planillas se cargan con Carga masiva planilla, no desde el PDF.');
 
                     continue;
                 }
 
-                if ($folder === DocumentFolder::Cursos) {
+                if ($stored->behavior === PersonnelFolder::COURSE) {
                     if (blank($slice['taken_on'] ?? null)) {
                         $validator->errors()->add('slices.'.$index.'.taken_on', 'La fecha del curso es obligatoria.');
                     }
@@ -81,7 +89,7 @@ final class IndexLaborHistoryRequest extends FormRequest
                     }
                 }
 
-                if ($folder !== DocumentFolder::Otros || $employee === null) {
+                if ($stored->behavior !== PersonnelFolder::OTHER || $employee === null) {
                     continue;
                 }
 
@@ -109,7 +117,7 @@ final class IndexLaborHistoryRequest extends FormRequest
                 }
 
                 foreach ($employee->documents as $existing) {
-                    if ($existing->folder !== DocumentFolder::Otros || ! $existing->hasFile()) {
+                    if ((string) $existing->folder !== DocumentFolder::Otros->value || ! $existing->hasFile()) {
                         continue;
                     }
                     if (OtherSupportNamer::normalize((string) $existing->display_name) === $tipoKey) {
