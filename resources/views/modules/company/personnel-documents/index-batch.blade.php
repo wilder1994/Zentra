@@ -1,52 +1,58 @@
-<x-company-layout :title="'Indexar · '.$employee->fullName()">
+<x-company-layout :title="'Indexar expediente · '.$employee->fullName()">
+    <x-slot:header>
+        <p class="truncate text-base font-semibold text-white">
+            Indexar expediente
+            <span class="font-normal text-slate-500"> · </span>{{ $employee->fullName() }}
+            <span class="font-normal text-slate-500"> · </span><span class="font-normal text-slate-300">{{ $employee->document_type }} {{ $employee->document_number }}</span>
+        </p>
+        <p class="truncate mt-0.5 text-xs text-slate-400">
+            {{ $batch->original_name }}
+            <span> · </span><span id="pages-remaining">{{ $batch->page_count }} página{{ $batch->page_count === 1 ? '' : 's' }}</span>
+        </p>
+    </x-slot:header>
+
     <section class="index-workspace personnel-docs">
-        <div class="index-side">
-            <article class="rounded-xl border border-slate-800 bg-slate-900/60 px-5 py-4">
-                <p class="text-xs uppercase tracking-wider text-slate-500">Expediente</p>
-                <h2 class="text-xl font-semibold text-white mt-1">Indexar lote</h2>
-                <p class="text-sm text-slate-400 mt-1">{{ $employee->fullName() }} · {{ $employee->document_type }} {{ $employee->document_number }}</p>
-                <p class="text-sm text-slate-400">{{ $batch->original_name }} · <span id="pages-remaining">{{ $batch->page_count }} página{{ $batch->page_count === 1 ? '' : 's' }}</span></p>
-                <p class="text-xs text-slate-500 mt-2">Marque las páginas (clic; Shift+clic para un tramo). Elija carpeta y tipo, luego agrégalo a la lista.</p>
+        <form method="post" action="{{ $storeUrl }}" id="index-form" class="index-side">
+            @csrf
+            <article class="index-criteria rounded-xl border border-slate-800 bg-slate-900/60 px-5 py-4">
+                <div class="space-y-3">
+                    <p class="text-sm text-slate-400" id="page-hint">Ninguna página seleccionada.</p>
+                    @if ($errors->any())
+                        <p class="text-sm text-rose-400">{{ $errors->first() }}</p>
+                    @endif
+                    <label class="block text-sm text-slate-300">Carpeta
+                        <select id="slice-folder" class="mt-1 w-full h-9 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm"></select>
+                    </label>
+                    <label class="block text-sm text-slate-300" id="type-field">Tipo para la selección
+                        <select id="slice-type" class="mt-1 w-full h-9 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm"></select>
+                    </label>
+                    <label class="block text-sm text-slate-300" id="tipo-field" hidden>Tipo
+                        <input id="slice-tipo" maxlength="80" placeholder="Ej. RUT Cámara de Comercio" class="mt-1 w-full h-9 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm">
+                    </label>
+                    <label class="block text-sm text-slate-300">Nombre
+                        <input id="slice-name" required class="mt-1 w-full h-9 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm">
+                    </label>
+                    <div id="course-fields" hidden class="space-y-3">
+                        <label class="block text-sm text-slate-300">Fecha del curso
+                            <input type="date" id="slice-taken-on" class="mt-1 w-full h-9 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm">
+                        </label>
+                        <label class="block text-sm text-slate-300">Entidad que dicta el curso
+                            <input id="slice-provider" class="mt-1 w-full h-9 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm">
+                        </label>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button class="inline-flex h-9 items-center justify-center rounded-lg border border-slate-700 px-4 text-sm text-slate-200 hover:bg-slate-800" type="button" id="add-slice">Agregar a la lista</button>
+                        <button class="inline-flex h-9 items-center justify-center rounded-lg bg-indigo-600 px-4 text-sm font-medium text-white hover:bg-indigo-500" type="submit">Guardar indexación</button>
+                        <a class="inline-flex h-9 items-center justify-center rounded-lg border border-slate-700 px-4 text-sm text-slate-200 hover:bg-slate-800" href="{{ route('company.personnel-documents.folder', $employee) }}">Cancelar</a>
+                    </div>
+                </div>
             </article>
 
-            <article class="rounded-xl border border-slate-800 bg-slate-900/60 px-5 py-4">
-                <form method="post" action="{{ $storeUrl }}" id="index-form">
-                    @csrf
-                    <div class="space-y-3">
-                        <p class="text-sm text-slate-400" id="page-hint">Ninguna página seleccionada.</p>
-                        @if ($errors->any())
-                            <p class="text-sm text-rose-400">{{ $errors->first() }}</p>
-                        @endif
-                        <label class="block text-sm text-slate-300">Carpeta
-                            <select id="slice-folder" class="mt-1 w-full h-9 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm"></select>
-                        </label>
-                        <label class="block text-sm text-slate-300" id="type-field">Tipo para la selección
-                            <select id="slice-type" class="mt-1 w-full h-9 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm"></select>
-                        </label>
-                        <label class="block text-sm text-slate-300" id="tipo-field" hidden>Tipo
-                            <input id="slice-tipo" maxlength="80" placeholder="Ej. RUT Cámara de Comercio" class="mt-1 w-full h-9 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm">
-                        </label>
-                        <label class="block text-sm text-slate-300">Nombre
-                            <input id="slice-name" required class="mt-1 w-full h-9 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm">
-                        </label>
-                        <div id="course-fields" hidden class="space-y-3">
-                            <label class="block text-sm text-slate-300">Fecha del curso
-                                <input type="date" id="slice-taken-on" class="mt-1 w-full h-9 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm">
-                            </label>
-                            <label class="block text-sm text-slate-300">Entidad que dicta el curso
-                                <input id="slice-provider" class="mt-1 w-full h-9 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm">
-                            </label>
-                        </div>
-                        <div class="flex flex-wrap gap-2">
-                            <button class="inline-flex h-9 items-center justify-center rounded-lg border border-slate-700 px-4 text-sm text-slate-200 hover:bg-slate-800" type="button" id="add-slice">Agregar a la lista</button>
-                            <button class="inline-flex h-9 items-center justify-center rounded-lg bg-indigo-600 px-4 text-sm font-medium text-white hover:bg-indigo-500" type="submit">Guardar indexación</button>
-                            <a class="inline-flex h-9 items-center justify-center rounded-lg border border-slate-700 px-4 text-sm text-slate-200 hover:bg-slate-800" href="{{ route('company.personnel-documents.folder', $employee) }}">Cancelar</a>
-                        </div>
-                    </div>
-                    <div id="slice-rows" class="index-slice-list"></div>
-                </form>
-            </article>
-        </div>
+            <section class="index-history rounded-xl border border-slate-800 bg-slate-900/60 px-5 py-4" aria-label="Documentos en la lista">
+                <p class="text-xs uppercase tracking-wider text-slate-500">En la lista</p>
+                <div id="slice-rows" class="index-slice-list"></div>
+            </section>
+        </form>
 
         <article class="rounded-xl border border-slate-800 bg-slate-900/60 px-5 py-4 min-h-0">
             <p class="text-xs uppercase tracking-wider text-slate-500 mb-3">Páginas por indexar</p>

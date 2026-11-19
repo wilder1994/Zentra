@@ -55,7 +55,7 @@ final class PersonnelDocumentTest extends TestCase
         $this->actingAs($admin)
             ->get(route('company.personnel-documents.batch.index', [$employee, $batch]))
             ->assertOk()
-            ->assertSee('Indexar lote')
+            ->assertSee('Indexar expediente')
             ->assertSee('Historia Laboral');
 
         $this->actingAs($admin)
