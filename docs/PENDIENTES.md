@@ -55,6 +55,10 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 19 nov 2026 · Política pública del WhatsApp del observatorio
+- `GET /privacidad` para la URL que Meta exige al publicar la app Observatorio SJ.
+- Cubre el número 310, el texto, la hora y el correo `soporte.admin@sjp.com.co`. No abre reportes ni toca el 315 ni el 555.
+
 ### 9 nov 2026 · Portería multi-auth + km Resumen/PPTX + periodo + Echo prod (commit `be40fc4`)
 - Portería: lookup por cédula une invitados del cliente con visitante global; varias autorizaciones vigentes → selector de destino; `block_reason` seguro si `selected` es null.
 - Visitante unique global: `ManageAuthorizationService::resolveVisitor` sin ClientScope + reintento UniqueConstraint.

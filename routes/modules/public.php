@@ -6,6 +6,7 @@ use App\Http\Controllers\Public\AuthorizationPassController;
 use App\Http\Controllers\Public\ObservatoryApiDocsController;
 use App\Http\Controllers\Public\ObservatoryIntakeController;
 use App\Http\Controllers\Public\PlansController;
+use App\Http\Controllers\Public\PrivacyPolicyController;
 use App\Http\Controllers\Public\SignupCheckoutController;
 use App\Http\Controllers\Public\SignupController;
 use App\Support\Geo\CaliComunaLayer;
@@ -15,6 +16,8 @@ Route::get('/docs/observatory', [ObservatoryApiDocsController::class, 'page'])
     ->middleware(['auth', 'active', 'platform.admin'])
     ->name('observatory.docs');
 Route::get('/geo/cali-comunas.geojson', fn () => app(CaliComunaLayer::class)->download())->name('geo.cali-comunas');
+
+Route::get('/privacidad', PrivacyPolicyController::class)->name('privacy');
 
 Route::get('/q/{token}', AuthorizationPassController::class)
     ->where('token', '[A-Za-z0-9]{16,64}')
