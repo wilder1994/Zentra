@@ -4,6 +4,13 @@ Lista viva de lo definido y **no implementado**. Al implementar, mover a «Hecho
 
 ## Abiertos
 
+### 9. Observatorio: clasificar mensajes de WhatsApp
+Definido 19 nov 2026. El buzón `POST /api/webhooks/meta` guarda el mensaje del número 310 y no abre reportes.
+
+- Cuando un mensaje de prueba quede guardado, clasificar el texto contra los tipos de la Secretaría.
+- Si el colegio y el tipo son claros, llamar a `SubmitObservatoryReportService` (ventana de 60 minutos). Si no, bandeja de revisión.
+- Messenger e Instagram quedan para después. No tocar el 315 ni el 555.
+
 ### 8. FCM_SERVER_KEY + Firebase en APK residentes (push)
 Definido 9 nov 2026. Código listo (`SendResidentPushService`); en VPS `FCM_SERVER_KEY=` vacío a propósito.
 

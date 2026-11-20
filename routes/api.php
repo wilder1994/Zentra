@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\MetaWebhookController;
 use App\Http\Controllers\Api\CorrespondenceController;
 use App\Http\Controllers\Api\Resident\AuthController as ResidentAuthController;
 use App\Http\Controllers\Api\Resident\DeviceController as ResidentDeviceController;
@@ -17,6 +18,9 @@ use App\Http\Controllers\Api\SupervisorTrainingController;
 use App\Http\Controllers\Api\VisitorController;
 use App\Http\Controllers\Public\ObservatoryApiDocsController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/webhooks/meta', [MetaWebhookController::class, 'verify']);
+Route::post('/webhooks/meta', [MetaWebhookController::class, 'store']);
 
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/supervision/login', [SupervisorShiftController::class, 'login']);
