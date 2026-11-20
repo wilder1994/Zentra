@@ -5,7 +5,7 @@ Lista viva de lo definido y **no implementado**. Al implementar, mover a «Hecho
 ## Abiertos
 
 ### 9. Observatorio: clasificar mensajes de WhatsApp
-Definido 19 nov 2026. El buzón `POST /api/webhooks/meta` guarda el mensaje del número 310 y no abre reportes.
+Definido 19 nov 2026. El buzón ya guarda los mensajes del 310 (`META_PHONE_NUMBER_ID=1390897910781326`). El 19 nov a las 21:50 quedó el texto «Wilder». No abre reportes.
 
 - Cuando un mensaje de prueba quede guardado, clasificar el texto contra los tipos de la Secretaría.
 - Si el colegio y el tipo son claros, llamar a `SubmitObservatoryReportService` (ventana de 60 minutos). Si no, bandeja de revisión.
@@ -54,6 +54,12 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 - Detalle: [`EMPLEADOS-Y-CARGOS.md`](EMPLEADOS-Y-CARGOS.md) (Parafiscales).
 
 ## Hecho
+
+### 19 nov 2026 · Buzón WhatsApp del Observatorio (commits `4d361ba`, `dce4e49`, `c087da2`)
+- `GET/POST /api/webhooks/meta` guarda el texto del 310. Firma HMAC. Otro número responde 200 y no se guarda.
+- La cuenta Observatorio SJ quedó suscrita a la app. El id real del 310 es `1390897910781326` (solo en `.env` del VPS, no en git).
+- `GET /privacidad` es la URL que Meta pidió para publicar la app.
+- No abre folios. No toca el 315 ni el 555.
 
 ### 19 nov 2026 · Política pública del WhatsApp del observatorio
 - `GET /privacidad` para la URL que Meta exige al publicar la app Observatorio SJ.

@@ -2,7 +2,7 @@
 
 Intake de reportes escolares y seguimiento de eventos. No es portería ni PQRS de Supervisión.
 
-**Última actualización:** 14 septiembre 2026
+**Última actualización:** 19 noviembre 2026
 
 ## Piezas
 
@@ -111,6 +111,24 @@ Para el software de Secretaría (u otro sistema). Se conecta con una **API key**
 
 El POST usa las mismas reglas de unión (1 h, mismo colegio y tipo). Anónimo oculta nombre y teléfono.
 
+Esa API no es el webhook de WhatsApp. La key sale de Integraciones API; el webhook entra solo y no crea folios.
+
+## WhatsApp (buzón)
+
+App **Observatorio SJ** (`114531311572242`), cuenta `1563910605572064`, número **+57 310 246 6733**. No usa el 315 ni el 555.
+
+| | |
+|--|--|
+| Verificación | `GET /api/webhooks/meta` (`hub.mode=subscribe`, token, `hub.challenge`) |
+| Mensajes | `POST /api/webhooks/meta` con `X-Hub-Signature-256` (`sha256=` + HMAC del cuerpo y `META_APP_SECRET`) |
+| Política | `GET /privacidad` |
+
+`.env`: `META_APP_SECRET`, `META_WEBHOOK_VERIFY_TOKEN`, `META_PHONE_NUMBER_ID`. En producción el id del 310 es `1390897910781326`. Otro id responde 200 y no se guarda. Sin secreto o con firma mala: 403.
+
+`ReceiveMetaWebhookService` escribe en `meta_webhook_messages` (`message_id` único, texto, tipo, remitente, fecha). Un estado sin `messages` no crea fila. Si no guarda, el log `meta.webhook.skipped` deja el id y el campo (sale como error porque `LOG_LEVEL=error`); no incluye el texto ni el teléfono de quien escribe.
+
+La cuenta tiene que estar suscrita a la app (`POST /{cuenta}/subscribed_apps`). El botón de prueba de Meta no usa el 310. Clasificar el texto y abrir folio sigue pendiente.
+
 ## Tipos (catálogo del cliente)
 
 Los crean y editan el **admin del cliente** y la empresa con **Gestionar** (pestaña Tipos: buscador de cliente en el encabezado; crear, editar, activar/desactivar, eliminar). Con reportes no se borra (se desactiva); siempre queda uno activo. **Copiar estos tipos a otros clientes** crea en los destinos los que falten por nombre (sin tildes ni mayúsculas) y no toca los existentes (`ManageObservatoryReportTypesService`). Semilla: Amenaza N3, Riña N2, Hurto N2, Otro N1. El link `/o/{slug}`, el panel, la PWA y la minuta usan esos tipos. En el tablero empresa (Todos), leyenda, chips y gráficos agrupan por slug para no repetir el mismo tipo de cada cliente.
@@ -142,4 +160,4 @@ Texto literal: fuentes diversas + origen. Visita: Secretaría de Educación de C
 
 ## Siguiente
 
-v1 del Anexo 7.5 cerrada.
+v1 del Anexo 7.5 cerrada. El buzón de WhatsApp guarda mensajes y todavía no abre folios.
