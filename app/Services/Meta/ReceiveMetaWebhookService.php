@@ -7,6 +7,7 @@ namespace App\Services\Meta;
 use App\Models\MetaWebhookMessage;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 final class ReceiveMetaWebhookService
 {
@@ -41,11 +42,15 @@ final class ReceiveMetaWebhookService
     {
         $decoded = json_decode($raw, true);
         if (! is_array($decoded)) {
+            $this->skip(['reason' => 'invalid_json']);
+
             return 0;
         }
 
         $allowed = (string) config('services.meta.phone_number_id');
         if ($allowed === '') {
+            $this->skip(['reason' => 'phone_unconfigured']);
+
             return 0;
         }
 
@@ -71,7 +76,61 @@ final class ReceiveMetaWebhookService
             }
         }
 
+        if ($saved === 0) {
+            $this->skip($this->trace($decoded));
+        }
+
         return $saved;
+    }
+
+    /** @param  array<string, mixed>  $context */
+    private function skip(array $context): void
+    {
+        Log::error('meta.webhook.skipped', $context);
+    }
+
+    /**
+     * @param  array<string, mixed>  $decoded
+     * @return array{fields: list<string>, phone_number_ids: list<string>, messages: int, statuses: int}
+     */
+    private function trace(array $decoded): array
+    {
+        $fields = [];
+        $phones = [];
+        $messages = 0;
+        $statuses = 0;
+        $entries = is_array($decoded['entry'] ?? null) ? $decoded['entry'] : [];
+
+        foreach ($entries as $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+            $changes = is_array($entry['changes'] ?? null) ? $entry['changes'] : [];
+            foreach ($changes as $change) {
+                if (! is_array($change)) {
+                    continue;
+                }
+                $field = trim((string) ($change['field'] ?? ''));
+                if ($field !== '') {
+                    $fields[] = $field;
+                }
+                $value = is_array($change['value'] ?? null) ? $change['value'] : [];
+                $metadata = is_array($value['metadata'] ?? null) ? $value['metadata'] : [];
+                $phone = trim((string) ($metadata['phone_number_id'] ?? ''));
+                if ($phone !== '') {
+                    $phones[] = $phone;
+                }
+                $messages += is_array($value['messages'] ?? null) ? count($value['messages']) : 0;
+                $statuses += is_array($value['statuses'] ?? null) ? count($value['statuses']) : 0;
+            }
+        }
+
+        return [
+            'fields' => array_values(array_unique($fields)),
+            'phone_number_ids' => array_values(array_unique($phones)),
+            'messages' => $messages,
+            'statuses' => $statuses,
+        ];
     }
 
     /**

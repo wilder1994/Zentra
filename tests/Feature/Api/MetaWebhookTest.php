@@ -6,6 +6,8 @@ namespace Tests\Feature\Api;
 
 use App\Models\MetaWebhookMessage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Log\Events\MessageLogged;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 final class MetaWebhookTest extends TestCase
@@ -59,11 +61,21 @@ final class MetaWebhookTest extends TestCase
 
     public function test_meta_webhook_ignores_another_phone_number(): void
     {
+        $logged = [];
+        Log::listen(function (MessageLogged $event) use (&$logged): void {
+            $logged[] = $event;
+        });
         $body = $this->payload('wamid.2', '1149223651039175', 'No guardar');
 
         $this->callWebhook($body)->assertOk();
 
         $this->assertSame(0, MetaWebhookMessage::query()->count());
+        $encoded = json_encode($logged);
+        $this->assertIsString($encoded);
+        $this->assertStringContainsString('meta.webhook.skipped', $encoded);
+        $this->assertStringContainsString('1149223651039175', $encoded);
+        $this->assertStringNotContainsString('No guardar', $encoded);
+        $this->assertStringNotContainsString('573001112233', $encoded);
     }
 
     public function test_meta_webhook_rejects_a_bad_signature(): void
