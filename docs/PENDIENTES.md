@@ -4,11 +4,12 @@ Lista viva de lo definido y **no implementado**. Al implementar, mover a «Hecho
 
 ## Abiertos
 
-### 9. Observatorio: clasificar mensajes de WhatsApp
-Definido 19 nov 2026. El buzón ya guarda los mensajes del 310 (`META_PHONE_NUMBER_ID=1390897910781326`). El 19 nov a las 21:50 quedó el texto «Wilder». No abre reportes.
+### 9. Observatorio WhatsApp: entrega 2 (videos + bandeja de revisión)
+Definido 21 nov 2026. La conversación guiada (texto + fotos) ya existe; ver `docs/OBSERVATORIO.md`. Para usarla en producción faltan: migrar en el VPS, `META_OBSERVATORY_CLIENT_ID=82` y `META_ACCESS_TOKEN` permanente (usuario del sistema con la cuenta de WhatsApp, permisos `whatsapp_business_messaging` y `whatsapp_business_management`) en el `.env` del VPS, `config:cache` y `queue:restart`.
 
-- Cuando un mensaje de prueba quede guardado, clasificar el texto contra los tipos de la Secretaría.
-- Si el colegio y el tipo son claros, llamar a `SubmitObservatoryReportService` (ventana de 60 minutos). Si no, bandeja de revisión.
+- Videos (mp4, hasta 16 MB): ampliar modelo/almacenamiento del reporte y mostrarlos en la ficha del folio. Hoy el bot responde «Por ahora solo recibo fotos».
+- Bandeja de revisión para conversaciones abandonadas o sin resolver (hoy vencen a las 2 h y se pierden).
+- Confirmar con el usuario: política de menores y retención de fotos recibidas por WhatsApp.
 - Messenger e Instagram quedan para después. No tocar el 315 ni el 555.
 
 ### 8. FCM_SERVER_KEY + Firebase en APK residentes (push)

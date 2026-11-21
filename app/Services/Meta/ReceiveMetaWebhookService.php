@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Meta;
 
+use App\Jobs\ProcessMetaWebhookMessage;
 use App\Models\MetaWebhookMessage;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -65,6 +66,7 @@ final class ReceiveMetaWebhookService
                 [
                     'phone_number_id' => $message['phone_number_id'],
                     'sender' => $message['sender'],
+                    'sender_name' => $message['sender_name'],
                     'type' => $message['type'],
                     'body' => $message['body'],
                     'payload' => $message['payload'],
@@ -73,6 +75,7 @@ final class ReceiveMetaWebhookService
             );
             if ($row->wasRecentlyCreated) {
                 $saved++;
+                ProcessMetaWebhookMessage::dispatch($row->id);
             }
         }
 
@@ -135,7 +138,7 @@ final class ReceiveMetaWebhookService
 
     /**
      * @param  array<string, mixed>  $decoded
-     * @return list<array{message_id: string, phone_number_id: string, sender: ?string, type: ?string, body: ?string, payload: array<string, mixed>, sent_at: ?Carbon}>
+     * @return list<array{message_id: string, phone_number_id: string, sender: ?string, sender_name: ?string, type: ?string, body: ?string, payload: array<string, mixed>, sent_at: ?Carbon}>
      */
     private function messages(array $decoded): array
     {
@@ -155,15 +158,18 @@ final class ReceiveMetaWebhookService
                 $metadata = is_array($value['metadata'] ?? null) ? $value['metadata'] : [];
                 $phoneNumberId = trim((string) ($metadata['phone_number_id'] ?? ''));
                 $items = is_array($value['messages'] ?? null) ? $value['messages'] : [];
+                $names = $this->contactNames($value);
                 foreach ($items as $item) {
                     if (! is_array($item)) {
                         continue;
                     }
                     $type = trim((string) ($item['type'] ?? ''));
+                    $sender = $this->nullableString($item['from'] ?? null);
                     $messages[] = [
                         'message_id' => trim((string) ($item['id'] ?? '')),
                         'phone_number_id' => $phoneNumberId,
-                        'sender' => $this->nullableString($item['from'] ?? null),
+                        'sender' => $sender,
+                        'sender_name' => $sender !== null ? ($names[$sender] ?? null) : null,
                         'type' => $type !== '' ? $type : null,
                         'body' => $this->body($item, $type),
                         'payload' => $item,
@@ -174,6 +180,30 @@ final class ReceiveMetaWebhookService
         }
 
         return $messages;
+    }
+
+    /**
+     * Nombre de perfil de WhatsApp por número (`wa_id`).
+     *
+     * @param  array<string, mixed>  $value
+     * @return array<string, string>
+     */
+    private function contactNames(array $value): array
+    {
+        $names = [];
+        $contacts = is_array($value['contacts'] ?? null) ? $value['contacts'] : [];
+        foreach ($contacts as $contact) {
+            if (! is_array($contact)) {
+                continue;
+            }
+            $waId = $this->nullableString($contact['wa_id'] ?? null);
+            $name = is_array($contact['profile'] ?? null) ? $this->nullableString($contact['profile']['name'] ?? null) : null;
+            if ($waId !== null && $name !== null) {
+                $names[$waId] = mb_substr($name, 0, 120);
+            }
+        }
+
+        return $names;
     }
 
     /** @param  array<string, mixed>  $item */

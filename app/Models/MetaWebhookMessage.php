@@ -12,10 +12,13 @@ final class MetaWebhookMessage extends Model
         'message_id',
         'phone_number_id',
         'sender',
+        'sender_name',
         'type',
         'body',
         'payload',
+        'conversation_id',
         'sent_at',
+        'processed_at',
     ];
 
     protected function casts(): array
@@ -23,6 +26,7 @@ final class MetaWebhookMessage extends Model
         return [
             'payload' => 'array',
             'sent_at' => 'datetime',
+            'processed_at' => 'datetime',
         ];
     }
 };

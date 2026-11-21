@@ -43,6 +43,10 @@ return [
         'app_secret' => env('META_APP_SECRET'),
         'webhook_verify_token' => env('META_WEBHOOK_VERIFY_TOKEN'),
         'phone_number_id' => env('META_PHONE_NUMBER_ID'),
+        'access_token' => env('META_ACCESS_TOKEN'),
+        'graph_version' => env('META_GRAPH_VERSION', 'v27.0'),
+        'observatory_client_id' => env('META_OBSERVATORY_CLIENT_ID'),
+        'conversation_ttl_minutes' => (int) env('META_CONVERSATION_TTL_MINUTES', 120),
     ],
 
 ];

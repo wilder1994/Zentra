@@ -41,6 +41,8 @@ use App\Policies\InstallationProfilePolicy;
 use App\Policies\StructureTypePolicy;
 use App\Policies\SupervisorCompanyCatalogPolicy;
 use App\Policies\UserPolicy;
+use App\Services\Meta\CloudApiWhatsAppGateway;
+use App\Services\Meta\WhatsAppGateway;
 use App\Support\Company\OperateAsRole;
 use App\Support\Tenancy\TenantContext;
 use App\View\Composers\AccessLayoutComposer;
@@ -58,6 +60,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(TenantContext::class);
         $this->app->scoped(OperateAsRole::class);
+        $this->app->bind(WhatsAppGateway::class, CloudApiWhatsAppGateway::class);
     }
 
     public function boot(): void

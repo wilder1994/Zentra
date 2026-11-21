@@ -32,20 +32,19 @@ final class SubmitObservatoryReportService
             ? $data['reporter_role']
             : ObservatoryReporterRole::tryFrom((string) $data['reporter_role']);
 
+        $communityOnly = $source?->usesCommunitySites() ?? false;
+
         $installation = Installation::query()
             ->withoutGlobalScopes()
             ->where('client_id', $client->id)
             ->where('is_active', true)
             ->whereKey((int) $data['installation_id'])
-            ->when(
-                $source === ObservatoryReportSource::Comunidad,
-                fn ($q) => $q->observatoryCommunity(),
-            )
+            ->when($communityOnly, fn ($q) => $q->observatoryCommunity())
             ->first();
 
         if ($installation === null) {
             throw ValidationException::withMessages([
-                'installation_id' => $source === ObservatoryReportSource::Comunidad
+                'installation_id' => $communityOnly
                     ? 'Elige un colegio de esta Secretaría.'
                     : 'Elige una instalación de este cliente.',
             ]);

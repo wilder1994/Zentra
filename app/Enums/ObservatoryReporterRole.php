@@ -48,7 +48,7 @@ enum ObservatoryReporterRole: string
     public function allowedFor(ObservatoryReportSource $source): bool
     {
         return match ($source) {
-            ObservatoryReportSource::Comunidad => $this->isPublic(),
+            ObservatoryReportSource::Comunidad, ObservatoryReportSource::Whatsapp => $this->isPublic(),
             ObservatoryReportSource::Panel => in_array($this, [self::Rector, self::Apoyo], true),
             ObservatoryReportSource::Campo => $this === self::Supervisor,
             ObservatoryReportSource::Porteria => $this === self::Vigilante,

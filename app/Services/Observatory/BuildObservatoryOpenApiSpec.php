@@ -211,7 +211,7 @@ final class BuildObservatoryOpenApiSpec
                             'kind_label' => ['type' => 'string'],
                             'level' => ['type' => 'integer'],
                             'color' => ['type' => 'string'],
-                            'source' => ['type' => 'string', 'enum' => ['comunidad', 'panel', 'campo', 'porteria', 'api']],
+                            'source' => ['type' => 'string', 'enum' => ['comunidad', 'panel', 'campo', 'porteria', 'api', 'whatsapp']],
                             'source_label' => ['type' => 'string'],
                             'reporter_role' => ['type' => 'string'],
                             'reporter_role_label' => ['type' => 'string'],

@@ -11,6 +11,7 @@ enum ObservatoryReportSource: string
     case Campo = 'campo';
     case Porteria = 'porteria';
     case Api = 'api';
+    case Whatsapp = 'whatsapp';
 
     public function label(): string
     {
@@ -20,6 +21,13 @@ enum ObservatoryReportSource: string
             self::Campo => 'App de patrulla',
             self::Porteria => 'Portería',
             self::Api => 'Integración',
+            self::Whatsapp => 'WhatsApp',
         };
+    }
+
+    /** Canales abiertos al público: solo reportan sobre colegios con perfil de comunidad. */
+    public function usesCommunitySites(): bool
+    {
+        return in_array($this, [self::Comunidad, self::Whatsapp], true);
     }
 }

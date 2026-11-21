@@ -127,7 +127,19 @@ App **Observatorio SJ** (`114531311572242`), cuenta `1563910605572064`, número 
 
 `ReceiveMetaWebhookService` escribe en `meta_webhook_messages` (`message_id` único, texto, tipo, remitente, fecha). Un estado sin `messages` no crea fila. Si no guarda, el log `meta.webhook.skipped` deja el id y el campo (sale como error porque `LOG_LEVEL=error`); no incluye el texto ni el teléfono de quien escribe.
 
-La cuenta tiene que estar suscrita a la app (`POST /{cuenta}/subscribed_apps`). El botón de prueba de Meta no usa el 310. Clasificar el texto y abrir folio sigue pendiente.
+La cuenta tiene que estar suscrita a la app (`POST /{cuenta}/subscribed_apps`). El botón de prueba de Meta no usa el 310.
+
+### Conversación guiada (21 nov 2026)
+
+Cada mensaje nuevo del 310 dispara `ProcessMetaWebhookMessage` (cola) → `MetaObservatoryBot`. Estado en `meta_conversations` (una abierta por `wa_id`; vence a los `META_CONVERSATION_TTL_MINUTES`, 120 por defecto; «cancelar» la cierra).
+
+Pasos: colegio (nombre parcial → lista de hasta 10, código DANE, o ubicación → 5 más cercanos) → tipo (catálogo vivo del cliente, paginado) → «¿Qué pasó?» (10–2000 caracteres) → fotos (hasta 3; omitir/listo) → rol (alumno, padre, vecino) → anónimo sí/no. Al final llama a `SubmitObservatoryReportService` con `source=whatsapp`, así la unión por colegio + tipo en 60 min es la de siempre. Responde el folio `EV-…`. Solo colegios con perfil Observatorio comunidad.
+
+Si es anónimo, al cerrar se borran nombre y teléfono de `meta_conversations` y `meta_webhook_messages`.
+
+`.env`: `META_OBSERVATORY_CLIENT_ID` (82 = Secretaría de Educación en producción), `META_ACCESS_TOKEN` (token permanente de usuario del sistema, solo en el VPS), `META_GRAPH_VERSION` (`v27.0`), `META_CONVERSATION_TTL_MINUTES`. Sin token o cliente, el bot no hace nada (log `meta.bot.unconfigured`). El cliente debe estar activo y con Observatorio.
+
+Envío y descarga de fotos: `WhatsAppGateway` (`CloudApiWhatsAppGateway`). Solo responde dentro de las 24 h del último mensaje del usuario.
 
 ## Tipos (catálogo del cliente)
 
@@ -160,4 +172,4 @@ Texto literal: fuentes diversas + origen. Visita: Secretaría de Educación de C
 
 ## Siguiente
 
-v1 del Anexo 7.5 cerrada. El buzón de WhatsApp guarda mensajes y todavía no abre folios.
+v1 del Anexo 7.5 cerrada. El WhatsApp guiado abre folios con texto y fotos. Faltan videos y la bandeja de revisión (ver `PENDIENTES.md`).
