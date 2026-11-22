@@ -13,6 +13,8 @@ document.querySelectorAll('[data-pw-toggle]').forEach((btn) => {
 
 const statusEl = document.getElementById('status');
 let pingTimer = null;
+let pingGuard = null;
+let batteryAsked = false;
 let pingWatchId = null;
 let pingBusy = false;
 let nativePing = false;
@@ -51,6 +53,7 @@ let obsMapsKey = '';
 let obsMap = null;
 let obsMarker = null;
 let obsPin = null;
+let obsPinSource = null;
 let obsMapsPromise = null;
 const APP_BUILD = 23;
 let trainingsMonth = [];
@@ -517,6 +520,40 @@ async function geo() {
             { enableHighAccuracy: true, timeout: 4000, maximumAge: 15000 },
         );
     });
+}
+
+/** Pide un GPS nuevo. Si no llega, devuelve la última posición marcada como vieja. */
+function geoFresh(timeout = 12000) {
+    return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+            resolve(staleGeo());
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                lastGeo = {
+                    latitude: pos.coords.latitude,
+                    longitude: pos.coords.longitude,
+                    accuracy: pos.coords.accuracy,
+                    timestamp: pos.timestamp || Date.now(),
+                };
+                resolve({ ...lastGeo, fresh: true });
+            },
+            () => resolve(staleGeo()),
+            { enableHighAccuracy: true, timeout, maximumAge: 0 },
+        );
+    });
+}
+
+function staleGeo() {
+    if (!lastGeo || lastGeo.latitude == null) return null;
+    const at = Number(lastGeo.timestamp || 0);
+    return { ...lastGeo, fresh: at > 0 && Date.now() - at <= 30000 };
+}
+
+function geoClock(at) {
+    const date = new Date(Number(at) || Date.now());
+    return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
 }
 
 function checksHtml(items, prefix) {
@@ -2302,6 +2339,37 @@ function screenIsOn() {
     return document.visibilityState === 'visible';
 }
 
+async function ensureBattery() {
+    if (batteryAsked) return;
+    batteryAsked = true;
+    const plug = shiftTrackingPlugin();
+    if (!plug?.ensureBattery) return;
+    try {
+        const res = await plug.ensureBattery();
+        if (res && res.ignoring === false) {
+            setStatus('Para que el GPS no se duerma, permite que Zentra quede fuera del ahorro de batería.', false);
+        }
+    } catch (e) {
+        // el equipo no mostró el permiso
+    }
+}
+
+async function guardNativeGps(send) {
+    if (closeQueued) return;
+    const plug = shiftTrackingPlugin();
+    if (!plug?.status) return;
+    let stale = true;
+    try {
+        const state = await plug.status();
+        const at = Number(state?.lastFixAt || 0);
+        stale = !state?.running || !at || Date.now() - at > 45000;
+        if (stale) nativePing = await startNativeTracking();
+    } catch (e) {
+        stale = true;
+    }
+    if (stale) send(true);
+}
+
 async function startNativeTracking() {
     const plug = shiftTrackingPlugin();
     if (!plug?.start) return false;
@@ -2331,8 +2399,8 @@ function startPing() {
         if (pingBusy) return;
         pingBusy = true;
         try {
-            const pos = await geo();
-            if (!pos) return;
+            const pos = await geoFresh(8000);
+            if (!pos?.fresh) return;
             lastPingSentAt = Date.now();
             const stats = offlineReady() && ZentraOffline.outboxStats
                 ? await ZentraOffline.outboxStats()
@@ -2370,8 +2438,10 @@ function startPing() {
             pingTimer = setInterval(() => {
                 if (document.visibilityState === 'hidden') return;
                 send();
-            }, 15000);
+            }, 5000);
         }
+        ensureBattery();
+        pingGuard = setInterval(() => guardNativeGps(send), 20000);
         if (navigator.geolocation?.watchPosition) {
             pingWatchId = navigator.geolocation.watchPosition(
                 (pos) => {
@@ -2396,6 +2466,8 @@ function stopPing() {
     stopNativeTracking();
     if (pingTimer) clearInterval(pingTimer);
     pingTimer = null;
+    if (pingGuard) clearInterval(pingGuard);
+    pingGuard = null;
     if (pingWatchId != null && navigator.geolocation) {
         navigator.geolocation.clearWatch(pingWatchId);
         pingWatchId = null;
@@ -2955,6 +3027,7 @@ async function placeObsPin(site) {
     const mapEl = document.getElementById('obs-map');
     const lat = site?.lat != null ? Number(site.lat) : (obsPin?.lat ?? lastGeo?.latitude);
     const lng = site?.lng != null ? Number(site.lng) : (obsPin?.lng ?? lastGeo?.longitude);
+    obsPinSource = site?.lat != null && site?.lng != null ? 'site' : (lat != null ? 'gps' : null);
     if (lat == null || lng == null || Number.isNaN(lat) || Number.isNaN(lng)) {
         mapEl.classList.add('hidden');
         hint.textContent = 'Este colegio no tiene pin. El reporte queda sin mapa o con el GPS del turno.';
@@ -2986,6 +3059,7 @@ async function placeObsPin(site) {
         obsMap.addListener('click', (ev) => {
             if (!ev.latLng) return;
             obsPin = { lat: ev.latLng.lat(), lng: ev.latLng.lng() };
+            obsPinSource = 'site';
             obsMarker?.setPosition(ev.latLng);
         });
     } else {
@@ -3001,6 +3075,7 @@ async function placeObsPin(site) {
             const p = obsMarker.getPosition();
             if (!p) return;
             obsPin = { lat: p.lat(), lng: p.lng() };
+            obsPinSource = 'site';
         });
     } else {
         obsMarker.setPosition(pos);
@@ -3101,11 +3176,21 @@ document.getElementById('btn-obs-send').onclick = () => withBusy(
         if (body.length < 10) throw new Error('Describa qué pasó (mínimo 10 caracteres).');
         const photos = obsPhotoBlobs();
         if (!photos.length) throw new Error('Tome al menos una foto.');
-        const pos = obsPin || await geo();
+        let pos = obsPinSource === 'site' ? obsPin : null;
+        let staleNote = '';
+        if (!pos) {
+            const live = await geoFresh(12000);
+            if (live?.latitude != null) {
+                pos = { lat: live.latitude, lng: live.longitude };
+                if (!live.fresh) {
+                    staleNote = `\n\nUbicación: última conocida a las ${geoClock(live.timestamp)}. El GPS no respondió al enviar.`;
+                }
+            }
+        }
         const payload = {
             installation_id: obsSite.id,
             kind,
-            body,
+            body: `${body}${staleNote}`.slice(0, 2000),
             is_anonymous: document.getElementById('obs-anonymous').checked ? 1 : 0,
             latitude: pos?.lat ?? pos?.latitude,
             longitude: pos?.lng ?? pos?.longitude,
@@ -3142,11 +3227,19 @@ document.getElementById('btn-open-observatory').onclick = () => {
 };
 document.getElementById('btn-panic').onclick = async () => {
     try {
+        const pos = await geoFresh(12000);
+        let note = '';
+        if (!pos) {
+            note = 'Sin ubicación al enviar el pánico.';
+        } else if (!pos.fresh) {
+            note = `Última ubicación conocida a las ${geoClock(pos.timestamp)}. El GPS no respondió.`;
+        }
         await api('/supervision/panic', {
             method: 'POST',
             body: JSON.stringify({
-                latitude: lastGeo?.latitude ?? null,
-                longitude: lastGeo?.longitude ?? null,
+                latitude: pos?.latitude ?? null,
+                longitude: pos?.longitude ?? null,
+                note,
             }),
         });
         statusEl.textContent = 'Pánico enviado a la empresa.';

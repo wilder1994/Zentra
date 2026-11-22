@@ -935,23 +935,28 @@
                 }
 
                 function bindPinOpen(marker, pin) {
-                    const isMoto = pin.kind === 'moto';
-                    const items = listPins(pin.items || pin.nearby || [pin]);
-                    const showList = items.length > 1;
+                    marker.zentraPin = pin;
+                    const current = () => marker.zentraPin || pin;
                     marker.addListener('mouseover', () => {
+                        const pinNow = current();
+                        const items = listPins(pinNow.items || pinNow.nearby || [pinNow]);
+                        const showList = items.length > 1;
                         clearTimeout(pinHoverTimer);
-                        if (isMoto) {
-                            showMotoTip(marker, pin);
+                        if (pinNow.kind === 'moto') {
+                            showMotoTip(marker, pinNow);
                             return;
                         }
                         if (showList) {
                             if (!(listSticky && listAnchor === marker)) showPinList(items, marker);
                             return;
                         }
-                        if (!pinSticky) openPinDetail(items[0] || pin, marker);
+                        if (!pinSticky) openPinDetail(items[0] || pinNow, marker);
                     });
                     marker.addListener('mouseout', () => schedulePinHide());
                     marker.addListener('click', () => {
+                        const pinNow = current();
+                        const items = listPins(pinNow.items || pinNow.nearby || [pinNow]);
+                        const showList = items.length > 1;
                         ignoreMapClick = true;
                         clearTimeout(pinHoverTimer);
                         hideMotoTip();
@@ -971,7 +976,7 @@
                         listAnchor = null;
                         hidePinStack();
                         pinSticky = true;
-                        openPinDetail(items[0] || pin, marker);
+                        openPinDetail(items[0] || pinNow, marker);
                     });
                 }
 
@@ -1090,6 +1095,7 @@
                         const label = row.online_label || (row.online ? 'En línea' : 'Sin señal');
                         pins.push({
                             kind: 'moto',
+                            shift_id: row.shift_id,
                             lat: row.end.lat,
                             lng: row.end.lng,
                             user: row.user,
@@ -1133,12 +1139,82 @@
                     return any;
                 }
 
+                const motoMarkers = new Map();
+                const motoAnims = new Map();
+                const MOTO_SLIDE_MS = 5000;
+                const MOTO_SNAP_M = 250;
+
+                function slideMoto(pin) {
+                    const id = Number(pin.shift_id);
+                    if (!id || pin.lat == null || pin.lng == null) return;
+                    const next = { lat: Number(pin.lat), lng: Number(pin.lng) };
+                    let marker = motoMarkers.get(id);
+                    if (!marker) {
+                        marker = new google.maps.Marker({
+                            map: googleMap,
+                            position: next,
+                            zIndex: 5,
+                            icon: iconMoto(),
+                            opacity: pin.opacity,
+                            label: pin.label,
+                        });
+                        bindPinOpen(marker, pin);
+                        motoMarkers.set(id, marker);
+                        return;
+                    }
+                    marker.zentraPin = pin;
+                    marker.setOpacity(pin.opacity ?? 1);
+                    if (pin.label) marker.setLabel(pin.label);
+                    const current = marker.getPosition();
+                    const from = current ? { lat: current.lat(), lng: current.lng() } : next;
+                    const meters = pinMeters(from, next);
+                    const running = motoAnims.get(id);
+                    if (running) cancelAnimationFrame(running);
+                    motoAnims.delete(id);
+                    if (meters < 3 || meters > MOTO_SNAP_M) {
+                        marker.setPosition(next);
+                        return;
+                    }
+                    const started = performance.now();
+                    const step = (now) => {
+                        const t = Math.min(1, (now - started) / MOTO_SLIDE_MS);
+                        marker.setPosition({
+                            lat: from.lat + (next.lat - from.lat) * t,
+                            lng: from.lng + (next.lng - from.lng) * t,
+                        });
+                        if (t < 1) {
+                            motoAnims.set(id, requestAnimationFrame(step));
+                            return;
+                        }
+                        motoAnims.delete(id);
+                    };
+                    motoAnims.set(id, requestAnimationFrame(step));
+                }
+
+                function pruneMotos(seen) {
+                    motoMarkers.forEach((marker, id) => {
+                        if (seen.has(id)) return;
+                        const frame = motoAnims.get(id);
+                        if (frame) cancelAnimationFrame(frame);
+                        motoAnims.delete(id);
+                        marker.setMap(null);
+                        motoMarkers.delete(id);
+                    });
+                }
+
                 function drawPins(map, bounds, pins) {
                     let any = false;
+                    const seenMotos = new Set();
                     clusterPins(pins, 50).forEach((pin) => {
-                        placePin(map, pin);
+                        if (pin.kind === 'moto') {
+                            seenMotos.add(Number(pin.shift_id));
+                            slideMoto(pin);
+                        } else {
+                            placePin(map, pin);
+                        }
                         any = extend(bounds, pin) || any;
                     });
+                    pruneMotos(seenMotos);
                     zclusterer?.render();
                     return any;
                 }
@@ -1347,7 +1423,7 @@
                             liveFitted = true;
                         } catch (e) {}
                     };
-                    livePollTimer = setInterval(pollLive, 10000);
+                    livePollTimer = setInterval(pollLive, 5000);
                     window.addEventListener('supervision:refresh-live', () => pollLive(true));
                     } catch (e) {
                         fallback?.classList.remove('hidden');

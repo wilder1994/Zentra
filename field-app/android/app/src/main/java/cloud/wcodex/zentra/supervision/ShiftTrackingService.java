@@ -13,10 +13,19 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
+import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.PowerManager;
 import android.os.SystemClock;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GoogleApiAvailability;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
@@ -40,20 +49,36 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 public class ShiftTrackingService extends Service implements LocationListener {
+    public static boolean isRunning() {
+        return running;
+    }
+
+    /** Epoch millis del último punto que entregó el GPS. 0 si todavía no hay. */
+    public static long lastFixAt() {
+        return lastFixAt;
+    }
+
     private static final String CHANNEL = "zentra_shift_gps";
     private static final int NOTICE_ID = 2201;
-    /** La red (celdas/wifi) solo se usa si el GPS lleva este tiempo sin dar posición. */
-    private static final long GPS_PREFERRED_MS = 60_000L;
-    /** Peor que esto no dibuja ruta: solo sirve de latido para "en línea". */
-    private static final float MAX_ACCURACY_M = 50f;
-    private static final long HEARTBEAT_MS = 120_000L;
+    /** Si el último aviso tiene más de esto, se vuelve a pedir el GPS. No se deja de anotar. */
+    private static final long NUDGE_AFTER_MS = 30_000L;
+    /** Un punto más viejo que esto no se manda como si el supervisor estuviera ahí ahora. */
+    private static final long LIVE_FIX_MS = 45_000L;
+    private static final long SAMPLE_MS = 5_000L;
     private static final int BATCH = 300;
 
+    private static volatile boolean running = false;
+    private static volatile long lastFixAt = 0L;
+
     private LocationManager locationManager;
-    private volatile Location lastGps;
-    private volatile Location lastNetwork;
+    private HandlerThread locationThread;
+    private FusedLocationProviderClient fused;
+    private LocationCallback fusedCallback;
+    private PowerManager.WakeLock wakeLock;
+    private volatile Location lastFix;
     private long lastSentFixTime = 0L;
     private long lastQueuedAt = 0L;
+    private long lastNudgeAt = 0L;
     private ScheduledExecutorService ticker;
     private String cachedToken = "";
     private String cachedApi = "";
@@ -71,12 +96,15 @@ public class ShiftTrackingService extends Service implements LocationListener {
                 startForeground(NOTICE_ID, notice);
             }
         } catch (Exception e) {
+            running = false;
             stopSelf();
             return;
         }
+        running = true;
+        acquireWake();
         startLocations();
         ticker = Executors.newSingleThreadScheduledExecutor();
-        ticker.scheduleWithFixedDelay(this::tick, 2, 15, TimeUnit.SECONDS);
+        ticker.scheduleWithFixedDelay(this::tick, 2, 5, TimeUnit.SECONDS);
     }
 
     @Override
@@ -92,15 +120,12 @@ public class ShiftTrackingService extends Service implements LocationListener {
 
     @Override
     public void onDestroy() {
+        running = false;
+        releaseWake();
+        stopLocations();
         if (ticker != null) {
             ticker.shutdownNow();
             ticker = null;
-        }
-        if (locationManager != null) {
-            try {
-                locationManager.removeUpdates(this);
-            } catch (Exception ignored) {
-            }
         }
         final String token = cachedToken;
         final String api = cachedApi;
@@ -113,56 +138,143 @@ public class ShiftTrackingService extends Service implements LocationListener {
 
     @Override
     public void onLocationChanged(Location location) {
+        accept(location);
+    }
+
+    private void accept(Location location) {
         if (location == null) {
             return;
         }
-        if (LocationManager.GPS_PROVIDER.equals(location.getProvider())) {
-            lastGps = location;
-        } else {
-            lastNetwork = location;
-        }
+        lastFix = location;
+        lastFixAt = System.currentTimeMillis();
     }
 
     private void startLocations() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED
+            && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
             != PackageManager.PERMISSION_GRANTED) {
             return;
         }
-        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        if (locationManager == null) {
+        if (locationThread == null) {
+            locationThread = new HandlerThread("zentra-gps");
+            locationThread.start();
+        }
+        if (playServices()) {
+            startFused();
             return;
+        }
+        startManager();
+    }
+
+    private boolean playServices() {
+        try {
+            return GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(this) == ConnectionResult.SUCCESS;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void startFused() {
+        try {
+            fused = LocationServices.getFusedLocationProviderClient(this);
+            LocationRequest request = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5_000L)
+                .setMinUpdateIntervalMillis(4_000L)
+                .setMaxUpdateDelayMillis(5_000L)
+                .build();
+            fusedCallback = new LocationCallback() {
+                @Override
+                public void onLocationResult(LocationResult result) {
+                    if (result != null) {
+                        accept(result.getLastLocation());
+                    }
+                }
+            };
+            fused.requestLocationUpdates(request, fusedCallback, locationThread.getLooper());
+            fused.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).addOnSuccessListener(this::accept);
+        } catch (Exception ignored) {
+            startManager();
+        }
+    }
+
+    private void startManager() {
+        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        if (locationManager == null || locationThread == null) {
+            return;
+        }
+        Looper looper = locationThread.getLooper();
+        try {
+            locationManager.removeUpdates(this);
+        } catch (Exception ignored) {
         }
         try {
             if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                locationManager.requestLocationUpdates(
-                    LocationManager.GPS_PROVIDER, 10000, 0, this, Looper.getMainLooper()
-                );
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5_000L, 0f, this, looper);
+                accept(locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER));
             }
             if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                locationManager.requestLocationUpdates(
-                    LocationManager.NETWORK_PROVIDER, 15000, 0, this, Looper.getMainLooper()
-                );
+                locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5_000L, 0f, this, looper);
             }
         } catch (SecurityException ignored) {
         }
     }
 
-    private static long ageMs(Location loc) {
-        return (SystemClock.elapsedRealtimeNanos() - loc.getElapsedRealtimeNanos()) / 1_000_000L;
+    private void nudge() {
+        long now = System.currentTimeMillis();
+        if (now - lastNudgeAt < NUDGE_AFTER_MS) {
+            return;
+        }
+        lastNudgeAt = now;
+        if (fused != null) {
+            try {
+                fused.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).addOnSuccessListener(this::accept);
+            } catch (SecurityException ignored) {
+            }
+            return;
+        }
+        startManager();
     }
 
-    /** GPS fresco primero; la red solo si el GPS no responde. */
-    @Nullable
-    private Location pick() {
-        Location gps = lastGps;
-        if (gps != null && ageMs(gps) <= GPS_PREFERRED_MS) {
-            return gps;
+    private void stopLocations() {
+        if (fused != null && fusedCallback != null) {
+            try {
+                fused.removeLocationUpdates(fusedCallback);
+            } catch (Exception ignored) {
+            }
         }
-        Location net = lastNetwork;
-        if (net != null && ageMs(net) <= GPS_PREFERRED_MS) {
-            return net;
+        fused = null;
+        fusedCallback = null;
+        if (locationManager != null) {
+            try {
+                locationManager.removeUpdates(this);
+            } catch (Exception ignored) {
+            }
         }
-        return null;
+        if (locationThread != null) {
+            locationThread.quitSafely();
+            locationThread = null;
+        }
+    }
+
+    private void acquireWake() {
+        PowerManager power = (PowerManager) getSystemService(POWER_SERVICE);
+        if (power == null || wakeLock != null) {
+            return;
+        }
+        wakeLock = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "zentra:shift-gps");
+        wakeLock.setReferenceCounted(false);
+        wakeLock.acquire();
+    }
+
+    private void releaseWake() {
+        if (wakeLock != null && wakeLock.isHeld()) {
+            wakeLock.release();
+        }
+        wakeLock = null;
+    }
+
+    private static long ageMs(Location loc) {
+        return (SystemClock.elapsedRealtimeNanos() - loc.getElapsedRealtimeNanos()) / 1_000_000L;
     }
 
     private void tick() {
@@ -181,17 +293,21 @@ public class ShiftTrackingService extends Service implements LocationListener {
 
     private void queueCurrent(String user) {
         long now = System.currentTimeMillis();
-        Location loc = pick();
+        Location loc = lastFix;
+        if (loc == null || ageMs(loc) > NUDGE_AFTER_MS) {
+            nudge();
+        }
         if (loc == null) {
             return;
         }
-        boolean fresh = loc.getTime() != lastSentFixTime;
-        boolean precise = loc.hasAccuracy() && loc.getAccuracy() <= MAX_ACCURACY_M;
-        boolean heartbeat = now - lastQueuedAt >= HEARTBEAT_MS;
-        if (!(fresh && precise) && !heartbeat) {
+        long age = ageMs(loc);
+        boolean live = age <= LIVE_FIX_MS;
+        boolean changed = loc.getTime() != lastSentFixTime;
+        boolean due = now - lastQueuedAt >= SAMPLE_MS;
+        if (!live || (!changed && !due)) {
             return;
         }
-        long at = fresh ? loc.getTime() : now;
+        long at = loc.getTime() > 0 ? loc.getTime() : now;
         boolean screenOn = false;
         PowerManager power = (PowerManager) getSystemService(POWER_SERVICE);
         if (power != null) {
@@ -255,26 +371,12 @@ public class ShiftTrackingService extends Service implements LocationListener {
             } catch (Exception offline) {
                 return;
             }
-            if (code == 401) {
-                stopSelf();
-                return;
-            }
-            if (code == 422) {
-                ShiftPingQueue.remove(this, user, ids);
-                stopSelf();
-                return;
-            }
             if (code < 200 || code >= 300) {
                 return;
             }
             ShiftPingQueue.remove(this, user, ids);
-            try {
-                if (!new JSONObject(response).optBoolean("open", true)
-                    && ShiftPingQueue.read(this, user).isEmpty()) {
-                    stopSelf();
-                    return;
-                }
-            } catch (Exception ignored) {
+            if (response == null) {
+                return;
             }
         }
     }

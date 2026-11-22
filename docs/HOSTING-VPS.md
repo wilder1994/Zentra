@@ -1,6 +1,8 @@
 # Hosting VPS (Zentra)
 
-**Última actualización:** 18 noviembre 2026
+**Última actualización:** 21 noviembre 2026
+
+Corte 21 nov 2026 (GPS de turno cada 5 s y pin que se desliza en el mapa en vivo): **sin migrate** y sin seeder. Pull + `view:cache` + `route:cache` + `config:cache`. Sin `npm run build` (el mapa es Blade). APK **2.9** (versionCode 19) en `public/downloads/zentra-supervision.apk` y PWA `/campo` (SW **v63**). Hay que reinstalar el APK: el de 2.8 y anteriores sigue mandando cada 15 s. Al abrir el turno Android pide dejar Zentra fuera del ahorro de batería.
 
 Corte 18 nov 2026 (indexador de documentos: miniaturas sin hoja en blanco, barra de carga y rangos HTTP en la vista previa): **sin migrate** y sin seeder. Pull + `npm ci && npm run build` en el VPS + `view:cache` + `config:cache` + `route:cache` + `queue:restart`. No sube `public/build` de Laragon. No `migrate:fresh` ni `db:wipe`.
 
