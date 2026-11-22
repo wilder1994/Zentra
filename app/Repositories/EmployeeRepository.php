@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories;
 
 use App\Models\Employee;
+use BackedEnum;
 use App\Models\EmployeeDocument;
 use App\Support\Auth\ConstrainEmployeesByGrants;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -96,6 +97,7 @@ final class EmployeeRepository
         ?array $assignedInstallationIds = null,
         ?string $tenure = null,
         ?string $indexing = null,
+        ?string $folder = null,
     ): LengthAwarePaginator {
         $query = Employee::query()
             ->select('employees.*')
@@ -125,12 +127,70 @@ final class EmployeeRepository
         $this->applyDocumentSearch($query, $search);
         $this->applyTenure($query, $tenure);
         $this->applyIndexingState($query, $indexing);
+        $this->applyDocumentFolder($query, $folder);
 
         return $query
             ->orderBy('last_name_paternal')
             ->orderBy('first_names')
             ->paginate($perPage)
             ->withQueryString();
+    }
+
+    /**
+     * @return array{folders: list<array{key: string, workers: int, bytes: int, files: int}>, workers: int, bytes: int, files: int}
+     */
+    public function personnelFolderStats(int $companyId): array
+    {
+        $employees = Employee::query()
+            ->where('security_company_id', $companyId)
+            ->where('is_active', true);
+        $this->constrainByGrants($employees, 'documents');
+
+        $files = EmployeeDocument::query()
+            ->whereIn('employee_id', $employees->select('employees.id'))
+            ->where('not_applicable', false)
+            ->where('disk_path', '!=', '');
+
+        $byFolder = (clone $files)
+            ->groupBy('folder')
+            ->selectRaw('folder, count(distinct employee_id) as workers, coalesce(sum(size_bytes), 0) as bytes, count(*) as files')
+            ->get();
+
+        $total = (clone $files)
+            ->selectRaw('count(distinct employee_id) as workers, coalesce(sum(size_bytes), 0) as bytes, count(*) as files')
+            ->first();
+
+        $folders = [];
+        foreach ($byFolder as $row) {
+            $key = $row->folder instanceof BackedEnum ? $row->folder->value : (string) $row->folder;
+            $folders[] = [
+                'key' => $key,
+                'workers' => (int) $row->workers,
+                'bytes' => (int) $row->bytes,
+                'files' => (int) $row->files,
+            ];
+        }
+
+        return [
+            'folders' => $folders,
+            'workers' => (int) ($total->workers ?? 0),
+            'bytes' => (int) ($total->bytes ?? 0),
+            'files' => (int) ($total->files ?? 0),
+        ];
+    }
+
+    private function applyDocumentFolder(Builder $query, ?string $folder): void
+    {
+        if ($folder === null || $folder === '') {
+            return;
+        }
+
+        $query->whereHas('documents', function (Builder $docs) use ($folder): void {
+            $docs->where('not_applicable', false)->where('disk_path', '!=', '');
+            if ($folder !== 'all') {
+                $docs->where('folder', $folder);
+            }
+        });
     }
 
     private function applyDocumentSearch(Builder $query, ?string $search): void

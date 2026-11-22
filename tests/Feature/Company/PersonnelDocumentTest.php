@@ -38,10 +38,46 @@ final class PersonnelDocumentTest extends TestCase
         $this->actingAs($admin)
             ->get(route('company.personnel-documents.index'))
             ->assertOk()
-            ->assertSee('Carpetas de empleados')
+            ->assertSee('Documentos')
+            ->assertSee('Historia Laboral')
+            ->assertSee('Total')
             ->assertSee('Carga masiva planilla')
+            ->assertDontSee('Ocupado')
             ->assertSee($employee->document_number)
             ->assertSee('Ver carpeta');
+    }
+
+    public function test_folder_card_filters_workers_who_have_files_in_that_folder(): void
+    {
+        $this->seedWithPilot();
+        $admin = $this->companyAdmin();
+        $withFile = $this->pilotVigilante();
+        $this->storedPersonnelPdf($withFile);
+
+        $without = $withFile->replicate();
+        $without->document_number = '9000001111';
+        $without->email = 'sin.docs@sj-seguridad.test';
+        $without->first_names = 'SinDocs';
+        $without->save();
+
+        $this->actingAs($admin)
+            ->get(route('company.personnel-documents.index', ['folder' => DocumentFolder::HojaVida->value]))
+            ->assertOk()
+            ->assertSee($withFile->document_number)
+            ->assertDontSee('SinDocs');
+
+        $this->actingAs($admin)
+            ->get(route('company.personnel-documents.index', ['folder' => DocumentFolder::Contratacion->value]))
+            ->assertOk()
+            ->assertDontSee($withFile->document_number)
+            ->assertDontSee('SinDocs');
+
+        $this->actingAs($admin)
+            ->get(route('company.personnel-documents.index', ['folder' => 'all']))
+            ->assertOk()
+            ->assertSee($withFile->document_number)
+            ->assertSee('1 documentos')
+            ->assertDontSee('SinDocs');
     }
 
     public function test_company_admin_can_index_non_contiguous_pages(): void

@@ -259,9 +259,9 @@
             <header class="sticky top-0 z-10 shrink-0">
                 <div class="bg-slate-900/80 border-b border-slate-800 backdrop-blur">
                     <div class="company-shell-rail py-3 flex items-center justify-between gap-4">
-                        <div class="flex items-center gap-3 min-w-0">
+                        <div class="flex flex-1 items-center gap-3 min-w-0">
                             @include('partials.sidebar-hamburger')
-                            <div class="min-w-0">
+                            <div class="min-w-0 flex-1">
                             @isset($header)
                                 {{ $header }}
                             @else

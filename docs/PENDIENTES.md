@@ -56,6 +56,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 21 nov 2026 · Documentos: header y pastillas por carpeta
+Listado de empresa: título, buscador, Filtros y carga masiva en el header. Ocho pastillas (siete carpetas + Total) con trabajadores o documentos y peso; un clic filtra la tabla y otro reemplaza el filtro. Se parten en más filas cuando no caben.
+
 ### 21 nov 2026 · GPS de turno cada 5 s y pin que se desliza
 El servicio nativo se quedaba vivo pero dejaba de anotar si el último fix pasaba de 60 s, y el mapa congelaba el pin. APK 2.9 (versionCode 19) pide ubicación cada 5 s, guarda solo un fix de menos de 45 s y no se apaga solo por 401, 422 o turno cerrado en la respuesta. Sin red la cola sigue en el teléfono. Pánico y Observatorio esperan un GPS nuevo; si no llega, el texto dice la hora de la última conocida. El mapa en vivo consulta cada 5 s y desliza el pin (salto mayor de 250 m se coloca de una vez). PWA `zentra-sup-v63`. Detalle: `SUPERVISION-CAMPO.md`.
 

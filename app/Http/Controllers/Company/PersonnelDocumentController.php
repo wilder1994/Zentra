@@ -65,6 +65,7 @@ final class PersonnelDocumentController extends Controller
         $q = trim($request->string('q')->toString());
         $tenure = $this->tenureFilter($request);
         $indexing = $this->indexingFilter($request);
+        $folder = $this->folderFilter($request);
         $data = [
             'employees' => $this->employees->paginateForPersonnelDocuments(
                 $companyId,
@@ -74,12 +75,14 @@ final class PersonnelDocumentController extends Controller
                 null,
                 $tenure !== '' ? $tenure : null,
                 $indexing !== '' ? $indexing : null,
+                $folder !== '' ? $folder : null,
             ),
             'folderTotal' => count(DocumentFolder::cases()),
             'q' => $q,
             'tenure' => $tenure,
             'indexing' => $indexing,
-            'searching' => $q !== '' || $tenure !== '' || $indexing !== '',
+            'folder' => $folder,
+            'searching' => $q !== '' || $tenure !== '' || $indexing !== '' || $folder !== '',
         ];
 
         if ($request->ajax()) {
@@ -87,7 +90,7 @@ final class PersonnelDocumentController extends Controller
         }
 
         $data['canUpload'] = $this->canUpload($request);
-        $data['storageLabel'] = StorageUsage::label(StorageUsage::bytesForCompany($companyId));
+        $data['folderCards'] = $this->folderCards($companyId);
 
         return view('modules.company.personnel-documents.index', $data);
     }
@@ -433,6 +436,52 @@ final class PersonnelDocumentController extends Controller
         $tenure = $request->string('tenure')->toString();
 
         return in_array($tenure, ['lt1', 'y1_3', 'y3_5', 'gt5', 'none'], true) ? $tenure : '';
+    }
+
+    private function folderFilter(Request $request): string
+    {
+        $folder = $request->string('folder')->toString();
+        if ($folder === 'all' || DocumentFolder::tryFrom($folder) !== null) {
+            return $folder;
+        }
+
+        return '';
+    }
+
+    /**
+     * @return list<array{key: string, name: string, line: string, weight: string}>
+     */
+    private function folderCards(int $companyId): array
+    {
+        $stats = $this->employees->personnelFolderStats($companyId);
+        $byKey = [];
+        foreach ($stats['folders'] as $row) {
+            $byKey[$row['key']] = $row;
+        }
+
+        $names = PersonnelFolder::query()
+            ->where('security_company_id', $companyId)
+            ->pluck('name', 'slug');
+
+        $cards = [];
+        foreach (DocumentFolder::cases() as $folder) {
+            $row = $byKey[$folder->value] ?? ['workers' => 0, 'bytes' => 0];
+            $cards[] = [
+                'key' => $folder->value,
+                'name' => (string) ($names[$folder->value] ?? $folder->label()),
+                'line' => (int) $row['workers'].' trabajadores',
+                'weight' => StorageUsage::label((int) $row['bytes']),
+            ];
+        }
+
+        $cards[] = [
+            'key' => 'all',
+            'name' => 'Total',
+            'line' => (int) $stats['files'].' documentos',
+            'weight' => StorageUsage::label((int) $stats['bytes']),
+        ];
+
+        return $cards;
     }
 
     private function indexingFilter(Request $request): string
