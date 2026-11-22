@@ -12,7 +12,6 @@ use App\Models\SupervisorPost;
 use App\Services\Platform\ReleaseClientService;
 use App\Services\Tenant\AssertClientServiceSeats;
 use App\Services\Tenant\AssertInstallationSeats;
-use App\Support\Catalog\InstallationQuota;
 use App\Support\Catalog\PostQuota;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -61,7 +60,7 @@ final class ManageArchiveService
         $count = max(1, $returning);
 
         $company->installationQuota()->assertRoom(
-            InstallationQuota::linesOf($client),
+            [],
             $count,
             'No puedes restaurar «'.$client->name.'» ('.$count.' '.($count === 1 ? 'instalación' : 'instalaciones').'):',
             exceptClientId: $client->id,

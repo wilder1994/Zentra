@@ -93,4 +93,38 @@ final class InstallationQuotaTest extends TestCase
             ])
             ->assertSessionHasErrors('package');
     }
+
+    public function test_lower_line_does_not_block_installation_when_a_higher_plan_has_room(): void
+    {
+        $this->seedWithPilot();
+        $admin = User::query()->where('email', 'empresa@sj-seguridad.test')->firstOrFail();
+        $company = $admin->securityCompany;
+        $client = Client::query()->where('slug', 'palmas-del-ingenio')->firstOrFail();
+        $client->update(['has_access' => true, 'has_supervision' => true, 'has_observatory' => true]);
+        $pool = $company->fresh()->installationSeatsCount();
+
+        $company->update([
+            'max_clients' => 0,
+            'package_manual_seats' => 0,
+            'package_hardware_seats' => 0,
+            'package_size' => 0,
+            'max_supervision_clients' => $pool + 2,
+            'supervision_package_size' => $pool + 2,
+            'observatory_seats' => 0,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('company.installations.store'), [
+                'client_id' => $client->id,
+                'name' => 'Instalación sobre el plan alto',
+                'address' => 'Calle 1 # 2-3',
+                'city' => 'Cali',
+                'department' => 'Valle del Cauca',
+                'latitude' => '3.4300000',
+                'longitude' => '-76.5200000',
+            ])
+            ->assertRedirect();
+
+        $this->assertNotNull(Installation::query()->where('name', 'Instalación sobre el plan alto')->first());
+    }
 }

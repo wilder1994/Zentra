@@ -6,7 +6,6 @@ namespace App\Services\Tenant;
 
 use App\Models\Client;
 use App\Models\SecurityCompany;
-use App\Support\Catalog\InstallationQuota;
 
 final class AssertInstallationSeats
 {
@@ -23,12 +22,13 @@ final class AssertInstallationSeats
     ];
 
     /**
-     * @param  list<string>  $lines  Líneas del cliente que también deben tener cupo.
+     * Alta y restauración de instalaciones: solo la bolsa (el plan más alto).
+     * Chulear una línea se valida aparte, con el cupo de esa línea.
      */
-    public function execute(SecurityCompany $company, string $action, ?int $exceptInstallationId = null, array $lines = []): void
+    public function execute(SecurityCompany $company, string $action, ?int $exceptInstallationId = null): void
     {
         $company->installationQuota()->assertRoom(
-            $lines,
+            [],
             1,
             self::ACTIONS[$action] ?? self::ACTIONS[self::ACTION_CREATE_INSTALLATION],
             $exceptInstallationId,
@@ -39,6 +39,6 @@ final class AssertInstallationSeats
     {
         $company = SecurityCompany::query()->findOrFail($client->security_company_id);
 
-        $this->execute($company, $action, $exceptInstallationId, InstallationQuota::linesOf($client));
+        $this->execute($company, $action, $exceptInstallationId);
     }
 }
