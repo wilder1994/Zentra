@@ -15,6 +15,7 @@
 /resident-app/node_modules
 *.jks
 *.keystore
+!field-app/android/keystore/zentra-supervision.jks
 /public/build
 /public/hot
 /public/images
