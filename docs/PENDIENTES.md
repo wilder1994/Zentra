@@ -56,6 +56,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 21 nov 2026 · APK Supervisión 2.10 con firma release
+Play Protect bloqueaba el APK porque iba firmado con la clave de prueba de Android. El 2.10 (versionCode 20) va firmado con `CN=W Codex` y sin el permiso de ubicación en segundo plano. La clave queda fuera del repo, en `field-app/android/keystore/`. Hay que desinstalar el APK anterior una vez.
+
 ### 21 nov 2026 · Documentos: header y pastillas por carpeta
 Listado de empresa: título, buscador, Filtros y carga masiva en el header. Ocho pastillas (siete carpetas + Total) con trabajadores o documentos y peso; un clic filtra la tabla y otro reemplaza el filtro. Se parten en más filas cuando no caben.
 

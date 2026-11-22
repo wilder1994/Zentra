@@ -2,6 +2,8 @@
 
 **Última actualización:** 21 noviembre 2026
 
+Corte 21 nov 2026 (APK Supervisión 2.10, firma release): **sin migrate** y sin `npm run build`. Pull + `view:cache`. El binario es `public/downloads/zentra-supervision.apk` (versionCode 20). Play Protect bloqueaba el APK de prueba. Quien tenga 2.9 o anterior instalado debe desinstalarlo: la firma cambió y Android no lo deja actualizar encima. Descargar desde el panel, no reenviar el archivo por WhatsApp.
+
 Corte 21 nov 2026 (Documentos: header en una línea y pastillas por carpeta): **sin migrate** y sin seeder. Pull + `npm ci && npm run build` en el VPS + `view:cache` + `route:cache`. Las clases nuevas del listado no están en `public/build` del repo.
 
 Corte 21 nov 2026 (GPS de turno cada 5 s y pin que se desliza en el mapa en vivo): **sin migrate** y sin seeder. Pull + `view:cache` + `route:cache` + `config:cache`. Sin `npm run build` (el mapa es Blade). APK **2.9** (versionCode 19) en `public/downloads/zentra-supervision.apk` y PWA `/campo` (SW **v63**). Hay que reinstalar el APK: el de 2.8 y anteriores sigue mandando cada 15 s. Al abrir el turno Android pide dejar Zentra fuera del ahorro de batería.
