@@ -56,6 +56,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 21 nov 2026 · Ícono del APK de Supervisión (2.11)
+El launcher deja el robot de la plantilla y usa el logo enviado (Z, moto y cámara). VersionCode 21, misma firma release que el 2.10. Clave en `docs/SUPERVISION-CAMPO.md` y en `field-app/android/keystore/`.
+
 ### 21 nov 2026 · APK Supervisión 2.10 con firma release
 Play Protect bloqueaba el APK porque iba firmado con la clave de prueba de Android. El 2.10 (versionCode 20) va firmado con `CN=W Codex` y sin el permiso de ubicación en segundo plano. La clave queda fuera del repo, en `field-app/android/keystore/`. Hay que desinstalar el APK anterior una vez.
 

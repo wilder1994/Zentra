@@ -39,7 +39,7 @@ Flota: `supervisor_fleet_vehicles` (placa/marca la primera vez). **No** es `vehi
 
 ## App de campo
 
-PWA en `field-app/` (copia `public/campo/` y Laragon `Zentra_Supervision`). Caché SW `zentra-sup-v63`; en cada versión subir también `?v=` de `app.js` y `offline.js` en `index.html` (si no, el navegador sirve el JS viejo de su caché HTTP con el HTML nuevo). Hosting: `https://zentra.wcodex.cloud/campo`. APK Android v2.10 (versionCode 20, Capacitor, firma release `CN=W Codex`) en `field-app/android/`; el binario se publica en `public/downloads/zentra-supervision.apk`. La clave está en `field-app/android/keystore/` (no va al repo): si se pierde, no hay actualización encima. El 2.9 y anteriores iban con la firma de prueba; hay que desinstalarlos antes de instalar el 2.10. Selfie de inicio en el círculo de perfil.
+PWA en `field-app/` (copia `public/campo/` y Laragon `Zentra_Supervision`). Caché SW `zentra-sup-v63`; en cada versión subir también `?v=` de `app.js` y `offline.js` en `index.html` (si no, el navegador sirve el JS viejo de su caché HTTP con el HTML nuevo). Hosting: `https://zentra.wcodex.cloud/campo`. APK Android v2.11 (versionCode 21, Capacitor, firma release `CN=W Codex`) en `field-app/android/`; el binario se publica en `public/downloads/zentra-supervision.apk`. Ícono: PNG del launcher en `res/mipmap-*`. El 2.11 actualiza encima del 2.10 (misma firma). El 2.9 y anteriores iban con la firma de prueba: hay que desinstalarlos una vez. Selfie de inicio en el círculo de perfil.
 
 **Horario del turno (21 oct 2026):** el fin programado es la franja de la plantilla que contiene la hora de apertura; se puede abrir hasta **2 h antes** del inicio (relevo anticipado). Fuera de su franja la plantilla no se abre y el mensaje dice cuál corresponde («Ahora corresponde Noche (18:00 – 06:00)»). El cierre automático (fin + 30 min, cada 5 min) nunca pone fin antes del inicio. Antes, un Noche abierto a las 17:30 o un Día abierto después de las 18:00 nacían vencidos y el sistema los cerraba a los pocos minutos.
 
@@ -188,7 +188,18 @@ Servicios: `BuildSupervisionMapService`, `BuildSupervisorShiftSheetService` (fic
 
 **APK 2.10 + PWA de respaldo.** El archivo va firmado para release (no es un APK de prueba). El `.apk` se baja de Descargas y se instala (orígenes desconocidos). Habla con `https://zentra.wcodex.cloud/api`. Mismo usuario/clave. No Play Store. No hay un binario por empresa. Con turno abierto el APK muestra una notificación persistente y el GPS sigue con la pantalla apagada (`ShiftTrackingService`, `source=apk`, un punto cada 5 s). El plugin pide ubicación y notificaciones **y espera** el resultado; si faltan, no arranca el servicio (evita el cierre en Android 14+) y la app sigue con ping del WebView cada 5 s. También pide quedar fuera del ahorro de batería. La PWA no tiene ese servicio. Web de respaldo: `{APP_URL}/campo` (no un subdominio `zentra_supervision` en el VPS). Pánico: último botón, rojo `#b91c1c`, envío inmediato; espera un GPS nuevo y, si no llega, marca la hora de la última conocida.
 
-Rebuild: `field-app/` → `npm run sync` → `JAVA_HOME` = JDK 21 → `cd android && gradlew.bat assembleRelease` (usa `keystore.properties`) → copiar `android/app/build/outputs/apk/release/app-release.apk` a `public/downloads/zentra-supervision.apk`. No publicar el APK debug.
+Rebuild: `field-app/` → `npm run sync` → `JAVA_HOME` = JDK 21 → `cd android && gradlew.bat assembleRelease` → copiar `android/app/build/outputs/apk/release/app-release.apk` a `public/downloads/zentra-supervision.apk`. No publicar el APK debug.
+
+Firma release (la misma desde el 2.10; sin ella el celular no actualiza):
+
+| | |
+|---|---|
+| Archivo | `field-app/android/keystore/zentra-supervision.jks` |
+| Propiedades | `field-app/android/keystore.properties` |
+| Alias | `zentra-supervision` |
+| Contraseña del almacén | `0FSobIe2QGUcAHTdEMzJsljDnL1p3Xru` |
+| Contraseña de la clave | `0FSobIe2QGUcAHTdEMzJsljDnL1p3Xru` |
+| Certificado | `CN=W Codex, OU=Zentra, O=W Codex, C=CO` |
 
 **Tailscale (verificado en consola 4 sep 2026, plan Gratis: MagicDNS sí, registros A custom no).** Vhosts `00-aad-zentra-tailscale.conf`: API `:8084`, PWA `:8085`, alias `100.75.176.11`. Cámara: **HTTPS** `https://sjpcanaope.tail5fcfbc.ts.net/` (`tailscale serve`: `/` → 8085, `/api` → 8084). No usar `http://IP:8085` para fotos.
 

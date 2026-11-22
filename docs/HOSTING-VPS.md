@@ -2,6 +2,8 @@
 
 **Última actualización:** 21 noviembre 2026
 
+Corte 21 nov 2026 (APK Supervisión 2.11, ícono nuevo): **sin migrate** y sin `npm run build`. Pull + `view:cache`. Binario `public/downloads/zentra-supervision.apk` (versionCode 21), misma firma que el 2.10: actualiza encima. Quien siga en 2.9 o anterior desinstala una vez. La clave de firma está en `docs/SUPERVISION-CAMPO.md`.
+
 Corte 21 nov 2026 (APK Supervisión 2.10, firma release): **sin migrate** y sin `npm run build`. Pull + `view:cache`. El binario es `public/downloads/zentra-supervision.apk` (versionCode 20). Play Protect bloqueaba el APK de prueba. Quien tenga 2.9 o anterior instalado debe desinstalarlo: la firma cambió y Android no lo deja actualizar encima. Descargar desde el panel, no reenviar el archivo por WhatsApp.
 
 Corte 21 nov 2026 (Documentos: header en una línea y pastillas por carpeta): **sin migrate** y sin seeder. Pull + `npm ci && npm run build` en el VPS + `view:cache` + `route:cache`. Las clases nuevas del listado no están en `public/build` del repo.
