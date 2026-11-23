@@ -13,6 +13,8 @@
             x-data="observatoryMap(@js([
                 'sites' => $sites,
                 'points' => $points,
+                'shifts' => $map['shifts'] ?? [],
+                'moto' => asset('images/ui/supervisor-moto.png').'?v='.(string) (@filemtime(public_path('images/ui/supervisor-moto.png')) ?: '1'),
                 'center' => $maps['center'] ?? ['lat' => 3.4372, 'lng' => -76.5225],
                 'zoom' => $maps['zoom'] ?? 12,
                 'comuna' => $map['comuna'] ?? '',

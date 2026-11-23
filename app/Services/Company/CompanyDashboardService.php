@@ -10,6 +10,7 @@ use App\Enums\CompanyPackageSku;
 use App\Enums\PackageModality;
 use App\Models\SecurityCompany;
 use App\Repositories\ClientRepository;
+use App\Services\Ops\BuildActivityBubblesService;
 use App\Services\Ops\BuildSigBoardService;
 use App\Services\Pricing\PriceCalculator;
 use App\Support\Catalog\CatalogSettings;
@@ -67,6 +68,7 @@ final class CompanyDashboardService
             'fieldSupervision' => $this->fieldSupervisionStrip->forToday($company),
             'serviceFeed' => $operationFeeds['feed'],
             'supervisorReviews' => $operationFeeds['reviews'],
+            'activityBubbles' => app(BuildActivityBubblesService::class)->forCompany($companyId),
         ];
     }
 
@@ -98,6 +100,7 @@ final class CompanyDashboardService
                 'product_quotas' => $ops['product_quotas'] ?? [],
                 'service_feed' => $full['serviceFeed'] ?? [],
                 'supervisor_reviews' => $full['supervisorReviews'] ?? [],
+                'activity_bubbles' => $full['activityBubbles'] ?? [],
             ],
             'field' => $full['fieldSupervision'],
         ];

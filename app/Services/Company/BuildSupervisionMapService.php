@@ -366,6 +366,64 @@ final class BuildSupervisionMapService
         ];
     }
 
+    /**
+     * Turnos abiertos que cubren clientes con supervisión y observatorio.
+     * El mapa del observatorio usa moto y recorrido; no las revistas.
+     *
+     * @param  list<int>  $clientIds
+     * @return list<array<string, mixed>>
+     */
+    public function openShiftsCovering(int $companyId, array $clientIds): array
+    {
+        $clientIds = array_values(array_unique(array_map('intval', array_filter($clientIds))));
+        if ($companyId < 1 || $clientIds === []) {
+            return [];
+        }
+
+        $zoneIds = Client::query()
+            ->whereIn('id', $clientIds)
+            ->whereNotNull('supervisor_zone_id')
+            ->pluck('supervisor_zone_id')
+            ->map(static fn ($id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        return SupervisorShift::query()
+            ->where('security_company_id', $companyId)
+            ->where('status', SupervisorShiftStatus::Open)
+            ->where(function ($query) use ($zoneIds, $clientIds): void {
+                $limited = false;
+                if ($zoneIds !== []) {
+                    $query->whereIn('supervisor_zone_id', $zoneIds)
+                        ->orWhereHas('extraZones', fn ($zones) => $zones->whereIn('supervisor_zone_id', $zoneIds));
+                    $limited = true;
+                }
+                $reviews = fn ($rows) => $rows->whereIn('client_id', $clientIds);
+                if ($limited) {
+                    $query->orWhereHas('reviews', $reviews);
+                } else {
+                    $query->whereHas('reviews', $reviews);
+                }
+            })
+            ->withCount('reviews')
+            ->with([
+                'user',
+                'zone:id,name',
+                'extraZones' => fn ($query) => $query->active()->with('zone:id,name'),
+                'locations' => fn ($query) => $query->orderBy('recorded_at'),
+            ])
+            ->get()
+            ->map(function (SupervisorShift $shift): array {
+                $row = $this->mapLiveShift($shift);
+                unset($row['sheet_url'], $row['zones_url'], $row['stops'], $row['start'], $row['parked']);
+
+                return $row;
+            })
+            ->values()
+            ->all();
+    }
+
     /** @return array<string, mixed> */
     private function mapLiveShift(SupervisorShift $shift): array
     {

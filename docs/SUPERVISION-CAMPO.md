@@ -203,7 +203,7 @@ Firma release (la misma desde el 2.10; sin ella el celular no actualiza):
 
 **Tailscale (verificado en consola 4 sep 2026, plan Gratis: MagicDNS sí, registros A custom no).** Vhosts `00-aad-zentra-tailscale.conf`: API `:8084`, PWA `:8085`, alias `100.75.176.11`. Cámara: **HTTPS** `https://sjpcanaope.tail5fcfbc.ts.net/` (`tailscale serve`: `/` → 8085, `/api` → 8084). No usar `http://IP:8085` para fotos.
 
-Mi empresa muestra la tira **Supervisión de campo (hoy)** aparte de las revistas de portería (incluye recomendaciones del día).
+Mi empresa muestra la tira **Supervisión de campo (hoy)** aparte de las revistas de portería (incluye recomendaciones del día). El card **Reportes** lista las últimas 40 burbujas de revista, alarma, apoyo y observatorio (cada una solo con los campos que ese tipo trae). Al guardar se avisa por Reverb; si el canal no está, el tablero consulta cada 12 s.
 
 ---
 

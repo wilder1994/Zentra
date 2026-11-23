@@ -102,6 +102,8 @@
          data-live-url="{{ $observatoryLiveUrl }}"
          data-show-client="{{ $showClientColumn ? '1' : '0' }}"
          data-events='@json($liveEventRows)'
+         data-shifts='@json($map['shifts'] ?? [])'
+         data-bubbles='@json($map['bubbles'] ?? [])'
      @endif>
     <div class="space-y-3" @if ($vista === 'tablero') x-data="observatoryBoard(@js($charts))" @endif>
     @php
@@ -160,6 +162,72 @@
                 'mapCanvasClass' => 'h-80 lg:h-full lg:min-h-[26rem]',
             ])
             @include('modules.observatory.partials.pin-legend')
+        </div>
+
+        <div class="grid gap-2 lg:grid-cols-[minmax(16rem,0.9fr)_minmax(0,1.3fr)] lg:items-stretch">
+            <section class="obs-card p-3 flex flex-col gap-3 min-h-0">
+                @include('modules.company.supervision.partials.pin-legend')
+                <div class="border-t border-slate-800 pt-2 min-h-0">
+                    <h3 class="text-sm font-semibold text-white">Supervisores en turno</h3>
+                    <p class="text-[11px] text-slate-500 mb-2">Solo clientes con supervisión y observatorio.</p>
+                    @if ($observatoryLiveUrl)
+                        <div class="overflow-y-auto max-h-64 sidebar-scroll">
+                            <p class="text-sm text-slate-500" x-show="!shifts.length">Nadie en turno ahora.</p>
+                            <table class="w-full text-sm" x-show="shifts.length">
+                                <thead>
+                                    <tr class="text-[11px] uppercase tracking-wide text-slate-500 border-b border-slate-800">
+                                        <th class="text-left py-2 pr-2 font-medium">Supervisor</th>
+                                        <th class="text-left py-2 pr-2 font-medium">Estado</th>
+                                        <th class="text-right py-2 font-medium">Km</th>
+                                        <th class="text-right py-2 font-medium">Rev.</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="row in shifts" :key="row.shift_id">
+                                        <tr class="border-b border-slate-800/70 align-top">
+                                            <td class="py-2 pr-2">
+                                                <p class="font-medium text-slate-100" x-text="row.user || 'Supervisor'"></p>
+                                                <p class="text-xs mt-0.5" :class="signalClass(row)" x-text="row.online_label || 'Sin señal'"></p>
+                                                <p class="text-xs text-slate-500 mt-0.5">Inicio <span x-text="row.started_at_label || '—'"></span></p>
+                                                <p class="text-xs text-sky-500 mt-0.5" x-text="row.zone_label || 'Sin zona'"></p>
+                                            </td>
+                                            <td class="py-2 pr-2 text-xs text-slate-300 leading-snug" x-text="row.status_line || '—'"></td>
+                                            <td class="py-2 text-right text-slate-300 tabular-nums" x-text="Number(row.km || 0).toFixed(1)"></td>
+                                            <td class="py-2 text-right text-slate-300 tabular-nums" x-text="row.reviews_count || 0"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <p class="text-sm text-slate-500">Nadie en turno ahora.</p>
+                    @endif
+                </div>
+            </section>
+            <section class="obs-card p-3 flex flex-col min-h-0">
+                <div class="shrink-0">
+                    <h3 class="text-sm font-semibold text-white">Reportes</h3>
+                    <p class="text-[11px] text-slate-500">Revista, alarma, apoyo y observatorio. Lo más nuevo arriba.</p>
+                </div>
+                <div class="mt-2 overflow-y-auto max-h-80 lg:max-h-[28rem] sidebar-scroll">
+                    @if ($observatoryLiveUrl)
+                        <div class="flex flex-col gap-1.5">
+                            <template x-for="row in bubbles" :key="row.id">
+                                <article class="rounded-xl border px-3 py-1.5" :class="bubbleClass(row)">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-300" x-text="row.kind_label"></p>
+                                        <p class="text-[10px] text-slate-500 tabular-nums" x-text="row.at"></p>
+                                    </div>
+                                    <template x-for="line in row.lines" :key="line.label">
+                                        <p class="text-[12px] text-slate-300 leading-snug"><span class="text-slate-500" x-text="line.label"></span> <span class="text-slate-100" x-text="line.value"></span></p>
+                                    </template>
+                                </article>
+                            </template>
+                            <p class="py-6 text-center text-sm text-slate-500" x-show="!bubbles.length">Sin reportes todavía.</p>
+                        </div>
+                    @endif
+                </div>
+            </section>
         </div>
 
         <div class="grid gap-2 lg:grid-cols-[minmax(14rem,1fr)_minmax(0,2fr)] lg:items-stretch">

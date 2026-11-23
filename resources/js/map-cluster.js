@@ -57,6 +57,7 @@ export function createClusterer(map, { maxZoom = 16, radius = 64, onSamePlace = 
 
                 return new google.maps.Marker({
                     position: cluster.position,
+                    optimized: false,
                     icon: numberDropIcon(CLUSTER_TONES[tone] || CLUSTER_TONES.slate, cluster.count),
                     title: cluster.count + ' en esta zona · clic para acercar',
                     zIndex: Number(google.maps.Marker.MAX_ZINDEX) + cluster.count,

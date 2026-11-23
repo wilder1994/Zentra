@@ -26,6 +26,8 @@ export function observatoryMap(cfg) {
         comunas: cfg.comunas || [],
         map: null,
         markers: [],
+        shifts: cfg.shifts || [],
+        shiftOverlays: [],
 
         init() {
             window.initObservatoryMap = () => this.draw();
@@ -83,6 +85,7 @@ export function observatoryMap(cfg) {
                 const marker = new google.maps.Marker({
                     position: pos,
                     map: null,
+                    optimized: false,
                     title: site.name,
                     zIndex: 1,
                     icon: pinIcon,
@@ -119,6 +122,7 @@ export function observatoryMap(cfg) {
                 const marker = new google.maps.Marker({
                     position: pos,
                     map: null,
+                    optimized: false,
                     title: point.kind || point.title,
                     zIndex: 2,
                     icon: pinIcon,
@@ -147,6 +151,10 @@ export function observatoryMap(cfg) {
             });
 
             this.applyMode();
+            window.addEventListener('observatory-shifts', (event) => {
+                this.shifts = Array.isArray(event.detail) ? event.detail : [];
+                this.drawShifts();
+            });
             this.loadComunas();
             google.maps.event.addListenerOnce(this.map, 'idle', () => {
                 google.maps.event.trigger(this.map, 'resize');
@@ -329,6 +337,49 @@ export function observatoryMap(cfg) {
                 }
             });
             clusterer?.addMarkers(grouped);
+            this.drawShifts();
+        },
+
+        drawShifts() {
+            this.shiftOverlays.forEach((overlay) => overlay.setMap(null));
+            this.shiftOverlays = [];
+            if (!this.map || this.mode !== 'pins') {
+                return;
+            }
+            const moto = cfg.moto || '';
+            (this.shifts || []).forEach((row) => {
+                const path = (row.path || [])
+                    .map((point) => ({ lat: Number(point.lat), lng: Number(point.lng) }))
+                    .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
+                if (path.length > 1) {
+                    this.shiftOverlays.push(new google.maps.Polyline({
+                        map: this.map,
+                        path,
+                        strokeColor: '#f59e0b',
+                        strokeOpacity: 0.9,
+                        strokeWeight: 4,
+                        zIndex: 3,
+                    }));
+                }
+                const end = row.end && row.end.lat != null
+                    ? row.end
+                    : (row.lat != null ? { lat: row.lat, lng: row.lng } : null);
+                if (!end || end.lat == null || end.lng == null) {
+                    return;
+                }
+                this.shiftOverlays.push(new google.maps.Marker({
+                    map: this.map,
+                    position: { lat: Number(end.lat), lng: Number(end.lng) },
+                    optimized: false,
+                    zIndex: 6,
+                    title: [row.user, row.online_label].filter(Boolean).join(' · '),
+                    icon: moto ? {
+                        url: moto,
+                        scaledSize: new google.maps.Size(50, 36),
+                        anchor: new google.maps.Point(25, 34),
+                    } : undefined,
+                }));
+            });
         },
     };
 }

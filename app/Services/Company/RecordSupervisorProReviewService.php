@@ -14,6 +14,7 @@ use App\Models\SupervisorShiftReview;
 use App\Models\SupervisorTraining;
 use App\Models\SupervisorUniformItem;
 use App\Models\User;
+use App\Services\Ops\NotifyOpsSurface;
 use App\Services\Supervision\NotifySupervisionNoveltyService;
 use App\Services\Supervision\ResolveTrainingTopicService;
 use App\Support\Supervision\RecommendationEvidencePhotos;
@@ -194,6 +195,14 @@ final class RecordSupervisorProReviewService
         });
 
         $this->novelties->review($review);
+
+        app(NotifyOpsSurface::class)->send(
+            (int) $shift->security_company_id,
+            (int) $client->id,
+            'revista',
+            'Revista · '.$client->name,
+            $shift->user?->name,
+        );
 
         return $review;
     }

@@ -142,6 +142,11 @@ final class ObservatoryReport extends Model
         return $urls;
     }
 
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
+    }
+
     public function event(): BelongsTo
     {
         return $this->belongsTo(ObservatoryEvent::class, 'event_id');

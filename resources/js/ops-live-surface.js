@@ -46,6 +46,8 @@ export function opsLivePage() {
         url: '',
         showClient: false,
         events: [],
+        shifts: [],
+        bubbles: [],
         init() {
             this.url = this.$el.dataset.liveUrl || '';
             this.showClient = this.$el.dataset.showClient === '1';
@@ -54,7 +56,41 @@ export function opsLivePage() {
             } catch {
                 this.events = [];
             }
+            try {
+                this.shifts = JSON.parse(this.$el.dataset.shifts || '[]');
+            } catch {
+                this.shifts = [];
+            }
+            try {
+                this.bubbles = JSON.parse(this.$el.dataset.bubbles || '[]');
+            } catch {
+                this.bubbles = [];
+            }
             bindOpsLiveRefresh(() => this.refresh());
+            window.setInterval(() => this.refresh(), 12000);
+        },
+        signalClass(row) {
+            if (row?.signal === 'screen_off') {
+                return 'text-amber-400';
+            }
+            if (row?.signal === 'online' || row?.online) {
+                return 'text-emerald-400';
+            }
+
+            return 'text-red-400';
+        },
+        bubbleClass(row) {
+            if (row?.tone === 'red') {
+                return 'border-red-500/40 bg-red-950/20';
+            }
+            if (row?.tone === 'sky') {
+                return 'border-sky-500/40 bg-sky-950/20';
+            }
+            if (row?.tone === 'amber') {
+                return 'border-amber-500/40 bg-amber-950/20';
+            }
+
+            return 'border-indigo-500/40 bg-slate-950/70';
         },
         async refresh() {
             if (!this.url) {
@@ -70,6 +106,14 @@ export function opsLivePage() {
                 }
                 const data = await res.json();
                 this.events = Array.isArray(data.events) ? data.events : this.events;
+                const shifts = Array.isArray(data.shifts) ? data.shifts : data.map?.shifts;
+                if (Array.isArray(shifts)) {
+                    this.shifts = shifts;
+                    window.dispatchEvent(new CustomEvent('observatory-shifts', { detail: shifts }));
+                }
+                if (Array.isArray(data.bubbles)) {
+                    this.bubbles = data.bubbles;
+                }
                 window.dispatchEvent(new CustomEvent('ops-live-data', { detail: data }));
             } catch {
                 // red caída: el siguiente tick reintenta
@@ -213,6 +257,22 @@ export function companyDashboardLive() {
         },
         supervisorReviews() {
             return this.ops.supervisor_reviews || [];
+        },
+        activityBubbles() {
+            return this.ops.activity_bubbles || [];
+        },
+        bubbleClass(row) {
+            if (row?.tone === 'red') {
+                return 'border-red-500/40 bg-red-950/20';
+            }
+            if (row?.tone === 'sky') {
+                return 'border-sky-500/40 bg-sky-950/20';
+            }
+            if (row?.tone === 'amber') {
+                return 'border-amber-500/40 bg-amber-950/20';
+            }
+
+            return 'border-indigo-500/40 bg-slate-950/70';
         },
         fieldVal(key) {
             return this.field?.[key] ?? 0;

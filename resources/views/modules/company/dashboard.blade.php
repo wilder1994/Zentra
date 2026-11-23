@@ -55,6 +55,7 @@
             'product_quotas' => $productQuotas,
             'service_feed' => $serviceFeed,
             'supervisor_reviews' => $supervisorReviews,
+            'activity_bubbles' => $activityBubbles ?? [],
         ],
         'field' => $fieldSupervision,
     ];
@@ -998,8 +999,8 @@
             <div class="company-cc-card" style="height: 24rem;">
                 <div class="company-cc-card-head">
                     <div class="min-w-0">
-                        <h3 class="text-sm font-semibold text-white">Revistas del supervisor</h3>
-                        <p class="text-[11px] text-slate-500">Últimas 40</p>
+                        <h3 class="text-sm font-semibold text-white">Reportes</h3>
+                        <p class="text-[11px] text-slate-500">Revista, alarma, apoyo y observatorio</p>
                     </div>
                     @can('company.supervision.view')
                         <a href="{{ route('company.supervision.index') }}" class="ui-chip-link">Supervisión</a>
@@ -1007,19 +1008,18 @@
                 </div>
                 <div class="company-cc-card-body-flush px-3 pb-3 overflow-y-auto">
                     <div class="flex flex-wrap content-start gap-1.5">
-                        <template x-for="row in supervisorReviews()" :key="row.id">
-                            <article class="w-full sm:w-[calc(50%-0.2rem)] rounded-xl border px-3 py-1.5"
-                                     :class="row.novelty ? 'border-amber-500/40 bg-amber-950/20' : 'border-slate-800 bg-slate-950/70'">
+                        <template x-for="row in activityBubbles()" :key="row.id">
+                            <article class="w-full sm:w-[calc(50%-0.2rem)] rounded-xl border px-3 py-1.5" :class="bubbleClass(row)">
                                 <div class="flex items-center justify-between gap-2">
+                                    <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-300" x-text="row.kind_label"></p>
                                     <p class="text-[10px] text-slate-500 tabular-nums" x-text="row.at"></p>
-                                    <span x-show="row.novelty" class="text-[10px] font-semibold text-amber-300">Novedad</span>
                                 </div>
-                                <p class="text-sm text-white leading-snug" x-text="row.supervisor"></p>
-                                <p class="text-[11px] text-slate-400 mt-0.5"><span x-text="row.post"></span><span class="text-slate-600"> · </span><span x-text="row.guard"></span></p>
-                                <p class="text-xs text-slate-300 mt-0.5 leading-snug line-clamp-2" x-text="row.record"></p>
+                                <template x-for="line in row.lines" :key="line.label">
+                                    <p class="text-[12px] text-slate-300 leading-snug"><span class="text-slate-500" x-text="line.label"></span> <span class="text-slate-100" x-text="line.value"></span></p>
+                                </template>
                             </article>
                         </template>
-                        <p class="w-full py-6 text-center text-sm text-slate-500" x-show="!supervisorReviews().length">Sin revistas registradas.</p>
+                        <p class="w-full py-6 text-center text-sm text-slate-500" x-show="!activityBubbles().length">Sin reportes todavía.</p>
                     </div>
                 </div>
             </div>

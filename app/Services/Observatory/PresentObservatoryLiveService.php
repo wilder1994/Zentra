@@ -32,7 +32,10 @@ final class PresentObservatoryLiveService
             'map' => [
                 'sites' => $map['sites'] ?? [],
                 'points' => $map['points'] ?? [],
+                'shifts' => $map['shifts'] ?? [],
             ],
+            'bubbles' => $map['bubbles'] ?? [],
+            'shifts' => $map['shifts'] ?? [],
             'events' => collect($events->items())->map(function (ObservatoryEvent $event) use ($showRoute, $withClient): array {
                 return [
                     'id' => $event->id,

@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Services\Observatory;
 
 use App\Enums\ObservatoryEventStatus;
+use App\Models\Client;
 use App\Models\Installation;
 use App\Models\ObservatoryEvent;
 use App\Models\ObservatoryReport;
 use App\Models\ObservatoryReportType;
+use App\Services\Company\BuildSupervisionMapService;
+use App\Services\Ops\BuildActivityBubblesService;
 use App\Support\Geo\CaliComunaLayer;
 use App\Support\Geo\PlaceLabel;
 
@@ -49,10 +52,10 @@ final class BuildObservatoryMapService
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
             ->when($clientId !== null, fn ($q) => $q->where('client_id', $clientId))
-            ->when($companyId !== null, fn ($q) => $q->whereHas(
-                'client',
-                fn ($c) => $c->where('security_company_id', $companyId),
-            ))
+            ->whereHas('client', function ($client) use ($companyId): void {
+                $client->where('has_observatory', true)
+                    ->when($companyId !== null, fn ($query) => $query->where('security_company_id', $companyId));
+            })
             ->when($installationIds !== null, fn ($q) => $q->whereIn('id', $installationIds))
             ->orderBy('name')
             ->get();
@@ -131,7 +134,50 @@ final class BuildObservatoryMapService
                     })->filter();
                 });
             })->values()->all(),
+            'shifts' => $this->shifts($companyId, $clientId, $installationIds),
+            'bubbles' => $this->bubbles($companyId, $clientId),
         ];
+    }
+
+    /**
+     * @param  list<int>|null  $installationIds
+     * @return list<array<string, mixed>>
+     */
+    private function shifts(?int $companyId, ?int $clientId, ?array $installationIds): array
+    {
+        $resolvedCompany = $companyId ?? ($clientId !== null
+            ? (int) Client::query()->whereKey($clientId)->value('security_company_id')
+            : 0);
+        if ($resolvedCompany < 1) {
+            return [];
+        }
+
+        $dualIds = Client::query()
+            ->where('security_company_id', $resolvedCompany)
+            ->where('has_observatory', true)
+            ->where('has_supervision', true)
+            ->when($clientId !== null, fn ($query) => $query->whereKey($clientId))
+            ->when($installationIds !== null, fn ($query) => $query->whereHas(
+                'installations',
+                fn ($sites) => $sites->whereIn('id', $installationIds === [] ? [0] : $installationIds),
+            ))
+            ->pluck('id')
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
+
+        return app(BuildSupervisionMapService::class)->openShiftsCovering($resolvedCompany, $dualIds);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function bubbles(?int $companyId, ?int $clientId): array
+    {
+        $resolvedCompany = $companyId ?? ($clientId !== null
+            ? (int) Client::query()->whereKey($clientId)->value('security_company_id')
+            : 0);
+
+        return app(BuildActivityBubblesService::class)->forCompany($resolvedCompany, $clientId);
     }
 
     /**

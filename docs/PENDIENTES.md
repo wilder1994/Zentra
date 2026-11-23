@@ -56,6 +56,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 23 nov 2026 · Tablero de reportes y mapa del observatorio
+Las gotas del mapa dejan de cortar la punta al acercar. El mapa del observatorio muestra instalaciones con observatorio y, si el cliente también tiene supervisión, la moto y el recorrido del turno (sin pines de revista). Mi empresa y el tablero del observatorio listan revista, alarma, apoyo y observatorio en burbujas, cada una con los datos que ese tipo trae, y se refrescan al guardar. El observatorio incluye convenciones y supervisores en turno, sin Ver ni Zonas.
+
 ### 21 nov 2026 · Ícono del APK de Supervisión (2.11)
 El launcher deja el robot de la plantilla y usa el logo enviado (Z, moto y cámara). VersionCode 21, misma firma release que el 2.10. Clave en `docs/SUPERVISION-CAMPO.md` y en `field-app/android/keystore/`.
 

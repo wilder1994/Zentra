@@ -15,6 +15,7 @@ use App\Models\SupervisorFieldLog;
 use App\Models\SupervisorRecommendation;
 use App\Models\SupervisorShift;
 use App\Models\SupervisorShiftReview;
+use App\Services\Ops\NotifyOpsSurface;
 use App\Services\Supervision\NotifySupervisionNoveltyService;
 use App\Support\Supervision\SupervisorCaptureTime;
 use App\Support\Supervision\SupervisorClientScope;
@@ -129,6 +130,16 @@ final class RecordSupervisorFieldLogService
 
         if ($review === null) {
             app(NotifySupervisionNoveltyService::class)->log($log);
+        }
+
+        if ($module === SupervisorFieldModule::Alarms || $module === SupervisorFieldModule::Supports) {
+            app(NotifyOpsSurface::class)->send(
+                (int) $shift->security_company_id,
+                $log->client_id !== null ? (int) $log->client_id : null,
+                $module->value,
+                $module->label(),
+                $shift->user?->name,
+            );
         }
 
         return $log;

@@ -1,5 +1,6 @@
 /**
- * Pines de Zentra en forma de gota (viewBox 32×42, punta abajo en (16, 41)).
+ * Pines de Zentra en forma de gota. La punta está en (16, 41).
+ * El viewBox lleva margen: el trazo de 1.8 queda fuera del dibujo y Maps lo recorta al acercar.
  * La cabeza es un círculo de radio 13 centrado en (16, 16): ahí va el ícono o el número.
  */
 /** Sin íconos de lugares de Google: se confunden con nuestras gotas. */
@@ -10,6 +11,8 @@ export const MAP_STYLES = [
 
 export const DROP_W = 32;
 export const DROP_H = 42;
+/** Margen para que el trazo y la punta no se corten al rasterizar el SVG. */
+export const DROP_PAD = 3;
 export const DROP_PATH = 'M16 41C16 41 29 27.6 29 16A13 13 0 0 0 3 16C3 27.6 16 41 16 41Z';
 
 /** Íconos blancos para la cabeza de la gota (dibujados sobre la rejilla 32×32). */
@@ -26,7 +29,9 @@ export function dropSvg(color, inner = '', { ring = false, stroke = '#0b1220' } 
     const glyph = String(inner).split('__COLOR__').join(color);
     const halo = ring ? '<circle cx="16" cy="16" r="14.6" fill="none" stroke="#fbbf24" stroke-width="2.6"/>' : '';
 
-    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 42">'
+    const pad = DROP_PAD;
+
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + (-pad) + ' ' + (-pad) + ' ' + (DROP_W + pad * 2) + ' ' + (DROP_H + pad * 2) + '">'
         + '<path d="' + DROP_PATH + '" fill="' + color + '" stroke="' + stroke + '" stroke-width="1.8" stroke-linejoin="round"/>'
         + halo
         + (glyph ? '<g transform="translate(16 16) scale(.86) translate(-16 -16)">' + glyph + '</g>' : '')
@@ -35,12 +40,14 @@ export function dropSvg(color, inner = '', { ring = false, stroke = '#0b1220' } 
 
 /** Ícono de Google Maps a partir de una gota: punta abajo, anclada en el punto. */
 export function dropIcon(svg, width = 26) {
-    const height = width * DROP_H / DROP_W;
+    const boxW = DROP_W + DROP_PAD * 2;
+    const boxH = DROP_H + DROP_PAD * 2;
+    const height = width * boxH / boxW;
 
     return {
         url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
         scaledSize: new google.maps.Size(width, height),
-        anchor: new google.maps.Point(width / 2, height - 1),
+        anchor: new google.maps.Point(width * (16 + DROP_PAD) / boxW, height * (41 + DROP_PAD) / boxH),
     };
 }
 
