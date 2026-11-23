@@ -79,30 +79,45 @@ export function opsLivePage() {
             window.setInterval(() => this.refresh(), 5000);
             window.dispatchEvent(new CustomEvent('observatory-shifts', { detail: this.shifts }));
         },
+        trailUrlFor(id) {
+            const base = String(this.trailUrl || '');
+            if (!base) {
+                return '';
+            }
+            if (base.includes('__SHIFT__')) {
+                return base.split('__SHIFT__').join(String(id));
+            }
+
+            return base.replace(/\/shifts\/0(?=\/|$)/, `/shifts/${id}`);
+        },
         async pickShift(id) {
             const next = Number(this.selectedShiftId) === Number(id) ? null : Number(id);
             this.selectedShiftId = next;
             if (next == null) {
-                window.dispatchEvent(new CustomEvent('observatory-shift-pick', { detail: null }));
+                window.dispatchEvent(new CustomEvent('observatory-shift-pick', { detail: { id: null, path: [] } }));
                 return;
             }
             let path = [];
-            if (this.trailUrl) {
+            let lat = null;
+            let lng = null;
+            const url = this.trailUrlFor(next);
+            if (url) {
                 try {
-                    const url = this.trailUrl.replace(/\/shifts\/0(?=\/|$)/, `/shifts/${next}`);
                     const res = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
                     if (res.ok) {
                         const trail = await res.json();
                         path = Array.isArray(trail.path) ? trail.path : [];
+                        lat = trail.lat ?? null;
+                        lng = trail.lng ?? null;
                         this.shifts = this.shifts.map((row) => (
                             Number(row.shift_id) === next
                                 ? {
                                     ...row,
                                     path,
-                                    lat: trail.lat ?? row.lat,
-                                    lng: trail.lng ?? row.lng,
-                                    end: trail.lat != null
-                                        ? { lat: trail.lat, lng: trail.lng, at: row.recorded_at }
+                                    lat: lat ?? row.lat,
+                                    lng: lng ?? row.lng,
+                                    end: lat != null && lng != null
+                                        ? { lat, lng, at: row.recorded_at }
                                         : row.end,
                                 }
                                 : row
@@ -113,7 +128,9 @@ export function opsLivePage() {
                     //
                 }
             }
-            window.dispatchEvent(new CustomEvent('observatory-shift-pick', { detail: next }));
+            window.dispatchEvent(new CustomEvent('observatory-shift-pick', {
+                detail: { id: next, path, lat, lng },
+            }));
         },
         signalClass(row) {
             if (row?.signal === 'screen_off') {

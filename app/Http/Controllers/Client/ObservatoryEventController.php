@@ -96,6 +96,18 @@ final class ObservatoryEventController extends Controller
         ));
     }
 
+    public function shiftTrail(Request $request, int $shift): JsonResponse
+    {
+        $this->authorize('viewAny', ObservatoryEvent::class);
+
+        $clientId = (int) $this->tenantContext->clientId();
+        abort_unless($clientId > 0, 403);
+        $trail = app(BuildObservatoryMapService::class)->trail(null, $clientId, $shift);
+        abort_unless($trail !== null, 404);
+
+        return response()->json($trail);
+    }
+
     public function export(Request $request): BinaryFileResponse
     {
         $this->authorize('viewAny', ObservatoryEvent::class);

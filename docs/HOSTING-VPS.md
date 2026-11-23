@@ -2,6 +2,8 @@
 
 **Última actualización:** 23 noviembre 2026
 
+Corte 23 nov 2026 (recorrido y panel fijo del Observatorio): **sin migrate**. Pull + `npm ci && npm run build` + `view:cache` + `route:cache`. Ruta nueva `GET /company/observatory/shifts/{shift}/trail` (y la de cliente). El panel de convenciones/turnos tiene alto fijo.
+
 Corte 23 nov 2026 (todos los supervisores en el Observatorio): **sin migrate**. Pull + `view:cache` + `route:cache`. Sin `npm run build` si solo cambia PHP; con build si también hubo JS. El tablero de empresa lista todos los turnos abiertos.
 
 Corte 23 nov 2026 (tablero del Observatorio en una fila): **sin migrate** y sin seeder. Pull + `npm ci && npm run build` en el VPS + `view:cache` + `route:cache`. El recorrido se pinta solo al clic en el supervisor. Sin APK.

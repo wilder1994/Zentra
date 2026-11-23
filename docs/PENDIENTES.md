@@ -56,6 +56,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 23 nov 2026 · Recorrido, señal y alto fijo en el Observatorio
+La ruta del recorrido no estaba en el repo (404 al clic). Quedó publicada. El panel de convenciones + turnos tiene alto fijo (caben ~3 supervisores; el resto hace scroll). Las motos muestran En línea / Pantalla apagada / Sin señal y se deslizan con el GPS.
+
 ### 23 nov 2026 · Supervisores del observatorio visibles y motos en vivo
 El listado de turnos quedaba vacío porque Alpine anidaba el tablero sobre el mapa. Quedó fuera de `observatoryBoard`, las motos se deslizan cada 5 s y el recorrido se pide al clic.
 

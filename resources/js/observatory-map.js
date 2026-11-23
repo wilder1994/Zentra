@@ -51,6 +51,22 @@ export function observatoryMap(cfg) {
             return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
         },
 
+        signalOf(row) {
+            return row?.signal || (row?.online ? 'online' : 'no_signal');
+        },
+
+        signalColor(row) {
+            const signal = this.signalOf(row);
+            if (signal === 'screen_off') {
+                return '#fbbf24';
+            }
+            if (signal === 'online') {
+                return '#86efac';
+            }
+
+            return '#fca5a5';
+        },
+
         motoIcon(selected) {
             const moto = cfg.moto || '';
             if (!moto) {
@@ -61,6 +77,18 @@ export function observatoryMap(cfg) {
                 url: moto,
                 scaledSize: new google.maps.Size(selected ? 56 : 50, selected ? 40 : 36),
                 anchor: new google.maps.Point(selected ? 28 : 25, selected ? 38 : 34),
+            };
+        },
+
+        motoLabel(row) {
+            const text = row?.online_label || (row?.online ? 'En línea' : 'Sin señal');
+
+            return {
+                text,
+                color: this.signalColor(row),
+                fontSize: '11px',
+                fontWeight: '700',
+                className: 'obs-moto-label',
             };
         },
 
@@ -187,8 +215,25 @@ export function observatoryMap(cfg) {
                 this.drawShifts(false);
             });
             window.addEventListener('observatory-shift-pick', (event) => {
-                const id = event.detail;
+                const detail = event.detail;
+                const id = detail && typeof detail === 'object' ? detail.id : detail;
                 this.selectedShiftId = id == null || id === '' ? null : Number(id);
+                if (this.selectedShiftId != null && detail && typeof detail === 'object') {
+                    const path = Array.isArray(detail.path) ? detail.path : [];
+                    this.shifts = (this.shifts || []).map((row) => (
+                        Number(row.shift_id) === Number(this.selectedShiftId)
+                            ? {
+                                ...row,
+                                path,
+                                lat: detail.lat ?? row.lat,
+                                lng: detail.lng ?? row.lng,
+                                end: detail.lat != null && detail.lng != null
+                                    ? { lat: detail.lat, lng: detail.lng, at: row.recorded_at }
+                                    : row.end,
+                            }
+                            : row
+                    ));
+                }
                 this.drawShifts(this.selectedShiftId != null);
             });
             this.loadComunas();
@@ -418,6 +463,7 @@ export function observatoryMap(cfg) {
                 const next = { lat: Number(end.lat), lng: Number(end.lng) };
                 seen[id] = true;
                 let marker = this.motoMarkers[id];
+                const opacity = this.signalOf(row) === 'no_signal' ? 0.72 : 1;
                 if (!marker) {
                     marker = new google.maps.Marker({
                         map: this.map,
@@ -426,6 +472,8 @@ export function observatoryMap(cfg) {
                         zIndex: selected ? 20 : 18,
                         title: [row.user, row.online_label].filter(Boolean).join(' · '),
                         icon: this.motoIcon(selected),
+                        label: this.motoLabel(row),
+                        opacity,
                     });
                     this.motoMarkers[id] = marker;
                 } else {
@@ -433,6 +481,8 @@ export function observatoryMap(cfg) {
                     marker.setZIndex(selected ? 20 : 18);
                     marker.setTitle([row.user, row.online_label].filter(Boolean).join(' · '));
                     marker.setIcon(this.motoIcon(selected));
+                    marker.setLabel(this.motoLabel(row));
+                    marker.setOpacity(opacity);
                     const current = marker.getPosition();
                     const from = current ? { lat: current.lat(), lng: current.lng() } : next;
                     const meters = this.metersBetween(from, next);

@@ -62,6 +62,9 @@ Route::middleware(['auth', 'password.changed', 'active', 'tenancy.access', 'clie
                 ->name('observatory.events.index');
             Route::get('/observatory/live.json', [ObservatoryEventController::class, 'live'])
                 ->name('observatory.live');
+            Route::get('/observatory/shifts/{shift}/trail', [ObservatoryEventController::class, 'shiftTrail'])
+                ->whereNumber('shift')
+                ->name('observatory.shifts.trail');
             Route::get('/observatory/tablero.pptx', [ObservatoryEventController::class, 'export'])
                 ->name('observatory.board.export');
             Route::get('/observatory/reports/create', [ObservatoryEventController::class, 'create'])

@@ -55,6 +55,10 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
         Route::get('/observatory/events', [ObservatoryEventController::class, 'index'])
             ->middleware('permission:observatory.view')
             ->name('observatory.events.index');
+        Route::get('/observatory/shifts/{shift}/trail', [ObservatoryEventController::class, 'shiftTrail'])
+            ->middleware('permission:observatory.view')
+            ->whereNumber('shift')
+            ->name('observatory.shifts.trail');
         Route::get('/observatory/live.json', [ObservatoryEventController::class, 'live'])
             ->middleware('permission:observatory.view')
             ->name('observatory.live');

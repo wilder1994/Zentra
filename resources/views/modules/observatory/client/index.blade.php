@@ -35,5 +35,6 @@
         'eventShowRoute' => 'client.observatory.events.show',
         'accent' => 'teal',
         'observatoryLiveUrl' => route('client.observatory.live', $filters->query()),
+        'observatoryTrailUrl' => str_replace('/0/', '/__SHIFT__/', route('client.observatory.shifts.trail', ['shift' => 0])),
     ])
 </x-client-layout>

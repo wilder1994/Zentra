@@ -158,29 +158,29 @@
             @endforeach
         </div>
 
-        <div class="grid gap-2 lg:grid-cols-[minmax(0,5fr)_minmax(0,3fr)_minmax(0,2fr)] lg:items-stretch lg:min-h-[28rem]">
+        <div class="grid gap-2 lg:grid-cols-[minmax(0,5fr)_minmax(0,3fr)_minmax(0,2fr)] lg:items-stretch">
             @include('modules.observatory.partials.map', [
                 'map' => $map,
-                'mapCanvasClass' => 'h-80 lg:h-full lg:min-h-[28rem]',
+                'mapCanvasClass' => 'h-80 lg:h-[28rem]',
                 'trailUrl' => $observatoryTrailUrl ?? '',
             ])
-            <section class="obs-card p-2.5 h-full min-h-0 flex flex-col overflow-hidden">
-                <div class="shrink-0 max-h-44 overflow-y-auto sidebar-scroll">
+            <section class="obs-card p-2.5 flex flex-col overflow-hidden h-[28rem] max-h-[28rem]">
+                <div class="shrink-0 max-h-[10.5rem] overflow-y-auto sidebar-scroll">
                     @include('modules.company.supervision.partials.pin-legend')
                 </div>
-                <div class="mt-2 border-t border-slate-800 pt-2 min-h-[14rem] flex-1 flex flex-col">
+                <div class="mt-2 border-t border-slate-800 pt-2 min-h-0 flex-1 flex flex-col overflow-hidden">
                     <h3 class="text-sm font-semibold text-white shrink-0">Supervisores en turno</h3>
-                    <p class="text-[11px] text-slate-500 mb-2 shrink-0">Todos los turnos abiertos. Clic pinta el recorrido.</p>
+                    <p class="text-[11px] text-slate-500 mb-1.5 shrink-0">Clic pinta el recorrido. Otro clic lo quita.</p>
                     @if ($observatoryLiveUrl)
                         <div class="overflow-y-auto min-h-0 flex-1 sidebar-scroll">
                             <p class="text-sm text-slate-500" x-show="!shifts.length">Nadie en turno ahora.</p>
                             <table class="w-full text-sm" x-show="shifts.length">
                                 <thead>
-                                    <tr class="text-[11px] uppercase tracking-wide text-slate-500 border-b border-slate-800">
-                                        <th class="text-left py-2 pr-2 font-medium">Supervisor</th>
-                                        <th class="text-left py-2 pr-2 font-medium">Estado</th>
-                                        <th class="text-right py-2 font-medium">Km</th>
-                                        <th class="text-right py-2 font-medium">Rev.</th>
+                                    <tr class="text-[10px] uppercase tracking-wide text-slate-500 border-b border-slate-800">
+                                        <th class="text-left py-1.5 pr-2 font-medium">Supervisor</th>
+                                        <th class="text-left py-1.5 pr-2 font-medium">Estado</th>
+                                        <th class="text-right py-1.5 font-medium">Km</th>
+                                        <th class="text-right py-1.5 font-medium">Rev.</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -188,15 +188,14 @@
                                         <tr class="border-b border-slate-800/70 align-top cursor-pointer hover:bg-slate-800/60"
                                             :class="Number(selectedShiftId) === Number(row.shift_id) ? 'bg-slate-800 ring-1 ring-inset ring-indigo-500/60' : ''"
                                             @click="pickShift(row.shift_id)">
-                                            <td class="py-2 pr-2">
-                                                <p class="font-medium text-slate-100" x-text="row.user || 'Supervisor'"></p>
-                                                <p class="text-xs mt-0.5" :class="signalClass(row)" x-text="row.online_label || 'Sin señal'"></p>
-                                                <p class="text-xs text-slate-500 mt-0.5">Inicio <span x-text="row.started_at_label || '—'"></span></p>
-                                                <p class="text-xs text-sky-500 mt-0.5" x-text="row.zone_label || 'Sin zona'"></p>
+                                            <td class="py-1.5 pr-2">
+                                                <p class="text-[13px] font-medium text-slate-100 leading-tight" x-text="row.user || 'Supervisor'"></p>
+                                                <p class="text-[11px] mt-0.5 font-semibold" :class="signalClass(row)" x-text="row.online_label || 'Sin señal'"></p>
+                                                <p class="text-[10px] text-sky-500 mt-0.5 truncate" x-text="row.zone_label || 'Sin zona'"></p>
                                             </td>
-                                            <td class="py-2 pr-2 text-xs text-slate-300 leading-snug" x-text="row.status_line || '—'"></td>
-                                            <td class="py-2 text-right text-slate-300 tabular-nums" x-text="Number(row.km || 0).toFixed(1)"></td>
-                                            <td class="py-2 text-right text-slate-300 tabular-nums" x-text="row.reviews_count || 0"></td>
+                                            <td class="py-1.5 pr-2 text-[11px] text-slate-300 leading-snug" x-text="row.status_line || '—'"></td>
+                                            <td class="py-1.5 text-right text-[11px] text-slate-300 tabular-nums" x-text="Number(row.km || 0).toFixed(1)"></td>
+                                            <td class="py-1.5 text-right text-[11px] text-slate-300 tabular-nums" x-text="row.reviews_count || 0"></td>
                                         </tr>
                                     </template>
                                 </tbody>
@@ -207,7 +206,9 @@
                     @endif
                 </div>
             </section>
-            @include('modules.observatory.partials.pin-legend')
+            <div class="h-[28rem] max-h-[28rem] overflow-hidden">
+                @include('modules.observatory.partials.pin-legend')
+            </div>
         </div>
 
         <div class="grid gap-2">
