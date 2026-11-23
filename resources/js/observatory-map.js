@@ -27,6 +27,7 @@ export function observatoryMap(cfg) {
         map: null,
         markers: [],
         shifts: cfg.shifts || [],
+        selectedShiftId: null,
         shiftOverlays: [],
 
         init() {
@@ -153,7 +154,15 @@ export function observatoryMap(cfg) {
             this.applyMode();
             window.addEventListener('observatory-shifts', (event) => {
                 this.shifts = Array.isArray(event.detail) ? event.detail : [];
-                this.drawShifts();
+                if (this.selectedShiftId != null && !this.shifts.some((row) => Number(row.shift_id) === Number(this.selectedShiftId))) {
+                    this.selectedShiftId = null;
+                }
+                this.drawShifts(false);
+            });
+            window.addEventListener('observatory-shift-pick', (event) => {
+                const id = event.detail;
+                this.selectedShiftId = id == null || id === '' ? null : Number(id);
+                this.drawShifts(this.selectedShiftId != null);
             });
             this.loadComunas();
             google.maps.event.addListenerOnce(this.map, 'idle', () => {
@@ -337,20 +346,25 @@ export function observatoryMap(cfg) {
                 }
             });
             clusterer?.addMarkers(grouped);
-            this.drawShifts();
+            this.drawShifts(false);
         },
 
-        drawShifts() {
+        drawShifts(fit) {
             this.shiftOverlays.forEach((overlay) => overlay.setMap(null));
             this.shiftOverlays = [];
             if (!this.map || this.mode !== 'pins') {
                 return;
             }
             const moto = cfg.moto || '';
+            const bounds = fit ? new google.maps.LatLngBounds() : null;
+            let points = 0;
             (this.shifts || []).forEach((row) => {
-                const path = (row.path || [])
-                    .map((point) => ({ lat: Number(point.lat), lng: Number(point.lng) }))
-                    .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
+                const selected = this.selectedShiftId != null && Number(row.shift_id) === Number(this.selectedShiftId);
+                const path = selected
+                    ? (row.path || [])
+                        .map((point) => ({ lat: Number(point.lat), lng: Number(point.lng) }))
+                        .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng))
+                    : [];
                 if (path.length > 1) {
                     this.shiftOverlays.push(new google.maps.Polyline({
                         map: this.map,
@@ -360,6 +374,10 @@ export function observatoryMap(cfg) {
                         strokeWeight: 4,
                         zIndex: 3,
                     }));
+                    path.forEach((point) => {
+                        bounds?.extend(point);
+                        points += 1;
+                    });
                 }
                 const end = row.end && row.end.lat != null
                     ? row.end
@@ -367,19 +385,27 @@ export function observatoryMap(cfg) {
                 if (!end || end.lat == null || end.lng == null) {
                     return;
                 }
+                const position = { lat: Number(end.lat), lng: Number(end.lng) };
                 this.shiftOverlays.push(new google.maps.Marker({
                     map: this.map,
-                    position: { lat: Number(end.lat), lng: Number(end.lng) },
+                    position,
                     optimized: false,
-                    zIndex: 6,
+                    zIndex: selected ? 8 : 6,
                     title: [row.user, row.online_label].filter(Boolean).join(' · '),
                     icon: moto ? {
                         url: moto,
-                        scaledSize: new google.maps.Size(50, 36),
-                        anchor: new google.maps.Point(25, 34),
+                        scaledSize: new google.maps.Size(selected ? 56 : 50, selected ? 40 : 36),
+                        anchor: new google.maps.Point(selected ? 28 : 25, selected ? 38 : 34),
                     } : undefined,
                 }));
+                if (selected) {
+                    bounds?.extend(position);
+                    points += 1;
+                }
             });
+            if (fit && bounds && points > 0) {
+                this.map.fitBounds(bounds, 48);
+            }
         },
     };
 }

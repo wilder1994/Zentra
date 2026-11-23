@@ -48,6 +48,7 @@ export function opsLivePage() {
         events: [],
         shifts: [],
         bubbles: [],
+        selectedShiftId: null,
         init() {
             this.url = this.$el.dataset.liveUrl || '';
             this.showClient = this.$el.dataset.showClient === '1';
@@ -68,6 +69,11 @@ export function opsLivePage() {
             }
             bindOpsLiveRefresh(() => this.refresh());
             window.setInterval(() => this.refresh(), 12000);
+        },
+        pickShift(id) {
+            const next = Number(this.selectedShiftId) === Number(id) ? null : Number(id);
+            this.selectedShiftId = next;
+            window.dispatchEvent(new CustomEvent('observatory-shift-pick', { detail: next }));
         },
         signalClass(row) {
             if (row?.signal === 'screen_off') {
@@ -109,6 +115,9 @@ export function opsLivePage() {
                 const shifts = Array.isArray(data.shifts) ? data.shifts : data.map?.shifts;
                 if (Array.isArray(shifts)) {
                     this.shifts = shifts;
+                    if (this.selectedShiftId != null && !shifts.some((row) => Number(row.shift_id) === Number(this.selectedShiftId))) {
+                        this.selectedShiftId = null;
+                    }
                     window.dispatchEvent(new CustomEvent('observatory-shifts', { detail: shifts }));
                 }
                 if (Array.isArray(data.bubbles)) {

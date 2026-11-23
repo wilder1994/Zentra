@@ -56,6 +56,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 23 nov 2026 · Mapa del observatorio: recorrido al clic y una sola fila
+El recorrido no queda pintado siempre. Clic en un supervisor en turno lo muestra y otro clic lo quita. Mapa, convenciones con turnos y tipos quedan en una fila: mitad, 60% del resto y 40% del resto.
+
 ### 23 nov 2026 · Tablero de reportes y mapa del observatorio
 Las gotas del mapa dejan de cortar la punta al acercar. El mapa del observatorio muestra instalaciones con observatorio y, si el cliente también tiene supervisión, la moto y el recorrido del turno (sin pines de revista). Mi empresa y el tablero del observatorio listan revista, alarma, apoyo y observatorio en burbujas, cada una con los datos que ese tipo trae, y se refrescan al guardar. El observatorio incluye convenciones y supervisores en turno, sin Ver ni Zonas.
 

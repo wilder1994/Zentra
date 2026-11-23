@@ -2,6 +2,8 @@
 
 **Última actualización:** 23 noviembre 2026
 
+Corte 23 nov 2026 (tablero del Observatorio en una fila): **sin migrate** y sin seeder. Pull + `npm ci && npm run build` en el VPS + `view:cache` + `route:cache`. El recorrido se pinta solo al clic en el supervisor. Sin APK.
+
 Corte 23 nov 2026 (burbujas de reportes y mapa del Observatorio): **sin migrate** y sin seeder. Pull + `npm ci && npm run build` en el VPS + `view:cache` + `route:cache`. El JS del mapa y del tablero en vivo no está en `public/build` del repo. Sin APK.
 
 Corte 21 nov 2026 (APK Supervisión 2.11, ícono nuevo): **sin migrate** y sin `npm run build`. Pull + `view:cache`. Binario `public/downloads/zentra-supervision.apk` (versionCode 21), misma firma que el 2.10: actualiza encima. Quien siga en 2.9 o anterior desinstala una vez. La clave de firma está en `docs/SUPERVISION-CAMPO.md`.

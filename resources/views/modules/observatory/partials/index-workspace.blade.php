@@ -156,24 +156,22 @@
             @endforeach
         </div>
 
-        <div class="grid gap-2 lg:grid-cols-[minmax(0,7fr)_minmax(13rem,3fr)] lg:items-stretch">
+        <div class="grid gap-2 lg:grid-cols-[minmax(0,5fr)_minmax(0,3fr)_minmax(0,2fr)] lg:items-stretch lg:min-h-[28rem]">
             @include('modules.observatory.partials.map', [
                 'map' => $map,
-                'mapCanvasClass' => 'h-80 lg:h-full lg:min-h-[26rem]',
+                'mapCanvasClass' => 'h-80 lg:h-full lg:min-h-[28rem]',
             ])
-            @include('modules.observatory.partials.pin-legend')
-        </div>
-
-        <div class="grid gap-2 lg:grid-cols-[minmax(16rem,0.9fr)_minmax(0,1.3fr)] lg:items-stretch">
-            <section class="obs-card p-3 flex flex-col gap-3 min-h-0">
-                @include('modules.company.supervision.partials.pin-legend')
-                <div class="border-t border-slate-800 pt-2 min-h-0">
-                    <h3 class="text-sm font-semibold text-white">Supervisores en turno</h3>
-                    <p class="text-[11px] text-slate-500 mb-2">Solo clientes con supervisión y observatorio.</p>
+            <section class="obs-card p-2.5 h-full min-h-0 flex flex-col overflow-hidden">
+                <div class="shrink-0 max-h-[46%] overflow-y-auto sidebar-scroll">
+                    @include('modules.company.supervision.partials.pin-legend')
+                </div>
+                <div class="mt-2 border-t border-slate-800 pt-2 min-h-0 flex-1 flex flex-col">
+                    <h3 class="text-sm font-semibold text-white shrink-0">Supervisores en turno</h3>
+                    <p class="text-[11px] text-slate-500 mb-2 shrink-0">Clic pinta el recorrido. Otro clic lo quita.</p>
                     @if ($observatoryLiveUrl)
-                        <div class="overflow-y-auto max-h-64 sidebar-scroll">
-                            <p class="text-sm text-slate-500" x-show="!shifts.length">Nadie en turno ahora.</p>
-                            <table class="w-full text-sm" x-show="shifts.length">
+                        <div class="overflow-y-auto min-h-0 flex-1 sidebar-scroll">
+                            <p class="text-sm text-slate-500" x-show="!$parent.shifts.length">Nadie en turno ahora.</p>
+                            <table class="w-full text-sm" x-show="$parent.shifts.length">
                                 <thead>
                                     <tr class="text-[11px] uppercase tracking-wide text-slate-500 border-b border-slate-800">
                                         <th class="text-left py-2 pr-2 font-medium">Supervisor</th>
@@ -183,11 +181,13 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <template x-for="row in shifts" :key="row.shift_id">
-                                        <tr class="border-b border-slate-800/70 align-top">
+                                    <template x-for="row in $parent.shifts" :key="row.shift_id">
+                                        <tr class="border-b border-slate-800/70 align-top cursor-pointer hover:bg-slate-800/60"
+                                            :class="Number($parent.selectedShiftId) === Number(row.shift_id) ? 'bg-slate-800 ring-1 ring-inset ring-indigo-500/60' : ''"
+                                            @click="$parent.pickShift(row.shift_id)">
                                             <td class="py-2 pr-2">
                                                 <p class="font-medium text-slate-100" x-text="row.user || 'Supervisor'"></p>
-                                                <p class="text-xs mt-0.5" :class="signalClass(row)" x-text="row.online_label || 'Sin señal'"></p>
+                                                <p class="text-xs mt-0.5" :class="$parent.signalClass(row)" x-text="row.online_label || 'Sin señal'"></p>
                                                 <p class="text-xs text-slate-500 mt-0.5">Inicio <span x-text="row.started_at_label || '—'"></span></p>
                                                 <p class="text-xs text-sky-500 mt-0.5" x-text="row.zone_label || 'Sin zona'"></p>
                                             </td>
@@ -204,6 +204,10 @@
                     @endif
                 </div>
             </section>
+            @include('modules.observatory.partials.pin-legend')
+        </div>
+
+        <div class="grid gap-2">
             <section class="obs-card p-3 flex flex-col min-h-0">
                 <div class="shrink-0">
                     <h3 class="text-sm font-semibold text-white">Reportes</h3>
@@ -212,8 +216,8 @@
                 <div class="mt-2 overflow-y-auto max-h-80 lg:max-h-[28rem] sidebar-scroll">
                     @if ($observatoryLiveUrl)
                         <div class="flex flex-col gap-1.5">
-                            <template x-for="row in bubbles" :key="row.id">
-                                <article class="rounded-xl border px-3 py-1.5" :class="bubbleClass(row)">
+                            <template x-for="row in $parent.bubbles" :key="row.id">
+                                <article class="rounded-xl border px-3 py-1.5" :class="$parent.bubbleClass(row)">
                                     <div class="flex items-center justify-between gap-2">
                                         <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-300" x-text="row.kind_label"></p>
                                         <p class="text-[10px] text-slate-500 tabular-nums" x-text="row.at"></p>
@@ -223,7 +227,7 @@
                                     </template>
                                 </article>
                             </template>
-                            <p class="py-6 text-center text-sm text-slate-500" x-show="!bubbles.length">Sin reportes todavía.</p>
+                            <p class="py-6 text-center text-sm text-slate-500" x-show="!$parent.bubbles.length">Sin reportes todavía.</p>
                         </div>
                     @endif
                 </div>
