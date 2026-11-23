@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 final class SupervisorShift extends Model
 {
@@ -76,6 +77,11 @@ final class SupervisorShift extends Model
     public function locations(): HasMany
     {
         return $this->hasMany(SupervisorShiftLocation::class);
+    }
+
+    public function latestLocation(): HasOne
+    {
+        return $this->hasOne(SupervisorShiftLocation::class)->latestOfMany('recorded_at');
     }
 
     public function reviews(): HasMany
