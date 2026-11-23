@@ -186,7 +186,7 @@
                                 <tbody>
                                     <template x-for="row in shifts" :key="row.shift_id">
                                         <tr class="border-b border-slate-800/70 align-top cursor-pointer hover:bg-slate-800/60"
-                                            :class="Number(selectedShiftId) === Number(row.shift_id) ? 'bg-slate-800 ring-1 ring-inset ring-indigo-500/60' : ''"
+                                            :class="Number(selectedShiftId) === Number(row.shift_id) ? 'bg-indigo-950/80 ring-1 ring-inset ring-indigo-400' : ''"
                                             @click="pickShift(row.shift_id)">
                                             <td class="py-1.5 pr-2">
                                                 <p class="text-[13px] font-medium text-slate-100 leading-tight" x-text="row.user || 'Supervisor'"></p>

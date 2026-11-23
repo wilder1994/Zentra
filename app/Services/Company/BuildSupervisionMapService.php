@@ -368,6 +368,37 @@ final class BuildSupervisionMapService
     }
 
     /**
+     * Recorrido de un solo turno abierto. No carga los demás.
+     *
+     * @return array{shift_id: int, path: list<array<string, mixed>>, lat: mixed, lng: mixed}|null
+     */
+    public function trailOf(int $companyId, int $shiftId): ?array
+    {
+        if ($companyId < 1 || $shiftId < 1) {
+            return null;
+        }
+
+        $shift = SupervisorShift::query()
+            ->whereKey($shiftId)
+            ->where('security_company_id', $companyId)
+            ->where('status', SupervisorShiftStatus::Open)
+            ->with(['locations' => fn ($query) => $query->orderBy('recorded_at')])
+            ->first();
+        if ($shift === null) {
+            return null;
+        }
+
+        $row = $this->mapLiveShift($shift);
+
+        return [
+            'shift_id' => (int) $shift->id,
+            'path' => $row['path'] ?? [],
+            'lat' => $row['lat'] ?? null,
+            'lng' => $row['lng'] ?? null,
+        ];
+    }
+
+    /**
      * Turnos abiertos para el mapa del observatorio (moto y recorrido; sin revistas).
      * Con `$clientIds === null` lista todos los de la empresa.
      * Con lista de clientes, solo los que cubren esas zonas o ya revisaron ahí.

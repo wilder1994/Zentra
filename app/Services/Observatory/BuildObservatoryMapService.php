@@ -174,25 +174,20 @@ final class BuildObservatoryMapService
             return null;
         }
 
-        $scope = $clientId === null
-            ? null
-            : $this->dualClientIds($resolvedCompany, $clientId, null);
-
-        $rows = app(BuildSupervisionMapService::class)->openShiftsCovering($resolvedCompany, $scope, true);
-        foreach ($rows as $row) {
-            if ((int) ($row['shift_id'] ?? 0) !== $shiftId) {
-                continue;
+        if ($clientId !== null) {
+            $allowed = array_column(
+                app(BuildSupervisionMapService::class)->openShiftsCovering(
+                    $resolvedCompany,
+                    $this->dualClientIds($resolvedCompany, $clientId, null),
+                ),
+                'shift_id',
+            );
+            if (! in_array($shiftId, array_map('intval', $allowed), true)) {
+                return null;
             }
-
-            return [
-                'shift_id' => $shiftId,
-                'path' => $row['path'] ?? [],
-                'lat' => $row['lat'] ?? null,
-                'lng' => $row['lng'] ?? null,
-            ];
         }
 
-        return null;
+        return app(BuildSupervisionMapService::class)->trailOf($resolvedCompany, $shiftId);
     }
 
     /**

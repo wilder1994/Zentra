@@ -51,6 +51,8 @@ export function opsLivePage() {
         bubbles: [],
         board: {},
         selectedShiftId: null,
+        pickToken: 0,
+        trails: {},
         init() {
             this.url = this.$el.dataset.liveUrl || '';
             this.trailUrl = this.$el.dataset.trailUrl || '';
@@ -90,47 +92,42 @@ export function opsLivePage() {
 
             return base.replace(/\/shifts\/0(?=\/|$)/, `/shifts/${id}`);
         },
+        showTrail(id, path) {
+            this.shifts = this.shifts.map((row) => ({
+                ...row,
+                path: id != null && Number(row.shift_id) === Number(id) ? path : [],
+            }));
+            window.dispatchEvent(new CustomEvent('observatory-shift-pick', {
+                detail: { id, path },
+            }));
+        },
         async pickShift(id) {
-            const next = Number(this.selectedShiftId) === Number(id) ? null : Number(id);
+            const numeric = Number(id);
+            const next = Number(this.selectedShiftId) === numeric ? null : numeric;
             this.selectedShiftId = next;
-            if (next == null) {
-                window.dispatchEvent(new CustomEvent('observatory-shift-pick', { detail: { id: null, path: [] } }));
+            this.pickToken += 1;
+            const token = this.pickToken;
+            const cached = next == null ? [] : (this.trails[next] || []);
+            this.showTrail(next, cached);
+            if (next == null || cached.length > 1) {
                 return;
             }
-            let path = [];
-            let lat = null;
-            let lng = null;
             const url = this.trailUrlFor(next);
-            if (url) {
-                try {
-                    const res = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
-                    if (res.ok) {
-                        const trail = await res.json();
-                        path = Array.isArray(trail.path) ? trail.path : [];
-                        lat = trail.lat ?? null;
-                        lng = trail.lng ?? null;
-                        this.shifts = this.shifts.map((row) => (
-                            Number(row.shift_id) === next
-                                ? {
-                                    ...row,
-                                    path,
-                                    lat: lat ?? row.lat,
-                                    lng: lng ?? row.lng,
-                                    end: lat != null && lng != null
-                                        ? { lat, lng, at: row.recorded_at }
-                                        : row.end,
-                                }
-                                : row
-                        ));
-                        window.dispatchEvent(new CustomEvent('observatory-shifts', { detail: this.shifts }));
-                    }
-                } catch {
-                    //
-                }
+            if (!url) {
+                return;
             }
-            window.dispatchEvent(new CustomEvent('observatory-shift-pick', {
-                detail: { id: next, path, lat, lng },
-            }));
+            try {
+                const res = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+                if (!res.ok || token !== this.pickToken || Number(this.selectedShiftId) !== next) {
+                    return;
+                }
+                const trail = await res.json();
+                const path = Array.isArray(trail.path) ? trail.path : [];
+                this.trails[next] = path;
+                this.showTrail(next, path);
+            } catch {
+                //
+            }
         },
         signalClass(row) {
             if (row?.signal === 'screen_off') {
@@ -175,13 +172,11 @@ export function opsLivePage() {
                 const shifts = Array.isArray(data.shifts) ? data.shifts : data.map?.shifts;
                 if (Array.isArray(shifts)) {
                     const selected = this.selectedShiftId;
-                    const keptPath = selected == null
-                        ? null
-                        : (this.shifts.find((row) => Number(row.shift_id) === Number(selected))?.path || null);
+                    const keptPath = selected == null ? [] : (this.trails[selected] || []);
                     this.shifts = shifts.map((row) => (
-                        selected != null && Number(row.shift_id) === Number(selected) && Array.isArray(keptPath)
+                        selected != null && Number(row.shift_id) === Number(selected) && keptPath.length
                             ? { ...row, path: keptPath }
-                            : row
+                            : { ...row, path: [] }
                     ));
                     if (selected != null && !this.shifts.some((row) => Number(row.shift_id) === Number(selected))) {
                         this.selectedShiftId = null;
