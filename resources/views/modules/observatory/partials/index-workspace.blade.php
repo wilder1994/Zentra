@@ -170,7 +170,7 @@
                 </div>
                 <div class="mt-2 border-t border-slate-800 pt-2 min-h-[14rem] flex-1 flex flex-col">
                     <h3 class="text-sm font-semibold text-white shrink-0">Supervisores en turno</h3>
-                    <p class="text-[11px] text-slate-500 mb-2 shrink-0">Clic pinta el recorrido. Otro clic lo quita.</p>
+                    <p class="text-[11px] text-slate-500 mb-2 shrink-0">Todos los turnos abiertos. Clic pinta el recorrido.</p>
                     @if ($observatoryLiveUrl)
                         <div class="overflow-y-auto min-h-0 flex-1 sidebar-scroll">
                             <p class="text-sm text-slate-500" x-show="!shifts.length">Nadie en turno ahora.</p>

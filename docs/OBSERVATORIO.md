@@ -149,7 +149,7 @@ Puntaje del colegio = suma de niveles de sus reportes. Tablero: líneas por tipo
 
 ## Mapa
 
-Entran las instalaciones activas con coordenadas de clientes que tienen Observatorio. Gota = reporte. Si el cliente también tiene Supervisión, el mapa pinta la moto del turno abierto (zona del cliente o revista ya hecha ahí). El recorrido se dibuja solo al elegir ese supervisor en la lista. No pinta pines de revista, alarma ni apoyo. Modos: Pines · Calor instalación · Calor riesgo (círculos propios; Google quitó `HeatmapLayer` en Maps JS 3.65). La gota lleva margen en el SVG para que Maps no recorte la punta al acercar. Requiere `GOOGLE_MAPS_API_KEY`. El intake público `/o/{slug}` solo lista perfiles con Observatorio comunidad.
+Entran las instalaciones activas con coordenadas de clientes que tienen Observatorio. Gota = reporte. En el tablero de empresa el mapa lista todos los turnos abiertos (moto siempre; recorrido al elegir uno en la lista). En el de cliente, solo si ese cliente tiene también Supervisión. No pinta pines de revista, alarma ni apoyo. Modos: Pines · Calor instalación · Calor riesgo (círculos propios; Google quitó `HeatmapLayer` en Maps JS 3.65). La gota lleva margen en el SVG para que Maps no recorte la punta al acercar. Requiere `GOOGLE_MAPS_API_KEY`. El intake público `/o/{slug}` solo lista perfiles con Observatorio comunidad.
 
 Capa y filtro: **22 comunas urbanas de Cali** (IDESC), ruta relativa `/geo/cali-comunas.geojson`. **Todas** (sin `?comuna=`) encuadra Cali y pinta las 22. Una comuna recorta y hace zoom a ese polígono. Fuera del perímetro: **Fuera de Cali**.
 

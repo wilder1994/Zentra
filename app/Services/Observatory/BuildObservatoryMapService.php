@@ -152,8 +152,57 @@ final class BuildObservatoryMapService
             return [];
         }
 
-        $dualIds = Client::query()
-            ->where('security_company_id', $resolvedCompany)
+        // Empresa: todos los turnos abiertos. Cliente: solo si tiene los dos módulos.
+        $scope = $clientId === null
+            ? null
+            : $this->dualClientIds($resolvedCompany, $clientId, $installationIds);
+
+        return app(BuildSupervisionMapService::class)->openShiftsCovering($resolvedCompany, $scope);
+    }
+
+    /**
+     * Recorrido de un turno abierto de la empresa (o del cliente con ambos módulos).
+     *
+     * @return array{shift_id: int, path: list<array<string, mixed>>, lat: mixed, lng: mixed}|null
+     */
+    public function trail(?int $companyId, ?int $clientId, int $shiftId): ?array
+    {
+        $resolvedCompany = $companyId ?? ($clientId !== null
+            ? (int) Client::query()->whereKey($clientId)->value('security_company_id')
+            : 0);
+        if ($resolvedCompany < 1 || $shiftId < 1) {
+            return null;
+        }
+
+        $scope = $clientId === null
+            ? null
+            : $this->dualClientIds($resolvedCompany, $clientId, null);
+
+        $rows = app(BuildSupervisionMapService::class)->openShiftsCovering($resolvedCompany, $scope, true);
+        foreach ($rows as $row) {
+            if ((int) ($row['shift_id'] ?? 0) !== $shiftId) {
+                continue;
+            }
+
+            return [
+                'shift_id' => $shiftId,
+                'path' => $row['path'] ?? [],
+                'lat' => $row['lat'] ?? null,
+                'lng' => $row['lng'] ?? null,
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<int>|null  $installationIds
+     * @return list<int>
+     */
+    private function dualClientIds(int $companyId, ?int $clientId, ?array $installationIds): array
+    {
+        return Client::query()
+            ->where('security_company_id', $companyId)
             ->where('has_observatory', true)
             ->where('has_supervision', true)
             ->when($clientId !== null, fn ($query) => $query->whereKey($clientId))
@@ -164,8 +213,6 @@ final class BuildObservatoryMapService
             ->pluck('id')
             ->map(static fn ($id): int => (int) $id)
             ->all();
-
-        return app(BuildSupervisionMapService::class)->openShiftsCovering($resolvedCompany, $dualIds);
     }
 
     /**

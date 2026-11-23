@@ -15,6 +15,7 @@ use App\Models\SupervisorShift;
 use App\Models\SupervisorShiftReview;
 use App\Support\Geo\PlaceLabel;
 use App\Support\Supervision\SupervisionOperationalDay;
+use App\Support\Supervision\SupervisorPresence;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 
@@ -367,61 +368,114 @@ final class BuildSupervisionMapService
     }
 
     /**
-     * Turnos abiertos que cubren clientes con supervisión y observatorio.
-     * El mapa del observatorio usa moto y recorrido; no las revistas.
+     * Turnos abiertos para el mapa del observatorio (moto y recorrido; sin revistas).
+     * Con `$clientIds === null` lista todos los de la empresa.
+     * Con lista de clientes, solo los que cubren esas zonas o ya revisaron ahí.
      *
-     * @param  list<int>  $clientIds
+     * @param  list<int>|null  $clientIds
      * @return list<array<string, mixed>>
      */
-    public function openShiftsCovering(int $companyId, array $clientIds): array
+    public function openShiftsCovering(int $companyId, ?array $clientIds = null, bool $withPath = false): array
     {
-        $clientIds = array_values(array_unique(array_map('intval', array_filter($clientIds))));
-        if ($companyId < 1 || $clientIds === []) {
+        if ($companyId < 1) {
             return [];
         }
 
-        $zoneIds = Client::query()
-            ->whereIn('id', $clientIds)
-            ->whereNotNull('supervisor_zone_id')
-            ->pluck('supervisor_zone_id')
-            ->map(static fn ($id): int => (int) $id)
-            ->unique()
-            ->values()
-            ->all();
+        $scopedIds = $clientIds === null
+            ? null
+            : array_values(array_unique(array_map('intval', array_filter($clientIds))));
+        if ($scopedIds === []) {
+            return [];
+        }
+
+        $zoneIds = $scopedIds === null
+            ? []
+            : Client::query()
+                ->whereIn('id', $scopedIds)
+                ->whereNotNull('supervisor_zone_id')
+                ->pluck('supervisor_zone_id')
+                ->map(static fn ($id): int => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
 
         return SupervisorShift::query()
             ->where('security_company_id', $companyId)
             ->where('status', SupervisorShiftStatus::Open)
-            ->where(function ($query) use ($zoneIds, $clientIds): void {
-                $limited = false;
-                if ($zoneIds !== []) {
-                    $query->whereIn('supervisor_zone_id', $zoneIds)
-                        ->orWhereHas('extraZones', fn ($zones) => $zones->whereIn('supervisor_zone_id', $zoneIds));
-                    $limited = true;
-                }
-                $reviews = fn ($rows) => $rows->whereIn('client_id', $clientIds);
-                if ($limited) {
-                    $query->orWhereHas('reviews', $reviews);
-                } else {
-                    $query->whereHas('reviews', $reviews);
-                }
+            ->when($scopedIds !== null, function ($query) use ($zoneIds, $scopedIds): void {
+                $query->where(function ($inner) use ($zoneIds, $scopedIds): void {
+                    $limited = false;
+                    if ($zoneIds !== []) {
+                        $inner->whereIn('supervisor_zone_id', $zoneIds)
+                            ->orWhereHas('extraZones', fn ($zones) => $zones->whereIn('supervisor_zone_id', $zoneIds));
+                        $limited = true;
+                    }
+                    $reviews = fn ($rows) => $rows->whereIn('client_id', $scopedIds);
+                    if ($limited) {
+                        $inner->orWhereHas('reviews', $reviews);
+                    } else {
+                        $inner->whereHas('reviews', $reviews);
+                    }
+                });
             })
             ->withCount('reviews')
-            ->with([
+            ->with(array_filter([
                 'user',
                 'zone:id,name',
                 'extraZones' => fn ($query) => $query->active()->with('zone:id,name'),
-                'locations' => fn ($query) => $query->orderBy('recorded_at'),
-            ])
+                'latestLocation',
+                $withPath ? 'locations' : null,
+            ]))
             ->get()
-            ->map(function (SupervisorShift $shift): array {
-                $row = $this->mapLiveShift($shift);
+            ->map(function (SupervisorShift $shift) use ($withPath): array {
+                if ($withPath) {
+                    $shift->setRelation('locations', $shift->locations->sortBy('recorded_at')->values());
+                }
+                $row = $withPath ? $this->mapLiveShift($shift) : $this->mapRosterShift($shift);
                 unset($row['sheet_url'], $row['zones_url'], $row['stops'], $row['start'], $row['parked']);
+                if (! $withPath) {
+                    $row['path'] = [];
+                }
 
                 return $row;
             })
             ->values()
             ->all();
+    }
+
+    /** @return array<string, mixed> */
+    private function mapRosterShift(SupervisorShift $shift): array
+    {
+        $last = $shift->latestLocation;
+        $presence = SupervisorPresence::from(
+            $last?->recorded_at,
+            $last?->screen_on === null ? null : (bool) $last->screen_on,
+        );
+        $tz = (string) config('app.timezone');
+        $lastAt = $last?->recorded_at;
+        $lat = $last?->latitude !== null ? (float) $last->latitude : null;
+        $lng = $last?->longitude !== null ? (float) $last->longitude : null;
+
+        return [
+            'shift_id' => $shift->id,
+            'user' => $shift->user?->name,
+            'started_at' => $shift->started_at?->toIso8601String(),
+            'started_at_label' => $shift->started_at?->timezone($tz)->format('d/m H:i'),
+            'lat' => $lat,
+            'lng' => $lng,
+            'recorded_at' => $lastAt?->toIso8601String(),
+            'path' => [],
+            'end' => $lat !== null && $lng !== null ? ['lat' => $lat, 'lng' => $lng, 'at' => $lastAt?->toIso8601String()] : null,
+            'km' => $shift->km_traveled !== null ? round(((int) $shift->km_traveled), 1) : null,
+            'reviews_count' => (int) ($shift->reviews_count ?? 0),
+            'online' => $presence['online'],
+            'signal' => $presence['signal'],
+            'online_label' => $presence['online_label'],
+            'status_line' => $lastAt !== null
+                ? 'Último GPS '.$lastAt->timezone($tz)->format('H:i')
+                : 'Sin GPS aún',
+            'zone_label' => $this->zoneLabel($shift),
+        ];
     }
 
     /** @return array<string, mixed> */
