@@ -234,7 +234,7 @@ export function observatoryMap(cfg) {
                             : row
                     ));
                 }
-                this.drawShifts(this.selectedShiftId != null);
+                this.drawShifts(this.selectedShiftId != null ? 'route' : 'all');
             });
             this.loadComunas();
             google.maps.event.addListenerOnce(this.map, 'idle', () => {
@@ -421,7 +421,7 @@ export function observatoryMap(cfg) {
             this.drawShifts(false);
         },
 
-        drawShifts(fit) {
+        drawShifts(camera) {
             this.shiftOverlays.forEach((overlay) => overlay.setMap(null));
             this.shiftOverlays = [];
             if (!this.map || this.mode !== 'pins') {
@@ -429,7 +429,8 @@ export function observatoryMap(cfg) {
                 this.motoMarkers = {};
                 return;
             }
-            const bounds = fit ? new google.maps.LatLngBounds() : null;
+            const follow = camera === 'route';
+            const bounds = follow ? new google.maps.LatLngBounds() : null;
             let points = 0;
             const seen = {};
             (this.shifts || []).forEach((row) => {
@@ -509,7 +510,7 @@ export function observatoryMap(cfg) {
                         this.motoAnims[id] = requestAnimationFrame(step);
                     }
                 }
-                if (selected || fit) {
+                if (follow && selected) {
                     bounds?.extend(next);
                     points += 1;
                 }
@@ -526,8 +527,17 @@ export function observatoryMap(cfg) {
                 this.motoMarkers[id].setMap(null);
                 delete this.motoMarkers[id];
             });
-            if (fit && bounds && points > 0) {
+            if (follow && bounds && points > 0) {
                 this.map.fitBounds(bounds, 48);
+                google.maps.event.addListenerOnce(this.map, 'idle', () => {
+                    if ((this.map.getZoom() || 0) > 16) {
+                        this.map.setZoom(16);
+                    }
+                });
+                return;
+            }
+            if (camera === 'all') {
+                this.fitLayer();
             }
         },
     };
