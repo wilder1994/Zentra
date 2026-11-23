@@ -56,6 +56,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 23 nov 2026 · Supervisores del observatorio visibles y motos en vivo
+El listado de turnos quedaba vacío porque Alpine anidaba el tablero sobre el mapa. Quedó fuera de `observatoryBoard`, las motos se deslizan cada 5 s y el recorrido se pide al clic.
+
 ### 23 nov 2026 · Mapa del observatorio: recorrido al clic y una sola fila
 El recorrido no queda pintado siempre. Clic en un supervisor en turno lo muestra y otro clic lo quita. Mapa, convenciones con turnos y tipos quedan en una fila: mitad, 60% del resto y 40% del resto.
 

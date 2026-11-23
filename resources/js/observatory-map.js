@@ -29,12 +29,39 @@ export function observatoryMap(cfg) {
         shifts: cfg.shifts || [],
         selectedShiftId: null,
         shiftOverlays: [],
+        motoMarkers: {},
+        motoAnims: {},
 
         init() {
             window.initObservatoryMap = () => this.draw();
             if (window.google?.maps || window.__observatoryMapReady) {
                 this.draw();
             }
+        },
+
+        metersBetween(a, b) {
+            const toRad = (deg) => deg * Math.PI / 180;
+            const dLat = toRad(b.lat - a.lat);
+            const dLng = toRad(b.lng - a.lng);
+            const lat1 = toRad(a.lat);
+            const lat2 = toRad(b.lat);
+            const h = Math.sin(dLat / 2) ** 2
+                + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+
+            return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+        },
+
+        motoIcon(selected) {
+            const moto = cfg.moto || '';
+            if (!moto) {
+                return undefined;
+            }
+
+            return {
+                url: moto,
+                scaledSize: new google.maps.Size(selected ? 56 : 50, selected ? 40 : 36),
+                anchor: new google.maps.Point(selected ? 28 : 25, selected ? 38 : 34),
+            };
         },
 
         esc(value) {
@@ -353,13 +380,16 @@ export function observatoryMap(cfg) {
             this.shiftOverlays.forEach((overlay) => overlay.setMap(null));
             this.shiftOverlays = [];
             if (!this.map || this.mode !== 'pins') {
+                Object.values(this.motoMarkers).forEach((marker) => marker.setMap(null));
+                this.motoMarkers = {};
                 return;
             }
-            const moto = cfg.moto || '';
             const bounds = fit ? new google.maps.LatLngBounds() : null;
             let points = 0;
+            const seen = {};
             (this.shifts || []).forEach((row) => {
-                const selected = this.selectedShiftId != null && Number(row.shift_id) === Number(this.selectedShiftId);
+                const id = Number(row.shift_id);
+                const selected = this.selectedShiftId != null && id === Number(this.selectedShiftId);
                 const path = selected
                     ? (row.path || [])
                         .map((point) => ({ lat: Number(point.lat), lng: Number(point.lng) }))
@@ -382,26 +412,69 @@ export function observatoryMap(cfg) {
                 const end = row.end && row.end.lat != null
                     ? row.end
                     : (row.lat != null ? { lat: row.lat, lng: row.lng } : null);
-                if (!end || end.lat == null || end.lng == null) {
+                if (!end || end.lat == null || end.lng == null || !id) {
                     return;
                 }
-                const position = { lat: Number(end.lat), lng: Number(end.lng) };
-                this.shiftOverlays.push(new google.maps.Marker({
-                    map: this.map,
-                    position,
-                    optimized: false,
-                    zIndex: selected ? 8 : 6,
-                    title: [row.user, row.online_label].filter(Boolean).join(' · '),
-                    icon: moto ? {
-                        url: moto,
-                        scaledSize: new google.maps.Size(selected ? 56 : 50, selected ? 40 : 36),
-                        anchor: new google.maps.Point(selected ? 28 : 25, selected ? 38 : 34),
-                    } : undefined,
-                }));
-                if (selected) {
-                    bounds?.extend(position);
+                const next = { lat: Number(end.lat), lng: Number(end.lng) };
+                seen[id] = true;
+                let marker = this.motoMarkers[id];
+                if (!marker) {
+                    marker = new google.maps.Marker({
+                        map: this.map,
+                        position: next,
+                        optimized: false,
+                        zIndex: selected ? 20 : 18,
+                        title: [row.user, row.online_label].filter(Boolean).join(' · '),
+                        icon: this.motoIcon(selected),
+                    });
+                    this.motoMarkers[id] = marker;
+                } else {
+                    marker.setMap(this.map);
+                    marker.setZIndex(selected ? 20 : 18);
+                    marker.setTitle([row.user, row.online_label].filter(Boolean).join(' · '));
+                    marker.setIcon(this.motoIcon(selected));
+                    const current = marker.getPosition();
+                    const from = current ? { lat: current.lat(), lng: current.lng() } : next;
+                    const meters = this.metersBetween(from, next);
+                    if (this.motoAnims[id]) {
+                        cancelAnimationFrame(this.motoAnims[id]);
+                        delete this.motoAnims[id];
+                    }
+                    if (meters < 3 || meters > 250) {
+                        marker.setPosition(next);
+                    } else {
+                        const started = performance.now();
+                        const step = (now) => {
+                            const t = Math.min(1, (now - started) / 5000);
+                            marker.setPosition({
+                                lat: from.lat + (next.lat - from.lat) * t,
+                                lng: from.lng + (next.lng - from.lng) * t,
+                            });
+                            if (t < 1) {
+                                this.motoAnims[id] = requestAnimationFrame(step);
+                                return;
+                            }
+                            delete this.motoAnims[id];
+                        };
+                        this.motoAnims[id] = requestAnimationFrame(step);
+                    }
+                }
+                if (selected || fit) {
+                    bounds?.extend(next);
                     points += 1;
                 }
+            });
+            Object.keys(this.motoMarkers).forEach((key) => {
+                const id = Number(key);
+                if (seen[id]) {
+                    return;
+                }
+                if (this.motoAnims[id]) {
+                    cancelAnimationFrame(this.motoAnims[id]);
+                    delete this.motoAnims[id];
+                }
+                this.motoMarkers[id].setMap(null);
+                delete this.motoMarkers[id];
             });
             if (fit && bounds && points > 0) {
                 this.map.fitBounds(bounds, 48);

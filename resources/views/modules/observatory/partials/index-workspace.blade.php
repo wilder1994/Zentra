@@ -100,12 +100,14 @@
      @if ($observatoryLiveUrl)
          x-data="opsLivePage"
          data-live-url="{{ $observatoryLiveUrl }}"
+         data-trail-url="{{ $observatoryTrailUrl ?? '' }}"
          data-show-client="{{ $showClientColumn ? '1' : '0' }}"
          data-events='@json($liveEventRows)'
          data-shifts='@json($map['shifts'] ?? [])'
          data-bubbles='@json($map['bubbles'] ?? [])'
+         data-board='@json($charts)'
      @endif>
-    <div class="space-y-3" @if ($vista === 'tablero') x-data="observatoryBoard(@js($charts))" @endif>
+    <div class="space-y-3">
     @php
         $chips = [];
         $drop = static fn (array $keys): string => request()->fullUrlWithoutQuery(array_merge($keys, ['page']));
@@ -151,7 +153,7 @@
                 <a href="{{ $kpiUrl($value) }}" class="obs-kpi {{ $on ? 'is-on' : '' }}" style="--obs-tone: {{ $tone }}">
                     <p class="text-[10px] uppercase tracking-wide text-slate-500">{{ $label }}</p>
                     <p class="mt-0.5 text-2xl font-semibold tabular-nums text-white"
-                       @if ($observatoryLiveUrl) x-text="payload.{{ $value === null ? 'total' : $value }} ?? {{ (int) $count }}" @endif>{{ $count }}</p>
+                       @if ($observatoryLiveUrl) x-text="board.{{ $value === null ? 'total' : $value }} ?? {{ (int) $count }}" @endif>{{ $count }}</p>
                 </a>
             @endforeach
         </div>
@@ -160,18 +162,19 @@
             @include('modules.observatory.partials.map', [
                 'map' => $map,
                 'mapCanvasClass' => 'h-80 lg:h-full lg:min-h-[28rem]',
+                'trailUrl' => $observatoryTrailUrl ?? '',
             ])
             <section class="obs-card p-2.5 h-full min-h-0 flex flex-col overflow-hidden">
-                <div class="shrink-0 max-h-[46%] overflow-y-auto sidebar-scroll">
+                <div class="shrink-0 max-h-44 overflow-y-auto sidebar-scroll">
                     @include('modules.company.supervision.partials.pin-legend')
                 </div>
-                <div class="mt-2 border-t border-slate-800 pt-2 min-h-0 flex-1 flex flex-col">
+                <div class="mt-2 border-t border-slate-800 pt-2 min-h-[14rem] flex-1 flex flex-col">
                     <h3 class="text-sm font-semibold text-white shrink-0">Supervisores en turno</h3>
                     <p class="text-[11px] text-slate-500 mb-2 shrink-0">Clic pinta el recorrido. Otro clic lo quita.</p>
                     @if ($observatoryLiveUrl)
                         <div class="overflow-y-auto min-h-0 flex-1 sidebar-scroll">
-                            <p class="text-sm text-slate-500" x-show="!$parent.shifts.length">Nadie en turno ahora.</p>
-                            <table class="w-full text-sm" x-show="$parent.shifts.length">
+                            <p class="text-sm text-slate-500" x-show="!shifts.length">Nadie en turno ahora.</p>
+                            <table class="w-full text-sm" x-show="shifts.length">
                                 <thead>
                                     <tr class="text-[11px] uppercase tracking-wide text-slate-500 border-b border-slate-800">
                                         <th class="text-left py-2 pr-2 font-medium">Supervisor</th>
@@ -181,13 +184,13 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <template x-for="row in $parent.shifts" :key="row.shift_id">
+                                    <template x-for="row in shifts" :key="row.shift_id">
                                         <tr class="border-b border-slate-800/70 align-top cursor-pointer hover:bg-slate-800/60"
-                                            :class="Number($parent.selectedShiftId) === Number(row.shift_id) ? 'bg-slate-800 ring-1 ring-inset ring-indigo-500/60' : ''"
-                                            @click="$parent.pickShift(row.shift_id)">
+                                            :class="Number(selectedShiftId) === Number(row.shift_id) ? 'bg-slate-800 ring-1 ring-inset ring-indigo-500/60' : ''"
+                                            @click="pickShift(row.shift_id)">
                                             <td class="py-2 pr-2">
                                                 <p class="font-medium text-slate-100" x-text="row.user || 'Supervisor'"></p>
-                                                <p class="text-xs mt-0.5" :class="$parent.signalClass(row)" x-text="row.online_label || 'Sin señal'"></p>
+                                                <p class="text-xs mt-0.5" :class="signalClass(row)" x-text="row.online_label || 'Sin señal'"></p>
                                                 <p class="text-xs text-slate-500 mt-0.5">Inicio <span x-text="row.started_at_label || '—'"></span></p>
                                                 <p class="text-xs text-sky-500 mt-0.5" x-text="row.zone_label || 'Sin zona'"></p>
                                             </td>
@@ -216,8 +219,8 @@
                 <div class="mt-2 overflow-y-auto max-h-80 lg:max-h-[28rem] sidebar-scroll">
                     @if ($observatoryLiveUrl)
                         <div class="flex flex-col gap-1.5">
-                            <template x-for="row in $parent.bubbles" :key="row.id">
-                                <article class="rounded-xl border px-3 py-1.5" :class="$parent.bubbleClass(row)">
+                            <template x-for="row in bubbles" :key="row.id">
+                                <article class="rounded-xl border px-3 py-1.5" :class="bubbleClass(row)">
                                     <div class="flex items-center justify-between gap-2">
                                         <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-300" x-text="row.kind_label"></p>
                                         <p class="text-[10px] text-slate-500 tabular-nums" x-text="row.at"></p>
@@ -227,13 +230,14 @@
                                     </template>
                                 </article>
                             </template>
-                            <p class="py-6 text-center text-sm text-slate-500" x-show="!$parent.bubbles.length">Sin reportes todavía.</p>
+                            <p class="py-6 text-center text-sm text-slate-500" x-show="!bubbles.length">Sin reportes todavía.</p>
                         </div>
                     @endif
                 </div>
             </section>
         </div>
 
+        <div class="space-y-3" x-data="observatoryBoard(@js($charts))">
         <div class="grid gap-2 lg:grid-cols-[minmax(14rem,1fr)_minmax(0,2fr)] lg:items-stretch">
             <section class="obs-card p-2.5 flex flex-col min-h-0">
                 <p class="text-[10px] uppercase tracking-wide text-slate-500 shrink-0">Instalaciones por riesgo</p>
@@ -316,6 +320,7 @@
                     </div>
                 </div>
             </section>
+        </div>
         </div>
     @else
         <div class="rounded-xl border border-slate-800 overflow-hidden bg-slate-900/80">
