@@ -56,6 +56,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 23 nov 2026 · Clic del observatorio igual que Supervisión
+El recorrido viaja en el turno. El clic pinta y encuadra esa ruta al instante. Otro clic, o elegir otro supervisor, quita la línea anterior y encuadra motos e instalaciones.
+
 ### 23 nov 2026 · Recorrido, señal y alto fijo en el Observatorio
 La ruta del recorrido no estaba en el repo (404 al clic). Quedó publicada. El panel de convenciones + turnos tiene alto fijo (caben ~3 supervisores; el resto hace scroll). Las motos muestran En línea / Pantalla apagada / Sin señal y se deslizan con el GPS.
 

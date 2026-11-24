@@ -312,6 +312,41 @@ export function observatoryMap(cfg) {
             this.fitSitesFallback();
         },
 
+        fitMotosAndSites() {
+            if (!this.map) {
+                return;
+            }
+            const bounds = new google.maps.LatLngBounds();
+            let any = false;
+            const extend = (lat, lng) => {
+                const point = { lat: Number(lat), lng: Number(lng) };
+                if (!Number.isFinite(point.lat) || !Number.isFinite(point.lng)) {
+                    return;
+                }
+                bounds.extend(point);
+                any = true;
+            };
+            (this.shifts || []).forEach((row) => {
+                const end = row.end && row.end.lat != null
+                    ? row.end
+                    : (row.lat != null ? { lat: row.lat, lng: row.lng } : null);
+                if (end) {
+                    extend(end.lat, end.lng);
+                }
+            });
+            (cfg.sites || []).forEach((site) => extend(site.lat, site.lng));
+            if (!any) {
+                this.fitSitesFallback();
+                return;
+            }
+            this.map.fitBounds(bounds, 48);
+            google.maps.event.addListenerOnce(this.map, 'idle', () => {
+                if ((this.map.getZoom() || 0) > 16) {
+                    this.map.setZoom(16);
+                }
+            });
+        },
+
         fitSitesFallback() {
             const bounds = new google.maps.LatLngBounds();
             let any = false;
@@ -537,7 +572,7 @@ export function observatoryMap(cfg) {
                 return;
             }
             if (camera === 'all') {
-                this.fitLayer();
+                this.fitMotosAndSites();
             }
         },
     };

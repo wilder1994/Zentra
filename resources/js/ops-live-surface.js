@@ -44,18 +44,14 @@ export function opsLiveSurface() {
 export function opsLivePage() {
     return {
         url: '',
-        trailUrl: '',
         showClient: false,
         events: [],
         shifts: [],
         bubbles: [],
         board: {},
         selectedShiftId: null,
-        pickToken: 0,
-        trails: {},
         init() {
             this.url = this.$el.dataset.liveUrl || '';
-            this.trailUrl = this.$el.dataset.trailUrl || '';
             this.showClient = this.$el.dataset.showClient === '1';
             try {
                 this.events = JSON.parse(this.$el.dataset.events || '[]');
@@ -81,53 +77,19 @@ export function opsLivePage() {
             window.setInterval(() => this.refresh(), 5000);
             window.dispatchEvent(new CustomEvent('observatory-shifts', { detail: this.shifts }));
         },
-        trailUrlFor(id) {
-            const base = String(this.trailUrl || '');
-            if (!base) {
-                return '';
-            }
-            if (base.includes('__SHIFT__')) {
-                return base.split('__SHIFT__').join(String(id));
-            }
-
-            return base.replace(/\/shifts\/0(?=\/|$)/, `/shifts/${id}`);
-        },
-        showTrail(id, path) {
-            this.shifts = this.shifts.map((row) => ({
-                ...row,
-                path: id != null && Number(row.shift_id) === Number(id) ? path : [],
-            }));
-            window.dispatchEvent(new CustomEvent('observatory-shift-pick', {
-                detail: { id, path },
-            }));
-        },
-        async pickShift(id) {
+        pickShift(id) {
             const numeric = Number(id);
             const next = Number(this.selectedShiftId) === numeric ? null : numeric;
             this.selectedShiftId = next;
-            this.pickToken += 1;
-            const token = this.pickToken;
-            const cached = next == null ? [] : (this.trails[next] || []);
-            this.showTrail(next, cached);
-            if (next == null || cached.length > 1) {
-                return;
-            }
-            const url = this.trailUrlFor(next);
-            if (!url) {
-                return;
-            }
-            try {
-                const res = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
-                if (!res.ok || token !== this.pickToken || Number(this.selectedShiftId) !== next) {
-                    return;
-                }
-                const trail = await res.json();
-                const path = Array.isArray(trail.path) ? trail.path : [];
-                this.trails[next] = path;
-                this.showTrail(next, path);
-            } catch {
-                //
-            }
+            const row = next == null
+                ? null
+                : this.shifts.find((item) => Number(item.shift_id) === next);
+            window.dispatchEvent(new CustomEvent('observatory-shift-pick', {
+                detail: {
+                    id: next,
+                    path: Array.isArray(row?.path) ? row.path : [],
+                },
+            }));
         },
         signalClass(row) {
             if (row?.signal === 'screen_off') {
@@ -172,12 +134,10 @@ export function opsLivePage() {
                 const shifts = Array.isArray(data.shifts) ? data.shifts : data.map?.shifts;
                 if (Array.isArray(shifts)) {
                     const selected = this.selectedShiftId;
-                    const keptPath = selected == null ? [] : (this.trails[selected] || []);
-                    this.shifts = shifts.map((row) => (
-                        selected != null && Number(row.shift_id) === Number(selected) && keptPath.length
-                            ? { ...row, path: keptPath }
-                            : { ...row, path: [] }
-                    ));
+                    this.shifts = shifts.map((row) => ({
+                        ...row,
+                        path: Array.isArray(row.path) ? row.path : [],
+                    }));
                     if (selected != null && !this.shifts.some((row) => Number(row.shift_id) === Number(selected))) {
                         this.selectedShiftId = null;
                     }

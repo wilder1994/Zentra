@@ -153,11 +153,12 @@ final class BuildObservatoryMapService
         }
 
         // Empresa: todos los turnos abiertos. Cliente: solo si tiene los dos módulos.
+        // El recorrido viaja en el turno para que el clic pinte sin otra petición.
         $scope = $clientId === null
             ? null
             : $this->dualClientIds($resolvedCompany, $clientId, $installationIds);
 
-        return app(BuildSupervisionMapService::class)->openShiftsCovering($resolvedCompany, $scope);
+        return app(BuildSupervisionMapService::class)->openShiftsCovering($resolvedCompany, $scope, true);
     }
 
     /**
