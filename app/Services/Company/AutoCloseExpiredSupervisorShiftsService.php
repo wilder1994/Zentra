@@ -58,7 +58,10 @@ final class AutoCloseExpiredSupervisorShiftsService
             : 'Cierre automático: '.ResolveSupervisorShiftDeadlineService::FALLBACK_IDLE_HOURS.' h desde último GPS o inicio (sin plantilla de turno).'.$queue;
 
         DB::transaction(function () use ($shift, $note, $deadline, $nowAt): void {
-            $kmEnd = (int) ($shift->km_start ?? 0);
+            $traveled = (int) ($shift->km_traveled ?: $this->gpsKm($shift));
+            $kmEnd = $shift->km_end !== null
+                ? (int) $shift->km_end
+                : ($shift->km_start !== null ? (int) $shift->km_start + $traveled : 0);
             $endedAt = $nowAt->gt($deadline) ? $deadline : $nowAt;
             if ($shift->started_at !== null && $endedAt->lt($shift->started_at)) {
                 $endedAt = \Carbon\CarbonImmutable::parse($shift->started_at->toIso8601String());
@@ -66,11 +69,15 @@ final class AutoCloseExpiredSupervisorShiftsService
             $shift->update([
                 'status' => SupervisorShiftStatus::Closed,
                 'ended_at' => $endedAt,
-                'km_end' => $shift->km_end ?? $kmEnd,
-                'km_traveled' => $shift->km_traveled ?: $this->gpsKm($shift),
+                'km_end' => $kmEnd,
+                'km_traveled' => $traveled,
                 'notes' => trim((string) $shift->notes."\n".$note),
                 'closed_by_system' => true,
             ]);
+
+            if ($shift->km_start !== null && $shift->supervisor_fleet_vehicle_id !== null) {
+                $shift->fleetVehicle()?->update(['last_km' => $kmEnd]);
+            }
 
             $closed = $shift->fresh(['user', 'zone', 'shiftTemplate', 'securityCompany', 'reviews.client', 'fieldLogs.client', 'locations']);
             if ($closed instanceof SupervisorShift) {

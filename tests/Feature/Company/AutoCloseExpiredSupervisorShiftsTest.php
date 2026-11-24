@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Company;
 
 use App\Enums\SupervisorShiftStatus;
+use App\Models\SupervisorFleetVehicle;
 use App\Models\SupervisorShift;
 use App\Models\SupervisorShiftTemplate;
 use App\Services\Company\AutoCloseExpiredSupervisorShiftsService;
@@ -65,9 +66,16 @@ final class AutoCloseExpiredSupervisorShiftsTest extends TestCase
             'is_active' => true,
             'sort_order' => 1,
         ]);
+        $vehicle = SupervisorFleetVehicle::query()->create([
+            'security_company_id' => $supervisor->security_company_id,
+            'plate' => 'SYS040',
+            'brand' => 'Chevrolet',
+            'last_km' => 100,
+        ]);
         $shift = SupervisorShift::query()->create([
             'security_company_id' => $supervisor->security_company_id,
             'user_id' => $supervisor->id,
+            'supervisor_fleet_vehicle_id' => $vehicle->id,
             'status' => SupervisorShiftStatus::Open,
             'supervisor_shift_template_id' => $template->id,
             'started_at' => CarbonImmutable::parse('2026-09-05 06:05:00'),
@@ -88,7 +96,10 @@ final class AutoCloseExpiredSupervisorShiftsTest extends TestCase
 
         app(AutoCloseExpiredSupervisorShiftsService::class)->execute(CarbonImmutable::parse('2026-09-05 14:30:00'));
 
-        $this->assertGreaterThanOrEqual(4, (int) $shift->fresh()->km_traveled);
+        $closed = $shift->fresh();
+        $this->assertGreaterThanOrEqual(4, (int) $closed->km_traveled);
+        $this->assertSame(100 + (int) $closed->km_traveled, (int) $closed->km_end);
+        $this->assertSame((int) $closed->km_end, (int) $vehicle->fresh()->last_km);
     }
 
     public function test_auto_close_records_pending_outbox_in_notes_and_history_label(): void

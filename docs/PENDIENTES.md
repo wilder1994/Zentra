@@ -56,6 +56,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 24 nov 2026 · Cierre del sistema suma el mapa al km final
+Si cierra el sistema, el km final y el último km de la placa quedan en el inicio más los km del mapa. Sin GPS, el final queda igual al inicio. El cierre del supervisor sigue siendo el odómetro real. `AutoCloseExpiredSupervisorShiftsService`.
+
 ### 24 nov 2026 · Kilometrajes por revisar
 En Fichas, la tabla usa el periodo y los filtros de la pestaña. La ficha dice si la distancia es del inicio al cierre o del cierre anterior de la placa al inicio. Aceptar (o guardar una corrección) saca el turno de la tabla sin tocar el mapa ni la app de campo. Migración `2026_11_24_083500`. Commit `e539c96`. Detalle: [`SUPERVISION-CAMPO.md`](SUPERVISION-CAMPO.md).
 

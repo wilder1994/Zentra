@@ -61,6 +61,8 @@ MySQL / Percona — resiliencia post-reboot (16 oct 2026): tras un reinicio del 
 
 Comprobar: `systemctl is-active mysql`, `systemctl list-timers zentra-mysql-ensure.timer`, `ss -lntp \| grep 3306`, `tail /var/log/zentra-mysql-ensure.log`. Tras editar drop-in/units: `systemctl daemon-reload && systemctl enable --now zentra-mysql-ensure.timer`.
 
+Cierre automático con km final (24 nov 2026): el sistema deja `km_end` y `last_km` en inicio + km del mapa. Pull + reload php-fpm. Sin migrate ni `npm run build`. El cron `supervision:auto-close-shifts` toma el código en la siguiente corrida.
+
 Kilometrajes por revisar (24 nov 2026): migrate `2026_11_24_083500` (`supervisor_shifts.odometer_accepted_at`, `odometer_accepted_by`). Pull + `migrate --force` + `view:cache` + `route:cache` + reload php-fpm. Sin `npm run build` ni APK. Detalle: [`SUPERVISION-CAMPO.md`](SUPERVISION-CAMPO.md).
 
 Comercial Super Admin (15 oct 2026): hub `/admin/comercial` — propuesta PDF, cotización PDF (plan personalizado + total pactado) y presentación PPTX 16:9 (11 diapositivas, paleta clara, capturas panel empresa con stitch de scroll en Supervisión/Observatorio). Capturas en `resources/images/commercial/deck/`. Migrates del mismo corte: `2026_10_15_*` (blocklist ids, plantilla turno guarda), `2026_10_18_*` (`scheduled_amount*`, sync cupos Supervisión por puesto). Pull + `composer install` + `migrate --force` + `npm ci && npm run build` + caches. Sin seeder nuevo (permiso `platform.companies.view`). Comprobar enlace `public/images` → `../resources/images` si falta. Detalle: [`COMERCIAL-DOCUMENTOS.md`](COMERCIAL-DOCUMENTOS.md).
