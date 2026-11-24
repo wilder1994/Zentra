@@ -130,7 +130,26 @@
                 <input type="hidden" name="embed" value="1">
             @endif
             <h2>Corregir kilometraje</h2>
-            <p>Usa la foto del odómetro. Al guardar se recalcula el recorrido de este turno y el último kilometraje del vehículo.</p>
+            @if ($odometerComparison)
+                <p><strong>Inicio → cierre de este turno:</strong>
+                    {{ number_format((int) $odometerShift->km_start, 0, ',', '.') }}
+                    → {{ $odometerShift->km_end !== null ? number_format((int) $odometerShift->km_end, 0, ',', '.') : 'sin cierre' }}
+                    = {{ $odometerComparison->tripKm !== null ? number_format($odometerComparison->tripKm, 0, ',', '.') : '—' }} km.
+                    @if ($odometerComparison->tripOverLimit) Supera 1.500 km: es el recorrido de este turno. @endif
+                </p>
+                <p><strong>Cierre anterior de la placa → inicio de este turno:</strong>
+                    @if ($odometerComparison->previousKm === null)
+                        No hay un cierre anterior de esta placa.
+                    @else
+                        {{ number_format($odometerComparison->previousKm, 0, ',', '.') }}
+                        ({{ $odometerComparison->previousEndedAt?->timezone(config('app.timezone'))->format('d/m/Y H:i') }})
+                        → {{ number_format((int) $odometerShift->km_start, 0, ',', '.') }}
+                        = {{ number_format((int) $odometerComparison->gapKm, 0, ',', '.') }} km.
+                        @if ($odometerComparison->gapOverLimit) Supera 1.500 km: esta es la distancia que lo muestra en la revisión, no el recorrido del turno. @endif
+                    @endif
+                </p>
+            @endif
+            <p>Usa la foto del odómetro. Al guardar se recalcula el recorrido de este turno y el último kilometraje del vehículo, y sale de la revisión.</p>
             @if (session('success'))
                 <p class="ok">{{ session('success') }}</p>
             @endif
@@ -152,6 +171,23 @@
             </label>
             <button type="submit">Guardar corrección</button>
         </form>
+        @if ($odometerShift->odometer_accepted_at === null)
+            <form class="km-fix" method="POST" action="{{ route('company.supervision.shifts.odometer.accept', $odometerShift) }}" style="margin-top:-8px">
+                @csrf
+                @if ($mode === 'embed')
+                    <input type="hidden" name="embed" value="1">
+                @endif
+                <p>Si el número está bien y solo es el salto desde el cierre anterior, no hace falta cambiarlo.</p>
+                <button type="submit">Está bien, quitar de la revisión</button>
+            </form>
+        @endif
+        @if (session('odometer_accepted'))
+            <script>
+                if (window.parent && window.parent !== window) {
+                    window.parent.location.reload();
+                }
+            </script>
+        @endif
     @endif
 
     @if ($mode === 'page')

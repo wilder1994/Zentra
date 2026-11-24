@@ -19,7 +19,7 @@ final class CorrectSupervisorShiftOdometerService
         private readonly BuildSupervisorShiftSheetService $sheets,
     ) {}
 
-    public function execute(SupervisorShift $shift, int $kmStart, ?int $kmEnd, string $reason): SupervisorShift
+    public function execute(SupervisorShift $shift, int $kmStart, ?int $kmEnd, string $reason, ?User $actor = null): SupervisorShift
     {
         if ($kmStart < 0) {
             throw ValidationException::withMessages([
@@ -39,7 +39,7 @@ final class CorrectSupervisorShiftOdometerService
             ]);
         }
 
-        return DB::transaction(function () use ($shift, $kmStart, $kmEnd, $reason): SupervisorShift {
+        return DB::transaction(function () use ($shift, $kmStart, $kmEnd, $reason, $actor): SupervisorShift {
             $shift->load('fleetVehicle');
             $old = [
                 'km_start' => $shift->km_start,
@@ -53,6 +53,8 @@ final class CorrectSupervisorShiftOdometerService
                 'km_start' => $kmStart,
                 'km_end' => $kmEnd,
                 'km_traveled' => $traveled,
+                'odometer_accepted_at' => now(),
+                'odometer_accepted_by' => $actor?->id,
             ]);
 
             $lastKm = $this->syncVehicleLastKm((int) $shift->supervisor_fleet_vehicle_id);
@@ -80,6 +82,18 @@ final class CorrectSupervisorShiftOdometerService
 
             return $shift->fresh();
         });
+    }
+
+    public function accept(SupervisorShift $shift, User $actor): void
+    {
+        $shift->update([
+            'odometer_accepted_at' => now(),
+            'odometer_accepted_by' => $actor->id,
+        ]);
+
+        $this->audit->action('supervision.odometer.accepted', $shift, null, [
+            'reason' => 'Revisado: el kilometraje se deja como está.',
+        ]);
     }
 
     private function syncVehicleLastKm(int $vehicleId): int

@@ -180,6 +180,18 @@ Panel: KPIs de **volumen y nivel**, no de tickets abiertos. Tira de hoy: recomen
 
 **Km en Resumen / PPTX / tira del día:** `ResolveSupervisorShiftTraveledKm` — usa `km_traveled` solo si es plausible (≤ 1.500 km por turno); si parece odómetro absoluto o basura GPS, intenta `km_end − km_start`; si no, 0. No altera la fila del turno en BD (solo agregados de reporte). Etiquetas del PPTX: formato `#,##0`.
 
+**Kilometrajes por revisar (24 nov 2026):** en Fichas, la tabla usa el mismo periodo y los mismos filtros (zona, supervisor, cliente, novedad). Si el filtro Tipo no es un turno, la tabla no se muestra. Entra un turno de los últimos días del periodo si todavía no fue aceptado y pasa una de estas dos:
+
+- **Inicio → cierre de este turno:** `km_end − km_start` (o `km_traveled`) mayor a 1.500 km.
+- **Cierre anterior de la misma placa → inicio de este turno:** `km_start` supera en más de 1.500 km el `km_end` del turno anterior de ese vehículo (`ended_at` ≤ inicio de este). Un recorrido corto (por ejemplo 7 km) aparece igual si el salto viene del cierre anterior.
+
+La ficha del turno (`?embed=1`, el modal) muestra las dos distancias y cuál de las dos lo mandó a revisar. Quien tiene `company.settings.manage` puede:
+
+- **Guardar corrección** (`POST /company/supervision/turnos/{shift}/kilometraje`): cambia `km_start` / `km_end`, recalcula `km_traveled`, deja el `last_km` del vehículo en la lectura del turno más reciente (no el máximo histórico), vuelve a congelar la ficha si el turno está cerrado y lo saca de la tabla. Motivo obligatorio. Auditoría `supervision.odometer.corrected`.
+- **Está bien, quitar de la revisión** (`POST …/kilometraje/aceptar`): no cambia los km. Marca `odometer_accepted_at` / `odometer_accepted_by` y lo saca de la tabla. Auditoría `supervision.odometer.accepted`.
+
+No reescribe la cadena de turnos anteriores ni el mapa GPS. La app de campo no se toca. Permiso de la ficha: `company.supervision.view`; el formulario exige `company.settings.manage`. Migración `2026_11_24_083500_add_odometer_accepted_to_supervisor_shifts`. Test: `CorrectSupervisorShiftOdometerTest`.
+
 Servicios: `BuildSupervisionMapService`, `BuildSupervisorShiftSheetService` (ficha de turno; snapshot al cierre), `BuildSupervisorTrailService` (antes de simplificar: descarta `accuracy` > 150 m, saltos más rápidos que ~130 km/h y un ping que el siguiente no confirma; el pin y los km usan esa traza, la señal usa el último ping crudo), `SnapSupervisorTrailToRoadsService`, `ResolveSupervisorShiftDeadlineService` (gabela 30 min), `ResolveSupervisorShiftTraveledKm`, `AutoCloseExpiredSupervisorShiftsService` (comando `supervision:auto-close-shifts`). El cierre manual de la PWA sigue exigiendo fotos (`CloseSupervisorShiftService`).
 
 `/company/descargas` y `/admin/descargas`: **Descargar APK** + web de respaldo (QR). Una sola app para todas las empresas; el login identifica la empresa. No es la app de residentes de Accesos.
@@ -312,6 +324,7 @@ Las columnas que eran `add_*` (username, email de zona, ruta, cola de cierre, br
 - `2026_08_26_230200_create_supervisor_weapon_catalogs_table`
 - `2026_08_26_234500_create_supervisor_risk_types_table` (`supervisor_risk_type_id` en recomendaciones)
 - `2026_09_10_220100_add_modality_and_employees_to_posts`
+- `2026_11_24_083500_add_odometer_accepted_to_supervisor_shifts` (`odometer_accepted_at`, `odometer_accepted_by` en `supervisor_shifts`)
 
 Tipos de estructura por empresa: `security_company_id` en `create_structure_types`. `users.username` y `email` nullable: `create_users`.
 
@@ -321,4 +334,4 @@ php artisan migrate
 
 Tests contra `zentra_test` (`phpunit.xml`). No usar `migrate:fresh` en la BD `zentra`.
 
-Tests: `SupervisorShiftApiTest`, `SupervisorFieldLogApiTest`, `SupervisorOfflineSyncTest`, `CompanySupervisionCatalogTest`, `CompanySupervisionFieldSheetTest`, `CompanySupervisionMapTest`, `AutoCloseExpiredSupervisorShiftsTest`, `BuildSupervisorTrailTest`, `ResolveSupervisorShiftDeadlineTest`, `SnapSupervisorTrailToRoadsTest`, `CompanyClientSiteTreeTest` (BD `zentra_test`).
+Tests: `SupervisorShiftApiTest`, `SupervisorFieldLogApiTest`, `SupervisorOfflineSyncTest`, `CompanySupervisionCatalogTest`, `CompanySupervisionFieldSheetTest`, `CompanySupervisionMapTest`, `CorrectSupervisorShiftOdometerTest`, `AutoCloseExpiredSupervisorShiftsTest`, `BuildSupervisorTrailTest`, `ResolveSupervisorShiftDeadlineTest`, `SnapSupervisorTrailToRoadsTest`, `CompanyClientSiteTreeTest` (BD `zentra_test`).

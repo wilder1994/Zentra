@@ -61,6 +61,8 @@ MySQL / Percona — resiliencia post-reboot (16 oct 2026): tras un reinicio del 
 
 Comprobar: `systemctl is-active mysql`, `systemctl list-timers zentra-mysql-ensure.timer`, `ss -lntp \| grep 3306`, `tail /var/log/zentra-mysql-ensure.log`. Tras editar drop-in/units: `systemctl daemon-reload && systemctl enable --now zentra-mysql-ensure.timer`.
 
+Kilometrajes por revisar (24 nov 2026): migrate `2026_11_24_083500` (`supervisor_shifts.odometer_accepted_at`, `odometer_accepted_by`). Pull + `migrate --force` + `view:cache` + `route:cache` + reload php-fpm. Sin `npm run build` ni APK. Detalle: [`SUPERVISION-CAMPO.md`](SUPERVISION-CAMPO.md).
+
 Comercial Super Admin (15 oct 2026): hub `/admin/comercial` — propuesta PDF, cotización PDF (plan personalizado + total pactado) y presentación PPTX 16:9 (11 diapositivas, paleta clara, capturas panel empresa con stitch de scroll en Supervisión/Observatorio). Capturas en `resources/images/commercial/deck/`. Migrates del mismo corte: `2026_10_15_*` (blocklist ids, plantilla turno guarda), `2026_10_18_*` (`scheduled_amount*`, sync cupos Supervisión por puesto). Pull + `composer install` + `migrate --force` + `npm ci && npm run build` + caches. Sin seeder nuevo (permiso `platform.companies.view`). Comprobar enlace `public/images` → `../resources/images` si falta. Detalle: [`COMERCIAL-DOCUMENTOS.md`](COMERCIAL-DOCUMENTOS.md).
 
 Georreferencia de instalaciones (14 oct 2026): migrate `2026_10_17_110000` (tabla `installation_geo_requests` + permiso `company.geo.approve`, lo crea la migración). El supervisor envía desde la app (turno abierto, GPS ±30 m, solo con red); la empresa aprueba en Supervisión → Georreferenciaciones. PWA `zentra-sup-v53`. APK v2.1. Pull + `migrate --force` + `npm run build` + caches. Sin seeder.

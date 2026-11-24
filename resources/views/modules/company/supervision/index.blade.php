@@ -232,7 +232,7 @@
                 <section class="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 overflow-hidden">
                     <div class="px-4 py-3 border-b border-amber-500/30">
                         <h3 class="text-sm font-semibold text-amber-100">Kilometrajes por revisar</h3>
-                        <p class="text-xs text-amber-200/80 mt-0.5">Últimos 90 días. Un salto de más de 1.500 km o un recorrido que no cabe en un turno. La corrección está en la ficha, con la foto del odómetro.</p>
+                        <p class="text-xs text-amber-200/80 mt-0.5">Usa el mismo periodo y los mismos filtros. Entra si el recorrido del turno pasa de 1.500 km, o si del cierre anterior de la placa al inicio de este turno hay más de 1.500 km.</p>
                     </div>
                     <table class="w-full text-sm">
                         <thead>
@@ -242,21 +242,29 @@
                                 <th class="text-left px-4 py-2">Vehículo</th>
                                 <th class="text-left px-4 py-2">Inicio</th>
                                 <th class="text-left px-4 py-2">Cierre</th>
-                                <th class="text-left px-4 py-2">Recorrido</th>
+                                <th class="text-left px-4 py-2">Por qué</th>
                                 <th></th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach ($odometerAlerts as $alert)
                                 <tr class="border-b border-amber-500/10">
-                                    <td class="px-4 py-2 text-slate-300">{{ $alert->started_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') }}</td>
-                                    <td class="px-4 py-2 text-slate-200">{{ $alert->user?->name ?? '—' }}</td>
-                                    <td class="px-4 py-2 text-slate-400">{{ $alert->fleetVehicle?->plate ?? '—' }}</td>
-                                    <td class="px-4 py-2 text-slate-300">{{ number_format((int) $alert->km_start, 0, ',', '.') }}</td>
-                                    <td class="px-4 py-2 text-slate-300">{{ $alert->km_end !== null ? number_format((int) $alert->km_end, 0, ',', '.') : '—' }}</td>
-                                    <td class="px-4 py-2 text-amber-200">{{ $alert->km_traveled !== null ? number_format((int) $alert->km_traveled, 0, ',', '.') : '—' }}</td>
+                                    <td class="px-4 py-2 text-slate-300">{{ $alert->shift->started_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') }}</td>
+                                    <td class="px-4 py-2 text-slate-200">{{ $alert->shift->user?->name ?? '—' }}</td>
+                                    <td class="px-4 py-2 text-slate-400">{{ $alert->shift->fleetVehicle?->plate ?? '—' }}</td>
+                                    <td class="px-4 py-2 text-slate-300">{{ number_format((int) $alert->shift->km_start, 0, ',', '.') }}</td>
+                                    <td class="px-4 py-2 text-slate-300">{{ $alert->shift->km_end !== null ? number_format((int) $alert->shift->km_end, 0, ',', '.') : '—' }}</td>
+                                    <td class="px-4 py-2 text-amber-200">
+                                        @if ($alert->tripOverLimit)
+                                            Inicio → cierre: {{ number_format((int) $alert->tripKm, 0, ',', '.') }} km
+                                        @endif
+                                        @if ($alert->gapOverLimit)
+                                            @if ($alert->tripOverLimit)<br>@endif
+                                            Cierre anterior → inicio: {{ number_format((int) $alert->gapKm, 0, ',', '.') }} km
+                                        @endif
+                                    </td>
                                     <td class="px-4 py-2 text-right">
-                                        <a href="{{ route('company.supervision.sheets.show', ['kind' => 'shift', 'id' => $alert->id]) }}" class="text-amber-200 hover:text-white">Corregir</a>
+                                        <a href="{{ route('company.supervision.sheets.show', ['kind' => 'shift', 'id' => $alert->shift->id]) }}" class="text-amber-200 hover:text-white">Corregir</a>
                                     </td>
                                 </tr>
                             @endforeach

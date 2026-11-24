@@ -348,6 +348,9 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
         Route::post('/supervision/turnos/{shift}/kilometraje', [CorrectSupervisorShiftOdometerController::class, 'update'])
             ->middleware('permission:company.settings.manage')
             ->name('supervision.shifts.odometer');
+        Route::post('/supervision/turnos/{shift}/kilometraje/aceptar', [CorrectSupervisorShiftOdometerController::class, 'accept'])
+            ->middleware('permission:company.settings.manage')
+            ->name('supervision.shifts.odometer.accept');
 
         Route::get('/descargas', [DownloadsController::class, 'index'])
             ->middleware('permission:company.downloads.view')

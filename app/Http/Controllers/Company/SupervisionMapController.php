@@ -103,7 +103,9 @@ final class SupervisionMapController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'canManageZones' => (bool) $request->user()?->can('company.settings.manage'),
-            'odometerAlerts' => $tab === 'sheets' ? $this->inflatedOdometers->execute($companyId) : collect(),
+            'odometerAlerts' => $tab === 'sheets'
+                ? $this->inflatedOdometers->execute($companyId, $filter->withDates($summary->from, $summary->to))
+                : collect(),
         ]);
     }
 

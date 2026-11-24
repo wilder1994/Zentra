@@ -62,6 +62,8 @@ final class CorrectSupervisorShiftOdometerTest extends TestCase
             ->get(route('company.supervision.sheets.show', ['kind' => 'shift', 'id' => $bad->id, 'embed' => 1]))
             ->assertOk()
             ->assertSee('Corregir kilometraje')
+            ->assertSee('Cierre anterior de la placa')
+            ->assertSee('Inicio → cierre de este turno', false)
             ->assertSee('name="embed"', false);
 
         $this->actingAs($admin)
@@ -72,6 +74,11 @@ final class CorrectSupervisorShiftOdometerTest extends TestCase
             ])
             ->assertRedirect(route('company.supervision.sheets.show', ['kind' => 'shift', 'id' => $bad->id]));
 
+        $this->actingAs($admin)
+            ->get(route('company.supervision.index', ['tab' => 'sheets']))
+            ->assertOk()
+            ->assertDontSee('Kilometrajes por revisar');
+
         $bad->refresh();
         $this->assertSame(15000, $bad->km_start);
         $this->assertSame(15200, $bad->km_end);
@@ -81,6 +88,73 @@ final class CorrectSupervisorShiftOdometerTest extends TestCase
         $this->assertTrue(
             AuditLog::query()->where('action', 'supervision.odometer.corrected')->where('auditable_id', $bad->id)->exists(),
         );
+    }
+
+    public function test_accepting_a_real_gap_removes_it_and_the_period_filter_applies(): void
+    {
+        $admin = $this->admin();
+        $supervisor = $this->companySupervisor();
+        $vehicle = SupervisorFleetVehicle::query()->create([
+            'security_company_id' => $admin->security_company_id,
+            'plate' => 'GAP001',
+            'brand' => 'Chevrolet',
+            'last_km' => 69410,
+        ]);
+        SupervisorShift::query()->create([
+            'security_company_id' => $admin->security_company_id,
+            'user_id' => $supervisor->id,
+            'supervisor_fleet_vehicle_id' => $vehicle->id,
+            'status' => SupervisorShiftStatus::Closed,
+            'started_at' => now()->subHours(6),
+            'ended_at' => now()->subHours(5),
+            'km_start' => 66914,
+            'km_end' => 66914,
+            'km_traveled' => 0,
+        ]);
+        $current = SupervisorShift::query()->create([
+            'security_company_id' => $admin->security_company_id,
+            'user_id' => $supervisor->id,
+            'supervisor_fleet_vehicle_id' => $vehicle->id,
+            'status' => SupervisorShiftStatus::Closed,
+            'started_at' => now()->subHour(),
+            'ended_at' => now()->subMinutes(30),
+            'km_start' => 69410,
+            'km_end' => 69417,
+            'km_traveled' => 7,
+        ]);
+        $outside = SupervisorFleetVehicle::query()->create([
+            'security_company_id' => $admin->security_company_id,
+            'plate' => 'OLD999',
+            'brand' => 'Chevrolet',
+            'last_km' => 200000,
+        ]);
+        SupervisorShift::query()->create([
+            'security_company_id' => $admin->security_company_id,
+            'user_id' => $supervisor->id,
+            'supervisor_fleet_vehicle_id' => $outside->id,
+            'status' => SupervisorShiftStatus::Closed,
+            'started_at' => now()->subMonths(2),
+            'ended_at' => now()->subMonths(2)->addHours(8),
+            'km_start' => 10000,
+            'km_end' => 200000,
+            'km_traveled' => 190000,
+        ]);
+
+        $today = now()->toDateString();
+        $this->actingAs($admin)
+            ->get(route('company.supervision.index', ['tab' => 'sheets', 'from' => $today, 'to' => $today]))
+            ->assertOk()
+            ->assertSee('Cierre anterior → inicio: 2.496 km', false)
+            ->assertDontSee('OLD999');
+
+        $this->actingAs($admin)
+            ->post(route('company.supervision.shifts.odometer.accept', $current), ['embed' => 1])
+            ->assertRedirect();
+
+        $this->actingAs($admin)
+            ->get(route('company.supervision.index', ['tab' => 'sheets', 'from' => $today, 'to' => $today]))
+            ->assertOk()
+            ->assertDontSee('GAP001');
     }
 
     public function test_a_lower_close_is_rejected_and_an_open_shift_only_changes_the_start(): void

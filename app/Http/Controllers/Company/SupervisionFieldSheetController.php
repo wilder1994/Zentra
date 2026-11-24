@@ -8,6 +8,7 @@ use App\Enums\SupervisorFieldSheetKind;
 use App\Http\Controllers\Controller;
 use App\Models\SupervisorShift;
 use App\Services\Company\BuildSupervisorFieldSheetService;
+use App\Services\Company\ListInflatedSupervisorOdometersService;
 use App\Support\Platform\ActingCompanyResolver;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -19,6 +20,7 @@ final class SupervisionFieldSheetController extends Controller
 {
     public function __construct(
         private readonly BuildSupervisorFieldSheetService $sheets,
+        private readonly ListInflatedSupervisorOdometersService $odometers,
     ) {}
 
     public function show(Request $request, string $kind, int $id): View|Response
@@ -31,6 +33,9 @@ final class SupervisionFieldSheetController extends Controller
         $companyId = app(ActingCompanyResolver::class)->requireId($request->user());
         $sheet = $this->sheets->forCompany($companyId, $sheetKind, $id);
         abort_if($sheet === null, 404);
+        $odometerShift = $sheetKind === SupervisorFieldSheetKind::Shift
+            ? SupervisorShift::query()->where('security_company_id', $companyId)->find($id)
+            : null;
 
         if ($request->query('format') === 'pdf') {
             return Pdf::loadView('modules.company.supervision.ficha', ['sheet' => $sheet, 'mode' => 'pdf'])
@@ -44,8 +49,9 @@ final class SupervisionFieldSheetController extends Controller
             'pdfUrl' => route('company.supervision.sheets.show', ['kind' => $kind, 'id' => $id, 'format' => 'pdf']),
             'canCorrectKm' => $sheetKind === SupervisorFieldSheetKind::Shift
                 && (bool) $request->user()?->can('company.settings.manage'),
-            'odometerShift' => $sheetKind === SupervisorFieldSheetKind::Shift
-                ? SupervisorShift::query()->where('security_company_id', $companyId)->find($id)
+            'odometerShift' => $odometerShift,
+            'odometerComparison' => $odometerShift instanceof SupervisorShift
+                ? $this->odometers->compare($odometerShift)
                 : null,
         ]);
     }

@@ -56,6 +56,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 24 nov 2026 · Kilometrajes por revisar
+En Fichas, la tabla usa el periodo y los filtros de la pestaña. La ficha dice si la distancia es del inicio al cierre o del cierre anterior de la placa al inicio. Aceptar (o guardar una corrección) saca el turno de la tabla sin tocar el mapa ni la app de campo. Migración `2026_11_24_083500`. Detalle: [`SUPERVISION-CAMPO.md`](SUPERVISION-CAMPO.md).
+
 ### 23 nov 2026 · Formulario de reporte (link y WhatsApp)
 Link: al elegir el colegio pasa al resto sin «Continuar»; tipo, qué pasó, mapa, 2 fotos y video van juntos; identidad y envío aparecen al tener tipo y una palabra. Borrador en la pestaña (`sessionStorage`): un refresco recupera colegio, tipo, texto, pin y quién eres. El botón de envío pasa a «Guardando…» y queda deshabilitado. WhatsApp: una pregunta junta colegio y hecho; fotos y «quién eres / anónimo» se mantienen. Adjuntos: 2 fotos de 10 MB y 1 video de 30 s / 20 MB. Mismo colegio, tipo y persona dentro de 1 h no crea otro reporte. «Qué pasó» acepta una palabra. La app de supervisores no cambia. Migración local `2026_11_23_220000` aplicada. Sin commit. En el VPS, PHP del sitio y nginx ya estaban en 64 MB (no 4 ni 8).
 
