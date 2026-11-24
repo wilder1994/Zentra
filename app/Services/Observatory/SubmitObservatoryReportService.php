@@ -65,13 +65,26 @@ final class SubmitObservatoryReportService
 
         $body = trim((string) $data['body']);
         $anonymous = (bool) $data['is_anonymous'];
-        $photoPaths = $this->storePhotos($data);
-        $photoPath = $photoPaths[0] ?? null;
+        $isAdult = array_key_exists('is_adult', $data) ? $data['is_adult'] : null;
+        $isAdult = $isAdult === null ? null : (bool) $isAdult;
+        if ($isAdult === false) {
+            $anonymous = false;
+        }
         $coords = $this->coordinates($data, $installation);
         $reporter = $data['reported_by'] ?? null;
         $reporter = $reporter instanceof User ? $reporter : null;
+        $personKey = $this->personKey($data, $ip);
 
-        $report = DB::transaction(function () use ($client, $installation, $type, $body, $anonymous, $data, $photoPath, $photoPaths, $ip, $coords, $source, $role, $reporter): ObservatoryReport {
+        $report = DB::transaction(function () use ($client, $installation, $type, $body, $anonymous, $isAdult, $data, $ip, $coords, $source, $role, $reporter, $personKey): ObservatoryReport {
+            if ($this->duplicate($installation, $type, $personKey)) {
+                throw ValidationException::withMessages([
+                    'report' => 'Ya enviamos un reporte tuyo de este tipo en este colegio. Si es otro hecho, inténtalo más tarde.',
+                ]);
+            }
+
+            $photoPaths = $this->storePhotos($data);
+            $photoPath = $photoPaths[0] ?? null;
+            $videoPath = $this->storeVideo($data);
             $event = $this->openOrAttach($client, $installation, $type);
 
             return ObservatoryReport::query()->create([
@@ -84,11 +97,14 @@ final class SubmitObservatoryReportService
                 'observatory_report_type_id' => $type->id,
                 'body' => $body,
                 'is_anonymous' => $anonymous,
+                'is_adult' => $isAdult,
                 'reporter_name' => $anonymous ? null : $this->nullable($data['reporter_name'] ?? null),
                 'reporter_phone' => $anonymous ? null : $this->nullable($data['reporter_phone'] ?? null),
                 'reported_by_user_id' => $anonymous ? null : $reporter?->id,
                 'photo_path' => $photoPath,
                 'photo_paths' => $photoPaths !== [] ? $photoPaths : null,
+                'video_path' => $videoPath,
+                'reporter_key' => $personKey,
                 'latitude' => $coords['lat'],
                 'longitude' => $coords['lng'],
                 'ip_hash' => $ip !== null ? hash('sha256', $ip) : null,
@@ -159,12 +175,80 @@ final class SubmitObservatoryReportService
         }
         $files = array_slice($files, 0, 3);
 
+        return $this->storeFiles($files, 'observatory/photos');
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function storeVideo(array $data): ?string
+    {
+        $file = $data['video'] ?? null;
+        if (! $file instanceof UploadedFile) {
+            return null;
+        }
+
+        $stored = $this->storeFiles([$file], 'observatory/videos');
+
+        return $stored[0] ?? null;
+    }
+
+    /**
+     * @param  list<UploadedFile>  $files
+     * @return list<string>
+     */
+    private function storeFiles(array $files, string $directory): array
+    {
         $paths = [];
         foreach ($files as $file) {
-            $paths[] = $file->store('observatory/photos', 'public');
+            $paths[] = $file->store($directory, 'public');
         }
 
         return $paths;
+    }
+
+    /**
+     * Misma sede, mismo tipo y misma persona dentro de la ventana de unión.
+     * La persona es el teléfono, el usuario, el nombre o la IP; no se muestra.
+     */
+    private function duplicate(Installation $installation, ObservatoryReportType $type, ?string $personKey): bool
+    {
+        if ($personKey === null) {
+            return false;
+        }
+
+        $minutes = max(1, (int) config('observatory.merge_window_minutes', 60));
+
+        return ObservatoryReport::query()
+            ->where('installation_id', $installation->id)
+            ->where('reporter_key', $personKey)
+            ->where('created_at', '>=', now()->subMinutes($minutes))
+            ->where(function ($q) use ($type): void {
+                $q->where('observatory_report_type_id', $type->id)
+                    ->orWhere('kind', $type->slug);
+            })
+            ->lockForUpdate()
+            ->exists();
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function personKey(array $data, ?string $ip): ?string
+    {
+        $phone = trim((string) ($data['reporter_phone'] ?? ''));
+        $name = mb_strtolower(trim((string) ($data['reporter_name'] ?? '')));
+        $user = $data['reported_by'] ?? null;
+        $userId = $user instanceof User ? (string) $user->id : '';
+        $raw = match (true) {
+            $phone !== '' => 'tel:'.$phone,
+            $userId !== '' => 'user:'.$userId,
+            $name !== '' => 'name:'.$name,
+            $ip !== null && $ip !== '' => 'ip:'.$ip,
+            default => '',
+        };
+
+        return $raw === '' ? null : hash('sha256', $raw);
     }
 
     /**

@@ -32,6 +32,7 @@ final class SubmitMetaConversationReportService
 
         $tmp = [];
         $files = $this->photos($conversation, $tmp);
+        $video = $this->video($conversation, $tmp);
 
         try {
             $report = $this->reports->execute($client, [
@@ -44,6 +45,7 @@ final class SubmitMetaConversationReportService
                 'reporter_name' => $conversation->profile_name,
                 'reporter_phone' => $conversation->wa_id,
                 'photos' => $files,
+                'video' => $video,
             ]);
         } finally {
             foreach ($tmp as $path) {
@@ -68,6 +70,9 @@ final class SubmitMetaConversationReportService
             if ($media === null || ! str_starts_with($media['mime'], 'image/')) {
                 continue;
             }
+            if (count($files) >= 2) {
+                break;
+            }
 
             $path = tempnam(sys_get_temp_dir(), 'wa');
             if ($path === false) {
@@ -79,6 +84,30 @@ final class SubmitMetaConversationReportService
         }
 
         return $files;
+    }
+
+    /** @param  list<string>  $tmp */
+    private function video(MetaConversation $conversation, array &$tmp): ?UploadedFile
+    {
+        foreach ($conversation->mediaItems() as $item) {
+            if (! str_starts_with($item['mime'], 'video/')) {
+                continue;
+            }
+            $media = $this->gateway->download($item['id']);
+            if ($media === null || ! str_starts_with($media['mime'], 'video/')) {
+                return null;
+            }
+            $path = tempnam(sys_get_temp_dir(), 'wa-video');
+            if ($path === false) {
+                return null;
+            }
+            file_put_contents($path, $media['contents']);
+            $tmp[] = $path;
+
+            return new UploadedFile($path, 'whatsapp.mp4', $media['mime'], null, true);
+        }
+
+        return null;
     }
 
     /** Cierra la conversación; si fue anónima, borra el número del buzón y de la conversación. */

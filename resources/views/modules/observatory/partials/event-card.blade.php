@@ -112,6 +112,9 @@
                         @if ($report->hasCoordinates())
                             <p class="text-[11px] text-slate-500">Pin {{ number_format((float) $report->latitude, 5) }}, {{ number_format((float) $report->longitude, 5) }}</p>
                         @endif
+                        @if ($report->videoUrl())
+                            <video src="{{ $report->videoUrl() }}" controls class="mt-2 max-h-48 w-full rounded-lg border border-slate-800"></video>
+                        @endif
                         @if ($report->photoUrls() !== [])
                             <div class="mt-2 flex flex-wrap gap-2">
                                 @foreach ($report->photoUrls() as $url)

@@ -23,14 +23,17 @@ final class ObservatoryReport extends Model
         'observatory_report_type_id',
         'body',
         'is_anonymous',
+        'is_adult',
         'reporter_name',
         'reporter_phone',
         'reported_by_user_id',
         'photo_path',
         'photo_paths',
+        'video_path',
         'latitude',
         'longitude',
         'ip_hash',
+        'reporter_key',
     ];
 
     protected function casts(): array
@@ -39,6 +42,7 @@ final class ObservatoryReport extends Model
             'source' => ObservatoryReportSource::class,
             'reporter_role' => ObservatoryReporterRole::class,
             'is_anonymous' => 'boolean',
+            'is_adult' => 'boolean',
             'photo_paths' => 'array',
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
@@ -140,6 +144,15 @@ final class ObservatoryReport extends Model
         }
 
         return $urls;
+    }
+
+    public function videoUrl(): ?string
+    {
+        if (! filled($this->video_path)) {
+            return null;
+        }
+
+        return Storage::disk('public')->url((string) $this->video_path);
     }
 
     public function client(): BelongsTo

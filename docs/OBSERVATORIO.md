@@ -133,7 +133,7 @@ La cuenta tiene que estar suscrita a la app (`POST /{cuenta}/subscribed_apps`). 
 
 Cada mensaje nuevo del 310 dispara `ProcessMetaWebhookMessage` (cola) → `MetaObservatoryBot`. Estado en `meta_conversations` (una abierta por `wa_id`; vence a los `META_CONVERSATION_TTL_MINUTES`, 120 por defecto; «cancelar» la cierra).
 
-Pasos: colegio (nombre parcial → lista de hasta 10, código DANE, o ubicación → 5 más cercanos) → tipo (catálogo vivo del cliente, paginado) → «¿Qué pasó?» (10–2000 caracteres) → fotos (hasta 3; omitir/listo) → rol (alumno, padre, vecino) → anónimo sí/no. Al final llama a `SubmitObservatoryReportService` con `source=whatsapp`, así la unión por colegio + tipo en 60 min es la de siempre. Responde el folio `EV-…`. Solo colegios con perfil Observatorio comunidad.
+Pasos: una pregunta («¿en qué colegio y qué pasó?»; el tipo se lee si viene en el texto, si no se pide) → hasta 2 fotos y 1 video de 30 s / 20 MB, o «Listo» → quién eres y anónimo en la misma lista. «Qué pasó» acepta una palabra. Si la misma persona repite sede y tipo dentro de la ventana de 1 h, no se crea otro reporte. Al final llama a `SubmitObservatoryReportService` con `source=whatsapp`. Responde el folio `EV-…`. Solo colegios con perfil Observatorio comunidad.
 
 Si es anónimo, al cerrar se borran nombre y teléfono de `meta_conversations` y `meta_webhook_messages`.
 

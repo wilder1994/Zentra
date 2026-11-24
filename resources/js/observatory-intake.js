@@ -49,6 +49,11 @@ export function observatoryIntake(cfg) {
         kind: cfg.kind || '',
         anonymous: Boolean(cfg.anonymous),
         role: cfg.role || '',
+        minor: cfg.isAdult === undefined || cfg.isAdult === null || cfg.isAdult === ''
+            ? null
+            : cfg.isAdult === false || cfg.isAdult === 0 || cfg.isAdult === '0',
+        consent: Boolean(cfg.consent),
+        consentError: '',
         reporterName: cfg.reporterName || '',
         reporterPhone: cfg.reporterPhone || '',
         remember: false,
@@ -56,18 +61,139 @@ export function observatoryIntake(cfg) {
         storageKey: cfg.storageKey || '',
         latitude: cfg.latitude || '',
         longitude: cfg.longitude || '',
+        body: cfg.body || '',
+        draftKey: cfg.draftKey || '',
+        sending: false,
+        videoPreview: '',
+        videoError: '',
         siteLat: cfg.siteLat ?? null,
         siteLng: cfg.siteLng ?? null,
         hasPin: false,
         mapsKey: cfg.mapsKey || '',
         map: null,
         marker: null,
-        previews: [null, null, null],
+        previews: [null, null],
 
         init() {
+            this.restoreDraft();
             this.restoreIdentity();
-            if (this.step === 2) {
+            if (this.step === 2 || this.installationId) {
                 this.goStep(2);
+            }
+        },
+
+        readyForIdentity() {
+            return Boolean(this.kind) && String(this.body || '').trim().length >= 1;
+        },
+
+        asksAge() {
+            return this.role === 'alumno' || this.role === 'vecino';
+        },
+
+        isMinor() {
+            return this.asksAge() && this.minor === true;
+        },
+
+        isAdult() {
+            return this.asksAge() && this.minor === false;
+        },
+
+        needsConsent() {
+            return this.asksAge() && this.minor !== null;
+        },
+
+        showAnonymous() {
+            return Boolean(this.role) && (!this.asksAge() || this.minor === false);
+        },
+
+        readyToSend() {
+            return Boolean(this.role) && (!this.asksAge() || this.minor !== null);
+        },
+
+        onRole() {
+            if (!this.asksAge()) {
+                this.minor = null;
+                this.consentError = '';
+            }
+            this.saveDraft();
+        },
+
+        setMinor(isMinor) {
+            this.minor = isMinor;
+            this.consentError = '';
+            if (isMinor) {
+                this.anonymous = false;
+            }
+            this.saveDraft();
+        },
+
+        guardSubmit(event) {
+            if (this.needsConsent() && !this.consent) {
+                this.consentError = 'Marca la autorización para enviar el reporte.';
+                this.sending = false;
+                event.preventDefault();
+                return;
+            }
+            this.sending = true;
+            this.persistIdentity();
+        },
+
+        focusBody() {
+            this.$nextTick(() => this.$root.querySelector('#body')?.focus());
+            this.saveDraft();
+        },
+
+        saveDraft() {
+            if (!this.draftKey || typeof sessionStorage === 'undefined') {
+                return;
+            }
+            try {
+                sessionStorage.setItem(this.draftKey, JSON.stringify({
+                    step: this.step,
+                    installationId: this.installationId,
+                    installationName: this.installationName,
+                    kind: this.kind,
+                    body: this.body,
+                    latitude: this.latitude,
+                    longitude: this.longitude,
+                    role: this.role,
+                    minor: this.minor,
+                    consent: this.consent,
+                    anonymous: this.anonymous,
+                    reporterName: this.reporterName,
+                    reporterPhone: this.reporterPhone,
+                    query: this.query,
+                }));
+            } catch {
+                // storage lleno o privado
+            }
+        },
+
+        restoreDraft() {
+            if (this.installationId || this.body || !this.draftKey || typeof sessionStorage === 'undefined') {
+                return;
+            }
+            try {
+                const data = JSON.parse(sessionStorage.getItem(this.draftKey) || 'null');
+                if (!data || typeof data !== 'object') {
+                    return;
+                }
+                this.installationId = data.installationId || '';
+                this.installationName = data.installationName || '';
+                this.kind = data.kind || '';
+                this.body = data.body || '';
+                this.latitude = data.latitude || '';
+                this.longitude = data.longitude || '';
+                this.role = data.role || this.role;
+                this.minor = data.minor === true ? true : data.minor === false ? false : this.minor;
+                this.consent = Boolean(data.consent);
+                this.anonymous = Boolean(data.anonymous);
+                this.reporterName = data.reporterName || this.reporterName;
+                this.reporterPhone = data.reporterPhone || this.reporterPhone;
+                this.query = data.query || '';
+                this.step = this.installationId ? 2 : 1;
+            } catch {
+                // borrador ilegible
             }
         },
 
@@ -110,7 +236,7 @@ export function observatoryIntake(cfg) {
                 return;
             }
             const payload = { role: this.role };
-            if (this.role !== 'alumno') {
+            if (this.role !== 'alumno' && this.minor !== true) {
                 payload.name = this.reporterName || '';
                 payload.phone = this.reporterPhone || '';
             }
@@ -154,11 +280,58 @@ export function observatoryIntake(cfg) {
             this.latitude = row.lat != null ? String(row.lat) : '';
             this.longitude = row.lng != null ? String(row.lng) : '';
             this.installations = [];
+            this.searched = false;
             this.query = row.name;
+            this.goStep(2);
+            this.saveDraft();
+        },
+
+        clearVideoPreview() {
+            if (this.videoPreview) {
+                URL.revokeObjectURL(this.videoPreview);
+            }
+            this.videoPreview = '';
+        },
+
+        setVideo(event) {
+            const file = event.target.files?.[0];
+            this.videoError = '';
+            this.clearVideoPreview();
+            if (!file) {
+                return;
+            }
+            if (file.size > 20 * 1024 * 1024) {
+                this.videoError = 'El video puede pesar hasta 20 MB.';
+                event.target.value = '';
+                return;
+            }
+            const url = URL.createObjectURL(file);
+            const probe = document.createElement('video');
+            probe.preload = 'metadata';
+            probe.onloadedmetadata = () => {
+                if (!Number.isFinite(probe.duration) || probe.duration > 30.4) {
+                    URL.revokeObjectURL(url);
+                    this.videoError = 'El video puede durar hasta 30 segundos.';
+                    event.target.value = '';
+                    return;
+                }
+                this.videoPreview = url;
+            };
+            probe.onerror = () => {
+                URL.revokeObjectURL(url);
+                this.videoError = 'No pude leer ese video. Use mp4 de hasta 30 segundos.';
+                event.target.value = '';
+            };
+            probe.src = url;
         },
 
         setPhoto(event, index) {
             const file = event.target.files?.[0];
+            if (file && file.size > 10 * 1024 * 1024) {
+                event.target.value = '';
+                window.alert('Cada foto puede pesar hasta 10 MB.');
+                return;
+            }
             if (this.previews[index]) {
                 URL.revokeObjectURL(this.previews[index]);
             }

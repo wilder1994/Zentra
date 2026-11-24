@@ -14,6 +14,8 @@ use App\Models\ObservatoryReportType;
 use App\Services\Observatory\EnsureObservatoryReportTypesService;
 use App\Services\Observatory\SearchObservatorySchoolsService;
 use App\Support\Meta\WhatsAppLimits;
+use App\Support\Observatory\ObservatoryMediaLimits;
+use App\Support\Observatory\ObservatoryVideoDuration;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -28,9 +30,9 @@ final class MetaObservatoryBot
 {
     private const CANCEL_WORDS = ['cancelar', 'salir', 'cancel'];
 
-    private const MAX_PHOTOS = 3;
+    private const MAX_PHOTOS = ObservatoryMediaLimits::MAX_PHOTOS;
 
-    private const MIN_BODY = 10;
+    private const MIN_BODY = ObservatoryMediaLimits::MIN_BODY;
 
     public function __construct(
         private readonly WhatsAppGateway $gateway,
@@ -154,9 +156,7 @@ final class MetaObservatoryBot
     private function greeting(MetaInboundMessage $in): array
     {
         return [OutboundMessage::locationRequest($in->from, WhatsAppLimits::clip(
-            "Hola, soy el Observatorio SJ. Tu reporte se registra según nuestra política de privacidad: ".route('privacy')
-            ."\n\n¿En qué colegio pasó? Escribe parte del nombre o su código DANE, o toca el botón para enviar tu ubicación."
-            ."\n\nPuedes escribir «cancelar» cuando quieras salir.",
+            '¿En qué colegio y qué pasó? Escribe el colegio y el hecho, por ejemplo: Santa Librada, hurto en el patio. O envía tu ubicación. «cancelar» sale.',
             WhatsAppLimits::BODY,
         ))];
     }
@@ -175,13 +175,11 @@ final class MetaObservatoryBot
         }
 
         $text = trim((string) $in->text);
-        if ($text === '') {
-            return [OutboundMessage::locationRequest($in->from, 'Escribe parte del nombre del colegio o su código DANE, o toca el botón para enviar tu ubicación.')];
+        if (mb_strlen($text) < self::MIN_BODY) {
+            return [OutboundMessage::locationRequest($in->from, 'Escribe el colegio y qué pasó. Con una palabra basta, por ejemplo: Santa Librada, hurto.')];
         }
 
-        $found = $this->schools->byText($client, $text);
-
-        return $this->schoolChoices($conversation, $in->from, $found['schools'], $found['has_more'], false);
+        return $this->parseReport($conversation, $in->from, $client, $text);
     }
 
     /** @return list<OutboundMessage> */
@@ -198,10 +196,128 @@ final class MetaObservatoryBot
         $conversation->forceFill([
             'installation_id' => $school->id,
             'candidates' => null,
-            'state' => MetaConversationState::Type,
         ]);
 
-        return $this->typeChoices($conversation, $in->from, $client, 0);
+        return $this->afterSchool($conversation, $in->from, $client);
+    }
+
+    /** @return list<OutboundMessage> */
+    private function parseReport(MetaConversation $conversation, string $to, Client $client, string $text): array
+    {
+        $type = $this->detectType($client, $text);
+        $query = $this->withoutType($text, $type);
+        $found = $this->schools->byText($client, $query !== '' ? $query : $text);
+        if ($found['schools']->isEmpty()) {
+            $found = $this->shrinkSchools($client, $query !== '' ? $query : $text);
+        }
+
+        $conversation->body = mb_substr($text, 0, 2000);
+        if ($type instanceof ObservatoryReportType) {
+            $conversation->report_type_id = $type->id;
+        }
+
+        if ($found['schools']->isEmpty()) {
+            return [OutboundMessage::locationRequest($to, 'No encontré el colegio en ese mensaje. Escribe el nombre y qué pasó, o envía tu ubicación.')];
+        }
+
+        if ($found['schools']->count() > 1) {
+            return $this->schoolChoices($conversation, $to, $found['schools'], $found['has_more'], false);
+        }
+
+        /** @var Installation $school */
+        $school = $found['schools']->first();
+        $conversation->installation_id = $school->id;
+        if ($this->onlySchool($text, $school)) {
+            $conversation->forceFill(['body' => null, 'report_type_id' => null, 'state' => MetaConversationState::Description]);
+
+            return [OutboundMessage::text($to, 'Colegio: '.WhatsAppLimits::clip($this->shortName($school->name), 80).'. ¿Qué pasó? Puedes escribir una palabra, por ejemplo hurto.')];
+        }
+
+        return $this->afterSchool($conversation, $to, $client);
+    }
+
+    /** @return list<OutboundMessage> */
+    private function afterSchool(MetaConversation $conversation, string $to, Client $client): array
+    {
+        if (! filled($conversation->body)) {
+            $conversation->state = MetaConversationState::Description;
+
+            return [OutboundMessage::text($to, '¿Qué pasó? Puedes escribir una palabra, por ejemplo hurto.')];
+        }
+
+        if ($conversation->report_type_id === null) {
+            $type = $this->detectType($client, (string) $conversation->body);
+            if ($type instanceof ObservatoryReportType) {
+                $conversation->report_type_id = $type->id;
+            }
+        }
+
+        if ($conversation->report_type_id === null) {
+            $conversation->state = MetaConversationState::Type;
+
+            return $this->typeChoices($conversation, $to, $client, 0);
+        }
+
+        return $this->askMedia($conversation, $to);
+    }
+
+    private function detectType(Client $client, string $text): ?ObservatoryReportType
+    {
+        $this->types->execute($client);
+        $haystack = mb_strtolower($text);
+        $match = null;
+        $length = 0;
+        foreach (ObservatoryReportType::query()->where('client_id', $client->id)->where('is_active', true)->get() as $type) {
+            $name = mb_strtolower($type->name);
+            if ($name !== '' && preg_match('/(^|[^\p{L}])'.preg_quote($name, '/').'([^\p{L}]|$)/u', $haystack) === 1 && mb_strlen($name) > $length) {
+                $match = $type;
+                $length = mb_strlen($name);
+            }
+        }
+
+        return $match;
+    }
+
+    private function withoutType(string $text, ?ObservatoryReportType $type): string
+    {
+        if (! $type instanceof ObservatoryReportType) {
+            return trim($text);
+        }
+
+        $clean = preg_replace('/(^|[^\p{L}])'.preg_quote($type->name, '/').'([^\p{L}]|$)/iu', ' ', $text);
+
+        return trim((string) preg_replace('/\s+/u', ' ', (string) $clean));
+    }
+
+    /** @return array{schools: \Illuminate\Support\Collection<int, Installation>, has_more: bool} */
+    private function shrinkSchools(Client $client, string $text): array
+    {
+        $words = preg_split('/[^\p{L}\p{N}]+/u', $text, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        while (count($words) > 1) {
+            array_pop($words);
+            $found = $this->schools->byText($client, implode(' ', $words));
+            if ($found['schools']->isNotEmpty()) {
+                return $found;
+            }
+        }
+
+        return ['schools' => collect(), 'has_more' => false];
+    }
+
+    private function onlySchool(string $text, Installation $school): bool
+    {
+        $words = preg_split('/[^\p{L}\p{N}]+/u', mb_strtolower($text), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $name = mb_strtolower($school->name);
+        foreach ($words as $word) {
+            if (mb_strlen($word) < 2) {
+                continue;
+            }
+            if (! str_contains($name, $word)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -250,9 +366,13 @@ final class MetaObservatoryBot
                 ->first();
 
             if ($type instanceof ObservatoryReportType) {
-                $conversation->forceFill(['report_type_id' => $type->id, 'state' => MetaConversationState::Description]);
+                $conversation->report_type_id = $type->id;
+                if (filled($conversation->body)) {
+                    return $this->askMedia($conversation, $in->from);
+                }
+                $conversation->state = MetaConversationState::Description;
 
-                return [OutboundMessage::text($in->from, 'Cuéntame qué pasó, con el mayor detalle posible (mínimo '.self::MIN_BODY.' letras).')];
+                return [OutboundMessage::text($in->from, '¿Qué pasó? Puedes escribir una palabra, por ejemplo hurto.')];
             }
         }
 
@@ -299,89 +419,160 @@ final class MetaObservatoryBot
     {
         $text = trim((string) $in->text);
         if (mb_strlen($text) < self::MIN_BODY) {
-            return [OutboundMessage::text($in->from, 'Cuéntame un poco más: necesito al menos '.self::MIN_BODY.' letras para entender qué pasó.')];
+            return [OutboundMessage::text($in->from, 'Escribe qué pasó. Con una palabra basta, por ejemplo hurto.')];
         }
 
-        $conversation->forceFill(['body' => mb_substr($text, 0, 2000), 'state' => MetaConversationState::Media]);
+        $conversation->body = mb_substr($text, 0, 2000);
+        $clientId = (int) config('services.meta.observatory_client_id');
+        $client = Client::query()->withoutGlobalScopes()->whereKey($clientId)->first();
+        if ($client instanceof Client && $conversation->report_type_id === null) {
+            $type = $this->detectType($client, $text);
+            if ($type instanceof ObservatoryReportType) {
+                $conversation->report_type_id = $type->id;
+            }
+        }
+        if ($conversation->report_type_id === null && $client instanceof Client) {
+            $conversation->state = MetaConversationState::Type;
+
+            return $this->typeChoices($conversation, $in->from, $client, 0);
+        }
+
+        return $this->askMedia($conversation, $in->from);
+    }
+
+    /** @return list<OutboundMessage> */
+    private function askMedia(MetaConversation $conversation, string $to): array
+    {
+        $conversation->state = MetaConversationState::Media;
 
         return [OutboundMessage::buttons(
-            $in->from,
-            'Si tienes fotos del hecho, envíalas ahora (hasta '.self::MAX_PHOTOS.'). Si no, toca «Sin fotos».',
-            [['id' => 'media:skip', 'title' => 'Sin fotos']],
+            $to,
+            'Si tienes evidencia, envía hasta '.self::MAX_PHOTOS.' fotos y 1 video de '.ObservatoryMediaLimits::VIDEO_SECONDS.' segundos. Si no, toca «Listo».',
+            [['id' => 'media:done', 'title' => 'Listo']],
         )];
     }
 
     /** @return list<OutboundMessage> */
     private function media(MetaConversation $conversation, MetaInboundMessage $in): array
     {
-        $items = $conversation->mediaItems();
+        $items = $conversation->media ?? [];
+        $images = $this->countKind($items, 'image/');
+        $hasVideo = $this->countKind($items, 'video/') > 0;
 
         if ($in->type === 'image' && $in->mediaId !== null && str_starts_with((string) $in->mediaMime, 'image/')) {
-            if (count($items) < self::MAX_PHOTOS) {
+            if ($images < self::MAX_PHOTOS) {
                 $items[] = ['id' => $in->mediaId, 'mime' => (string) $in->mediaMime];
                 $conversation->media = $items;
+                $images++;
             }
-            if (count($items) >= self::MAX_PHOTOS) {
-                return $this->askRole($conversation, $in->from, 'Recibí las '.self::MAX_PHOTOS.' fotos.');
+            if ($images >= self::MAX_PHOTOS && $hasVideo) {
+                return $this->askWho($conversation, $in->from, 'Recibí las fotos y el video.');
             }
 
             return [OutboundMessage::buttons(
                 $in->from,
-                'Recibí la foto '.count($items).' de '.self::MAX_PHOTOS.'. Envía otra o toca «Listo».',
+                'Foto '.$images.' de '.self::MAX_PHOTOS.($hasVideo ? ' y el video' : '').'. Puedes enviar '.($hasVideo ? 'otra foto o' : 'un video de '.ObservatoryMediaLimits::VIDEO_SECONDS.' s o').' tocar «Listo».',
+                [['id' => 'media:done', 'title' => 'Listo']],
+            )];
+        }
+
+        if ($in->type === 'video' && $in->mediaId !== null) {
+            $reason = $hasVideo ? 'Ya tengo un video.' : $this->rejectVideo($in->mediaId);
+            if ($reason !== null) {
+                return [OutboundMessage::buttons($in->from, $reason, [['id' => 'media:done', 'title' => 'Listo']])];
+            }
+            $items[] = ['id' => $in->mediaId, 'mime' => (string) ($in->mediaMime ?: 'video/mp4')];
+            $conversation->media = $items;
+            if ($images >= self::MAX_PHOTOS) {
+                return $this->askWho($conversation, $in->from, 'Recibí el video.');
+            }
+
+            return [OutboundMessage::buttons(
+                $in->from,
+                'Recibí el video. Puedes enviar hasta '.self::MAX_PHOTOS.' fotos o tocar «Listo».',
                 [['id' => 'media:done', 'title' => 'Listo']],
             )];
         }
 
         $text = mb_strtolower(trim((string) $in->text));
         if (in_array($in->replyId, ['media:skip', 'media:done'], true) || in_array($text, ['listo', 'sin fotos'], true)) {
-            return $this->askRole($conversation, $in->from, null);
+            return $this->askWho($conversation, $in->from, null);
         }
 
-        $label = $items === [] ? 'Sin fotos' : 'Listo';
-        $hint = in_array($in->type, ['video', 'audio', 'document', 'sticker'], true)
-            ? 'Por ahora solo recibo fotos. Envía una foto o toca «'.$label.'».'
-            : 'Envía una foto o toca «'.$label.'» para continuar.';
+        return [OutboundMessage::buttons(
+            $in->from,
+            'Envía una foto, un video de hasta '.ObservatoryMediaLimits::VIDEO_SECONDS.' segundos, o toca «Listo».',
+            [['id' => 'media:done', 'title' => 'Listo']],
+        )];
+    }
 
-        return [OutboundMessage::buttons($in->from, $hint, [['id' => 'media:done', 'title' => $label]])];
+    /** @param  list<array<string, mixed>>  $items */
+    private function countKind(array $items, string $prefix): int
+    {
+        $count = 0;
+        foreach ($items as $item) {
+            if (is_array($item) && str_starts_with((string) ($item['mime'] ?? ''), $prefix)) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    private function rejectVideo(string $mediaId): ?string
+    {
+        $media = $this->gateway->download($mediaId);
+        if ($media === null || ! str_starts_with($media['mime'], 'video/')) {
+            return 'No pude recibir ese video. Envíe un mp4 de hasta '.ObservatoryMediaLimits::VIDEO_SECONDS.' segundos.';
+        }
+        if (strlen($media['contents']) > ObservatoryMediaLimits::VIDEO_KB * 1024) {
+            return 'El video puede pesar hasta 20 MB.';
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'wa-video');
+        if ($path === false) {
+            return 'No pude revisar el video. Intenta con otro más corto.';
+        }
+        file_put_contents($path, $media['contents']);
+        $seconds = ObservatoryVideoDuration::seconds($path);
+        @unlink($path);
+        if ($seconds === null || $seconds > ObservatoryMediaLimits::VIDEO_SECONDS + 0.4) {
+            return 'El video puede durar hasta '.ObservatoryMediaLimits::VIDEO_SECONDS.' segundos.';
+        }
+
+        return null;
     }
 
     /** @return list<OutboundMessage> */
-    private function askRole(MetaConversation $conversation, string $to, ?string $intro): array
+    private function askWho(MetaConversation $conversation, string $to, ?string $intro): array
     {
         $conversation->state = MetaConversationState::Role;
-
-        $buttons = [];
+        $rows = [];
         foreach (ObservatoryReporterRole::publicOptions() as $value => $label) {
-            $buttons[] = ['id' => 'role:'.$value, 'title' => $label];
+            $rows[] = ['id' => 'who:'.$value.':0', 'title' => $label];
+            $rows[] = ['id' => 'who:'.$value.':1', 'title' => $label.' anónimo'];
         }
 
-        return [OutboundMessage::buttons($to, trim(($intro ?? '').' ¿Quién eres?'), $buttons)];
+        $body = trim(($intro ? $intro.' ' : '').'¿Quién eres?');
+
+        return [OutboundMessage::list($to, $body, 'Elegir', $rows)];
     }
 
     /** @return list<OutboundMessage> */
     private function role(MetaConversation $conversation, MetaInboundMessage $in): array
     {
-        $role = str_starts_with((string) $in->replyId, 'role:')
-            ? ObservatoryReporterRole::tryFrom(substr((string) $in->replyId, strlen('role:')))
-            : null;
+        $reply = (string) $in->replyId;
+        if (preg_match('/^who:([a-z]+):([01])$/', $reply, $match) === 1) {
+            $role = ObservatoryReporterRole::tryFrom($match[1]);
+            if ($role instanceof ObservatoryReporterRole && $role->isPublic()) {
+                $conversation->reporter_role = $role->value;
+                $conversation->is_anonymous = $match[2] === '1';
 
-        if ($role === null || ! $role->isPublic()) {
-            return $this->askRole($conversation, $in->from, null);
+                return $this->finish($conversation, $in, $conversation->is_anonymous);
+            }
         }
 
-        $conversation->forceFill(['reporter_role' => $role->value, 'state' => MetaConversationState::Anonymous]);
-
-        return $this->askAnonymous($in->from);
-    }
-
-    /** @return list<OutboundMessage> */
-    private function askAnonymous(string $to): array
-    {
-        return [OutboundMessage::buttons(
-            $to,
-            '¿Quieres que tu nombre y teléfono queden ocultos? Solo se mostrará la denuncia.',
-            [['id' => 'anon:yes', 'title' => 'Sí, anónimo'], ['id' => 'anon:no', 'title' => 'No, con mi nombre']],
-        )];
+        return $this->askWho($conversation, $in->from, null);
     }
 
     /** @return list<OutboundMessage> */
@@ -393,17 +584,29 @@ final class MetaObservatoryBot
             default => null,
         };
         if ($choice === null) {
-            return $this->askAnonymous($in->from);
+            return $this->askWho($conversation, $in->from, null);
         }
 
         $conversation->is_anonymous = $choice;
 
+        return $this->finish($conversation, $in, $choice);
+    }
+
+    /** @return list<OutboundMessage> */
+    private function finish(MetaConversation $conversation, MetaInboundMessage $in, bool $anonymous): array
+    {
+        $client = $this->client();
+        if (! $client instanceof Client) {
+            return [OutboundMessage::text($in->from, 'No pude registrar el reporte. Escríbeme de nuevo para empezar otra vez.')];
+        }
+
         try {
             $report = $this->submit->execute($conversation, $client);
-        } catch (ValidationException) {
+        } catch (ValidationException $e) {
             $conversation->close(MetaConversationState::Cancelled);
+            $message = $e->errors()['report'][0] ?? 'No pude registrar el reporte. Escríbeme de nuevo para empezar otra vez.';
 
-            return [OutboundMessage::text($in->from, 'No pude registrar el reporte. Escríbeme de nuevo para empezar otra vez.')];
+            return [OutboundMessage::text($in->from, $message)];
         }
 
         $report->loadMissing('event', 'installation');
@@ -415,7 +618,7 @@ final class MetaObservatoryBot
             $text .= ' con el folio '.$report->event->folio();
         }
         $text .= '. Gracias por avisar.';
-        if ($choice) {
+        if ($anonymous) {
             $text .= ' Tu nombre y teléfono no quedan guardados.';
         }
 

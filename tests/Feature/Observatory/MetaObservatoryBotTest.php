@@ -66,35 +66,20 @@ final class MetaObservatoryBotTest extends TestCase
     {
         $this->say('hola');
         $this->assertSame(OutboundMessage::LOCATION_REQUEST, $this->gateway->last()->kind);
-        $this->assertStringContainsString('/privacidad', $this->gateway->last()->body);
+        $this->assertStringContainsString('qué pasó', $this->gateway->last()->body);
 
-        $this->say('santa librada');
-        $this->assertSame(OutboundMessage::LIST, $this->gateway->last()->kind);
-        $this->assertSame(['school:'.$this->santa->id], $this->gateway->rowIds());
-
-        $this->reply('school:'.$this->santa->id);
-        $this->assertContains('Riña', $this->gateway->rowTitles());
-        $hurto = $this->typeId('hurto');
-
-        $this->reply('type:'.$hurto);
-        $this->assertStringContainsString('Cuéntame qué pasó', $this->gateway->last()->body);
-
-        $this->say('corto');
-        $this->assertStringContainsString('un poco más', $this->gateway->last()->body);
-
-        $this->say('Vieron a alguien saltando el muro del colegio.');
+        $this->say('santa librada hurto. Vieron a alguien saltando el muro del colegio.');
         $this->assertSame(OutboundMessage::BUTTONS, $this->gateway->last()->kind);
 
         $this->image('media-1');
-        $this->assertStringContainsString('foto 1 de 3', $this->gateway->last()->body);
+        $this->assertStringContainsString('Foto 1 de 2', $this->gateway->last()->body);
 
         $this->reply('media:done');
-        $this->assertCount(3, $this->gateway->last()->options['buttons']);
+        $this->assertSame(OutboundMessage::LIST, $this->gateway->last()->kind);
+        $this->assertContains('Padre', $this->gateway->rowTitles());
+        $this->assertContains('Padre anónimo', $this->gateway->rowTitles());
 
-        $this->reply('role:padre');
-        $this->assertStringContainsString('ocultos', $this->gateway->last()->body);
-
-        $this->reply('anon:no');
+        $this->reply('who:padre:0');
         $this->assertStringContainsString('folio EV-', $this->gateway->last()->body);
 
         $report = ObservatoryReport::query()->firstOrFail();
@@ -150,8 +135,8 @@ final class MetaObservatoryBotTest extends TestCase
     public function test_types_come_from_the_client_catalog_and_paginate(): void
     {
         $this->say('hola');
-        $this->say('santa');
-        $this->reply('school:'.$this->santa->id);
+        $this->say('santa librada');
+        $this->say('x');
         $this->assertCount(4, $this->gateway->rowIds());
 
         foreach (range(1, 10) as $n) {
@@ -224,13 +209,9 @@ final class MetaObservatoryBotTest extends TestCase
     private function completeFlow(bool $anonymous): void
     {
         $this->say('hola');
-        $this->say('santa librada');
-        $this->reply('school:'.$this->santa->id);
-        $this->reply('type:'.$this->typeId('hurto'));
-        $this->say('Vieron a alguien saltando el muro del colegio.');
-        $this->reply('media:skip');
-        $this->reply('role:alumno');
-        $this->reply($anonymous ? 'anon:yes' : 'anon:no');
+        $this->say('santa librada hurto en el patio');
+        $this->reply('media:done');
+        $this->reply($anonymous ? 'who:alumno:1' : 'who:alumno:0');
     }
 
     private function typeId(string $slug): int

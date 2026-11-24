@@ -7,7 +7,7 @@ Lista viva de lo definido y **no implementado**. Al implementar, mover a «Hecho
 ### 9. Observatorio WhatsApp: entrega 2 (videos + bandeja de revisión)
 Definido 21 nov 2026. La conversación guiada (texto + fotos) ya existe; ver `docs/OBSERVATORIO.md`. Para usarla en producción faltan: migrar en el VPS, `META_OBSERVATORY_CLIENT_ID=82` y `META_ACCESS_TOKEN` permanente (usuario del sistema con la cuenta de WhatsApp, permisos `whatsapp_business_messaging` y `whatsapp_business_management`) en el `.env` del VPS, `config:cache` y `queue:restart`.
 
-- Videos (mp4, hasta 16 MB): ampliar modelo/almacenamiento del reporte y mostrarlos en la ficha del folio. Hoy el bot responde «Por ahora solo recibo fotos».
+- Videos: hecho en link y WhatsApp (mp4/webm, 30 s, 20 MB, se ve en la ficha). Sigue pendiente la bandeja de conversaciones abandonadas.
 - Bandeja de revisión para conversaciones abandonadas o sin resolver (hoy vencen a las 2 h y se pierden).
 - Confirmar con el usuario: política de menores y retención de fotos recibidas por WhatsApp.
 - Messenger e Instagram quedan para después. No tocar el 315 ni el 555.
@@ -55,6 +55,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 - Detalle: [`EMPLEADOS-Y-CARGOS.md`](EMPLEADOS-Y-CARGOS.md) (Parafiscales).
 
 ## Hecho
+
+### 23 nov 2026 · Formulario de reporte (link y WhatsApp)
+Link: al elegir el colegio pasa al resto sin «Continuar»; tipo, qué pasó, mapa, 2 fotos y video van juntos; identidad y envío aparecen al tener tipo y una palabra. Borrador en la pestaña (`sessionStorage`): un refresco recupera colegio, tipo, texto, pin y quién eres. El botón de envío pasa a «Guardando…» y queda deshabilitado. WhatsApp: una pregunta junta colegio y hecho; fotos y «quién eres / anónimo» se mantienen. Adjuntos: 2 fotos de 10 MB y 1 video de 30 s / 20 MB. Mismo colegio, tipo y persona dentro de 1 h no crea otro reporte. «Qué pasó» acepta una palabra. La app de supervisores no cambia. Migración local `2026_11_23_220000` aplicada. Sin commit. En el VPS, PHP del sitio y nginx ya estaban en 64 MB (no 4 ni 8).
 
 ### 23 nov 2026 · La ruta ámbar se quita como en Supervisión
 La polilínea vive fuera de Alpine, como el arreglo `overlays` de Supervisión. Cada pintado hace `setMap(null)` y crea una línea nueva solo si hay supervisor.
