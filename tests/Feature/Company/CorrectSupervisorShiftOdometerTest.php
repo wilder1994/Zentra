@@ -59,9 +59,10 @@ final class CorrectSupervisorShiftOdometerTest extends TestCase
             ->assertSee('SJQ123');
 
         $this->actingAs($admin)
-            ->get(route('company.supervision.sheets.show', ['kind' => 'shift', 'id' => $bad->id]))
+            ->get(route('company.supervision.sheets.show', ['kind' => 'shift', 'id' => $bad->id, 'embed' => 1]))
             ->assertOk()
-            ->assertSee('Corregir kilometraje');
+            ->assertSee('Corregir kilometraje')
+            ->assertSee('name="embed"', false);
 
         $this->actingAs($admin)
             ->post(route('company.supervision.shifts.odometer', $bad), [

@@ -123,9 +123,12 @@
     </style>
 </head>
 <body>
-    @if ($mode === 'page' && ($canCorrectKm ?? false) && ($odometerShift ?? null))
+    @if ($mode !== 'pdf' && ($canCorrectKm ?? false) && ($odometerShift ?? null))
         <form class="km-fix" method="POST" action="{{ route('company.supervision.shifts.odometer', $odometerShift) }}">
             @csrf
+            @if ($mode === 'embed')
+                <input type="hidden" name="embed" value="1">
+            @endif
             <h2>Corregir kilometraje</h2>
             <p>Usa la foto del odómetro. Al guardar se recalcula el recorrido de este turno y el último kilometraje del vehículo.</p>
             @if (session('success'))

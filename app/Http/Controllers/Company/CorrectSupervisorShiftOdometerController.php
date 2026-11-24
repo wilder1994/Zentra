@@ -31,7 +31,11 @@ final class CorrectSupervisorShiftOdometerController extends Controller
         );
 
         return redirect()
-            ->route('company.supervision.sheets.show', ['kind' => 'shift', 'id' => $shift->id])
+            ->route('company.supervision.sheets.show', array_filter([
+                'kind' => 'shift',
+                'id' => $shift->id,
+                'embed' => $request->boolean('embed') ? 1 : null,
+            ]))
             ->with('success', 'Kilometraje corregido. El último del vehículo quedó con la lectura más reciente.');
     }
 }
