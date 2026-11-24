@@ -16,6 +16,7 @@ use App\Services\Company\BuildSupervisionMapService;
 use App\Services\Company\BuildSupervisionSummaryService;
 use App\Services\Company\EnsureSnappedSupervisorRouteService;
 use App\Services\Company\ExportSupervisionExecutiveReportService;
+use App\Services\Company\ListInflatedSupervisorOdometersService;
 use App\Services\Company\ListSupervisorFieldSheetsService;
 use App\Support\Platform\ActingCompanyResolver;
 use Illuminate\Http\JsonResponse;
@@ -30,6 +31,7 @@ final class SupervisionMapController extends Controller
         private readonly BuildSupervisionSummaryService $buildSupervisionSummaryService,
         private readonly ExportSupervisionExecutiveReportService $exportReport,
         private readonly ListSupervisorFieldSheetsService $listSheets,
+        private readonly ListInflatedSupervisorOdometersService $inflatedOdometers,
         private readonly EnsureSnappedSupervisorRouteService $ensureSnappedRoute,
     ) {}
 
@@ -101,6 +103,7 @@ final class SupervisionMapController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'canManageZones' => (bool) $request->user()?->can('company.settings.manage'),
+            'odometerAlerts' => $tab === 'sheets' ? $this->inflatedOdometers->execute($companyId) : collect(),
         ]);
     }
 

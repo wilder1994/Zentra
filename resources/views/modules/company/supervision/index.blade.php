@@ -228,6 +228,42 @@
         @endif
 
         @if ($activeTab === 'sheets')
+            @if (($odometerAlerts ?? collect())->isNotEmpty())
+                <section class="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-amber-500/30">
+                        <h3 class="text-sm font-semibold text-amber-100">Kilometrajes por revisar</h3>
+                        <p class="text-xs text-amber-200/80 mt-0.5">Últimos 90 días. Un salto de más de 1.500 km o un recorrido que no cabe en un turno. La corrección está en la ficha, con la foto del odómetro.</p>
+                    </div>
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-xs font-medium text-amber-200/70 border-b border-amber-500/20">
+                                <th class="text-left px-4 py-2">Fecha</th>
+                                <th class="text-left px-4 py-2">Supervisor</th>
+                                <th class="text-left px-4 py-2">Vehículo</th>
+                                <th class="text-left px-4 py-2">Inicio</th>
+                                <th class="text-left px-4 py-2">Cierre</th>
+                                <th class="text-left px-4 py-2">Recorrido</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($odometerAlerts as $alert)
+                                <tr class="border-b border-amber-500/10">
+                                    <td class="px-4 py-2 text-slate-300">{{ $alert->started_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') }}</td>
+                                    <td class="px-4 py-2 text-slate-200">{{ $alert->user?->name ?? '—' }}</td>
+                                    <td class="px-4 py-2 text-slate-400">{{ $alert->fleetVehicle?->plate ?? '—' }}</td>
+                                    <td class="px-4 py-2 text-slate-300">{{ number_format((int) $alert->km_start, 0, ',', '.') }}</td>
+                                    <td class="px-4 py-2 text-slate-300">{{ $alert->km_end !== null ? number_format((int) $alert->km_end, 0, ',', '.') : '—' }}</td>
+                                    <td class="px-4 py-2 text-amber-200">{{ $alert->km_traveled !== null ? number_format((int) $alert->km_traveled, 0, ',', '.') : '—' }}</td>
+                                    <td class="px-4 py-2 text-right">
+                                        <a href="{{ route('company.supervision.sheets.show', ['kind' => 'shift', 'id' => $alert->id]) }}" class="text-amber-200 hover:text-white">Corregir</a>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </section>
+            @endif
             <section class="rounded-lg border border-slate-800 bg-slate-900/80 overflow-hidden">
                 <div class="px-4 py-3 border-b border-slate-800">
                     <h3 class="text-sm font-semibold text-white">Fichas de campo</h3>

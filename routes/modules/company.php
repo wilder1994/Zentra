@@ -9,6 +9,7 @@ use App\Http\Controllers\Company\ClientController;
 use App\Http\Controllers\Company\ClientInstallationController;
 use App\Http\Controllers\Company\ClientSupervisorPostController;
 use App\Http\Controllers\Company\CollaboratorTypeController;
+use App\Http\Controllers\Company\CorrectSupervisorShiftOdometerController;
 use App\Http\Controllers\Company\CompanyInstallationController;
 use App\Http\Controllers\Company\DashboardController;
 use App\Http\Controllers\Company\DeviceChangeController;
@@ -344,6 +345,9 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
         Route::get('/supervision/fichas/{kind}/{id}', [SupervisionFieldSheetController::class, 'show'])
             ->middleware('permission:company.supervision.view')
             ->name('supervision.sheets.show');
+        Route::post('/supervision/turnos/{shift}/kilometraje', [CorrectSupervisorShiftOdometerController::class, 'update'])
+            ->middleware('permission:company.settings.manage')
+            ->name('supervision.shifts.odometer');
 
         Route::get('/descargas', [DownloadsController::class, 'index'])
             ->middleware('permission:company.downloads.view')

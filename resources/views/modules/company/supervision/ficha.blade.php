@@ -97,9 +97,19 @@
         .lightbox.open { display: flex; }
         .lightbox img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 20px 50px rgba(0, 0, 0, .5)); }
         .lightbox button { position: absolute; top: 14px; right: 14px; width: 40px; height: 40px; border-radius: 999px; border: 0; background: rgba(255, 255, 255, .15); color: #fff; font-size: 22px; cursor: pointer; }
+        .km-fix { max-width: 860px; margin: 0 auto 12px; padding: 12px 14px; background: #fff; border: 1px solid #f59e0b; border-radius: 8px; }
+        .km-fix h2 { margin: 0 0 4px; font-size: 13px; }
+        .km-fix p { margin: 0 0 8px; color: #64748b; font-size: 11px; }
+        .km-fix label { display: block; font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }
+        .km-fix input, .km-fix textarea { display: block; width: 100%; margin-top: 3px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font: inherit; }
+        .km-fix .row { display: flex; gap: 10px; }
+        .km-fix .row label { flex: 1; }
+        .km-fix button { margin-top: 8px; padding: 8px 14px; border: 0; border-radius: 8px; background: #0f766e; color: #fff; font-weight: 700; cursor: pointer; }
+        .km-fix .ok { margin: 0 0 8px; color: #166534; font-size: 12px; }
+        .km-fix .err { margin: 0 0 8px; color: #991b1b; font-size: 12px; }
         @media print {
             body { background: #fff; }
-            .toolbar, .lightbox { display: none !important; }
+            .toolbar, .lightbox, .km-fix { display: none !important; }
             .sheet { padding: 0; max-width: none; }
         }
         @media (max-width: 640px) {
@@ -113,6 +123,34 @@
     </style>
 </head>
 <body>
+    @if ($mode === 'page' && ($canCorrectKm ?? false) && ($odometerShift ?? null))
+        <form class="km-fix" method="POST" action="{{ route('company.supervision.shifts.odometer', $odometerShift) }}">
+            @csrf
+            <h2>Corregir kilometraje</h2>
+            <p>Usa la foto del odómetro. Al guardar se recalcula el recorrido de este turno y el último kilometraje del vehículo.</p>
+            @if (session('success'))
+                <p class="ok">{{ session('success') }}</p>
+            @endif
+            @foreach ($errors->all() as $error)
+                <p class="err">{{ $error }}</p>
+            @endforeach
+            <div class="row">
+                <label>Km inicio
+                    <input type="number" name="km_start" min="0" max="9999999" required value="{{ old('km_start', $odometerShift->km_start) }}">
+                </label>
+                @unless ($odometerShift->isOpen())
+                    <label>Km cierre
+                        <input type="number" name="km_end" min="0" max="9999999" required value="{{ old('km_end', $odometerShift->km_end) }}">
+                    </label>
+                @endunless
+            </div>
+            <label>Motivo
+                <textarea name="reason" rows="2" required minlength="5" maxlength="300">{{ old('reason') }}</textarea>
+            </label>
+            <button type="submit">Guardar corrección</button>
+        </form>
+    @endif
+
     @if ($mode === 'page')
         <div class="toolbar">
             @if ($pdfUrl)

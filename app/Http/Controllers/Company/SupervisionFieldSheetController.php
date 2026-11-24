@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Company;
 
 use App\Enums\SupervisorFieldSheetKind;
 use App\Http\Controllers\Controller;
+use App\Models\SupervisorShift;
 use App\Services\Company\BuildSupervisorFieldSheetService;
 use App\Support\Platform\ActingCompanyResolver;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -41,6 +42,11 @@ final class SupervisionFieldSheetController extends Controller
             'sheet' => $sheet,
             'mode' => $request->boolean('embed') ? 'embed' : 'page',
             'pdfUrl' => route('company.supervision.sheets.show', ['kind' => $kind, 'id' => $id, 'format' => 'pdf']),
+            'canCorrectKm' => $sheetKind === SupervisorFieldSheetKind::Shift
+                && (bool) $request->user()?->can('company.settings.manage'),
+            'odometerShift' => $sheetKind === SupervisorFieldSheetKind::Shift
+                ? SupervisorShift::query()->where('security_company_id', $companyId)->find($id)
+                : null,
         ]);
     }
 }
