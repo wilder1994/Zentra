@@ -28,7 +28,7 @@ export function observatoryMap(cfg) {
         markers: [],
         shifts: cfg.shifts || [],
         selectedShiftId: null,
-        routeLine: null,
+        overlays: [],
         motoMarkers: {},
         motoAnims: {},
 
@@ -456,43 +456,41 @@ export function observatoryMap(cfg) {
             this.drawShifts(false);
         },
 
-        hideRoute() {
-            const line = this.routeLine;
-            if (!line) {
-                return;
-            }
-            line.setVisible(false);
-            line.setPath([]);
-            line.setMap(null);
+        clearOverlays() {
+            this.overlays.forEach((item) => item.setMap(null));
+            this.overlays = [];
         },
 
-        showRoute(path) {
-            if (!this.routeLine) {
-                this.routeLine = new google.maps.Polyline({
+        addOverlay(item) {
+            this.overlays.push(item);
+
+            return item;
+        },
+
+        drawPath(path) {
+            if (path.length > 1) {
+                this.addOverlay(new google.maps.Polyline({
+                    map: this.map,
+                    path,
                     strokeColor: '#f59e0b',
-                    strokeOpacity: 0.9,
+                    strokeOpacity: 0.92,
                     strokeWeight: 4,
-                    zIndex: 3,
-                    clickable: false,
-                });
+                }));
             }
-            this.routeLine.setPath(path);
-            this.routeLine.setMap(this.map);
-            this.routeLine.setVisible(true);
         },
 
         drawShifts(camera) {
             if (!this.map || this.mode !== 'pins') {
-                this.hideRoute();
+                this.clearOverlays();
                 Object.values(this.motoMarkers).forEach((marker) => marker.setMap(null));
                 this.motoMarkers = {};
                 return;
             }
+            this.clearOverlays();
             const follow = camera === 'route';
             const bounds = follow ? new google.maps.LatLngBounds() : null;
             let points = 0;
             const seen = {};
-            let route = [];
             (this.shifts || []).forEach((row) => {
                 const id = Number(row.shift_id);
                 const selected = this.selectedShiftId != null && id === Number(this.selectedShiftId);
@@ -502,7 +500,7 @@ export function observatoryMap(cfg) {
                         .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng))
                     : [];
                 if (path.length > 1) {
-                    route = path;
+                    this.drawPath(path);
                     path.forEach((point) => {
                         bounds?.extend(point);
                         points += 1;
@@ -568,11 +566,6 @@ export function observatoryMap(cfg) {
                     points += 1;
                 }
             });
-            if (route.length > 1) {
-                this.showRoute(route);
-            } else {
-                this.hideRoute();
-            }
             Object.keys(this.motoMarkers).forEach((key) => {
                 const id = Number(key);
                 if (seen[id]) {

@@ -56,8 +56,8 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
-### 23 nov 2026 · La ruta ámbar no se queda al quitar el supervisor
-El mapa reutiliza una sola polilínea. Al deseleccionar vacía el path y la oculta antes de quitarla del mapa. El refresco de 5 s actualiza esa misma línea.
+### 23 nov 2026 · La ruta ámbar se quita como en Supervisión
+Cada pintado vacía los overlays con `setMap(null)` y, si hay supervisor, crea una polilínea nueva. Al deseleccionar no se crea ninguna. El refresco de 5 s repite ese mismo ciclo.
 
 ### 23 nov 2026 · Clic del observatorio igual que Supervisión
 El recorrido viaja en el turno. El clic pinta y encuadra esa ruta al instante. Otro clic, o elegir otro supervisor, quita la línea anterior y encuadra motos e instalaciones.
