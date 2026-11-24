@@ -9,8 +9,10 @@ use App\Models\Client;
 use App\Models\Installation;
 use App\Models\MetaConversation;
 use App\Models\MetaWebhookMessage;
+use App\Models\ObservatoryReporterMemory;
 use App\Models\ObservatoryReport;
 use App\Models\ObservatoryReportType;
+use App\Services\Observatory\RememberObservatoryReporterService;
 use App\Services\Meta\MetaObservatoryBot;
 use App\Services\Meta\OutboundMessage;
 use App\Services\Meta\WhatsAppGateway;
@@ -203,6 +205,88 @@ final class MetaObservatoryBotTest extends TestCase
         $this->assertSame(2, MetaConversation::query()->count());
     }
 
+    public function test_an_adult_student_is_remembered_and_the_next_report_skips_age(): void
+    {
+        $this->completeFlow(anonymous: false);
+
+        $memory = ObservatoryReporterMemory::query()->firstOrFail();
+        $this->assertSame('alumno', $memory->role);
+        $this->assertTrue($memory->is_adult);
+        $this->assertTrue($memory->remember);
+        $this->assertNotNull($memory->authorization_accepted_at);
+        $this->assertTrue($memory->expires_at?->greaterThan(now()->addMonths(11)));
+
+        $this->say('hola');
+        $this->reply('who:alumno');
+
+        $this->assertSame(OutboundMessage::LOCATION_REQUEST, $this->gateway->last()->kind);
+        $this->assertStringContainsString('qué pasó', $this->gateway->last()->body);
+    }
+
+    public function test_a_minor_student_is_remembered_without_expiry_and_stays_identified(): void
+    {
+        $this->say('hola');
+        $this->reply('who:alumno');
+        $this->reply('remember:yes');
+        $this->reply('age:no');
+        $this->assertStringContainsString('artículo 7', $this->gateway->last()->body);
+        $this->say('acepto');
+        $this->say('santa librada hurto en el patio');
+        $this->reply('media:done');
+
+        $report = ObservatoryReport::query()->firstOrFail();
+        $this->assertFalse($report->is_adult);
+        $this->assertFalse($report->is_anonymous);
+
+        $memory = ObservatoryReporterMemory::query()->firstOrFail();
+        $this->assertFalse($memory->is_adult);
+        $this->assertNull($memory->expires_at);
+
+        $this->say('hola');
+        $this->reply('who:alumno');
+        $this->assertSame(OutboundMessage::LOCATION_REQUEST, $this->gateway->last()->kind);
+    }
+
+    public function test_declining_memory_warns_and_asks_again_next_time(): void
+    {
+        $this->say('hola');
+        $this->reply('who:alumno');
+        $this->reply('remember:no');
+
+        $warning = $this->gateway->sent[count($this->gateway->sent) - 2]->body;
+        $this->assertSame(RememberObservatoryReporterService::DECLINE_NOTICE, $warning);
+        $this->assertStringContainsString('mayor de edad', $this->gateway->last()->body);
+        $this->assertSame(0, ObservatoryReporterMemory::query()->count());
+
+        $this->reply('age:yes');
+        $this->say('acepto');
+        $this->say('Cancelar');
+        $this->say('hola');
+        $this->reply('who:alumno');
+
+        $this->assertStringContainsString('Recordamos', $this->gateway->last()->body);
+        $this->assertSame(0, ObservatoryReporterMemory::query()->count());
+    }
+
+    public function test_an_expired_adult_authorization_is_asked_again(): void
+    {
+        $this->completeFlow(anonymous: false);
+        ObservatoryReporterMemory::query()->update(['expires_at' => now()->subDay()]);
+
+        $this->say('hola');
+        $this->reply('who:alumno');
+
+        $this->assertStringContainsString('Recordamos', $this->gateway->last()->body);
+    }
+
+    public function test_a_local_phone_matches_the_whatsapp_number(): void
+    {
+        $this->assertSame(
+            self::SENDER,
+            app(RememberObservatoryReporterService::class)->phone('300 111 2233'),
+        );
+    }
+
     public function test_a_message_is_answered_only_once(): void
     {
         $row = $this->say('hola');
@@ -217,6 +301,7 @@ final class MetaObservatoryBotTest extends TestCase
     {
         $this->say('hola');
         $this->reply('who:alumno');
+        $this->reply('remember:yes');
         $this->reply('age:yes');
         $this->say('acepto');
         $this->say('santa librada hurto en el patio');

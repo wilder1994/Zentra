@@ -10,8 +10,10 @@ use App\Models\Client;
 use App\Models\Installation;
 use App\Models\MetaConversation;
 use App\Models\MetaWebhookMessage;
+use App\Models\ObservatoryReporterMemory;
 use App\Models\ObservatoryReportType;
 use App\Services\Observatory\EnsureObservatoryReportTypesService;
+use App\Services\Observatory\RememberObservatoryReporterService;
 use App\Services\Observatory\SearchObservatorySchoolsService;
 use App\Support\Meta\WhatsAppLimits;
 use App\Support\Observatory\ObservatoryMediaLimits;
@@ -39,6 +41,7 @@ final class MetaObservatoryBot
         private readonly SearchObservatorySchoolsService $schools,
         private readonly SubmitMetaConversationReportService $submit,
         private readonly EnsureObservatoryReportTypesService $types,
+        private readonly RememberObservatoryReporterService $memory,
     ) {}
 
     public function handle(MetaWebhookMessage $row): void
@@ -109,6 +112,7 @@ final class MetaObservatoryBot
         } else {
             $replies = match ($conversation->state) {
                 MetaConversationState::Role => $this->role($conversation, $in),
+                MetaConversationState::Remember => $this->remember($conversation, $in),
                 MetaConversationState::Age => $this->age($conversation, $in),
                 MetaConversationState::Consent => $this->consent($conversation, $in),
                 MetaConversationState::School => $this->school($conversation, $in, $client),
@@ -562,10 +566,60 @@ final class MetaObservatoryBot
                 return $this->askSchool($conversation, $in->from);
             }
 
-            return $this->askAge($conversation, $in->from);
+            return $this->afterRole($conversation, $in->from, $match[1]);
         }
 
         return $this->askWho($in->from);
+    }
+
+    /** @return list<OutboundMessage> */
+    private function afterRole(MetaConversation $conversation, string $to, string $role): array
+    {
+        $client = $this->client();
+        $saved = $client instanceof Client
+            ? $this->memory->recall((int) $client->id, $to, $role)
+            : null;
+        if ($saved instanceof ObservatoryReporterMemory) {
+            $conversation->is_adult = $saved->is_adult;
+            if ($saved->is_adult === false) {
+                $conversation->is_anonymous = false;
+            }
+
+            return $this->askSchool($conversation, $to);
+        }
+
+        return $this->askRemember($conversation, $to);
+    }
+
+    /** @return list<OutboundMessage> */
+    private function askRemember(MetaConversation $conversation, string $to): array
+    {
+        $conversation->state = MetaConversationState::Remember;
+
+        return [OutboundMessage::buttons($to, '¿Recordamos tu edad y autorización en este teléfono?', [
+            ['id' => 'remember:yes', 'title' => 'Sí, recordar'],
+            ['id' => 'remember:no', 'title' => 'No recordar'],
+        ])];
+    }
+
+    /** @return list<OutboundMessage> */
+    private function remember(MetaConversation $conversation, MetaInboundMessage $in): array
+    {
+        if ($in->replyId === 'remember:yes') {
+            $conversation->remember_preference = true;
+
+            return $this->askAge($conversation, $in->from);
+        }
+        if ($in->replyId === 'remember:no') {
+            $conversation->remember_preference = false;
+
+            return [
+                OutboundMessage::text($in->from, RememberObservatoryReporterService::DECLINE_NOTICE),
+                ...$this->askAge($conversation, $in->from),
+            ];
+        }
+
+        return $this->askRemember($conversation, $in->from);
     }
 
     /** @return list<OutboundMessage> */
@@ -612,10 +666,26 @@ final class MetaObservatoryBot
     private function consent(MetaConversation $conversation, MetaInboundMessage $in): array
     {
         if (mb_strtolower(trim((string) $in->text)) === 'acepto') {
+            $this->storeMemory($conversation, $in->from);
+
             return $this->askSchool($conversation, $in->from);
         }
 
         return [OutboundMessage::text($in->from, 'Responde acepto para continuar.')];
+    }
+
+    private function storeMemory(MetaConversation $conversation, string $phone): void
+    {
+        if ($conversation->remember_preference !== true || $conversation->is_adult === null || $conversation->reporter_role === null) {
+            return;
+        }
+
+        $client = $this->client();
+        if (! $client instanceof Client) {
+            return;
+        }
+
+        $this->memory->remember((int) $client->id, $phone, (string) $conversation->reporter_role, (bool) $conversation->is_adult);
     }
 
     /** @return list<OutboundMessage> */

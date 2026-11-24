@@ -13,6 +13,7 @@ use App\Models\Installation;
 use App\Models\ObservatoryReport;
 use App\Models\ObservatoryReportType;
 use App\Services\Observatory\EnsureObservatoryReportTypesService;
+use App\Services\Observatory\RememberObservatoryReporterService;
 use App\Services\Observatory\SubmitObservatoryReportService;
 use App\Support\Observatory\ObservatoryPhotoInput;
 use Illuminate\Http\JsonResponse;
@@ -25,6 +26,7 @@ final class ObservatoryIntakeController extends Controller
 {
     public function __construct(
         private readonly SubmitObservatoryReportService $submit,
+        private readonly RememberObservatoryReporterService $memory,
     ) {}
 
     public function show(string $slug): View
@@ -40,6 +42,7 @@ final class ObservatoryIntakeController extends Controller
                 'api_key' => config('google-maps.api_key'),
                 'center' => config('google-maps.default_center'),
             ],
+            'consentMonths' => RememberObservatoryReporterService::ADULT_RENEWAL_MONTHS,
         ]);
     }
 
@@ -97,6 +100,15 @@ final class ObservatoryIntakeController extends Controller
             ], $request->ip());
         } catch (ValidationException $e) {
             return back()->withInput()->withErrors($e->errors());
+        }
+
+        if ($request->boolean('remember_reporter') && $request->exists('is_adult')) {
+            $this->memory->remember(
+                (int) $row->id,
+                (string) $request->input('reporter_phone', ''),
+                (string) $request->validated('reporter_role'),
+                $request->boolean('is_adult'),
+            );
         }
 
         return redirect()

@@ -88,6 +88,8 @@
             'longitude' => old('longitude', ''),
             'body' => old('body', ''),
             'draftKey' => 'observatory.draft.'.$client->slug,
+            'consentKey' => 'observatory.consent.'.$client->slug,
+            'consentMonths' => $consentMonths,
             'mapsKey' => $maps['api_key'] ?? '',
             'center' => $maps['center'] ?? ['lat' => 4.5709, 'lng' => -74.2973],
         ]))"
@@ -178,28 +180,49 @@
                         @endforeach
                     </select>
                 </div>
-                <div x-show="asksAge()" x-cloak class="intake-age">
-                    <p class="intake-label">¿Eres mayor de edad?</p>
-                    <label class="intake-radio">
-                        <input type="radio" :checked="minor === false" @change="setMinor(false)">
-                        <span>Sí</span>
-                    </label>
-                    <label class="intake-radio">
-                        <input type="radio" :checked="minor === true" @change="setMinor(true)">
-                        <span>No</span>
-                    </label>
+                <div x-show="asksAge()" x-cloak class="space-y-2">
+                    <p x-show="consentSaved" class="intake-hint">
+                        Edad y autorización guardadas en este dispositivo.
+                        <button type="button" class="underline" @click="forgetConsent()">Volver a preguntar</button>
+                    </p>
+                    <div x-show="!consentSaved">
+                        <p class="intake-label">¿Recordamos tu edad y autorización en este dispositivo?</p>
+                        <div class="intake-age">
+                            <label class="intake-radio">
+                                <input type="radio" :checked="consentMemory === 'yes'" @change="setConsentMemory(true)">
+                                <span>Sí</span>
+                            </label>
+                            <label class="intake-radio">
+                                <input type="radio" :checked="consentMemory === 'no'" @change="setConsentMemory(false)">
+                                <span>No</span>
+                            </label>
+                        </div>
+                    </div>
+                    <p x-show="consentMemory === 'no' && !consentSaved" x-cloak class="intake-hint">En los próximos reportes se seguirá preguntando la misma información.</p>
+                    <div x-show="consentMemory !== null && !consentSaved" class="intake-age">
+                        <p class="intake-label">¿Eres mayor de edad?</p>
+                        <label class="intake-radio">
+                            <input type="radio" :checked="minor === false" @change="setMinor(false)">
+                            <span>Sí</span>
+                        </label>
+                        <label class="intake-radio">
+                            <input type="radio" :checked="minor === true" @change="setMinor(true)">
+                            <span>No</span>
+                        </label>
+                    </div>
                     <input type="hidden" name="is_adult" :value="minor ? '0' : '1'" :disabled="!asksAge() || minor === null">
+                    <input type="hidden" name="remember_reporter" :value="consentMemory === 'yes' && consent ? '1' : '0'">
                 </div>
-                <div x-show="isAdult()" x-cloak class="intake-policy">
+                <div x-show="consentMemory !== null && isAdult() && !consentSaved" x-cloak class="intake-policy">
                     <p>Autorizo el tratamiento de mis datos personales para registrar este reporte de forma previa, expresa e informada conforme a la Ley 1581 de 2012.</p>
                     <p>Política de tratamiento de datos. El responsable recibe el reporte a través de Zentra. Trata el nombre, el teléfono si lo informas, el texto y la fecha y hora de envío, solo para registrar la alerta. Esos datos no se venden ni se usan para publicidad. Se conservan el tiempo necesario para atender la alerta y las obligaciones legales. Puedes pedir conocer, actualizar, rectificar o suprimir tus datos.</p>
                 </div>
-                <div x-show="isMinor()" x-cloak class="intake-policy">
+                <div x-show="consentMemory !== null && isMinor() && !consentSaved" x-cloak class="intake-policy">
                     <p>Los datos personales de niños, niñas y adolescentes tienen protección especial. La Ley 1581 de 2012 (artículo 7) prohíbe su tratamiento, salvo los datos de naturaleza pública, y exige respetar sus derechos prevalentes. Solo pueden tratarse cuando ello responde a su interés superior y existe autorización previa, expresa e informada del representante legal (Decreto 1377 de 2013).</p>
                 </div>
-                <div x-show="needsConsent()" x-cloak class="space-y-2">
+                <div x-show="consentMemory !== null && needsConsent() && !consentSaved" x-cloak class="space-y-2">
                     <label class="intake-check">
-                        <input type="checkbox" name="minor_treatment_accepted" value="1" x-model="consent" @change="consentError = ''">
+                        <input type="checkbox" name="minor_treatment_accepted" value="1" x-model="consent" @change="onConsent()">
                         <span>Autorizo el tratamiento de mis datos personales</span>
                     </label>
                     <p x-show="consentError" x-cloak class="intake-alert" x-text="consentError"></p>

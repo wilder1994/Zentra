@@ -10,6 +10,7 @@ use App\Models\Client;
 use App\Models\Installation;
 use App\Models\Location;
 use App\Models\ObservatoryEvent;
+use App\Models\ObservatoryReporterMemory;
 use App\Models\ObservatoryReport;
 use App\Models\ObservatoryReportType;
 use App\Models\User;
@@ -77,6 +78,51 @@ final class ObservatoryReportFlowTest extends TestCase
         $this->assertSame(ObservatoryEventStatus::Nuevo, $event->status);
         $this->assertSame((int) $event->id, (int) $report->event_id);
         $this->assertSame(1, ObservatoryReport::query()->count());
+    }
+
+    public function test_public_form_remembers_age_and_authorization_by_phone(): void
+    {
+        [$client, $colegio] = $this->sites();
+
+        $this->get(route('observatory.public.show', $client->slug))
+            ->assertOk()
+            ->assertSee('Recordamos tu edad y autorización en este dispositivo', false)
+            ->assertSee('se seguirá preguntando la misma información', false);
+
+        $this->post(route('observatory.public.store', $client->slug), [
+            'installation_id' => $colegio->id,
+            'kind' => 'hurto',
+            'body' => 'Vieron a alguien saltando el muro del colegio.',
+            'is_anonymous' => '0',
+            'is_adult' => '1',
+            'minor_treatment_accepted' => '1',
+            'remember_reporter' => '1',
+            'reporter_role' => 'vecino',
+            'reporter_name' => 'Ana Vecina',
+            'reporter_phone' => '3001112233',
+        ])->assertRedirect();
+
+        $memory = ObservatoryReporterMemory::query()->firstOrFail();
+        $this->assertSame((int) $client->id, (int) $memory->client_id);
+        $this->assertSame('573001112233', $memory->phone);
+        $this->assertSame('vecino', $memory->role);
+        $this->assertTrue($memory->is_adult);
+        $this->assertNotNull($memory->authorization_accepted_at);
+        $this->assertNotNull($memory->expires_at);
+
+        $this->post(route('observatory.public.store', $client->slug), [
+            'installation_id' => $colegio->id,
+            'kind' => 'hurto',
+            'body' => 'Otro hecho distinto en la reja del colegio.',
+            'is_anonymous' => '0',
+            'is_adult' => '0',
+            'minor_treatment_accepted' => '1',
+            'remember_reporter' => '1',
+            'reporter_role' => 'alumno',
+            'reporter_name' => 'Alumno',
+        ])->assertRedirect();
+
+        $this->assertSame(1, ObservatoryReporterMemory::query()->count());
     }
 
     public function test_same_kind_within_hour_joins_one_event(): void

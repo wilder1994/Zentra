@@ -54,6 +54,10 @@ export function observatoryIntake(cfg) {
             : cfg.isAdult === false || cfg.isAdult === 0 || cfg.isAdult === '0',
         consent: Boolean(cfg.consent),
         consentError: '',
+        consentMemory: null,
+        consentSaved: false,
+        consentKey: cfg.consentKey || '',
+        consentMonths: Number(cfg.consentMonths) || 12,
         reporterName: cfg.reporterName || '',
         reporterPhone: cfg.reporterPhone || '',
         remember: false,
@@ -77,6 +81,9 @@ export function observatoryIntake(cfg) {
         init() {
             this.restoreDraft();
             this.restoreIdentity();
+            if (cfg.isAdult === undefined || cfg.isAdult === null || cfg.isAdult === '') {
+                this.applySavedConsent();
+            }
             if (this.step === 2 || this.installationId) {
                 this.goStep(2);
             }
@@ -107,14 +114,41 @@ export function observatoryIntake(cfg) {
         },
 
         readyToSend() {
+            if (this.asksAge() && !this.consentSaved && this.consentMemory === null) {
+                return false;
+            }
             return Boolean(this.role) && (!this.asksAge() || this.minor !== null);
         },
 
         onRole() {
             if (!this.asksAge()) {
                 this.minor = null;
+                this.consent = false;
                 this.consentError = '';
+                this.consentSaved = false;
+                this.consentMemory = null;
+            } else if (!this.applySavedConsent()) {
+                this.minor = null;
+                this.consent = false;
+                this.consentError = '';
+                this.consentSaved = false;
+                this.consentMemory = null;
             }
+            this.saveDraft();
+        },
+
+        setConsentMemory(remember) {
+            this.consentMemory = remember ? 'yes' : 'no';
+            if (!remember) {
+                this.forgetConsent(false);
+                this.consentMemory = 'no';
+            }
+            this.saveDraft();
+        },
+
+        onConsent() {
+            this.consentError = '';
+            this.persistConsent();
             this.saveDraft();
         },
 
@@ -128,6 +162,11 @@ export function observatoryIntake(cfg) {
         },
 
         guardSubmit(event) {
+            if (this.asksAge() && !this.consentSaved && this.consentMemory === null) {
+                this.sending = false;
+                event.preventDefault();
+                return;
+            }
             if (this.needsConsent() && !this.consent) {
                 this.consentError = 'Marca la autorización para enviar el reporte.';
                 this.sending = false;
@@ -135,6 +174,7 @@ export function observatoryIntake(cfg) {
                 return;
             }
             this.sending = true;
+            this.persistConsent();
             this.persistIdentity();
         },
 
@@ -159,6 +199,7 @@ export function observatoryIntake(cfg) {
                     role: this.role,
                     minor: this.minor,
                     consent: this.consent,
+                    consentMemory: this.consentMemory,
                     anonymous: this.anonymous,
                     reporterName: this.reporterName,
                     reporterPhone: this.reporterPhone,
@@ -187,6 +228,7 @@ export function observatoryIntake(cfg) {
                 this.role = data.role || this.role;
                 this.minor = data.minor === true ? true : data.minor === false ? false : this.minor;
                 this.consent = Boolean(data.consent);
+                this.consentMemory = data.consentMemory === 'yes' || data.consentMemory === 'no' ? data.consentMemory : this.consentMemory;
                 this.anonymous = Boolean(data.anonymous);
                 this.reporterName = data.reporterName || this.reporterName;
                 this.reporterPhone = data.reporterPhone || this.reporterPhone;
@@ -244,6 +286,86 @@ export function observatoryIntake(cfg) {
                 localStorage.setItem(this.storageKey, JSON.stringify(payload));
             } catch {
                 // storage lleno o privado
+            }
+        },
+
+        applySavedConsent() {
+            if (!this.asksAge()) {
+                return false;
+            }
+            const row = this.readConsent();
+            if (!row || row.role !== this.role || (row.isAdult !== true && row.isAdult !== false)) {
+                return false;
+            }
+            if (row.expiresAt && Date.parse(row.expiresAt) <= Date.now()) {
+                return false;
+            }
+            this.minor = row.isAdult === false;
+            this.consent = true;
+            this.consentSaved = true;
+            this.consentMemory = 'yes';
+            this.consentError = '';
+            if (this.minor) {
+                this.anonymous = false;
+            }
+            return true;
+        },
+
+        readConsent() {
+            if (!this.consentKey || typeof localStorage === 'undefined') {
+                return null;
+            }
+            try {
+                const data = JSON.parse(localStorage.getItem(this.consentKey) || 'null');
+                return data && typeof data === 'object' ? data : null;
+            } catch {
+                return null;
+            }
+        },
+
+        persistConsent() {
+            if (this.consentMemory !== 'yes' || !this.asksAge() || this.minor === null || !this.consent) {
+                return;
+            }
+            if (!this.consentKey || typeof localStorage === 'undefined') {
+                return;
+            }
+            const accepted = new Date();
+            let expiresAt = null;
+            if (this.minor === false) {
+                const expires = new Date(accepted.getTime());
+                expires.setMonth(expires.getMonth() + this.consentMonths);
+                expiresAt = expires.toISOString();
+            }
+            try {
+                localStorage.setItem(this.consentKey, JSON.stringify({
+                    role: this.role,
+                    isAdult: this.minor === false,
+                    acceptedAt: accepted.toISOString(),
+                    expiresAt,
+                }));
+                this.consentSaved = true;
+            } catch {
+                // storage lleno o privado
+            }
+        },
+
+        forgetConsent(resetChoice = true) {
+            this.consentSaved = false;
+            if (resetChoice) {
+                this.consentMemory = null;
+                this.minor = null;
+                this.consent = false;
+            }
+            if (this.consentKey && typeof localStorage !== 'undefined') {
+                try {
+                    localStorage.removeItem(this.consentKey);
+                } catch {
+                    // ignore
+                }
+            }
+            if (resetChoice) {
+                this.saveDraft();
             }
         },
 
