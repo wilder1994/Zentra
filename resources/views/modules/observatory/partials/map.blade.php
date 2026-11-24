@@ -71,7 +71,15 @@
                     window.__observatoryMapReady = true;
                 };
             </script>
-            <script src="https://maps.googleapis.com/maps/api/js?key={{ $maps['api_key'] }}&callback=initObservatoryMap&loading=async" async defer></script>
+            <script>
+                (function () {
+                    const script = document.createElement('script');
+                    script.src = 'https://maps.googleapis.com/maps/api/js?key={{ $maps['api_key'] }}&callback=initObservatoryMap';
+                    script.async = true;
+                    script.defer = true;
+                    document.head.appendChild(script);
+                })();
+            </script>
         @endpush
     @elseif (count($sites) > 0 || count($points) > 0)
         <p class="p-4 text-xs text-slate-500">

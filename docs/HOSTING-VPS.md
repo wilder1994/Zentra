@@ -2,6 +2,8 @@
 
 **Última actualización:** 23 noviembre 2026
 
+Corte 23 nov 2026 (carga de Maps del Observatorio igual que Supervisión): **sin migrate**. Pull + `npm ci && npm run build` + `view:cache` + `route:cache`. El script ya no lleva `loading=async` y la polilínea queda fuera de Alpine.
+
 Corte 23 nov 2026 (polilínea del Observatorio igual que Supervisión): **sin migrate**. Pull + `npm ci && npm run build` + `view:cache` + `route:cache`. Cada pintado hace `setMap(null)` y crea la línea solo si hay supervisor.
 
 Corte 23 nov 2026 (recorrido y panel fijo del Observatorio): **sin migrate**. Pull + `npm ci && npm run build` + `view:cache` + `route:cache`. Ruta nueva `GET /company/observatory/shifts/{shift}/trail` (y la de cliente). El panel de convenciones/turnos tiene alto fijo.

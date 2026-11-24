@@ -15,6 +15,9 @@ function riskTone(open, weight) {
 export function observatoryMap(cfg) {
     const layerUrl = '/geo/cali-comunas.geojson';
     let clusterer = null;
+    // Fuera de Alpine, igual que `overlays` en Supervisión. Si el arreglo es reactivo,
+    // setMap(null) no suelta el canvas y el trazo reaparece al hacer zoom.
+    let overlays = [];
 
     return {
         mode: 'pins',
@@ -28,7 +31,6 @@ export function observatoryMap(cfg) {
         markers: [],
         shifts: cfg.shifts || [],
         selectedShiftId: null,
-        overlays: [],
         motoMarkers: {},
         motoAnims: {},
 
@@ -457,12 +459,12 @@ export function observatoryMap(cfg) {
         },
 
         clearOverlays() {
-            this.overlays.forEach((item) => item.setMap(null));
-            this.overlays = [];
+            overlays.forEach((item) => item.setMap(null));
+            overlays = [];
         },
 
         addOverlay(item) {
-            this.overlays.push(item);
+            overlays.push(item);
 
             return item;
         },

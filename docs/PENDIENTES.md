@@ -57,7 +57,7 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 ## Hecho
 
 ### 23 nov 2026 · La ruta ámbar se quita como en Supervisión
-Cada pintado vacía los overlays con `setMap(null)` y, si hay supervisor, crea una polilínea nueva. Al deseleccionar no se crea ninguna. El refresco de 5 s repite ese mismo ciclo.
+La polilínea vive fuera de Alpine, como el arreglo `overlays` de Supervisión. Cada pintado hace `setMap(null)` y crea una línea nueva solo si hay supervisor.
 
 ### 23 nov 2026 · Clic del observatorio igual que Supervisión
 El recorrido viaja en el turno. El clic pinta y encuadra esa ruta al instante. Otro clic, o elegir otro supervisor, quita la línea anterior y encuadra motos e instalaciones.
