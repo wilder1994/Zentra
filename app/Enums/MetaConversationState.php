@@ -6,11 +6,13 @@ namespace App\Enums;
 
 enum MetaConversationState: string
 {
+    case Role = 'role';
+    case Age = 'age';
+    case Consent = 'consent';
     case School = 'school';
     case Type = 'type';
     case Description = 'description';
     case Media = 'media';
-    case Role = 'role';
     case Anonymous = 'anonymous';
     case Done = 'done';
     case Cancelled = 'cancelled';

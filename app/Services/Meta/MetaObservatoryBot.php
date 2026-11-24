@@ -108,12 +108,14 @@ final class MetaObservatoryBot
             $replies = [OutboundMessage::text($in->from, 'Listo, cancelé el reporte. Escríbeme cuando quieras reportar algo.')];
         } else {
             $replies = match ($conversation->state) {
+                MetaConversationState::Role => $this->role($conversation, $in),
+                MetaConversationState::Age => $this->age($conversation, $in),
+                MetaConversationState::Consent => $this->consent($conversation, $in),
                 MetaConversationState::School => $this->school($conversation, $in, $client),
                 MetaConversationState::Type => $this->type($conversation, $in, $client),
                 MetaConversationState::Description => $this->description($conversation, $in),
                 MetaConversationState::Media => $this->media($conversation, $in),
-                MetaConversationState::Role => $this->role($conversation, $in),
-                MetaConversationState::Anonymous => $this->anonymous($conversation, $in, $client),
+                MetaConversationState::Anonymous => $this->anonymous($conversation, $in),
                 default => [],
             };
         }
@@ -142,7 +144,7 @@ final class MetaObservatoryBot
                 'wa_id' => $in->from,
                 'open_key' => $in->from,
                 'profile_name' => $in->name,
-                'state' => MetaConversationState::School,
+                'state' => MetaConversationState::Role,
                 'last_message_at' => now(),
             ]);
 
@@ -155,10 +157,7 @@ final class MetaObservatoryBot
     /** @return list<OutboundMessage> */
     private function greeting(MetaInboundMessage $in): array
     {
-        return [OutboundMessage::locationRequest($in->from, WhatsAppLimits::clip(
-            '¿En qué colegio y qué pasó? Escribe el colegio y el hecho, por ejemplo: Santa Librada, hurto en el patio. O envía tu ubicación. «cancelar» sale.',
-            WhatsAppLimits::BODY,
-        ))];
+        return $this->askWho($in->from);
     }
 
     /** @return list<OutboundMessage> */
@@ -496,7 +495,7 @@ final class MetaObservatoryBot
 
         $text = mb_strtolower(trim((string) $in->text));
         if (in_array($in->replyId, ['media:skip', 'media:done'], true) || in_array($text, ['listo', 'sin fotos'], true)) {
-            return $this->askWho($conversation, $in->from, null);
+            return $this->afterMedia($conversation, $in);
         }
 
         return [OutboundMessage::buttons(
@@ -544,39 +543,112 @@ final class MetaObservatoryBot
     }
 
     /** @return list<OutboundMessage> */
-    private function askWho(MetaConversation $conversation, string $to, ?string $intro): array
+    private function askWho(string $to): array
     {
-        $conversation->state = MetaConversationState::Role;
-        $rows = [];
-        foreach (ObservatoryReporterRole::publicOptions() as $value => $label) {
-            $rows[] = ['id' => 'who:'.$value.':0', 'title' => $label];
-            $rows[] = ['id' => 'who:'.$value.':1', 'title' => $label.' anónimo'];
-        }
-
-        $body = trim(($intro ? $intro.' ' : '').'¿Quién eres?');
-
-        return [OutboundMessage::list($to, $body, 'Elegir', $rows)];
+        return [OutboundMessage::buttons($to, '¿Quién eres? «cancelar» sale.', [
+            ['id' => 'who:alumno', 'title' => 'Alumno'],
+            ['id' => 'who:padre', 'title' => 'Padre'],
+            ['id' => 'who:vecino', 'title' => 'Vecino'],
+        ])];
     }
 
     /** @return list<OutboundMessage> */
     private function role(MetaConversation $conversation, MetaInboundMessage $in): array
     {
         $reply = (string) $in->replyId;
-        if (preg_match('/^who:([a-z]+):([01])$/', $reply, $match) === 1) {
-            $role = ObservatoryReporterRole::tryFrom($match[1]);
-            if ($role instanceof ObservatoryReporterRole && $role->isPublic()) {
-                $conversation->reporter_role = $role->value;
-                $conversation->is_anonymous = $match[2] === '1';
-
-                return $this->finish($conversation, $in, $conversation->is_anonymous);
+        if (preg_match('/^who:(alumno|padre|vecino)$/', $reply, $match) === 1) {
+            $conversation->reporter_role = $match[1];
+            if ($match[1] === ObservatoryReporterRole::Padre->value) {
+                return $this->askSchool($conversation, $in->from);
             }
+
+            return $this->askAge($conversation, $in->from);
         }
 
-        return $this->askWho($conversation, $in->from, null);
+        return $this->askWho($in->from);
     }
 
     /** @return list<OutboundMessage> */
-    private function anonymous(MetaConversation $conversation, MetaInboundMessage $in, Client $client): array
+    private function askAge(MetaConversation $conversation, string $to): array
+    {
+        $conversation->state = MetaConversationState::Age;
+
+        return [OutboundMessage::buttons($to, '¿Eres mayor de edad?', [
+            ['id' => 'age:yes', 'title' => 'Sí'],
+            ['id' => 'age:no', 'title' => 'No'],
+        ])];
+    }
+
+    /** @return list<OutboundMessage> */
+    private function age(MetaConversation $conversation, MetaInboundMessage $in): array
+    {
+        if ($in->replyId === 'age:yes') {
+            $conversation->is_adult = true;
+
+            return $this->askConsent($conversation, $in->from, true);
+        }
+        if ($in->replyId === 'age:no') {
+            $conversation->is_adult = false;
+            $conversation->is_anonymous = false;
+
+            return $this->askConsent($conversation, $in->from, false);
+        }
+
+        return $this->askAge($conversation, $in->from);
+    }
+
+    /** @return list<OutboundMessage> */
+    private function askConsent(MetaConversation $conversation, string $to, bool $adult): array
+    {
+        $conversation->state = MetaConversationState::Consent;
+        $notice = $adult
+            ? 'Autorizo el tratamiento de mis datos personales para registrar este reporte de forma previa, expresa e informada conforme a la Ley 1581 de 2012. Política de tratamiento: se usan tu nombre, el teléfono si lo das, el texto y la hora, solo para registrar la alerta. No se venden ni se usan para publicidad. Puedes pedir conocer, rectificar o suprimir tus datos.'
+            : 'Los datos de niños, niñas y adolescentes tienen protección especial. La Ley 1581 de 2012 (artículo 7) prohíbe su tratamiento, salvo los datos públicos, y exige respetar sus derechos prevalentes. Solo se tratan por su interés superior y con autorización del representante legal.';
+
+        return [OutboundMessage::text($to, $notice.' Responde acepto para continuar.')];
+    }
+
+    /** @return list<OutboundMessage> */
+    private function consent(MetaConversation $conversation, MetaInboundMessage $in): array
+    {
+        if (mb_strtolower(trim((string) $in->text)) === 'acepto') {
+            return $this->askSchool($conversation, $in->from);
+        }
+
+        return [OutboundMessage::text($in->from, 'Responde acepto para continuar.')];
+    }
+
+    /** @return list<OutboundMessage> */
+    private function askSchool(MetaConversation $conversation, string $to): array
+    {
+        $conversation->state = MetaConversationState::School;
+
+        return [OutboundMessage::locationRequest($to, '¿En qué colegio y qué pasó? Escribe el colegio y el hecho, por ejemplo: Santa Librada, hurto. O envía tu ubicación.')];
+    }
+
+    /** @return list<OutboundMessage> */
+    private function afterMedia(MetaConversation $conversation, MetaInboundMessage $in): array
+    {
+        if ($conversation->is_adult === false) {
+            return $this->finish($conversation, $in, false);
+        }
+
+        return $this->askAnonymous($conversation, $in->from);
+    }
+
+    /** @return list<OutboundMessage> */
+    private function askAnonymous(MetaConversation $conversation, string $to): array
+    {
+        $conversation->state = MetaConversationState::Anonymous;
+
+        return [OutboundMessage::buttons($to, '¿Quieres reportar en anónimo?', [
+            ['id' => 'anon:no', 'title' => 'Con mi nombre'],
+            ['id' => 'anon:yes', 'title' => 'Anónimo'],
+        ])];
+    }
+
+    /** @return list<OutboundMessage> */
+    private function anonymous(MetaConversation $conversation, MetaInboundMessage $in): array
     {
         $choice = match ($in->replyId) {
             'anon:yes' => true,
@@ -584,7 +656,7 @@ final class MetaObservatoryBot
             default => null,
         };
         if ($choice === null) {
-            return $this->askWho($conversation, $in->from, null);
+            return $this->askAnonymous($conversation, $in->from);
         }
 
         $conversation->is_anonymous = $choice;

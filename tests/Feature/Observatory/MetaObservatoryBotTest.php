@@ -65,6 +65,10 @@ final class MetaObservatoryBotTest extends TestCase
     public function test_full_conversation_creates_an_identified_report_with_photo(): void
     {
         $this->say('hola');
+        $this->assertSame(OutboundMessage::BUTTONS, $this->gateway->last()->kind);
+        $this->assertStringContainsString('Quién eres', $this->gateway->last()->body);
+
+        $this->reply('who:padre');
         $this->assertSame(OutboundMessage::LOCATION_REQUEST, $this->gateway->last()->kind);
         $this->assertStringContainsString('qué pasó', $this->gateway->last()->body);
 
@@ -75,11 +79,10 @@ final class MetaObservatoryBotTest extends TestCase
         $this->assertStringContainsString('Foto 1 de 2', $this->gateway->last()->body);
 
         $this->reply('media:done');
-        $this->assertSame(OutboundMessage::LIST, $this->gateway->last()->kind);
-        $this->assertContains('Padre', $this->gateway->rowTitles());
-        $this->assertContains('Padre anónimo', $this->gateway->rowTitles());
+        $this->assertSame(OutboundMessage::BUTTONS, $this->gateway->last()->kind);
+        $this->assertStringContainsString('anónimo', $this->gateway->last()->body);
 
-        $this->reply('who:padre:0');
+        $this->reply('anon:no');
         $this->assertStringContainsString('folio EV-', $this->gateway->last()->body);
 
         $report = ObservatoryReport::query()->firstOrFail();
@@ -87,6 +90,7 @@ final class MetaObservatoryBotTest extends TestCase
         $this->assertSame('padre', $report->reporter_role->value);
         $this->assertSame('hurto', $report->kind);
         $this->assertFalse($report->is_anonymous);
+        $this->assertNull($report->is_adult);
         $this->assertSame('Ana', $report->reporter_name);
         $this->assertSame(self::SENDER, $report->reporter_phone);
         $this->assertSame((int) $this->santa->id, (int) $report->installation_id);
@@ -123,6 +127,7 @@ final class MetaObservatoryBotTest extends TestCase
     public function test_location_offers_the_nearest_schools_first(): void
     {
         $this->say('hola');
+        $this->reply('who:padre');
         $this->location(3.4517, -76.5321);
 
         $this->assertSame(
@@ -135,6 +140,7 @@ final class MetaObservatoryBotTest extends TestCase
     public function test_types_come_from_the_client_catalog_and_paginate(): void
     {
         $this->say('hola');
+        $this->reply('who:padre');
         $this->say('santa librada');
         $this->say('x');
         $this->assertCount(4, $this->gateway->rowIds());
@@ -182,7 +188,7 @@ final class MetaObservatoryBotTest extends TestCase
         $this->assertSame(MetaConversationState::Cancelled, MetaConversation::query()->firstOrFail()->state);
 
         $this->say('hola');
-        $this->assertSame(OutboundMessage::LOCATION_REQUEST, $this->gateway->last()->kind);
+        $this->assertSame(OutboundMessage::BUTTONS, $this->gateway->last()->kind);
         $this->assertSame(2, MetaConversation::query()->count());
     }
 
@@ -192,7 +198,8 @@ final class MetaObservatoryBotTest extends TestCase
         MetaConversation::query()->update(['last_message_at' => now()->subHours(5)]);
 
         $this->say('santa');
-        $this->assertSame(OutboundMessage::LOCATION_REQUEST, $this->gateway->last()->kind);
+        $this->assertSame(OutboundMessage::BUTTONS, $this->gateway->last()->kind);
+        $this->assertStringContainsString('Quién eres', $this->gateway->last()->body);
         $this->assertSame(2, MetaConversation::query()->count());
     }
 
@@ -209,9 +216,12 @@ final class MetaObservatoryBotTest extends TestCase
     private function completeFlow(bool $anonymous): void
     {
         $this->say('hola');
+        $this->reply('who:alumno');
+        $this->reply('age:yes');
+        $this->say('acepto');
         $this->say('santa librada hurto en el patio');
         $this->reply('media:done');
-        $this->reply($anonymous ? 'who:alumno:1' : 'who:alumno:0');
+        $this->reply($anonymous ? 'anon:yes' : 'anon:no');
     }
 
     private function typeId(string $slug): int

@@ -21,6 +21,7 @@ final class MetaConversation extends Model
         'candidates',
         'reporter_role',
         'is_anonymous',
+        'is_adult',
         'last_message_at',
         'report_id',
     ];
@@ -32,6 +33,7 @@ final class MetaConversation extends Model
             'media' => 'array',
             'candidates' => 'array',
             'is_anonymous' => 'boolean',
+            'is_adult' => 'boolean',
             'last_message_at' => 'datetime',
         ];
     }

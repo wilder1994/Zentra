@@ -40,6 +40,7 @@ final class SubmitMetaConversationReportService
                 'kind' => $type?->slug ?? '',
                 'body' => (string) $conversation->body,
                 'is_anonymous' => (bool) $conversation->is_anonymous,
+                'is_adult' => $conversation->is_adult,
                 'source' => ObservatoryReportSource::Whatsapp,
                 'reporter_role' => (string) $conversation->reporter_role,
                 'reporter_name' => $conversation->profile_name,
