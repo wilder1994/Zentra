@@ -71,17 +71,6 @@ function heatPoint(ratio) {
     };
 }
 
-function siteDot() {
-    return {
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: 6,
-        fillColor: '#e2e8f0',
-        fillOpacity: 0.95,
-        strokeColor: '#0f172a',
-        strokeWeight: 1,
-    };
-}
-
 function countIcon(total) {
     const label = new Intl.NumberFormat('es-CO').format(Number(total) || 0);
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="54" height="54" viewBox="0 0 54 54">
@@ -127,7 +116,6 @@ export function observatoryMap(cfg) {
     return {
         layer: 'reportes',
         mode: 'grouped',
-        crimeCity: null,
         mapType: 'satellite',
         typeFilter: '',
         comuna: cfg.comuna || '',
@@ -319,16 +307,6 @@ export function observatoryMap(cfg) {
                 placeMarkers.push(marker);
             });
 
-            this.map.addListener('zoom_changed', () => {
-                if (this.layer !== 'riesgos' || this.mode !== 'grouped') {
-                    return;
-                }
-                const city = (this.map.getZoom() || 12) < 12;
-                if (city !== this.crimeCity) {
-                    this.crimeCity = city;
-                    this.drawCrimes();
-                }
-            });
             this.applyMode();
             window.addEventListener('observatory-shifts', (event) => {
                 this.shifts = Array.isArray(event.detail) ? event.detail : [];
@@ -598,25 +576,7 @@ export function observatoryMap(cfg) {
             if (!this.map || this.layer !== 'riesgos' || this.mode === 'heat') {
                 return;
             }
-            const rows = this.crimeRows();
-            const city = this.mode === 'grouped' && (this.map.getZoom() || 12) < 12 && !(this.comuna && this.comuna !== 'fuera');
-            this.crimeCity = city;
-            const places = city
-                ? [{
-                    code: 'cali',
-                    name: 'Santiago de Cali',
-                    lat: 3.4372,
-                    lng: -76.5225,
-                    counts: rows.reduce((acc, row) => {
-                        Object.entries(row.counts || {}).forEach(([slug, count]) => {
-                            acc[slug] = (acc[slug] || 0) + Number(count);
-                        });
-
-                        return acc;
-                    }, {}),
-                }]
-                : rows;
-            places.forEach((row) => {
+            this.crimeRows().forEach((row) => {
                 if (token !== crimeToken) {
                     return;
                 }
@@ -676,8 +636,12 @@ export function observatoryMap(cfg) {
         },
         clusterIcon(cluster) {
             const markers = cluster.markers || [];
-            if (this.layer === 'riesgos') {
-                return countIcon(markers.length);
+            if (this.mode === 'heat') {
+                const max = Math.max(1, ...placeMarkers.filter((marker) => marker.role === 'site').map((marker) => this.siteTotal(marker)));
+                const total = markers.reduce((sum, marker) => sum + this.siteTotal(marker), 0);
+                const ratio = markers.length ? (total / markers.length) / max : 0;
+
+                return heatPoint(ratio);
             }
             const slices = new Map();
             let total = 0;
@@ -698,16 +662,16 @@ export function observatoryMap(cfg) {
         },
         showSites() {
             clusterer?.clearMarkers();
+            placeMarkers.forEach((marker) => marker.setMap(null));
+            if (this.layer === 'riesgos') {
+                return;
+            }
             const sites = placeMarkers.filter((marker) => marker.role === 'site');
             const max = Math.max(1, ...sites.map((marker) => this.siteTotal(marker)));
-            const exogenous = this.layer === 'riesgos';
-            placeMarkers.forEach((marker) => marker.setMap(null));
             sites.forEach((marker) => {
                 const summary = this.siteSummary(marker);
                 const total = summary.reduce((sum, row) => sum + Number(row.count || 0), 0);
-                if (exogenous) {
-                    marker.setIcon(siteDot());
-                } else if (this.mode === 'heat') {
+                if (this.mode === 'heat') {
                     marker.setIcon(heatPoint(total / max));
                 } else if (this.mode === 'places') {
                     marker.setIcon(countIcon(total));
