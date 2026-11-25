@@ -56,6 +56,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 25 nov 2026 · Lista de supervisores en el Observatorio
+Cada supervisor ocupa tres líneas: nombre con km y revistas, señal y zona, y el estado corto (Detenido, En ruta o Sin GPS). El clic sigue pintando el recorrido. En Supervisión la frase larga no cambia. Commit `3555881`.
+
 ### 25 nov 2026 · Burbujas del Observatorio
 Cada burbuja es un párrafo: la revista dice qué hizo y si hubo novedad; la alarma, si fue prueba o atención y el resultado; el apoyo, el motivo; el reporte, quién y el texto corto. En ese contenedor solo entran clientes con Observatorio. Mi empresa sigue mostrando todos. Commit `de19fc3`.
 
