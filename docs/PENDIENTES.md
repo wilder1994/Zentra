@@ -56,6 +56,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 25 nov 2026 · Burbujas del Observatorio
+Cada burbuja es un párrafo: la revista dice qué hizo y si hubo novedad; la alarma, si fue prueba o atención y el resultado; el apoyo, el motivo; el reporte, quién y el texto corto. En ese contenedor solo entran clientes con Observatorio. Mi empresa sigue mostrando todos. Commit `de19fc3`.
+
 ### 25 nov 2026 · Encabezado del mapa y fila 60/20/20
 Los cuatro números quedan como texto en el encabezado del mapa, junto a Mapa y Satélite. Sobre el mapa van el suiche y el botón Catálogo. Salen las tarjetas de KPI, la franja de etiquetas y los dos catálogos del lado. La fila es mapa 60 %, convenciones y supervisores 20 %, reportes 20 %. Commit `7bc7fdd`.
 
