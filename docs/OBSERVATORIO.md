@@ -147,8 +147,8 @@ La pestaña se llama **Riesgos**. Arriba, la empresa carga los delitos del mapa 
 
 En el mapa el suiche es **Exógeno / Endógeno**. El periodo es el del encabezado del tablero. Las cifras de riesgo están por año: un periodo de un año pinta ese año y, si cruza dos, se suman.
 
-- **Exógeno:** Agrupado (dona en el centro de la comuna; al alejar, una sola de Cali), Mapa de calor (el polígono completo, de azul a rojo) y Comuna (pin con la cantidad). El delito en cero no se pinta. La leyenda filtra el delito. Además se ven todas las instalaciones con coordenadas, aunque no tengan reportes (pin de edificio).
-- **Endógeno:** Agrupado (dona en la instalación), Mapa de calor (punto en la instalación) e Instalaciones (pin con la cantidad), con los reportes del periodo. Sin reportes queda el pin de edificio. Las motos siguen igual. Una sede fuera de comuna usa las cifras de su vereda para el R comuna; comunas y veredas se normalizan por separado.
+- **Exógeno:** Agrupado (dona en el centro de la comuna; al alejar, una sola de Cali), Mapa de calor (el polígono completo, de azul a rojo) y Comuna (pin con la cantidad). El delito en cero no se pinta. La leyenda filtra el delito. Además se ven todas las instalaciones con coordenadas, aunque no tengan reportes, con el mismo pin del modo (dona, calor o círculo) y total 0.
+- **Endógeno:** Agrupado (dona en la instalación), Mapa de calor (punto en la instalación) e Instalaciones (pin con la cantidad), con los reportes del periodo. Sin reportes queda el mismo pin del modo, con total 0. Las motos siguen igual. Una sede fuera de comuna usa las cifras de su vereda para el R comuna; comunas y veredas se normalizan por separado.
 
 ## Tipos (catálogo del cliente)
 

@@ -673,9 +673,7 @@ export function observatoryMap(cfg) {
                 }
                 const summary = this.siteSummary(marker);
                 const total = summary.reduce((sum, row) => sum + Number(row.count || 0), 0);
-                if (total < 1) {
-                    marker.setIcon(marker.pinIcon);
-                } else if (this.mode === 'heat') {
+                if (this.mode === 'heat') {
                     marker.setIcon(heatPoint(total / max));
                 } else if (this.mode === 'places') {
                     marker.setIcon(countIcon(total));
