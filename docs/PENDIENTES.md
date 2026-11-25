@@ -56,6 +56,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 25 nov 2026 · Filtros del mapa por comuna
+Exógeno ya no pinta las sedes. Agrupado es la dona de cada comuna, el calor es solo el polígono y Comuna es el círculo blanco con el total de esa comuna. En Endógeno el calor sigue en el punto de color, también cuando las sedes se agrupan. Commit `8b62470`.
+
 ### 25 nov 2026 · Gráficos del tablero y buscador de veredas
 El tablero pinta tendencia, picos, orígenes, fuentes y el medidor con ECharts, cargado solo en esa página. Orígenes ya no espera un script de más abajo y en cero muestra el tubo vacío. Los días con más reportes siguen en vertical, ahora en cilindro. En Delitos por comuna y veredas hay un buscador junto a Comunas y otro junto a Veredas; el scroll horizontal sigue. Commit `d3ca201`.
 
