@@ -104,6 +104,40 @@ export function opsLivePage() {
 
             return 'text-red-400';
         },
+        signalDot(row) {
+            if (row?.signal === 'screen_off') {
+                return 'bg-amber-400';
+            }
+            if (row?.signal === 'online' || row?.online) {
+                return 'bg-emerald-400';
+            }
+
+            return 'bg-red-400';
+        },
+        zoneName(row) {
+            const label = String(row?.zone_label || '').replace(/^Zona\s+/i, '').trim();
+
+            return label || 'Sin zona';
+        },
+        shiftStatus(row) {
+            const parked = row?.parked;
+            const minutes = Number(parked?.minutes || 0);
+            if (parked && minutes > 0) {
+                const gps = parked.last_gps_label || '';
+
+                return 'Detenido ' + minutes + ' min' + (gps ? ' · GPS ' + gps : '');
+            }
+            const line = String(row?.status_line || '');
+            const clock = line.match(/(\d{1,2}:\d{2})\s*$/);
+            if (line.startsWith('En ruta')) {
+                return clock ? 'En ruta · GPS ' + clock[1] : 'En ruta';
+            }
+            if (clock && line.startsWith('Último GPS')) {
+                return 'GPS ' + clock[1];
+            }
+
+            return 'Sin GPS';
+        },
         bubbleClass(row) {
             if (row?.tone === 'red') {
                 return 'border-red-500/40 bg-red-950/20';

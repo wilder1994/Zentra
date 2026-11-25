@@ -176,32 +176,28 @@
                     @if ($observatoryLiveUrl)
                         <div class="overflow-y-auto min-h-0 flex-1 sidebar-scroll">
                             <p class="text-sm text-slate-500" x-show="!shifts.length">Nadie en turno ahora.</p>
-                            <table class="w-full text-sm" x-show="shifts.length">
-                                <thead>
-                                    <tr class="text-[10px] uppercase tracking-wide text-slate-500 border-b border-slate-800">
-                                        <th class="text-left py-1.5 pr-2 font-medium">Supervisor</th>
-                                        <th class="text-left py-1.5 pr-2 font-medium">Estado</th>
-                                        <th class="text-right py-1.5 font-medium">Km</th>
-                                        <th class="text-right py-1.5 font-medium">Rev.</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <template x-for="row in shifts" :key="row.shift_id">
-                                        <tr class="border-b border-slate-800/70 align-top cursor-pointer hover:bg-slate-800/60"
+                            <div class="flex flex-col" x-show="shifts.length">
+                                <template x-for="row in shifts" :key="row.shift_id">
+                                    <button type="button"
+                                            class="border-b border-slate-800/70 px-1 py-1.5 text-left hover:bg-slate-800/60"
                                             :class="Number(selectedShiftId) === Number(row.shift_id) ? 'bg-indigo-950/80 ring-1 ring-inset ring-indigo-400' : ''"
                                             @click="pickShift(row.shift_id)">
-                                            <td class="py-1.5 pr-2">
-                                                <p class="text-[13px] font-medium text-slate-100 leading-tight" x-text="row.user || 'Supervisor'"></p>
-                                                <p class="text-[11px] mt-0.5 font-semibold" :class="signalClass(row)" x-text="row.online_label || 'Sin señal'"></p>
-                                                <p class="text-[10px] text-sky-500 mt-0.5 truncate" x-text="row.zone_label || 'Sin zona'"></p>
-                                            </td>
-                                            <td class="py-1.5 pr-2 text-[11px] text-slate-300 leading-snug" x-text="row.status_line || '—'"></td>
-                                            <td class="py-1.5 text-right text-[11px] text-slate-300 tabular-nums" x-text="Number(row.km || 0).toFixed(1)"></td>
-                                            <td class="py-1.5 text-right text-[11px] text-slate-300 tabular-nums" x-text="row.reviews_count || 0"></td>
-                                        </tr>
-                                    </template>
-                                </tbody>
-                            </table>
+                                        <span class="flex items-baseline justify-between gap-2">
+                                            <span class="min-w-0 truncate text-[13px] font-medium leading-tight text-slate-100" x-text="row.user || 'Supervisor'"></span>
+                                            <span class="shrink-0 text-[10px] tabular-nums text-slate-400">
+                                                <span x-text="Number(row.km || 0).toFixed(1)"></span> km · <span x-text="row.reviews_count || 0"></span>
+                                            </span>
+                                        </span>
+                                        <span class="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] leading-tight">
+                                            <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="signalDot(row)"></span>
+                                            <span class="shrink-0 font-semibold" :class="signalClass(row)" x-text="row.online_label || 'Sin señal'"></span>
+                                            <span class="text-slate-600">·</span>
+                                            <span class="min-w-0 truncate text-sky-500" x-text="zoneName(row)"></span>
+                                        </span>
+                                        <span class="mt-0.5 block text-[11px] leading-tight text-slate-300" x-text="shiftStatus(row)"></span>
+                                    </button>
+                                </template>
+                            </div>
                         </div>
                     @else
                         <p class="text-sm text-slate-500">Nadie en turno ahora.</p>
