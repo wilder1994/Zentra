@@ -228,10 +228,26 @@ export function observatoryBoard(payload) {
             }
         },
         replacePayload(board) {
+            const next = { ...this.payload, ...board };
+            if (JSON.stringify(this.liveSlice(this.payload)) === JSON.stringify(this.liveSlice(next))) {
+                this.payload = next;
+                return;
+            }
             this.charts.forEach((chart) => chart.destroy());
             this.charts = [];
-            this.payload = { ...this.payload, ...board };
+            this.payload = next;
             this.draw();
+        },
+        liveSlice(data) {
+            const source = data ?? {};
+            return {
+                trend: source.trend ?? null,
+                peaks: source.peaks ?? null,
+                sources: source.sources ?? null,
+                origins: source.origins ?? null,
+                risk: source.risk ?? null,
+                load_rate: source.load_rate ?? null,
+            };
         },
         track(chart) {
             this.charts.push(chart);

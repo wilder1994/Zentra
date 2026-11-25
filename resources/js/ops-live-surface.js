@@ -50,6 +50,9 @@ export function opsLivePage() {
         bubbles: [],
         board: {},
         selectedShiftId: null,
+        refreshing: false,
+        queued: false,
+        shiftsKey: '',
         init() {
             this.url = this.$el.dataset.liveUrl || '';
             this.showClient = this.$el.dataset.showClient === '1';
@@ -63,6 +66,7 @@ export function opsLivePage() {
             } catch {
                 this.shifts = [];
             }
+            this.shiftsKey = JSON.stringify(this.shifts);
             try {
                 this.bubbles = JSON.parse(this.$el.dataset.bubbles || '[]');
             } catch {
@@ -73,8 +77,7 @@ export function opsLivePage() {
             } catch {
                 this.board = {};
             }
-            bindOpsLiveRefresh(() => this.refresh());
-            window.setInterval(() => this.refresh(), 5000);
+            window.addEventListener('ops-surface-changed', () => this.refresh());
             window.dispatchEvent(new CustomEvent('observatory-shifts', { detail: this.shifts }));
         },
         pickShift(id) {
@@ -118,6 +121,11 @@ export function opsLivePage() {
             if (!this.url) {
                 return;
             }
+            if (this.refreshing) {
+                this.queued = true;
+                return;
+            }
+            this.refreshing = true;
             try {
                 const res = await fetch(this.url, {
                     headers: { Accept: 'application/json' },
@@ -133,22 +141,32 @@ export function opsLivePage() {
                 }
                 const shifts = Array.isArray(data.shifts) ? data.shifts : data.map?.shifts;
                 if (Array.isArray(shifts)) {
-                    const selected = this.selectedShiftId;
-                    this.shifts = shifts.map((row) => ({
-                        ...row,
-                        path: Array.isArray(row.path) ? row.path : [],
-                    }));
-                    if (selected != null && !this.shifts.some((row) => Number(row.shift_id) === Number(selected))) {
-                        this.selectedShiftId = null;
+                    const nextKey = JSON.stringify(shifts);
+                    if (nextKey !== this.shiftsKey) {
+                        this.shiftsKey = nextKey;
+                        const selected = this.selectedShiftId;
+                        this.shifts = shifts.map((row) => ({
+                            ...row,
+                            path: Array.isArray(row.path) ? row.path : [],
+                        }));
+                        if (selected != null && !this.shifts.some((row) => Number(row.shift_id) === Number(selected))) {
+                            this.selectedShiftId = null;
+                        }
+                        window.dispatchEvent(new CustomEvent('observatory-shifts', { detail: this.shifts }));
                     }
-                    window.dispatchEvent(new CustomEvent('observatory-shifts', { detail: this.shifts }));
                 }
                 if (Array.isArray(data.bubbles)) {
                     this.bubbles = data.bubbles;
                 }
                 window.dispatchEvent(new CustomEvent('ops-live-data', { detail: data }));
             } catch {
-                // red caída: el siguiente tick reintenta
+                // el siguiente aviso vuelve a pedir el tablero
+            } finally {
+                this.refreshing = false;
+                if (this.queued) {
+                    this.queued = false;
+                    this.refresh();
+                }
             }
         },
     };

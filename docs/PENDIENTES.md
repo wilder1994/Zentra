@@ -57,7 +57,7 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 ## Hecho
 
 ### 25 nov 2026 · Tablero del Observatorio
-Semáforo de Riesgo por instalación en cilindro horizontal ECharts (estilo Decowandy: lados rectos, inicio plano, disco solo en la punta, color de la banda). Orígenes en cilindros horizontales: Alumno, Padre, Vecino, Usuario panel, Usuario API, Usuario app patrulla. Tendencia endógena y Días con más reportes comparten la fila al 50%. El sondeo de 5 s redibuja tendencia, picos, orígenes, riesgo por instalación y semáforo. No había migración del bloque eliminado «Instalaciones por riesgo»; no se borró ninguna. Commit `f7e4b8f`.
+Semáforo de Riesgo por instalación en cilindro horizontal ECharts (estilo Decowandy: lados rectos, inicio plano, disco solo en la punta, color de la banda). Orígenes en cilindros horizontales: Alumno, Padre, Vecino, Usuario panel, Usuario API, Usuario app patrulla. Tendencia endógena y Días con más reportes comparten la fila al 50%. El tablero no se recalcula cada 5 s: Reverb avisa al cambiar un reporte y entonces se redibujan tendencia, picos, orígenes, riesgo por instalación y semáforo. El mapa abre en Endógeno agrupado. No había migración del bloque eliminado «Instalaciones por riesgo»; no se borró ninguna. Commit `f7e4b8f`.
 
 ### 24 nov 2026 · Riesgos del observatorio en el mapa (local)
 Pestaña Riesgos: delitos y cifras por comuna. El mapa usa el periodo del tablero. Riesgos: dona, calor sobre el polígono y pin por comuna. Reportes: dona, punto de calor y total por instalación. Hecho en local. Sin commit y sin VPS hasta que se confirme.

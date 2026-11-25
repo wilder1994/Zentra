@@ -114,7 +114,7 @@ export function observatoryMap(cfg) {
     let crimeToken = 0;
 
     return {
-        layer: 'riesgos',
+        layer: 'reportes',
         mode: 'grouped',
         crimeCity: null,
         mapType: 'satellite',

@@ -10,7 +10,7 @@ const isLocalPage = pageHost === 'localhost' || pageHost === '127.0.0.1' || page
 const bakedIsLocal = bakedHost === '' || bakedHost === 'localhost' || bakedHost === '127.0.0.1';
 
 // Build local no debe abrir wss://localhost desde el dominio público (ERR_CONNECTION_REFUSED).
-// Sin Echo el tablero sigue con sondeo JSON.
+// Sin Echo el tablero de supervisión sigue con sondeo JSON. El Observatorio espera el aviso de Reverb.
 if (key && !(bakedIsLocal && !isLocalPage)) {
     const wsHost = bakedIsLocal ? pageHost : bakedHost;
     const scheme = import.meta.env.VITE_REVERB_SCHEME ?? (window.location.protocol === 'https:' ? 'https' : 'http');
