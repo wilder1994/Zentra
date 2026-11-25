@@ -36,7 +36,7 @@
                 </select>
             </div>
             <div>
-                <label class="block text-xs text-slate-400 mb-1" for="kind">Tipo</label>
+                <label class="block text-xs text-slate-400 mb-1" for="kind">Riesgo endógeno</label>
                 <select id="kind" name="kind" required class="w-full h-11 px-3 text-sm rounded-lg border border-slate-700 bg-slate-950 text-white">
                     <option value="">Seleccione…</option>
                     @foreach ($kinds as $value => $label)

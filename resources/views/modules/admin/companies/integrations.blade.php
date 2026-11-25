@@ -398,7 +398,7 @@
                         <ul class="mt-2 list-disc space-y-1 pl-5 text-xs text-slate-400">
                             <li>Probar la key: <code class="text-slate-300">GET /api/auth/me</code> responde el usuario de la key.</li>
                             <li><code class="text-slate-300">401</code>: key inválida, revocada o vencida. <code class="text-slate-300">403</code>: la key no tiene ese permiso o el dato está fuera del alcance del usuario.</li>
-                            <li>Los reportes creados por API quedan con canal «Integración».</li>
+                            <li>Los reportes creados por API quedan en el canal API. Quién reporta queda como Sistema externo, rector o apoyo.</li>
                         </ul>
                         <a href="{{ route('observatory.docs') }}" target="_blank" rel="noopener"
                            class="mt-3 inline-flex items-center gap-1 text-xs font-medium text-violet-300 hover:text-violet-200">Ver documentación del Observatorio (Swagger) ↗</a>

@@ -136,12 +136,14 @@ final class BuildActivityBubblesService
                 return $this->bubble(
                     'observatorio-'.$report->id,
                     'observatorio',
-                    'Observatorio',
+                    $report->source?->label() ?? 'Observatorio',
                     'amber',
                     $at,
                     $this->lines([
                         'Hora' => $this->clock($at),
                         'Fecha' => $this->day($at),
+                        'Canal' => $report->source?->label(),
+                        'Origen' => $report->reporter_role?->label(),
                         'Supervisor' => $supervisor,
                         'Cliente' => $report->client?->name,
                         'Instalación' => $report->installation?->name,

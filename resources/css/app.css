@@ -225,6 +225,233 @@ html[data-theme="light"] .admin-enter-btn:hover {
     animation: ops-alert-pulse 1.15s ease-in-out infinite;
 }
 
+.risk-sheet {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+    color: #e2e8f0;
+    background: #0b1220;
+}
+
+.risk-sheet thead th {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    background: #1e1b4b;
+    color: #e0e7ff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-align: left;
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow-wrap: normal;
+    letter-spacing: 0.03em;
+    line-height: 1.2;
+    border-bottom: 2px solid #818cf8;
+    border-right: 1px solid #312e81;
+    padding: 0.5rem 0.65rem;
+}
+
+.risk-sheet thead th.num,
+.risk-sheet td.num,
+.risk-sheet .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.risk-sheet th.ctr,
+.risk-sheet td.ctr,
+.risk-sheet .ctr { text-align: center; }
+
+.risk-sheet.risk-catalog { table-layout: fixed; }
+.risk-sheet.risk-catalog thead th { text-align: center; }
+.risk-sheet.risk-catalog th.col-name { width: 28%; text-align: left; }
+.risk-sheet td.col-name .cell-input { field-sizing: content; width: auto; min-width: 6rem; max-width: 100%; }
+.risk-sheet th.col-axis { width: 10%; }
+.risk-sheet th.col-wide { width: 15%; }
+.risk-sheet th.col-split { width: 12%; white-space: normal; line-height: 1.15; padding-top: 0.4rem; padding-bottom: 0.4rem; }
+.risk-sheet th.col-split span { display: block; }
+.risk-sheet th.col-actions { width: 13%; }
+.risk-sheet th.col-crit,
+.risk-sheet td.col-crit { text-align: center; }
+
+.risk-sheet tbody td {
+    height: 2.4rem;
+    padding: 0;
+    vertical-align: middle;
+    background: #0f172a;
+    border-bottom: 1px solid #243044;
+    border-right: 1px solid #1e293b;
+}
+
+.risk-sheet tbody tr:nth-child(even) td { background: #131c2e; }
+
+.risk-sheet tbody tr:hover td,
+.risk-matrix tbody tr:hover td,
+.risk-matrix tbody tr:hover th {
+    border-top: 2px solid var(--row-color, #cbd5e1);
+    border-bottom: 2px solid var(--row-color, #cbd5e1);
+    box-shadow: none;
+}
+
+.risk-sheet tbody tr:hover td:first-child,
+.risk-matrix tbody tr:hover > :first-child {
+    box-shadow: inset 2px 0 0 var(--row-color, #cbd5e1);
+}
+
+.risk-sheet tbody tr:hover td:last-child,
+.risk-matrix tbody tr:hover > :last-child {
+    box-shadow: inset -2px 0 0 var(--row-color, #cbd5e1);
+}
+
+.risk-sheet tbody td:focus-within {
+    outline: 1.5px solid var(--row-color, #818cf8);
+    outline-offset: -2px;
+}
+
+.risk-sheet .pad { padding: 0 0.7rem; }
+.risk-sheet label.pad { display: flex; align-items: center; gap: 0.45rem; height: 2.4rem; }
+
+.risk-sheet .cell-input {
+    display: block;
+    width: 100%;
+    height: 2.4rem;
+    margin: 0;
+    padding: 0 0.7rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #f8fafc;
+    font: inherit;
+    text-align: inherit;
+    box-shadow: none;
+}
+
+.risk-sheet .cell-input:focus,
+.risk-sheet .risk-swatch:focus {
+    outline: none;
+    background: transparent;
+}
+
+.risk-sheet .risk-swatch {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 1.15rem;
+    height: 1.15rem;
+    margin-left: 0.55rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0.2rem;
+    background: transparent;
+    flex: none;
+    cursor: pointer;
+}
+
+.risk-sheet .risk-swatch::-webkit-color-swatch-wrapper { padding: 0; }
+.risk-sheet .risk-swatch::-webkit-color-swatch { border: 0; border-radius: 0.2rem; }
+
+.risk-sheet td.sticky-col,
+.risk-sheet th.sticky-col {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    min-width: 9rem;
+    box-shadow: 1px 0 0 #1e293b;
+}
+
+.risk-sheet thead th.sticky-col { z-index: 5; }
+
+.risk-sheet tr.tone-indigo td:first-child { box-shadow: inset 3px 0 0 #818cf8; color: #c7d2fe; font-weight: 600; }
+.risk-sheet tr.tone-amber td:first-child { box-shadow: inset 3px 0 0 #fbbf24; color: #fde68a; font-weight: 600; }
+.risk-sheet tr.tone-sky td:first-child { box-shadow: inset 3px 0 0 #38bdf8; color: #bae6fd; font-weight: 600; }
+.risk-sheet tr.tone-emerald td:first-child { box-shadow: inset 3px 0 0 #34d399; color: #a7f3d0; font-weight: 600; }
+.risk-sheet tr.tone-orange td:first-child { box-shadow: inset 3px 0 0 #fb923c; color: #ffedd5; font-weight: 600; }
+.risk-sheet tr.tone-rose td:first-child { box-shadow: inset 3px 0 0 #fb7185; color: #fecdd3; font-weight: 600; }
+
+.risk-sheet td.cell-actions {
+    padding: 0 0.55rem;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.risk-sheet .cell-link {
+    display: inline;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.risk-sheet .cell-link-save { color: #a5b4fc; }
+.risk-sheet .cell-link-delete { margin-left: 0.75rem; color: #fda4af; }
+
+.risk-sheet .cell-btn {
+    display: inline-flex;
+    align-items: center;
+    height: 1.7rem;
+    margin: 0 0.35rem;
+    padding: 0 0.7rem;
+    border: 0;
+    border-radius: 0.35rem;
+    background: #4f46e5;
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+}
+
+.risk-sheet .cell-btn:hover { background: #6366f1; }
+
+.risk-sheet .cell-btn-ghost {
+    background: transparent;
+    color: #fda4af;
+}
+
+.risk-sheet .cell-btn-ghost:hover { background: rgb(159 18 57 / 0.35); }
+
+.risk-sheet-amber thead th { background: #451a03; color: #fde68a; border-bottom-color: #f59e0b; border-right-color: #78350f; }
+.risk-sheet-violet thead th { background: #2e1065; color: #ddd6fe; border-bottom-color: #a78bfa; border-right-color: #4c1d95; }
+.risk-sheet-teal thead th { background: #042f2e; color: #99f6e4; border-bottom-color: #2dd4bf; border-right-color: #115e59; }
+
+.risk-sheet.risk-comunas {
+    table-layout: fixed;
+    width: max-content;
+    min-width: 100%;
+}
+.risk-sheet.risk-comunas col.col-crime { width: 14rem; }
+.risk-sheet.risk-comunas col.col-comuna { width: 4.6rem; }
+.risk-sheet.risk-comunas th.col-crime,
+.risk-sheet.risk-comunas td.col-crime {
+    width: 14rem;
+    min-width: 14rem;
+    text-align: left;
+}
+.risk-sheet.risk-comunas thead th.col-comuna {
+    width: 4.6rem;
+    padding: 0.35rem 0.1rem;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.1;
+    letter-spacing: 0.02em;
+}
+.risk-sheet-sky thead th { background: #082f49; color: #bae6fd; border-bottom-color: #38bdf8; border-right-color: #0c4a6e; }
+
+html[data-theme="light"] .risk-sheet { color: #0f172a; background: #fff; }
+html[data-theme="light"] .risk-sheet tbody td { background: #fff; border-color: #e2e8f0; color: #0f172a; }
+html[data-theme="light"] .risk-sheet tbody tr:nth-child(even) td { background: #f8fafc; }
+.risk-matrix { width: 100%; min-width: 62rem; table-layout: fixed; border-collapse: collapse; font-size: 0.7rem; }
+.risk-matrix col.axis-label { width: 11.5rem; }
+.risk-matrix col.axis-num { width: 2rem; }
+.risk-matrix col.score { width: 5rem; }
+.risk-matrix th,
+.risk-matrix td { text-align: center; vertical-align: middle; }
+.risk-matrix thead th { white-space: normal; line-height: 1.2; font-weight: 500; }
+html[data-theme="light"] .risk-sheet .cell-input { color: #0f172a; }
+
 @keyframes ops-alert-pulse {
     0%, 100% {
         transform: scale(1);

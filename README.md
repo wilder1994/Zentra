@@ -780,7 +780,7 @@ API autenticada con tokens Laravel Sanctum para consumo desde app móvil futura.
 | `/api/observatory/events/{id}` | GET | Observatorio: folio + reportes |
 | `/api/observatory/board` | GET | Observatorio: KPIs, tendencia, tipos, canales, ranking |
 | `/api/observatory/sites` | GET | Observatorio: colegios del alcance |
-| `/api/observatory/reports` | POST | Observatorio: crear reporte (Secretaría = Integración; rector/apoyo = panel). Empresa solo lee |
+| `/api/observatory/reports` | POST | Observatorio: crear reporte. Canal API. Empresa solo lee |
 | `/api/observatory/openapi.json` | GET | Contrato OpenAPI 3 (público) |
 | `/docs/observatory` | GET | Documentación Swagger UI |
 | `/api/webhooks/meta` | GET/POST | WhatsApp del 310: Meta verifica y deja el mensaje. No abre folio. Ver [`docs/OBSERVATORIO.md`](docs/OBSERVATORIO.md) |

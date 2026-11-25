@@ -21,20 +21,32 @@
                 'comuna' => $map['comuna'] ?? '',
                 'comunas' => $map['comunas'] ?? [],
                 'layerUrl' => $map['layer_url'] ?? '/geo/cali-comunas.geojson',
+                'crimes' => $map['crimes'] ?? ['year' => (int) now()->year, 'years' => [], 'types' => [], 'byYear' => []],
+                'reportTypes' => $types,
             ]))"
             class="relative flex-1 min-h-80 flex flex-col"
         >
             <div class="shrink-0 flex flex-wrap items-center gap-2 px-2.5 py-1.5 border-b border-slate-800 bg-slate-950/80">
+                <span class="text-[11px] font-semibold text-slate-400">Riesgos</span>
+                <div class="flex rounded-md border border-slate-700 overflow-hidden">
+                    <button type="button" class="h-7 px-2 text-[11px] font-semibold"
+                            :class="layer === 'riesgos' ? 'bg-white text-slate-900' : 'bg-slate-900 text-slate-300'"
+                            @click="setLayer('riesgos')">Exógeno</button>
+                    <button type="button" class="h-7 px-2 text-[11px] font-semibold"
+                            :class="layer === 'reportes' ? 'bg-white text-slate-900' : 'bg-slate-900 text-slate-300'"
+                            @click="setLayer('reportes')">Endógeno</button>
+                </div>
                 <div class="flex flex-wrap gap-1">
                     <button type="button" class="h-7 px-2 rounded-md text-[11px] font-semibold"
-                            :class="mode === 'pins' ? 'bg-white text-slate-900' : 'bg-slate-900 text-slate-200 border border-slate-700'"
-                            @click="setMode('pins')">Pines</button>
+                            :class="mode === 'grouped' ? 'bg-white text-slate-900' : 'bg-slate-900 text-slate-200 border border-slate-700'"
+                            @click="setMode('grouped')">Agrupado</button>
                     <button type="button" class="h-7 px-2 rounded-md text-[11px] font-semibold"
-                            :class="mode === 'heat_installation' ? 'bg-white text-slate-900' : 'bg-slate-900 text-slate-200 border border-slate-700'"
-                            @click="setMode('heat_installation')">Calor instalación</button>
+                            :class="mode === 'heat' ? 'bg-white text-slate-900' : 'bg-slate-900 text-slate-200 border border-slate-700'"
+                            @click="setMode('heat')">Mapa de calor</button>
                     <button type="button" class="h-7 px-2 rounded-md text-[11px] font-semibold"
-                            :class="mode === 'heat_risk' ? 'bg-white text-slate-900' : 'bg-slate-900 text-slate-200 border border-slate-700'"
-                            @click="setMode('heat_risk')">Calor riesgo</button>
+                            :class="mode === 'places' ? 'bg-white text-slate-900' : 'bg-slate-900 text-slate-200 border border-slate-700'"
+                            @click="setMode('places')"
+                            x-text="layer === 'riesgos' ? 'Comuna' : 'Instalaciones'"></button>
                 </div>
                 <div class="ml-auto flex gap-1">
                     <button type="button" class="h-7 px-2.5 rounded-md text-[11px] font-semibold"
@@ -45,19 +57,17 @@
                             @click="setMapType('satellite')">Satélite</button>
                 </div>
             </div>
-            @if ($types !== [])
-                <div class="shrink-0 flex flex-wrap gap-1 px-2 py-1.5 border-b border-slate-800">
-                    @foreach ($types as $type)
-                        <button type="button"
-                                class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px]"
-                                :class="typeFilter === @js($type['slug']) ? 'border-white text-white' : 'border-slate-700 text-slate-300'"
-                                @click="setTypeFilter(@js($type['slug']))">
-                            <span class="h-1.5 w-1.5 rounded-full" style="background: {{ $type['color'] }}"></span>
-                            {{ $type['name'] }}
-                        </button>
-                    @endforeach
-                </div>
-            @endif
+            <div class="shrink-0 flex flex-wrap gap-1 px-2 py-1.5 border-b border-slate-800" x-show="legend().length">
+                <template x-for="type in legend()" :key="type.slug">
+                    <button type="button"
+                            class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px]"
+                            :class="typeFilter === type.slug ? 'border-white text-white' : 'border-slate-700 text-slate-300'"
+                            @click="setTypeFilter(type.slug)">
+                        <span class="h-1.5 w-1.5 rounded-full" :style="'background:' + type.color"></span>
+                        <span x-text="type.name"></span>
+                    </button>
+                </template>
+            </div>
             <div x-ref="map" class="{{ $mapCanvasClass }} w-full flex-1"></div>
             @if ($showLegend)
                 <p class="px-3 py-2 text-[11px] text-slate-500 border-t border-slate-800">

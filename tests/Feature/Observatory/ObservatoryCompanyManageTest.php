@@ -88,15 +88,15 @@ final class ObservatoryCompanyManageTest extends TestCase
             ->assertDownload('Informe_Observatorio_ie-santa-librada_'.now()->startOfYear()->toDateString().'_'.now()->toDateString().'.pptx');
 
         $slides = $this->slideTexts($file->baseResponse->getFile()->getPathname());
-        $this->assertCount(6, $slides);
+        $this->assertCount(5, $slides);
         $this->assertStringContainsString('Eventos y riesgos', $slides[0]);
         $this->assertStringContainsString('Instalación', $slides[0]);
-        $this->assertStringContainsString('Tipo: Amenaza', $slides[0]);
+        $this->assertStringContainsString('Endógeno: Amenaza', $slides[0]);
         $this->assertStringContainsString('Mapa de calor', $slides[2]);
         $this->assertStringContainsString('EV-', $slides[2]);
-        $this->assertStringContainsString('Amenaza · nivel 3', $slides[3]);
+        $this->assertStringContainsString('Amenaza · ALTO', $slides[3]);
         $this->assertStringNotContainsString('IE Republica del Peru', implode(' ', $slides));
-        $this->assertStringContainsString('Gracias', $slides[5]);
+        $this->assertStringContainsString('Gracias', $slides[4]);
     }
 
     /** @return list<string> Texto de cada diapositiva en orden. */
@@ -124,28 +124,28 @@ final class ObservatoryCompanyManageTest extends TestCase
         $this->actingAs($company)
             ->post(route('company.observatory.types.store', $client), [
                 'name' => 'Porte de arma',
-                'level' => 3,
+                'impacto' => 8,
+                'urgencia' => 8,
                 'color' => '#22c55e',
                 'is_active' => '1',
             ])
             ->assertRedirect();
-        $type = ObservatoryReportType::query()->where('client_id', $client->id)->where('name', 'Porte de arma')->firstOrFail();
+        $type = ObservatoryReportType::query()->where('security_company_id', $client->security_company_id)->where('name', 'Porte de arma')->firstOrFail();
 
         $this->actingAs($company)
             ->put(route('company.observatory.types.update', $type), [
                 'name' => 'Porte de armas',
-                'level' => 2,
+                'impacto' => 6,
+                'urgencia' => 6,
                 'color' => '#22c55e',
                 'is_active' => '1',
             ])
             ->assertRedirect();
         $this->assertSame('Porte de armas', $type->fresh()->name);
-
-        $this->actingAs($company)
-            ->post(route('company.observatory.types.copy', $client), ['client_ids' => [$target->id]])
-            ->assertRedirect();
-        $this->assertDatabaseHas('observatory_report_types', ['client_id' => $target->id, 'name' => 'Porte de armas']);
-        $this->assertSame(1, ObservatoryReportType::query()->where('client_id', $target->id)->where('slug', 'amenaza')->count());
+        $this->assertSame(1, ObservatoryReportType::query()->where('security_company_id', $target->security_company_id)->where('slug', 'amenaza')->count());
+        $this->assertTrue(
+            ObservatoryReportType::query()->where('security_company_id', $target->security_company_id)->where('name', 'Porte de armas')->exists(),
+        );
 
         $this->actingAs($company)
             ->delete(route('company.observatory.types.destroy', $type))

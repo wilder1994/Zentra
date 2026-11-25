@@ -34,7 +34,7 @@ final class StoreObservatoryApiReportRequest extends FormRequest
     {
         return [
             'installation_id' => 'colegio',
-            'kind' => 'tipo',
+            'kind' => 'riesgo endógeno',
             'body' => 'descripción',
         ];
     }

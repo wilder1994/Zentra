@@ -48,11 +48,10 @@ enum ObservatoryReporterRole: string
     public function allowedFor(ObservatoryReportSource $source): bool
     {
         return match ($source) {
-            ObservatoryReportSource::Comunidad, ObservatoryReportSource::Whatsapp => $this->isPublic(),
+            ObservatoryReportSource::Whatsapp, ObservatoryReportSource::Link => $this->isPublic(),
             ObservatoryReportSource::Panel => in_array($this, [self::Rector, self::Apoyo], true),
-            ObservatoryReportSource::Campo => $this === self::Supervisor,
-            ObservatoryReportSource::Porteria => $this === self::Vigilante,
-            ObservatoryReportSource::Api => $this === self::Integracion,
+            ObservatoryReportSource::Api => in_array($this, [self::Rector, self::Apoyo, self::Integracion], true),
+            ObservatoryReportSource::Campo => in_array($this, [self::Supervisor, self::Vigilante], true),
         };
     }
 }

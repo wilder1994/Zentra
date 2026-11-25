@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace App\Services\Observatory;
 
 use App\Enums\ObservatoryEventStatus;
+use App\Enums\ObservatoryReporterRole;
 use App\Enums\ObservatoryReportSource;
 use App\Models\Client;
 use App\Models\ObservatoryEvent;
 use App\Models\ObservatoryReport;
 use App\Models\ObservatoryReportType;
-use App\Support\Geo\CaliComunaLayer;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
 
 final class BuildObservatoryBoardService
 {
@@ -59,11 +58,11 @@ final class BuildObservatoryBoardService
             'cerrado' => $cerrado,
             'closed_rate' => $total === 0 ? 0 : (int) round(100 * $cerrado / $total),
             'load_rate' => self::loadRate($nuevo, $enAtencion, $total),
-            'top' => $this->ranking($query),
             'trend' => $this->trendByType($companyId, $clientId, $installationIds, $from, $to, $grain, $types, $status, $typeIds),
             'peaks' => $this->peakDays($companyId, $clientId, $installationIds, $from, $to, $status, $typeIds),
             'kinds' => $this->seriesByType($query, $types),
             'sources' => $this->seriesByReport($query, 'source', ObservatoryReportSource::cases()),
+            'origins' => $this->originSeries($query),
             'types' => $types,
             'grain' => $grain,
         ];
@@ -104,7 +103,7 @@ final class BuildObservatoryBoardService
     }
 
     /**
-     * @return list<array{id: int, ids: list<int>, slug: string, name: string, level: int, color: string}>
+     * @return list<array{id: int, ids: list<int>, slug: string, name: string, impacto: int, urgencia: int, score: float, band: string, color: string}>
      */
     private function types(?int $companyId, ?int $clientId): array
     {
@@ -112,41 +111,8 @@ final class BuildObservatoryBoardService
     }
 
     /**
-     * @return list<array{name: string, client: ?string, count: int, score: int, comuna: string, comuna_name: ?string}>
-     */
-    private function ranking(Builder $query): array
-    {
-        $events = (clone $query)->with(['installation.client', 'reports.reportType'])->get();
-
-        $layer = app(CaliComunaLayer::class);
-        $grouped = $events->groupBy('installation_id')->map(function (Collection $rows) use ($layer): array {
-            $site = $rows->first()?->installation;
-            $score = 0;
-            foreach ($rows as $event) {
-                foreach ($event->reports as $report) {
-                    $score += $report->typeLevel();
-                }
-            }
-            $comuna = $site?->latitude !== null && $site?->longitude !== null
-                ? $layer->locate((float) $site->latitude, (float) $site->longitude)
-                : null;
-
-            return [
-                'name' => $site?->name ?? '—',
-                'client' => $site?->client?->name,
-                'count' => $rows->count(),
-                'score' => $score,
-                'comuna' => $comuna['code'] ?? '',
-                'comuna_name' => $comuna['name'] ?? null,
-            ];
-        })->sortByDesc('score')->take(8)->values();
-
-        return $grouped->all();
-    }
-
-    /**
      * @param  list<int>|null  $installationIds
-     * @param  list<array{id: int, slug: string, name: string, level: int, color: string}>  $types
+     * @param  list<array{id: int, slug: string, name: string, score: float, band: string, color: string}>  $types
      * @return array{labels: list<string>, series: list<array{label: string, color: string, values: list<int>}>}
      */
     private function trendByType(
@@ -231,7 +197,7 @@ final class BuildObservatoryBoardService
     }
 
     /**
-     * @param  list<array{id: int, slug: string, name: string, level: int, color: string}>  $types
+     * @param  list<array{id: int, slug: string, name: string, score: float, band: string, color: string}>  $types
      * @return array{labels: list<string>, values: list<int>, colors: list<string>}
      */
     private function seriesByType(Builder $query, array $types): array
@@ -281,6 +247,50 @@ final class BuildObservatoryBoardService
         foreach ($cases as $case) {
             $labels[] = $case->label();
             $values[] = (int) ($raw[$case->value] ?? 0);
+        }
+
+        return ['labels' => $labels, 'values' => $values];
+    }
+
+    /**
+     * Orígenes del tablero. Agregar una fila para sumar otro origen.
+     *
+     * @return list<array{label: string, column: string, value: string}>
+     */
+    private function originDefinitions(): array
+    {
+        return [
+            ['label' => 'Alumno', 'column' => 'reporter_role', 'value' => ObservatoryReporterRole::Alumno->value],
+            ['label' => 'Padre', 'column' => 'reporter_role', 'value' => ObservatoryReporterRole::Padre->value],
+            ['label' => 'Vecino', 'column' => 'reporter_role', 'value' => ObservatoryReporterRole::Vecino->value],
+            ['label' => 'Usuario panel', 'column' => 'source', 'value' => ObservatoryReportSource::Panel->value],
+            ['label' => 'Usuario API', 'column' => 'source', 'value' => ObservatoryReportSource::Api->value],
+            ['label' => 'Usuario app patrulla', 'column' => 'source', 'value' => ObservatoryReportSource::Campo->value],
+        ];
+    }
+
+    /**
+     * @return array{labels: list<string>, values: list<int>}
+     */
+    private function originSeries(Builder $query): array
+    {
+        $eventIds = (clone $query)->pluck('id');
+        $counts = [];
+        if ($eventIds->isNotEmpty()) {
+            foreach (['reporter_role', 'source'] as $column) {
+                $counts[$column] = ObservatoryReport::query()
+                    ->whereIn('event_id', $eventIds->all())
+                    ->selectRaw($column.' as bucket, COUNT(*) as aggregate')
+                    ->groupBy('bucket')
+                    ->pluck('aggregate', 'bucket');
+            }
+        }
+
+        $labels = [];
+        $values = [];
+        foreach ($this->originDefinitions() as $origin) {
+            $labels[] = $origin['label'];
+            $values[] = (int) ($counts[$origin['column']][$origin['value']] ?? 0);
         }
 
         return ['labels' => $labels, 'values' => $values];

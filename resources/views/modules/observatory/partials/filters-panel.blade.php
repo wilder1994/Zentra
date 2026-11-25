@@ -89,7 +89,7 @@
                         </select>
                     </label>
                     <label class="block">
-                        <span class="text-xs text-slate-500">Tipo de evento</span>
+                        <span class="text-xs text-slate-500">Riesgo endógeno</span>
                         <select x-model="draft.type" class="{{ $selectClass }}">
                             <option value="">Todos</option>
                             @foreach ($options['types'] as $type)

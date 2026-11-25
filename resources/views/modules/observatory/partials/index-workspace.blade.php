@@ -6,9 +6,10 @@
     $options = $filterOptions ?? ['places' => [], 'types' => [], 'comunas' => []];
     $board = $board ?? [
         'total' => 0, 'nuevo' => 0, 'en_atencion' => 0, 'cerrado' => 0, 'closed_rate' => 0, 'load_rate' => 0,
-        'top' => [], 'trend' => ['labels' => ['—'], 'series' => []],
+        'trend' => ['labels' => ['—'], 'series' => []],
         'peaks' => ['labels' => ['—'], 'values' => [0]],
         'kinds' => ['labels' => [], 'values' => []], 'sources' => ['labels' => [], 'values' => []],
+        'origins' => ['labels' => [], 'values' => []],
     ];
     $observatoryLiveUrl = $observatoryLiveUrl ?? null;
     $showClientColumn = $showClientColumn ?? false;
@@ -33,10 +34,10 @@
         'cerrado' => (int) ($board['cerrado'] ?? 0),
         'closed_rate' => (int) ($board['closed_rate'] ?? 0),
         'load_rate' => (int) ($board['load_rate'] ?? 0),
-        'top' => $board['top'] ?? [],
         'trend' => $board['trend'] ?? ['labels' => ['—'], 'series' => []],
         'peaks' => $board['peaks'] ?? ['labels' => ['—'], 'values' => [0]],
         'sources' => $board['sources'] ?? ['labels' => [], 'values' => []],
+        'origins' => $board['origins'] ?? ['labels' => [], 'values' => []],
     ];
     $liveEventRows = collect($events->items() ?? [])->map(static function ($event) use ($eventShowRoute, $showClientColumn): array {
         return [
@@ -93,6 +94,33 @@
     html[data-theme="light"] .obs-card-h p { color: var(--ui-muted); }
     html[data-theme="light"] .obs-card-h h3 { color: var(--ui-text); }
     html[data-theme="light"] .obs-chip { color: #92400e; border-color: rgb(217 119 6 / 0.45); background: rgb(254 243 199 / 0.7); }
+    .obs-risk-rank { max-height: 22.5rem; overflow: auto; }
+    .obs-risk-rank thead th { position: sticky; top: 0; z-index: 1; background: rgb(15 23 42); }
+    html[data-theme="light"] .obs-risk-rank thead th { background: var(--ui-surface); }
+    .obs-risk-cyl { width: 16.5rem; height: 2.6rem; }
+    .obs-trend-row { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+    .obs-origins { width: 100%; height: 100%; }
+    .obs-top { display: grid; gap: .5rem; align-items: stretch; }
+    .obs-top-map, .obs-top-side, .obs-top-catalogs { min-width: 0; }
+    @media (min-width: 768px) {
+        .obs-top { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+        .obs-top-map, .obs-top-side { height: 28rem; }
+        .obs-top-catalogs { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; align-items: stretch; }
+        .obs-top-catalogs > section { height: 16rem; max-height: 16rem; overflow: hidden; display: flex; flex-direction: column; }
+        .obs-top-catalogs > section > div { min-height: 0; flex: 1; overflow: auto; }
+    }
+    @media (min-width: 1024px) {
+        .obs-top { grid-template-columns: minmax(0, 5fr) minmax(0, 3fr) minmax(0, 2fr); }
+        .obs-top-catalogs {
+            grid-column: auto;
+            display: flex;
+            flex-direction: column;
+            height: 28rem;
+            max-height: 28rem;
+            overflow: hidden;
+        }
+        .obs-top-catalogs > section { flex: 1 1 0; height: auto; max-height: none; min-height: 0; }
+    }
 </style>
 @endpush
 
@@ -122,7 +150,7 @@
             $chips[] = ['Estado: '.(\App\Enums\ObservatoryEventStatus::tryFrom($filters->status)?->label() ?? $filters->status), $drop(['status'])];
         }
         if ($filters->type !== '') {
-            $chips[] = ['Tipo: '.(collect($options['types'])->firstWhere('value', $filters->type)['label'] ?? $filters->type), $drop(['type'])];
+            $chips[] = ['Endógeno: '.(collect($options['types'])->firstWhere('value', $filters->type)['label'] ?? $filters->type), $drop(['type'])];
         }
         if ($filters->comuna !== '') {
             $chips[] = ['Comuna: '.(collect($options['comunas'])->firstWhere('code', $filters->comuna)['name'] ?? $filters->comuna), $drop(['comuna'])];
@@ -158,13 +186,16 @@
             @endforeach
         </div>
 
-        <div class="grid gap-2 lg:grid-cols-[minmax(0,5fr)_minmax(0,3fr)_minmax(0,2fr)] lg:items-stretch">
+        <div class="obs-top">
+            <div class="obs-top-map flex min-h-80 flex-col">
             @include('modules.observatory.partials.map', [
                 'map' => $map,
-                'mapCanvasClass' => 'h-80 lg:h-[28rem]',
+                'mapCanvasClass' => 'h-80 md:h-full md:min-h-0 md:flex-1',
                 'trailUrl' => $observatoryTrailUrl ?? '',
             ])
-            <section class="obs-card p-2.5 flex flex-col overflow-hidden h-[28rem] max-h-[28rem]">
+            </div>
+            <div class="obs-top-side flex min-h-0 flex-col">
+            <section class="obs-card p-2.5 flex h-full min-h-0 flex-1 flex-col overflow-hidden">
                 <div class="shrink-0 max-h-[10.5rem] overflow-y-auto sidebar-scroll">
                     @include('modules.company.supervision.partials.pin-legend')
                 </div>
@@ -206,8 +237,9 @@
                     @endif
                 </div>
             </section>
-            <div class="h-[28rem] max-h-[28rem] overflow-hidden">
-                @include('modules.observatory.partials.pin-legend')
+            </div>
+            <div class="obs-top-catalogs">
+                @include('modules.observatory.partials.risk-board-catalogs', ['risk' => $risk ?? []])
             </div>
         </div>
 
@@ -238,71 +270,43 @@
             </section>
         </div>
 
+        @if (! empty($risk))
+            @include('modules.observatory.partials.risk-board', [
+                'risk' => $risk,
+                'showClientColumn' => $showClientColumn ?? false,
+            ])
+        @endif
+
         <div class="space-y-3" x-data="observatoryBoard(@js($charts))">
-        <div class="grid gap-2 lg:grid-cols-[minmax(14rem,1fr)_minmax(0,2fr)] lg:items-stretch">
-            <section class="obs-card p-2.5 flex flex-col min-h-0">
-                <p class="text-[10px] uppercase tracking-wide text-slate-500 shrink-0">Instalaciones por riesgo</p>
-                <div class="mt-1.5 space-y-1.5 overflow-y-auto max-h-48 lg:max-h-none lg:flex-1 sidebar-scroll">
-                    @if ($observatoryLiveUrl)
-                        <template x-for="row in (payload.top || [])" :key="row.name + '-' + (row.count ?? 0)">
-                            <div class="flex items-start justify-between gap-2 text-sm">
-                                <div class="min-w-0">
-                                    <p class="text-slate-200 truncate text-[13px]" x-text="row.name"></p>
-                                    @if ($showClientColumn)
-                                        <p class="text-[10px] text-slate-500 truncate" x-show="row.client" x-text="row.client"></p>
-                                    @endif
-                                    <p class="text-[10px] text-slate-500 truncate" x-show="row.comuna_name" x-text="row.comuna_name"></p>
-                                </div>
-                                <p class="font-mono text-[11px] text-slate-300 shrink-0">
-                                    <span x-text="row.score ?? row.count"></span>
-                                    <span class="text-slate-600" x-text="row.count"></span>
-                                </p>
-                            </div>
-                        </template>
-                        <p class="text-sm text-slate-500" x-show="!(payload.top || []).length">Aún no hay eventos en el periodo.</p>
-                    @else
-                        @forelse ($board['top'] as $row)
-                            <div class="flex items-start justify-between gap-2 text-sm">
-                                <div class="min-w-0">
-                                    <p class="text-slate-200 truncate text-[13px]">{{ $row['name'] }}</p>
-                                    @if ($showClientColumn && filled($row['client']))
-                                        <p class="text-[10px] text-slate-500 truncate">{{ $row['client'] }}</p>
-                                    @endif
-                                    @if (filled($row['comuna_name'] ?? null))
-                                        <p class="text-[10px] text-slate-500 truncate">{{ $row['comuna_name'] }}</p>
-                                    @endif
-                                </div>
-                                <p class="font-mono text-[11px] text-slate-300 shrink-0">{{ $row['score'] ?? $row['count'] }} <span class="text-slate-600">{{ $row['count'] }}</span></p>
-                            </div>
-                        @empty
-                            <p class="text-sm text-slate-500">Aún no hay eventos en el periodo.</p>
-                        @endforelse
-                    @endif
-                </div>
-            </section>
-            <section class="obs-card">
-                <div class="obs-card-h">
-                    <p>Tendencia por tipo</p>
-                    <h3>{{ $grain === 'year' ? 'Mes a mes' : 'Día a día' }}</h3>
-                </div>
-                <div class="obs-chart obs-chart-lg"><canvas x-ref="trend" aria-label="Tendencia por tipo"></canvas></div>
-            </section>
-        </div>
+            <div class="obs-trend-row">
+                <section class="obs-card">
+                    <div class="obs-card-h">
+                        <p>Tendencia endógena</p>
+                        <h3>{{ $grain === 'year' ? 'Mes a mes' : 'Día a día' }}</h3>
+                    </div>
+                    <div class="obs-chart obs-chart-lg"><canvas x-ref="trend" aria-label="Tendencia endógena"></canvas></div>
+                </section>
+                <section class="obs-card">
+                    <div class="obs-card-h">
+                        <p>Picos</p>
+                        <h3>Días con más reportes</h3>
+                    </div>
+                    <div class="obs-chart obs-chart-lg"><canvas x-ref="peaks" aria-label="Días con más reportes"></canvas></div>
+                </section>
+            </div>
 
         <div class="grid gap-2 md:grid-cols-2 lg:grid-cols-[1.15fr_1.15fr_0.85fr] lg:items-stretch">
             <section class="obs-card">
                 <div class="obs-card-h">
-                    <p>Picos</p>
-                    <h3>Días con más reportes</h3>
+                    <h3>Orígenes</h3>
                 </div>
-                <div class="obs-chart"><canvas x-ref="peaks" aria-label="Días con más reportes"></canvas></div>
+                <div class="obs-chart"><div class="obs-origins" data-origins='@json($charts['origins'])'></div></div>
             </section>
             <section class="obs-card">
                 <div class="obs-card-h">
-                    <p>Canal</p>
-                    <h3>De dónde llega</h3>
+                    <h3>Fuentes</h3>
                 </div>
-                <div class="obs-chart"><canvas x-ref="sources" aria-label="Reportes por canal"></canvas></div>
+                <div class="obs-chart"><canvas x-ref="sources" aria-label="Fuentes"></canvas></div>
             </section>
             <section class="obs-card">
                 <div class="obs-card-h">
@@ -333,7 +337,7 @@
                         @if ($showClientColumn)
                             <th class="px-4 py-2.5 text-left font-medium hidden md:table-cell">Cliente</th>
                         @endif
-                        <th class="px-4 py-2.5 text-left font-medium hidden sm:table-cell">Tipo</th>
+                        <th class="px-4 py-2.5 text-left font-medium hidden sm:table-cell">Endógeno</th>
                         <th class="px-4 py-2.5 text-left font-medium">Estado</th>
                         <th class="px-4 py-2.5 text-left font-medium hidden lg:table-cell">Abierto</th>
                         <th class="px-4 py-2.5 text-right font-medium">Acciones</th>

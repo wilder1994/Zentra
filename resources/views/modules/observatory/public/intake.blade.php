@@ -128,7 +128,7 @@
                 <button type="button" class="intake-change" @click="goStep(1)">Cambiar colegio</button>
             </div>
             <div>
-                <label class="intake-label" for="kind">Tipo</label>
+                <label class="intake-label" for="kind">Riesgo endógeno</label>
                 <select id="kind" name="kind" x-model="kind" required @change="focusBody()" class="intake-control">
                     <option value="">Seleccione…</option>
                     @foreach ($kinds as $value => $label)

@@ -36,7 +36,7 @@ final class ObservatoryReportFlowTest extends TestCase
             ->assertSee($client->name, false)
             ->assertSee('Quién eres', false)
             ->assertSee('Alumno', false)
-            ->assertSee('Foto 1', false)
+            ->assertSee("Foto ' + (index + 1)", false)
             ->assertSee('capture="environment"', false);
 
         $this->get('/o/'.$client->slug.'/instalaciones?q=Santa')
@@ -68,7 +68,7 @@ final class ObservatoryReportFlowTest extends TestCase
         ])->assertRedirect();
 
         $report = ObservatoryReport::query()->firstOrFail();
-        $this->assertSame('comunidad', $report->source->value);
+        $this->assertSame('link', $report->source->value);
         $this->assertSame('padre', $report->reporter_role->value);
         $this->assertFalse($report->is_anonymous);
         $this->assertSame('Ana Padre', $report->reporter_name);
@@ -285,6 +285,8 @@ final class ObservatoryReportFlowTest extends TestCase
             'kind' => 'hurto',
             'body' => 'Tres fotos del muro y la reja del colegio.',
             'is_anonymous' => '1',
+            'is_adult' => '1',
+            'minor_treatment_accepted' => '1',
             'reporter_role' => 'vecino',
             'photos' => [
                 UploadedFile::fake()->image('uno.jpg'),
@@ -316,7 +318,6 @@ final class ObservatoryReportFlowTest extends TestCase
             ->assertSee('/o/'.$client->slug, false)
             ->assertSee('Copiar', false)
             ->assertSee('Nuevos', false)
-            ->assertSee('Instalaciones por riesgo', false)
             ->assertSee('IE Santa Librada', false)
             ->assertSee('PPTX', false)
             ->assertSee('tablero.pptx', false);
@@ -644,8 +645,8 @@ final class ObservatoryReportFlowTest extends TestCase
             ->assertSee('IE Santa Librada', false)
             ->assertSee('IE Republica del Peru', false)
             ->assertSee('IPS Salud del Ingenio', false)
-            ->assertSee('Pines', false)
-            ->assertSee('Calor', false)
+            ->assertSee('Agrupado', false)
+            ->assertSee('Mapa de calor', false)
             ->assertSee('Filtros', false)
             ->assertSee('Todas', false)
             ->assertSee('cali-comunas.geojson', false)
@@ -724,13 +725,13 @@ final class ObservatoryReportFlowTest extends TestCase
         $this->actingAs($admin)->withSession(['tenancy.active_client_id' => $client->id])
             ->get(route('client.observatory.events.index'))
             ->assertOk()
-            ->assertSee('Tendencia por tipo', false)
+            ->assertSee('Tendencia endógena', false)
             ->assertSee('Días con más reportes', false)
-            ->assertSee('De dónde llega', false)
+            ->assertSee('Fuentes', false)
             ->assertSee('Atención de folios', false)
             ->assertDontSee('docs/observatory', false)
             ->assertSee('Compartir link', false)
-            ->assertSee('Tipos y nivel', false);
+            ->assertSee('Catálogo de riesgo endógeno', false);
     }
 
     public function test_company_board_lists_each_type_slug_once(): void
@@ -741,7 +742,7 @@ final class ObservatoryReportFlowTest extends TestCase
         $ensure->execute($client);
         $ensure->execute($torres);
 
-        $this->assertGreaterThan(1, ObservatoryReportType::query()->where('slug', 'amenaza')->count());
+        $this->assertSame(1, ObservatoryReportType::query()->where('security_company_id', $client->security_company_id)->where('slug', 'amenaza')->count());
 
         $company = User::query()->where('email', 'empresa@sj-seguridad.test')->firstOrFail();
         $html = $this->actingAs($company)
@@ -749,8 +750,8 @@ final class ObservatoryReportFlowTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertSame(1, substr_count($html, "setTypeFilter('amenaza')"));
-        $this->assertSame(1, preg_match_all('#</span>\s*Amenaza\s*</button>#', $html));
+        $this->assertSame(1, substr_count($html, 'value="amenaza"'));
+        $this->assertSame(1, preg_match_all('#</span>Amenaza#', $html));
     }
 
     public function test_public_report_requires_role_and_keeps_it_when_anonymous(): void
@@ -769,6 +770,8 @@ final class ObservatoryReportFlowTest extends TestCase
             'kind' => 'hurto',
             'body' => 'Vieron a alguien saltando el muro del colegio.',
             'is_anonymous' => '1',
+            'is_adult' => '1',
+            'minor_treatment_accepted' => '1',
             'reporter_role' => 'alumno',
             'reporter_name' => 'No debe guardarse',
         ])->assertRedirect();
@@ -956,7 +959,7 @@ final class ObservatoryReportFlowTest extends TestCase
             ->assertRedirect(route('access.guard_logs.index', ['door' => $door->id]));
 
         $report = ObservatoryReport::query()->firstOrFail();
-        $this->assertSame('porteria', $report->source->value);
+        $this->assertSame('campo', $report->source->value);
         $this->assertSame('vigilante', $report->reporter_role->value);
         $this->assertSame($vigilante->name, $report->reporter_name);
         $this->assertSame((int) $colegio->id, (int) $report->installation_id);

@@ -32,7 +32,9 @@ final class SubmitObservatoryReportService
             ? $data['reporter_role']
             : ObservatoryReporterRole::tryFrom((string) $data['reporter_role']);
 
-        $communityOnly = $source?->usesCommunitySites() ?? false;
+        $communityOnly = array_key_exists('community_only', $data)
+            ? (bool) $data['community_only']
+            : ($source?->usesCommunitySites() ?? false);
 
         $installation = Installation::query()
             ->withoutGlobalScopes()
@@ -53,7 +55,7 @@ final class SubmitObservatoryReportService
         $type = app(EnsureObservatoryReportTypesService::class)->resolve($client, (string) $data['kind']);
         if ($type === null) {
             throw ValidationException::withMessages([
-                'kind' => 'Indica el tipo de situación.',
+                'kind' => 'Indica el riesgo endógeno.',
             ]);
         }
 
@@ -76,12 +78,6 @@ final class SubmitObservatoryReportService
         $personKey = $this->personKey($data, $ip);
 
         $report = DB::transaction(function () use ($client, $installation, $type, $body, $anonymous, $isAdult, $data, $ip, $coords, $source, $role, $reporter, $personKey): ObservatoryReport {
-            if ($this->duplicate($installation, $type, $personKey)) {
-                throw ValidationException::withMessages([
-                    'report' => 'Ya enviamos un reporte tuyo de este tipo en este colegio. Si es otro hecho, inténtalo más tarde.',
-                ]);
-            }
-
             $photoPaths = $this->storePhotos($data);
             $photoPath = $photoPaths[0] ?? null;
             $videoPath = $this->storeVideo($data);
@@ -208,30 +204,6 @@ final class SubmitObservatoryReportService
     }
 
     /**
-     * Misma sede, mismo tipo y misma persona dentro de la ventana de unión.
-     * La persona es el teléfono, el usuario, el nombre o la IP; no se muestra.
-     */
-    private function duplicate(Installation $installation, ObservatoryReportType $type, ?string $personKey): bool
-    {
-        if ($personKey === null) {
-            return false;
-        }
-
-        $minutes = max(1, (int) config('observatory.merge_window_minutes', 60));
-
-        return ObservatoryReport::query()
-            ->where('installation_id', $installation->id)
-            ->where('reporter_key', $personKey)
-            ->where('created_at', '>=', now()->subMinutes($minutes))
-            ->where(function ($q) use ($type): void {
-                $q->where('observatory_report_type_id', $type->id)
-                    ->orWhere('kind', $type->slug);
-            })
-            ->lockForUpdate()
-            ->exists();
-    }
-
-    /**
      * @param  array<string, mixed>  $data
      */
     private function personKey(array $data, ?string $ip): ?string
@@ -244,7 +216,6 @@ final class SubmitObservatoryReportService
             $phone !== '' => 'tel:'.$phone,
             $userId !== '' => 'user:'.$userId,
             $name !== '' => 'name:'.$name,
-            $ip !== null && $ip !== '' => 'ip:'.$ip,
             default => '',
         };
 

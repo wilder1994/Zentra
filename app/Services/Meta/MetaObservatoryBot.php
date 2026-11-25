@@ -270,7 +270,7 @@ final class MetaObservatoryBot
         $haystack = mb_strtolower($text);
         $match = null;
         $length = 0;
-        foreach (ObservatoryReportType::query()->where('client_id', $client->id)->where('is_active', true)->get() as $type) {
+        foreach (ObservatoryReportType::query()->where('security_company_id', $client->security_company_id)->where('is_active', true)->get() as $type) {
             $name = mb_strtolower($type->name);
             if ($name !== '' && preg_match('/(^|[^\p{L}])'.preg_quote($name, '/').'([^\p{L}]|$)/u', $haystack) === 1 && mb_strlen($name) > $length) {
                 $match = $type;
@@ -363,7 +363,7 @@ final class MetaObservatoryBot
 
         if (str_starts_with($reply, 'type:')) {
             $type = ObservatoryReportType::query()
-                ->where('client_id', $client->id)
+                ->where('security_company_id', $client->security_company_id)
                 ->where('is_active', true)
                 ->whereKey((int) substr($reply, strlen('type:')))
                 ->first();
@@ -391,7 +391,7 @@ final class MetaObservatoryBot
         if ($types === []) {
             $conversation->close(MetaConversationState::Cancelled);
 
-            return [OutboundMessage::text($to, 'Por ahora no hay tipos de situación disponibles. Intenta más tarde.')];
+            return [OutboundMessage::text($to, 'Por ahora no hay riesgos endógenos disponibles. Intenta más tarde.')];
         }
 
         $rows = array_map(static fn (array $type): array => [
@@ -404,7 +404,7 @@ final class MetaObservatoryBot
             $pages = (int) ceil(count($rows) / $size);
             $page = max(0, $page) % $pages;
             $rows = array_slice($rows, $page * $size, $size);
-            $rows[] = ['id' => 'types_more:'.(($page + 1) % $pages), 'title' => 'Ver más tipos'];
+            $rows[] = ['id' => 'types_more:'.(($page + 1) % $pages), 'title' => 'Ver más'];
         }
 
         $school = $conversation->installation_id !== null
@@ -414,7 +414,7 @@ final class MetaObservatoryBot
             ? 'Colegio: '.WhatsAppLimits::clip($this->shortName($school->name), 200)."\n\n"
             : '';
 
-        return [OutboundMessage::list($to, $intro.'¿Qué tipo de situación es?', 'Ver tipos', $rows)];
+        return [OutboundMessage::list($to, $intro.'¿Cuál es el riesgo endógeno?', 'Ver catálogo', $rows)];
     }
 
     /** @return list<OutboundMessage> */

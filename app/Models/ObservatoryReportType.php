@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Support\Observatory\RiskMath;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,10 +12,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 final class ObservatoryReportType extends Model
 {
     protected $fillable = [
-        'client_id',
+        'security_company_id',
         'name',
         'slug',
-        'level',
+        'impacto',
+        'urgencia',
         'color',
         'is_active',
         'sort_order',
@@ -23,15 +25,16 @@ final class ObservatoryReportType extends Model
     protected function casts(): array
     {
         return [
-            'level' => 'integer',
+            'impacto' => 'integer',
+            'urgencia' => 'integer',
             'is_active' => 'boolean',
             'sort_order' => 'integer',
         ];
     }
 
-    public function client(): BelongsTo
+    public function company(): BelongsTo
     {
-        return $this->belongsTo(Client::class);
+        return $this->belongsTo(SecurityCompany::class, 'security_company_id');
     }
 
     public function reports(): HasMany
@@ -39,16 +42,13 @@ final class ObservatoryReportType extends Model
         return $this->hasMany(ObservatoryReport::class, 'observatory_report_type_id');
     }
 
-    public function levelLabel(): string
-    {
-        return 'Nivel '.$this->level;
-    }
-
     /** @return array<string, string> */
     public static function optionsFor(int $clientId, bool $activeOnly = true): array
     {
+        $companyId = (int) Client::query()->whereKey($clientId)->value('security_company_id');
+
         return static::query()
-            ->where('client_id', $clientId)
+            ->where('security_company_id', $companyId)
             ->when($activeOnly, fn ($q) => $q->where('is_active', true))
             ->orderBy('sort_order')
             ->orderBy('name')
@@ -57,61 +57,65 @@ final class ObservatoryReportType extends Model
             ->all();
     }
 
-    /** @return list<array{id: int, ids: list<int>, slug: string, name: string, level: int, color: string}> */
+    /**
+     * @return list<array{id: int, ids: list<int>, slug: string, name: string, impacto: int, urgencia: int, score: float, band: string, color: string}>
+     */
     public static function catalogForScope(?int $companyId, ?int $clientId, bool $activeOnly = true): array
     {
-        $rows = static::query()
-            ->when($clientId !== null, fn ($q) => $q->where('client_id', $clientId))
-            ->when($companyId !== null && $clientId === null, fn ($q) => $q->whereHas(
-                'client',
-                fn ($c) => $c->where('security_company_id', $companyId),
-            ))
+        if ($companyId === null && $clientId !== null) {
+            $companyId = (int) Client::query()->whereKey($clientId)->value('security_company_id');
+        }
+
+        $parameters = $companyId > 0 ? RiskModelParameter::forCompany($companyId) : null;
+
+        return static::query()
+            ->when($companyId !== null, fn ($q) => $q->where('security_company_id', $companyId))
             ->when($activeOnly, fn ($q) => $q->where('is_active', true))
             ->orderBy('sort_order')
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->map(function (self $type) use ($parameters): array {
+                $row = self::catalogRow($type, $parameters);
+                $row['ids'] = [(int) $type->id];
 
-        $mapped = $rows->map(fn (self $type): array => [
-            'id' => (int) $type->id,
-            'ids' => [(int) $type->id],
-            'slug' => $type->slug,
-            'name' => $type->name,
-            'level' => (int) $type->level,
-            'color' => $type->color,
-        ]);
-
-        if ($clientId !== null) {
-            return $mapped->values()->all();
-        }
-
-        return $mapped
-            ->groupBy('slug')
-            ->map(function ($group): array {
-                $first = $group->first();
-                $first['ids'] = $group->pluck('id')->all();
-
-                return $first;
+                return $row;
             })
             ->values()
             ->all();
     }
 
-    /** @return list<array{id: int, slug: string, name: string, level: int, color: string}> */
+    /**
+     * @return list<array{id: int, slug: string, name: string, impacto: int, urgencia: int, score: float, band: string, color: string}>
+     */
     public static function catalogFor(int $clientId, bool $activeOnly = true): array
     {
+        $companyId = (int) Client::query()->whereKey($clientId)->value('security_company_id');
+        $parameters = $companyId > 0 ? RiskModelParameter::forCompany($companyId) : null;
+
         return static::query()
-            ->where('client_id', $clientId)
+            ->where('security_company_id', $companyId)
             ->when($activeOnly, fn ($q) => $q->where('is_active', true))
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get()
-            ->map(fn (self $type): array => [
-                'id' => (int) $type->id,
-                'slug' => $type->slug,
-                'name' => $type->name,
-                'level' => (int) $type->level,
-                'color' => $type->color,
-            ])
+            ->map(fn (self $type): array => self::catalogRow($type, $parameters))
             ->all();
+    }
+
+    /** @return array{id: int, slug: string, name: string, impacto: int, urgencia: int, score: float, band: string, color: string} */
+    private static function catalogRow(self $type, ?RiskModelParameter $parameters): array
+    {
+        $score = RiskMath::score((int) $type->impacto, (int) $type->urgencia);
+
+        return [
+            'id' => (int) $type->id,
+            'slug' => $type->slug,
+            'name' => $type->name,
+            'impacto' => (int) $type->impacto,
+            'urgencia' => (int) $type->urgencia,
+            'score' => $score,
+            'band' => $parameters?->bandOf($score) ?? 'BAJO',
+            'color' => $type->color,
+        ];
     }
 }

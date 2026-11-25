@@ -7,6 +7,7 @@ namespace App\Services\Observatory;
 use App\Models\Installation;
 use App\Models\ObservatoryEvent;
 use App\Models\ObservatoryReport;
+use App\Models\RiskModelParameter;
 
 final class PresentObservatoryApiService
 {
@@ -44,16 +45,23 @@ final class PresentObservatoryApiService
         return $payload;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    private function band(ObservatoryReport $report): string
+    {
+        $companyId = (int) ($report->client?->security_company_id ?? 0);
+
+        return $companyId > 0
+            ? RiskModelParameter::forCompany($companyId)->bandOf($report->typeScore())
+            : 'BAJO';
+    }
+
     public function report(ObservatoryReport $report): array
     {
         return [
             'id' => (int) $report->id,
             'kind' => $report->typeSlug(),
             'kind_label' => $report->kindLabel(),
-            'level' => $report->typeLevel(),
+            'score' => $report->typeScore(),
+            'band' => $this->band($report),
             'color' => $report->typeColor(),
             'source' => $report->source?->value,
             'source_label' => $report->sourceLabel(),

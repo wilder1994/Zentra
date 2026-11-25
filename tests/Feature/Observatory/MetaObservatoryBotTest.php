@@ -149,10 +149,11 @@ final class MetaObservatoryBotTest extends TestCase
 
         foreach (range(1, 10) as $n) {
             ObservatoryReportType::query()->create([
-                'client_id' => $this->client->id,
-                'name' => 'Tipo nuevo '.$n,
-                'slug' => 'tipo-nuevo-'.$n,
-                'level' => 1,
+                'security_company_id' => $this->client->security_company_id,
+                'name' => 'Caso '.$n,
+                'slug' => 'caso-'.$n,
+                'impacto' => 4,
+                'urgencia' => 5,
                 'color' => '#112233',
                 'is_active' => true,
                 'sort_order' => 10 + $n,
@@ -161,11 +162,11 @@ final class MetaObservatoryBotTest extends TestCase
 
         $this->say('x');
         $this->assertCount(10, $this->gateway->rowIds());
-        $this->assertSame('Ver más tipos', $this->gateway->rowTitles()[9]);
+        $this->assertSame('Ver más', $this->gateway->rowTitles()[9]);
         $this->assertSame('types_more:1', $this->gateway->rowIds()[9]);
 
         $this->reply('types_more:1');
-        $this->assertContains('Tipo nuevo 10', $this->gateway->rowTitles());
+        $this->assertContains('Caso 10', $this->gateway->rowTitles());
     }
 
     public function test_it_does_nothing_without_token_or_when_the_client_has_no_observatory(): void
@@ -312,7 +313,7 @@ final class MetaObservatoryBotTest extends TestCase
     private function typeId(string $slug): int
     {
         return (int) ObservatoryReportType::query()
-            ->where('client_id', $this->client->id)
+            ->where('security_company_id', $this->client->security_company_id)
             ->where('slug', $slug)
             ->value('id');
     }

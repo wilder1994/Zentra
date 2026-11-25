@@ -6,10 +6,7 @@ namespace Tests\Feature\Observatory;
 
 use App\Models\Client;
 use App\Models\Installation;
-use App\Models\ObservatoryReportType;
 use App\Models\User;
-use App\Services\Observatory\BuildObservatoryBoardService;
-use App\Services\Observatory\EnsureObservatoryReportTypesService;
 use App\Support\Client\ClientPanelModules;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -27,16 +24,18 @@ final class ObservatoryCatalogTest extends TestCase
         $this->actingAs($admin)->withSession($session)
             ->post(route('client.observatory.types.store'), [
                 'name' => 'Porte de arma',
-                'level' => 3,
+                'impacto' => 8,
+                'urgencia' => 8,
                 'color' => '#22c55e',
                 'is_active' => '1',
             ])
             ->assertRedirect();
 
         $this->assertDatabaseHas('observatory_report_types', [
-            'client_id' => $client->id,
+            'security_company_id' => $client->security_company_id,
             'name' => 'Porte de arma',
-            'level' => 3,
+            'impacto' => 8,
+            'urgencia' => 8,
             'color' => '#22c55e',
         ]);
 
@@ -54,7 +53,8 @@ final class ObservatoryCatalogTest extends TestCase
         $this->actingAs($company)->withSession($session)
             ->post(route('client.observatory.types.store'), [
                 'name' => 'Hack',
-                'level' => 3,
+                'impacto' => 8,
+                'urgencia' => 8,
                 'color' => '#111111',
             ])
             ->assertForbidden();
@@ -73,7 +73,8 @@ final class ObservatoryCatalogTest extends TestCase
         $this->actingAs($rector)->withSession($session)
             ->post(route('client.observatory.types.store'), [
                 'name' => 'Hack rector',
-                'level' => 2,
+                'impacto' => 6,
+                'urgencia' => 6,
                 'color' => '#222222',
             ])
             ->assertForbidden();
@@ -88,7 +89,8 @@ final class ObservatoryCatalogTest extends TestCase
             ->get(route('company.observatory.events.index', ['client_id' => $client->id]))
             ->assertOk()
             ->assertSee($client->name, false)
-            ->assertSee('Calor riesgo', false);
+            ->assertSee('Mapa de calor', false)
+            ->assertSee('Riesgo por instalación', false);
     }
 
     public function test_module_off_hides_client_observatory(): void
@@ -113,60 +115,6 @@ final class ObservatoryCatalogTest extends TestCase
             ->withSession(['tenancy.active_client_id' => $client->id])
             ->get(route('client.observatory.events.index'))
             ->assertForbidden();
-    }
-
-    public function test_ranking_uses_type_level(): void
-    {
-        $client = $this->palmas();
-        app(EnsureObservatoryReportTypesService::class)->execute($client);
-        $amenaza = ObservatoryReportType::query()->where('client_id', $client->id)->where('slug', 'amenaza')->firstOrFail();
-        $otro = ObservatoryReportType::query()->where('client_id', $client->id)->where('slug', 'otro')->firstOrFail();
-
-        $high = Installation::query()->create([
-            'client_id' => $client->id,
-            'name' => 'IE Alto Riesgo',
-            'installation_profile_id' => $this->installationProfileId(),
-            'dane_code' => '176001000201',
-            'is_client_site' => false,
-            'is_active' => true,
-        ]);
-        $low = Installation::query()->create([
-            'client_id' => $client->id,
-            'name' => 'IE Bajo Riesgo',
-            'installation_profile_id' => $this->installationProfileId(),
-            'dane_code' => '176001000202',
-            'is_client_site' => false,
-            'is_active' => true,
-        ]);
-
-        $this->post(route('observatory.public.store', $client->slug), [
-            'installation_id' => $high->id,
-            'kind' => $amenaza->slug,
-            'body' => 'Amenaza grave en el alto riesgo del colegio.',
-            'is_anonymous' => '1',
-            'reporter_role' => 'padre',
-        ])->assertRedirect();
-
-        $this->post(route('observatory.public.store', $client->slug), [
-            'installation_id' => $low->id,
-            'kind' => $otro->slug,
-            'body' => 'Novedad menor uno en el colegio de bajo riesgo.',
-            'is_anonymous' => '1',
-            'reporter_role' => 'padre',
-        ])->assertRedirect();
-        $this->post(route('observatory.public.store', $client->slug), [
-            'installation_id' => $low->id,
-            'kind' => $otro->slug,
-            'body' => 'Novedad menor dos en el colegio de bajo riesgo.',
-            'is_anonymous' => '1',
-            'reporter_role' => 'padre',
-        ])->assertRedirect();
-
-        $board = app(BuildObservatoryBoardService::class)
-            ->execute(null, (int) $client->id, null, null, null);
-
-        $this->assertSame('IE Alto Riesgo', $board['top'][0]['name']);
-        $this->assertSame(3, $board['top'][0]['score']);
     }
 
     private function palmas(): Client

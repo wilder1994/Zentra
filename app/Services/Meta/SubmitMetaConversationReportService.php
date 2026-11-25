@@ -26,7 +26,7 @@ final class SubmitMetaConversationReportService
     public function execute(MetaConversation $conversation, Client $client): ObservatoryReport
     {
         $type = ObservatoryReportType::query()
-            ->where('client_id', $client->id)
+            ->where('security_company_id', $client->security_company_id)
             ->whereKey((int) $conversation->report_type_id)
             ->first();
 

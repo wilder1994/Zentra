@@ -3,13 +3,104 @@ import { dropIcon, dropSvg, GLYPHS, MAP_STYLES } from './map-pins';
 import { shareButton } from './map-share';
 
 /** Tono del grupo según el riesgo abierto (los colores del catálogo los define cada cliente). */
-function riskTone(open, weight) {
+function donutIcon(slices, total) {
+    const list = (slices || []).filter((row) => Number(row.count) > 0);
+    const sum = list.reduce((acc, row) => acc + Number(row.count), 0);
+    const cx = 36;
+    const cy = 34;
+    const r = 24;
+    const inner = 14;
+    let angle = -Math.PI / 2;
+    const paths = (sum === 0 ? [{ color: '#334155', count: 1 }] : list).map((row) => {
+        const sweep = ((Number(row.count) || 1) / (sum || 1)) * Math.PI * 2;
+        if (list.length === 1 || sweep > Math.PI * 1.999) {
+            return `<circle cx="${cx}" cy="${cy}" r="${(r + inner) / 2}" fill="none" stroke="${row.color}" stroke-width="${r - inner}"/>`;
+        }
+        const large = sweep > Math.PI ? 1 : 0;
+        const x1 = cx + r * Math.cos(angle);
+        const y1 = cy + r * Math.sin(angle);
+        angle += sweep;
+        const x2 = cx + r * Math.cos(angle);
+        const y2 = cy + r * Math.sin(angle);
+        const ix = cx + inner * Math.cos(angle);
+        const iy = cy + inner * Math.sin(angle);
+        const back = angle - sweep;
+        const ix0 = cx + inner * Math.cos(back);
+        const iy0 = cy + inner * Math.sin(back);
+
+        return `<path d="M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} L ${ix.toFixed(2)} ${iy.toFixed(2)} A ${inner} ${inner} 0 ${large} 0 ${ix0.toFixed(2)} ${iy0.toFixed(2)} Z" fill="${row.color}"/>`;
+    }).join('');
+    const label = new Intl.NumberFormat('es-CO').format(Number(total) || 0);
+    const size = label.length > 5 ? 9 : 12;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="72" height="88" viewBox="0 0 72 88">
+        <path d="M36 86 L16 48 A28 28 0 1 1 56 48 Z" fill="#0f172a"/>
+        <circle cx="36" cy="34" r="28" fill="#e5e7eb"/>
+        <circle cx="36" cy="34" r="25" fill="#fff"/>
+        ${paths}
+        <circle cx="36" cy="34" r="13" fill="#fff"/>
+        <text x="36" y="38" text-anchor="middle" font-family="Arial,sans-serif" font-size="${size}" font-weight="700" fill="#0f172a">${label}</text>
+    </svg>`;
+
+    return {
+        url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+        scaledSize: new google.maps.Size(48, 58),
+        anchor: new google.maps.Point(24, 56),
+    };
+}
+
+function heatColor(ratio) {
+    const t = Math.max(0, Math.min(1, Number(ratio) || 0));
+    const from = t < 0.5 ? [37, 99, 235] : [250, 204, 21];
+    const to = t < 0.5 ? [250, 204, 21] : [220, 38, 38];
+    const p = t < 0.5 ? t / 0.5 : (t - 0.5) / 0.5;
+    const mix = from.map((channel, index) => Math.round(channel + (to[index] - channel) * p));
+
+    return `rgb(${mix[0]}, ${mix[1]}, ${mix[2]})`;
+}
+
+function heatPoint(ratio) {
+    const t = Math.max(0, Math.min(1, Number(ratio) || 0));
+
+    return {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 7 + Math.round(t * 6),
+        fillColor: heatColor(t),
+        fillOpacity: 0.92,
+        strokeColor: '#ffffff',
+        strokeWeight: 1,
+    };
+}
+
+function countIcon(total) {
+    const label = new Intl.NumberFormat('es-CO').format(Number(total) || 0);
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="54" height="54" viewBox="0 0 54 54">
+        <circle cx="27" cy="27" r="24" fill="#fff" stroke="#0f172a" stroke-width="3"/>
+        <text x="27" y="32" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#0f172a">${label}</text>
+    </svg>`;
+
+    return {
+        url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+        scaledSize: new google.maps.Size(42, 42),
+        anchor: new google.maps.Point(21, 21),
+    };
+}
+
+function riskTone(open, score) {
     if (!open) {
         return 'slate';
     }
-    const w = Number(weight) || 1;
+    const w = Number(score) || 0;
+    if (w >= 80) {
+        return 'red';
+    }
+    if (w >= 60) {
+        return 'orange';
+    }
+    if (w >= 30) {
+        return 'amber';
+    }
 
-    return w >= 3 ? 'red' : (w >= 2 ? 'orange' : 'amber');
+    return 'emerald';
 }
 
 export function observatoryMap(cfg) {
@@ -18,9 +109,14 @@ export function observatoryMap(cfg) {
     // Fuera de Alpine, igual que `overlays` en Supervisión. Si el arreglo es reactivo,
     // setMap(null) no suelta el canvas y el trazo reaparece al hacer zoom.
     let overlays = [];
+    let crimeMarkers = [];
+    let placeMarkers = [];
+    let crimeToken = 0;
 
     return {
-        mode: 'pins',
+        layer: 'riesgos',
+        mode: 'grouped',
+        crimeCity: null,
         mapType: 'satellite',
         typeFilter: '',
         comuna: cfg.comuna || '',
@@ -28,7 +124,6 @@ export function observatoryMap(cfg) {
         comunaOpen: false,
         comunas: cfg.comunas || [],
         map: null,
-        markers: [],
         shifts: cfg.shifts || [],
         selectedShiftId: null,
         motoMarkers: {},
@@ -143,11 +238,13 @@ export function observatoryMap(cfg) {
                 const marker = new google.maps.Marker({
                     position: pos,
                     map: null,
-                    optimized: false,
+                    optimized: true,
                     title: site.name,
                     zIndex: 1,
                     icon: pinIcon,
                     kindSlugs: site.type_slugs || (site.kind_slug ? [site.kind_slug] : []),
+                    role: 'site',
+                    site,
                     pinIcon,
                     heatWeight: open ? Number(site.heat_weight || 1) : 0,
                     riskWeight: open ? Number(site.risk_weight || 1) : 0,
@@ -171,7 +268,7 @@ export function observatoryMap(cfg) {
                     );
                     info.open(this.map, marker);
                 });
-                this.markers.push(marker);
+                placeMarkers.push(marker);
             });
 
             points.forEach((point) => {
@@ -180,16 +277,17 @@ export function observatoryMap(cfg) {
                 const marker = new google.maps.Marker({
                     position: pos,
                     map: null,
-                    optimized: false,
+                    optimized: true,
                     title: point.kind || point.title,
                     zIndex: 2,
                     icon: pinIcon,
                     kindSlugs: point.kind_slug ? [point.kind_slug] : [],
+                    role: 'point',
                     pinIcon,
                     heatWeight: point.open ? 1 : 0,
-                    riskWeight: point.open ? Number(point.level || 1) : 0,
+                    riskWeight: point.open ? Number(point.score || 0) : 0,
                 });
-                marker.zentraTone = riskTone(point.open, point.level);
+                marker.zentraTone = riskTone(point.open, point.score);
                 marker.addListener('click', () => {
                     const link = point.show_url
                         ? `<a href="${this.esc(point.show_url)}">Ver evento</a>`
@@ -205,9 +303,19 @@ export function observatoryMap(cfg) {
                     );
                     info.open(this.map, marker);
                 });
-                this.markers.push(marker);
+                placeMarkers.push(marker);
             });
 
+            this.map.addListener('zoom_changed', () => {
+                if (this.layer !== 'riesgos' || this.mode !== 'grouped') {
+                    return;
+                }
+                const city = (this.map.getZoom() || 12) < 12;
+                if (city !== this.crimeCity) {
+                    this.crimeCity = city;
+                    this.drawCrimes();
+                }
+            });
             this.applyMode();
             window.addEventListener('observatory-shifts', (event) => {
                 this.shifts = Array.isArray(event.detail) ? event.detail : [];
@@ -273,17 +381,41 @@ export function observatoryMap(cfg) {
             if (!this.map?.data) {
                 return;
             }
+            const heat = this.layer === 'riesgos' && this.mode === 'heat';
+            const totals = {};
+            let max = 1;
+            if (heat) {
+                this.crimeRows().forEach((row) => {
+                    const total = this.totalOf(row.counts);
+                    totals[row.code] = total;
+                    if (total > max) {
+                        max = total;
+                    }
+                });
+            }
             this.map.data.setStyle((feature) => {
                 const code = String(feature.getProperty('code') || '');
                 const selected = this.comuna !== '' && this.comuna !== 'fuera' && code === this.comuna;
                 const visible = this.comuna !== 'fuera' && (!this.comuna || selected);
+                const total = totals[code] || 0;
+                if (heat && total > 0) {
+                    return {
+                        strokeColor: '#f8fafc',
+                        strokeOpacity: 0.95,
+                        strokeWeight: selected ? 2.4 : 1.2,
+                        fillColor: heatColor(total / max),
+                        fillOpacity: 0.72,
+                        clickable: true,
+                        visible,
+                    };
+                }
 
                 return {
                     strokeColor: selected ? '#f8fafc' : '#7dd3fc',
                     strokeOpacity: selected ? 1 : 0.85,
                     strokeWeight: selected ? 2.8 : 1.4,
                     fillColor: '#38bdf8',
-                    fillOpacity: selected ? 0.4 : 0.16,
+                    fillOpacity: heat ? 0 : (selected ? 0.4 : 0.16),
                     clickable: true,
                     visible,
                 };
@@ -403,9 +535,107 @@ export function observatoryMap(cfg) {
             window.location.assign(url.toString());
         },
 
+        setLayer(layer) {
+            this.layer = layer;
+            this.typeFilter = '';
+            this.applyMode();
+        },
+
         setMode(mode) {
             this.mode = mode;
             this.applyMode();
+        },
+
+        legend() {
+            if (this.layer === 'riesgos') {
+                return (cfg.crimes && cfg.crimes.types) || [];
+            }
+
+            return cfg.reportTypes || [];
+        },
+
+        crimeRows() {
+            let rows = (cfg.crimes && cfg.crimes.rows) || [];
+            if (this.comuna && this.comuna !== 'fuera') {
+                rows = rows.filter((row) => row.code === this.comuna);
+            }
+
+            return rows;
+        },
+
+        clearCrimes() {
+            crimeMarkers.forEach((marker) => marker.setMap(null));
+            crimeMarkers = [];
+        },
+
+        slicesOf(counts) {
+            return ((cfg.crimes && cfg.crimes.types) || [])
+                .filter((type) => !this.typeFilter || type.slug === this.typeFilter)
+                .map((type) => ({ color: type.color, name: type.name, count: Number((counts || {})[type.slug] || 0) }));
+        },
+
+        totalOf(counts) {
+            return this.slicesOf(counts).reduce((sum, slice) => sum + slice.count, 0);
+        },
+
+        drawCrimes() {
+            const token = (crimeToken += 1);
+            this.clearCrimes();
+            this.styleComunas();
+            if (!this.map || this.layer !== 'riesgos' || this.mode === 'heat') {
+                return;
+            }
+            const rows = this.crimeRows();
+            const city = this.mode === 'grouped' && (this.map.getZoom() || 12) < 12 && !(this.comuna && this.comuna !== 'fuera');
+            this.crimeCity = city;
+            const places = city
+                ? [{
+                    code: 'cali',
+                    name: 'Santiago de Cali',
+                    lat: 3.4372,
+                    lng: -76.5225,
+                    counts: rows.reduce((acc, row) => {
+                        Object.entries(row.counts || {}).forEach(([slug, count]) => {
+                            acc[slug] = (acc[slug] || 0) + Number(count);
+                        });
+
+                        return acc;
+                    }, {}),
+                }]
+                : rows;
+            places.forEach((row) => {
+                if (token !== crimeToken) {
+                    return;
+                }
+                const slices = this.slicesOf(row.counts);
+                const total = slices.reduce((sum, slice) => sum + slice.count, 0);
+                if (total < 1) {
+                    return;
+                }
+                const marker = new google.maps.Marker({
+                    position: { lat: Number(row.lat), lng: Number(row.lng) },
+                    map: null,
+                    optimized: true,
+                    zIndex: 6,
+                    title: row.name,
+                    icon: this.mode === 'places' ? countIcon(total) : donutIcon(slices, total),
+                });
+                marker.addListener('click', () => {
+                    const lines = slices.filter((slice) => slice.count > 0)
+                        .map((slice) => `<span style="color:${this.esc(slice.color)}">${this.esc(slice.name)}</span> ${new Intl.NumberFormat('es-CO').format(slice.count)}`)
+                        .join('<br>');
+                    const info = new google.maps.InfoWindow({
+                        content: `<div style="color:#0f172a;font:13px/1.45 sans-serif"><strong>${this.esc(row.name)}</strong><br>${lines || 'Sin cifras'}</div>`,
+                    });
+                    info.open(this.map, marker);
+                });
+                if (token !== crimeToken) {
+                    marker.setMap(null);
+                    return;
+                }
+                marker.setMap(this.map);
+                crimeMarkers.push(marker);
+            });
         },
 
         setTypeFilter(slug) {
@@ -420,42 +650,50 @@ export function observatoryMap(cfg) {
             }
         },
 
-        heatIcon(weight, risk) {
-            const w = Math.max(1, Number(weight) || 1);
-            return {
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 10 + Math.min(20, w * 4),
-                fillColor: risk ? '#f97316' : '#38bdf8',
-                fillOpacity: 0.38,
-                strokeColor: risk ? '#fdba74' : '#e0f2fe',
-                strokeWeight: 1,
-            };
-        },
-
         applyMode() {
-            const pins = this.mode === 'pins';
-            const risk = this.mode === 'heat_risk';
-            const grouped = [];
             clusterer?.clearMarkers();
-            this.markers.forEach((marker) => {
-                const slugs = marker.kindSlugs || [];
-                const ok = !this.typeFilter || slugs.length === 0 || slugs.includes(this.typeFilter);
-                const weight = risk ? marker.riskWeight : marker.heatWeight;
-                const show = ok && (pins || weight > 0);
-                if (!show) {
+            if (this.layer === 'riesgos') {
+                placeMarkers.forEach((marker) => marker.setMap(null));
+                this.drawCrimes();
+                this.drawShifts(false);
+                return;
+            }
+            this.clearCrimes();
+            this.styleComunas();
+            const totals = placeMarkers
+                .filter((marker) => marker.role === 'site')
+                .map((marker) => this.siteTotal(marker));
+            const max = Math.max(1, ...totals);
+            placeMarkers.forEach((marker) => {
+                if (marker.role !== 'site') {
                     marker.setMap(null);
                     return;
                 }
-                marker.setIcon(pins ? marker.pinIcon : this.heatIcon(weight, risk));
-                // Pines: agrupados por zoom. Calor: círculos sueltos (el tamaño es el dato).
-                if (pins && clusterer) {
-                    grouped.push(marker);
-                } else {
-                    marker.setMap(this.map);
+                const summary = this.siteSummary(marker);
+                const total = summary.reduce((sum, row) => sum + Number(row.count || 0), 0);
+                if (total < 1) {
+                    marker.setMap(null);
+                    return;
                 }
+                if (this.mode === 'heat') {
+                    marker.setIcon(heatPoint(total / max));
+                } else if (this.mode === 'places') {
+                    marker.setIcon(countIcon(total));
+                } else {
+                    marker.setIcon(donutIcon(summary, total));
+                }
+                marker.setMap(this.map);
             });
-            clusterer?.addMarkers(grouped);
             this.drawShifts(false);
+        },
+
+        siteSummary(marker) {
+            return (marker.site?.report_summary || [])
+                .filter((row) => !this.typeFilter || row.slug === this.typeFilter);
+        },
+
+        siteTotal(marker) {
+            return this.siteSummary(marker).reduce((sum, row) => sum + Number(row.count || 0), 0);
         },
 
         clearOverlays() {
@@ -482,10 +720,7 @@ export function observatoryMap(cfg) {
         },
 
         drawShifts(camera) {
-            if (!this.map || this.mode !== 'pins') {
-                this.clearOverlays();
-                Object.values(this.motoMarkers).forEach((marker) => marker.setMap(null));
-                this.motoMarkers = {};
+            if (!this.map) {
                 return;
             }
             this.clearOverlays();

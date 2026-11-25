@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\ObservatoryReportKind;
 use App\Enums\ObservatoryReporterRole;
 use App\Enums\ObservatoryReportSource;
+use App\Support\Observatory\RiskMath;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
@@ -76,11 +77,11 @@ final class ObservatoryReport extends Model
             : '#94a3b8';
     }
 
-    public function typeLevel(): int
+    public function typeScore(): float
     {
         return $this->reportType instanceof ObservatoryReportType
-            ? (int) $this->reportType->level
-            : 1;
+            ? RiskMath::score((int) $this->reportType->impacto, (int) $this->reportType->urgencia)
+            : 0.0;
     }
 
     public function typeSlug(): string

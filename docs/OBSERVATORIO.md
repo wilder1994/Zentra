@@ -17,11 +17,11 @@ En la ficha: `tipo · Canal · Rol · fecha` y abajo el nombre, o **Anónimo**.
 
 | Quién | Dónde | Canal · Rol |
 |--------|--------|-------------|
-| Alumno, padre, vecino | Link `/o/{slug}` | Comunidad · Alumno / Padre / Vecino |
+| Alumno, padre, vecino | Link `/o/{slug}` | Link público · Alumno / Padre / Vecino |
 | Rector / apoyo | Panel `/client/observatory` (ya tienen usuario) | Panel · Rector / Apoyo |
 | Supervisor de patrulla | PWA Supervisión → Observatorio | App de patrulla · Supervisor |
-| Vigilante | Minuta, novedad, si la instalación es colegio y tiene puerta | Portería · Vigilante |
-| Software de Secretaría | `POST /api/observatory/reports` | Integración · Sistema externo |
+| Vigilante | Minuta, novedad, si la instalación es colegio y tiene puerta | App de patrulla · Vigilante |
+| Software de Secretaría | `POST /api/observatory/reports` | API · Sistema externo |
 
 Anónimo (todas las superficies): aviso «se oculta tu nombre y teléfono; solo se muestra la denuncia». No se guarda nombre, teléfono ni `reported_by_user_id`. Sí quedan canal y rol.
 
@@ -88,7 +88,7 @@ En la ficha del evento (`/client/observatory/events/{id}` o `/company/observator
 
 Pestañas **Tablero** | **Eventos** (cuelgan del header, no van dentro de la barra).
 
-- **Encabezado** (slot `actions`, empresa y cliente): Tablero = `[Periodo] [Filtros (n)] [Compartir link] [Descargar PPTX]`; Eventos = `[Periodo] [Filtros (n)]`. Periodo = `period-picker` de Supervisión; sin `from/to` se usa 1 ene del año → hoy. Filtros (`observatoryFilters`, `partials/filters-panel`): buscador de cliente o instalación (`client_id` / `installation_id`; en cliente solo sus instalaciones), Estado, Tipo de evento (slug), Comuna y, en Eventos, «Texto o folio» (`q`: título, reporte, instalación, DANE, cliente, `EV-000024` o `24`). Chips con × y «Limpiar todo». Todo filtra tarjetas, mapa, gráficas, medidor, eventos, en vivo y PPTX (`ObservatoryFilters`). Grano automático: hasta 62 días por día, más por mes. Sin botón API. Fila 1: mapa + leyenda de tipos. **Todas** encuadra Cali y pinta las 22 comunas. Una comuna hace zoom a ese polígono. Calor = círculos (Google quitó HeatmapLayer). En la misma fila: mapa (mitad del ancho), convenciones y supervisores en turno (60% del resto, sin Ver ni Zonas) y tipos con nivel (40% del resto). La moto se ve siempre. El primer clic acerca el mapa a su recorrido; el segundo quita la línea y vuelve a mostrar todo el mapa. Debajo van las burbujas de reportes (revista, alarma, apoyo y observatorio; cada una solo con los datos que ese tipo trae; lo más nuevo arriba). El mismo listado está en Mi empresa. Fila siguiente: instalaciones por riesgo + tendencia. Fila final: picos · canal · **Atención de folios** (arco verde→rojo; % en el hueco; leyenda Cerrados / En trámite / Total; `load_rate` = `(nuevos + en atención × 0,4) / total`). En vivo: Reverb al guardar revista, alarma, apoyo u observatorio, más un sondeo cada 12 s para el recorrido. El PPTX usa los mismos filtros; solo cifras. Tema claro: `.obs-kpi` / `.obs-card` usan `--ui-surface`; Chart.js lee `data-theme`. Alpine: `panelSidebar` (layout) + `observatoryBoard` / `observatoryMap`. Si `app.js` no registra `panelSidebar`, el mapa y las gráficas quedan en blanco.
+- **Encabezado** (slot `actions`, empresa y cliente): Tablero = `[Periodo] [Filtros (n)] [Compartir link] [Descargar PPTX]`; Eventos = `[Periodo] [Filtros (n)]`. Periodo = `period-picker` de Supervisión; sin `from/to` se usa 1 ene del año → hoy. Filtros (`observatoryFilters`, `partials/filters-panel`): buscador de cliente o instalación (`client_id` / `installation_id`; en cliente solo sus instalaciones), Estado, Tipo de evento (slug), Comuna y, en Eventos, «Texto o folio» (`q`: título, reporte, instalación, DANE, cliente, `EV-000024` o `24`). Chips con × y «Limpiar todo». Todo filtra tarjetas, mapa, gráficas, medidor, eventos, en vivo y PPTX (`ObservatoryFilters`). Grano automático: hasta 62 días por día, más por mes. Sin botón API. Fila 1: mapa + leyenda de tipos. **Todas** encuadra Cali y pinta las 22 comunas. Una comuna hace zoom a ese polígono. Calor = círculos (Google quitó HeatmapLayer). En la misma fila: mapa (mitad del ancho), convenciones y supervisores en turno (60% del resto, sin Ver ni Zonas) y tipos con nivel (40% del resto). La moto se ve siempre. El primer clic acerca el mapa a su recorrido; el segundo quita la línea y vuelve a mostrar todo el mapa. Debajo van las burbujas de reportes (revista, alarma, apoyo y observatorio; cada una solo con los datos que ese tipo trae; lo más nuevo arriba). El mismo listado está en Mi empresa. Después: **Riesgo por instalación** (ranking por R final, scroll interno). El semáforo es un cilindro horizontal de ECharts (mismo trazo que los cilindros acostados de Decowandy: cuerpo recto, tapa plana a la izquierda y disco solo en la punta). El color sale de la banda del motor. Si no hay R final, el tubo queda vacío. Fila siguiente, dos columnas al 50% del ancho del tablero: **Tendencia endógena** (Mes a mes o Día a día) y **Días con más reportes**. Fila final: **Orígenes** (cilindros horizontales, en este orden: Alumno, Padre, Vecino, Usuario panel, Usuario API, Usuario app patrulla; se suma otro origen agregando una fila en `BuildObservatoryBoardService::originDefinitions`) · **Fuentes** · **Atención de folios** (arco verde→rojo; % en el hueco; leyenda Cerrados / En trámite / Total; `load_rate` = `(nuevos + en atención × 0,4) / total`). En vivo: sondeo JSON cada 5 s (`opsLivePage` → `observatory.live`) que redibuja tendencia, días con más reportes, orígenes, riesgo por instalación y el semáforo sin recargar. Reverb avisa al momento en revista, alarma, apoyo y cambios de folio; un reporte nuevo entra en el siguiente sondeo. El PPTX usa los mismos filtros; solo cifras. Tema claro: `.obs-kpi` / `.obs-card` usan `--ui-surface`; Chart.js lee `data-theme`. Alpine: `panelSidebar` (layout) + `observatoryBoard` / `observatoryMap`. Si `app.js` no registra `panelSidebar`, el mapa y las gráficas quedan en blanco.
 - **Eventos:** tabla folio / instalación / tipo / estado / abierto / Ver (+ cliente en empresa). **Ver** abre la ficha.
 
 ## Ficha
@@ -105,7 +105,7 @@ Para el software de Secretaría (u otro sistema). Se conecta con una **API key**
 | GET | `/api/observatory/events/{id}` | Igual |
 | GET | `/api/observatory/board` | Igual |
 | GET | `/api/observatory/sites` | Igual |
-| POST | `/api/observatory/reports` | Secretaría = canal Integración. Rector/apoyo = Panel. Empresa no |
+| POST | `/api/observatory/reports` | Canal API. Rector/apoyo o Sistema externo según el usuario. Empresa no |
 | GET | `/api/observatory/openapi.json` | Público (contrato) |
 | GET | `/docs/observatory` | Solo súper admin / soporte (Swagger) |
 
@@ -141,6 +141,15 @@ Si es anónimo, al cerrar se borran nombre y teléfono de `meta_conversations` y
 
 Envío y descarga de fotos: `WhatsAppGateway` (`CloudApiWhatsAppGateway`). Solo responde dentro de las 24 h del último mensaje del usuario.
 
+## Riesgos (pestaña)
+
+La pestaña se llama **Riesgos**. Arriba, la empresa carga los delitos del mapa (nombre y color) y las cifras por comuna de Cali y año. Eso no sale de los reportes. Abajo siguen los tipos del link y de WhatsApp, uno por cliente.
+
+En el mapa hay un suiche **Riesgos / Reportes**. El periodo es el del encabezado del tablero. Las cifras de riesgo están por año: un periodo de un año pinta ese año y, si cruza dos, se suman.
+
+- **Riesgos:** Agrupado (dona en el centro de la comuna; al alejar, una sola de Cali), Mapa de calor (el polígono completo, de azul a rojo) y Comuna (pin con la cantidad). En cero no se pinta. La leyenda filtra el delito. Los colegios no llevan esa dona.
+- **Reportes:** Agrupado (dona en la instalación), Mapa de calor (punto en la instalación) e Instalaciones (pin con la cantidad), con los reportes del periodo. Las motos siguen igual.
+
 ## Tipos (catálogo del cliente)
 
 Los crean y editan el **admin del cliente** y la empresa con **Gestionar** (pestaña Tipos: buscador de cliente en el encabezado; crear, editar, activar/desactivar, eliminar). Con reportes no se borra (se desactiva); siempre queda uno activo. **Copiar estos tipos a otros clientes** crea en los destinos los que falten por nombre (sin tildes ni mayúsculas) y no toca los existentes (`ManageObservatoryReportTypesService`). Semilla: Amenaza N3, Riña N2, Hurto N2, Otro N1. El link `/o/{slug}`, el panel, la PWA y la minuta usan esos tipos. En el tablero empresa (Todos), leyenda, chips y gráficos agrupan por slug para no repetir el mismo tipo de cada cliente.
@@ -149,7 +158,7 @@ Puntaje del colegio = suma de niveles de sus reportes. Tablero: líneas por tipo
 
 ## Mapa
 
-Entran las instalaciones activas con coordenadas de clientes que tienen Observatorio. Gota = reporte. En el tablero de empresa el mapa lista todos los turnos abiertos, con el recorrido ya en los datos del turno. El clic pinta esa ruta y la encuadra; otro clic, o elegir otro supervisor, quita la línea anterior y encuadra motos e instalaciones. En el de cliente, solo si ese cliente tiene también Supervisión. No pinta pines de revista, alarma ni apoyo. Modos: Pines · Calor instalación · Calor riesgo (círculos propios; Google quitó `HeatmapLayer` en Maps JS 3.65). La gota lleva margen en el SVG para que Maps no recorte la punta al acercar. Requiere `GOOGLE_MAPS_API_KEY`. El intake público `/o/{slug}` solo lista perfiles con Observatorio comunidad.
+Entran las instalaciones activas con coordenadas de clientes que tienen Observatorio. Gota = reporte. En el tablero de empresa el mapa lista todos los turnos abiertos, con el recorrido ya en los datos del turno. El clic pinta esa ruta y la encuadra; otro clic, o elegir otro supervisor, quita la línea anterior y encuadra motos e instalaciones. En el de cliente, solo si ese cliente tiene también Supervisión. No pinta pines de revista, alarma ni apoyo. Modos del suiche: Agrupado, Mapa de calor y Comuna o Instalaciones. El calor de riesgo pinta el polígono; el de reportes es un punto. Google quitó `HeatmapLayer` en Maps JS 3.65. La gota lleva margen en el SVG para que Maps no recorte la punta al acercar. Requiere `GOOGLE_MAPS_API_KEY`. El intake público `/o/{slug}` solo lista perfiles con Observatorio comunidad.
 
 Capa y filtro: **22 comunas urbanas de Cali** (IDESC), ruta relativa `/geo/cali-comunas.geojson`. **Todas** (sin `?comuna=`) encuadra Cali y pinta las 22. Una comuna recorta y hace zoom a ese polígono. Fuera del perímetro: **Fuera de Cali**.
 

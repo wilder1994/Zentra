@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Requests\Observatory;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 final class StoreObservatoryReportTypeRequest extends FormRequest
 {
@@ -19,7 +18,8 @@ final class StoreObservatoryReportTypeRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:80'],
-            'level' => ['required', 'integer', Rule::in([1, 2, 3])],
+            'impacto' => ['required', 'integer', 'between:1,10'],
+            'urgencia' => ['required', 'integer', 'between:1,10'],
             'color' => ['required', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'is_active' => ['sometimes', 'boolean'],
         ];
@@ -29,8 +29,9 @@ final class StoreObservatoryReportTypeRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'name' => 'tipo',
-            'level' => 'nivel',
+            'name' => 'nombre',
+            'impacto' => 'impacto',
+            'urgencia' => 'urgencia',
             'color' => 'color',
         ];
     }

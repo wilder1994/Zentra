@@ -58,6 +58,90 @@ final class CaliComunaLayer
         return $code;
     }
 
+    /**
+     * Punto dentro de cada comuna. Sirve para la dona y el pin de cantidad.
+     *
+     * @return list<array{code: string, name: string, lat: float, lng: float}>
+     */
+    public function places(): array
+    {
+        return array_map(function (array $row): array {
+            [$lng, $lat] = $this->interior($row);
+
+            return [
+                'code' => $row['code'],
+                'name' => $row['name'],
+                'lat' => $lat,
+                'lng' => $lng,
+            ];
+        }, $this->polygons());
+    }
+
+    /**
+     * Un punto que caiga dentro del polígono. El centro del recuadro se sale en comunas alargadas.
+     *
+     * @param  array{code: string, name: string, bbox: array{0: float, 1: float, 2: float, 3: float}, type: string, coordinates: array<int, mixed>}  $row
+     * @return array{0: float, 1: float}
+     */
+    private function interior(array $row): array
+    {
+        [$minLng, $minLat, $maxLng, $maxLat] = $row['bbox'];
+        $ring = $this->outerRing($row);
+        $candidates = [[($minLng + $maxLng) / 2, ($minLat + $maxLat) / 2]];
+        if ($ring !== []) {
+            $count = count($ring);
+            $candidates[] = [
+                array_sum(array_column($ring, 0)) / $count,
+                array_sum(array_column($ring, 1)) / $count,
+            ];
+        }
+
+        foreach ($candidates as [$lng, $lat]) {
+            if ($this->pip->geometryContains($lat, $lng, $row['type'], $row['coordinates'])) {
+                return [$lng, $lat];
+            }
+        }
+
+        for ($step = 5; $step <= 15; $step += 5) {
+            for ($y = 1; $y < $step; $y++) {
+                for ($x = 1; $x < $step; $x++) {
+                    $lng = $minLng + ($maxLng - $minLng) * $x / $step;
+                    $lat = $minLat + ($maxLat - $minLat) * $y / $step;
+                    if ($this->pip->geometryContains($lat, $lng, $row['type'], $row['coordinates'])) {
+                        return [$lng, $lat];
+                    }
+                }
+            }
+        }
+
+        return $candidates[0];
+    }
+
+    /**
+     * @param  array{type: string, coordinates: array<int, mixed>}  $row
+     * @return list<array{0: float, 1: float}>
+     */
+    private function outerRing(array $row): array
+    {
+        $coordinates = $row['coordinates'];
+        if ($row['type'] === 'Polygon') {
+            return is_array($coordinates[0] ?? null) ? $coordinates[0] : [];
+        }
+        if ($row['type'] !== 'MultiPolygon') {
+            return [];
+        }
+
+        $best = [];
+        foreach ($coordinates as $polygon) {
+            $ring = is_array($polygon) ? ($polygon[0] ?? []) : [];
+            if (is_array($ring) && count($ring) > count($best)) {
+                $best = $ring;
+            }
+        }
+
+        return $best;
+    }
+
     /** @return list<string> */
     public function codes(): array
     {

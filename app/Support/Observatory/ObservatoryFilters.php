@@ -177,7 +177,7 @@ final readonly class ObservatoryFilters
             $labels[] = 'Estado: '.(ObservatoryEventStatus::tryFrom($this->status)?->label() ?? $this->status);
         }
         if ($this->type !== '') {
-            $labels[] = 'Tipo: '.(collect($types)->firstWhere('slug', $this->type)['name'] ?? $this->type);
+            $labels[] = 'Endógeno: '.(collect($types)->firstWhere('slug', $this->type)['name'] ?? $this->type);
         }
         if ($this->comuna !== '') {
             $labels[] = 'Comuna: '.app(CaliComunaLayer::class)->label($this->comuna);

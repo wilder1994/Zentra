@@ -165,7 +165,7 @@ class GuardLogController extends Controller
                 'kind' => $kind,
                 'body' => (string) $log->description,
                 'is_anonymous' => $anonymous,
-                'source' => ObservatoryReportSource::Porteria,
+                'source' => ObservatoryReportSource::Campo,
                 'reporter_role' => ObservatoryReporterRole::Vigilante,
                 'reporter_name' => $anonymous ? null : $user?->name,
                 'reported_by' => $user,

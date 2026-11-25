@@ -8,7 +8,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Observatory\StoreObservatoryReportTypeRequest;
 use App\Models\Client;
 use App\Models\ObservatoryReportType;
+use App\Models\RiskModelParameter;
 use App\Services\Observatory\EnsureObservatoryReportTypesService;
+use App\Services\Observatory\ManageObservatoryReportTypesService;
 use App\Support\Auth\AssignableRoles;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
@@ -20,6 +22,7 @@ final class ObservatoryReportTypeController extends Controller
     public function __construct(
         private readonly TenantContext $tenantContext,
         private readonly EnsureObservatoryReportTypesService $ensure,
+        private readonly ManageObservatoryReportTypesService $types,
     ) {}
 
     public function index(Request $request): View
@@ -32,6 +35,7 @@ final class ObservatoryReportTypeController extends Controller
             'types' => $client->observatoryReportTypes()->get(),
             'nextColor' => $this->ensure->nextColor($client),
             'canEdit' => $this->canEdit($request),
+            'parameters' => RiskModelParameter::forCompany((int) $client->security_company_id),
             'vista' => 'tipos',
         ]);
     }
@@ -40,46 +44,28 @@ final class ObservatoryReportTypeController extends Controller
     {
         $this->assertEditor($request);
         $client = $this->client();
-        $this->ensure->execute($client);
-        $data = $request->validated();
 
-        ObservatoryReportType::query()->create([
-            'client_id' => $client->id,
-            'name' => trim((string) $data['name']),
-            'slug' => $this->ensure->uniqueSlug($client, (string) $data['name']),
-            'level' => (int) $data['level'],
-            'color' => strtolower((string) $data['color']),
-            'is_active' => $request->boolean('is_active', true),
-            'sort_order' => (int) $client->observatoryReportTypes()->max('sort_order') + 1,
-        ]);
+        try {
+            $this->types->create($client, $request->validated(), $request->boolean('is_active', true));
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withInput()->withErrors($e->errors());
+        }
 
-        return back()->with('success', 'Tipo creado. Ya aparece en el link y en el mapa.');
+        return back()->with('success', 'Registro del catálogo endógeno creado. Lo ven todos los clientes con Observatorio.');
     }
 
     public function update(StoreObservatoryReportTypeRequest $request, ObservatoryReportType $type): RedirectResponse
     {
         $this->assertEditor($request);
         $this->assertOwned($type);
-        $data = $request->validated();
-        $activeCount = ObservatoryReportType::query()
-            ->where('client_id', $type->client_id)
-            ->where('is_active', true)
-            ->whereKeyNot($type->id)
-            ->count();
 
-        $active = $request->boolean('is_active', true);
-        if (! $active && $activeCount === 0) {
-            return back()->withErrors(['is_active' => 'Deja al menos un tipo activo.']);
+        try {
+            $this->types->update($type, $request->validated(), $request->boolean('is_active', true));
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors());
         }
 
-        $type->update([
-            'name' => trim((string) $data['name']),
-            'level' => (int) $data['level'],
-            'color' => strtolower((string) $data['color']),
-            'is_active' => $active,
-        ]);
-
-        return back()->with('success', 'Tipo actualizado.');
+        return back()->with('success', 'Catálogo endógeno actualizado.');
     }
 
     public function destroy(Request $request, ObservatoryReportType $type): RedirectResponse
@@ -87,22 +73,13 @@ final class ObservatoryReportTypeController extends Controller
         $this->assertEditor($request);
         $this->assertOwned($type);
 
-        if ($type->reports()->exists()) {
-            return back()->withErrors(['type' => 'Tiene reportes. Desactívalo en vez de borrarlo.']);
+        try {
+            $this->types->delete($type);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors());
         }
 
-        $activeCount = ObservatoryReportType::query()
-            ->where('client_id', $type->client_id)
-            ->where('is_active', true)
-            ->whereKeyNot($type->id)
-            ->count();
-        if ($type->is_active && $activeCount === 0) {
-            return back()->withErrors(['type' => 'Deja al menos un tipo activo.']);
-        }
-
-        $type->delete();
-
-        return back()->with('success', 'Tipo eliminado.');
+        return back()->with('success', 'Registro del catálogo endógeno eliminado.');
     }
 
     private function client(): Client
@@ -115,7 +92,8 @@ final class ObservatoryReportTypeController extends Controller
 
     private function assertOwned(ObservatoryReportType $type): void
     {
-        abort_unless((int) $type->client_id === (int) $this->tenantContext->clientId(), 404);
+        $client = $this->client();
+        abort_unless((int) $type->security_company_id === (int) $client->security_company_id, 404);
     }
 
     private function canEdit(Request $request): bool

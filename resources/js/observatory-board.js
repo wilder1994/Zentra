@@ -220,6 +220,12 @@ export function observatoryBoard(payload) {
                     loadEl.textContent = `${board.load_rate}%`;
                 }
             });
+            const paint = () => this.paintOrigins(this.payload?.origins);
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', paint);
+            } else {
+                paint();
+            }
         },
         replacePayload(board) {
             this.charts.forEach((chart) => chart.destroy());
@@ -243,6 +249,8 @@ export function observatoryBoard(payload) {
             this.bars(this.$refs.peaks, peaks);
             this.pie(this.$refs.sources, sources);
             this.gauge(this.$refs.gauge, load);
+            this.paintOrigins(data.origins);
+            this.paintRisk(data.risk);
         },
         lines(el, series) {
             if (!el) {
@@ -299,9 +307,9 @@ export function observatoryBoard(payload) {
             if (!el) {
                 return;
             }
-            const labels = series.labels?.length ? series.labels : ['Comunidad', 'Panel', 'App de patrulla', 'Portería', 'Integración'];
+            const labels = series.labels?.length ? series.labels : ['Link público', 'WhatsApp', 'App de patrulla', 'API', 'Panel'];
             const values = series.values?.length ? series.values : labels.map(() => 0);
-            const colors = ['#14b8a6', '#818cf8', '#f59e0b', '#64748b', '#a78bfa'];
+            const colors = ['#14b8a6', '#22c55e', '#f59e0b', '#a78bfa', '#818cf8'];
             const empty = values.every((n) => Number(n) === 0);
             this.track(new Chart(el, {
                 type: 'doughnut',
@@ -330,6 +338,136 @@ export function observatoryBoard(payload) {
                 const observer = new ResizeObserver(paint);
                 observer.observe(el.parentElement ?? el);
             }
+        },
+        paintOrigins(series) {
+            const node = document.querySelector('.obs-origins');
+            if (!node || !window.echarts || !series) {
+                return;
+            }
+            const labels = series.labels?.length ? series.labels : ['Sin origen'];
+            const values = series.values?.length ? series.values : [0];
+            const palette = [
+                ['#d1fae5', '#22c55e', '#14532d'],
+                ['#fef3c7', '#eab308', '#854d0e'],
+                ['#ffedd5', '#f97316', '#9a3412'],
+                ['#ffe4e6', '#f43f5e', '#9f1239'],
+                ['#e0e7ff', '#818cf8', '#3730a3'],
+                ['#ccfbf1', '#14b8a6', '#115e59'],
+                ['#f3e8ff', '#a78bfa', '#6b21a8'],
+                ['#e2e8f0', '#94a3b8', '#334155'],
+            ];
+            const width = 12;
+            const tip = 5;
+            const colorsOf = (index) => palette[index % palette.length];
+            const shaft = (colors) => new window.echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: colors[0] },
+                { offset: 0.42, color: colors[1] },
+                { offset: 1, color: colors[2] },
+            ]);
+            const chart = window.echarts.getInstanceByDom(node) || window.echarts.init(node);
+            chart.setOption({
+                animation: false,
+                grid: { left: 16, right: 14, top: 6, bottom: 4, containLabel: true },
+                xAxis: { type: 'value', min: 0, show: false },
+                yAxis: {
+                    type: 'category',
+                    inverse: true,
+                    data: labels,
+                    axisLine: { show: false },
+                    axisTick: { show: false },
+                    axisLabel: { color: '#94a3b8', fontSize: 10 },
+                },
+                series: [
+                    {
+                        type: 'bar',
+                        barWidth: width,
+                        barGap: '-100%',
+                        z: 2,
+                        data: values.map((value, index) => ({
+                            value: Number(value) > 0 ? Number(value) : null,
+                            itemStyle: { borderRadius: 0, color: shaft(colorsOf(index)) },
+                        })),
+                    },
+                    {
+                        type: 'pictorialBar',
+                        symbol: 'circle',
+                        symbolSize: [tip, width],
+                        symbolPosition: 'end',
+                        symbolOffset: [tip / 2, 0],
+                        barGap: '-100%',
+                        z: 3,
+                        silent: true,
+                        data: values.map((value, index) => ({
+                            value: Number(value) > 0 ? Number(value) : null,
+                            itemStyle: { color: colorsOf(index)[0] },
+                        })),
+                    },
+                ],
+            }, true);
+        },
+        paintRisk(risk) {
+            const body = document.querySelector('[data-obs-risk-body]');
+            if (!body || !risk || !Array.isArray(risk.rows)) {
+                return;
+            }
+            document.querySelectorAll('.obs-risk-cyl').forEach((node) => {
+                window.echarts?.getInstanceByDom(node)?.dispose();
+            });
+            body.replaceChildren();
+            const showClient = body.dataset.showClient === '1';
+            const num = (value, digits) => Number(value || 0).toFixed(digits);
+            if (risk.rows.length === 0) {
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = 9;
+                td.className = 'px-2 py-6 text-center text-slate-500';
+                td.textContent = 'Sin instalaciones en este filtro.';
+                tr.append(td);
+                body.append(tr);
+                return;
+            }
+            risk.rows.forEach((row) => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-t border-slate-800';
+                const name = document.createElement('td');
+                name.className = 'px-2 py-1.5 text-slate-200';
+                name.textContent = row.name || '';
+                if (showClient && row.client) {
+                    const sub = document.createElement('span');
+                    sub.className = 'block text-[10px] text-slate-500';
+                    sub.textContent = row.client;
+                    name.append(sub);
+                }
+                tr.append(name);
+                const text = [
+                    [row.comuna || '', 'px-2 py-1.5 text-slate-400'],
+                    [String(row.reports ?? 0), 'px-2 py-1.5 text-right tabular-nums text-slate-300'],
+                    [num(row.max_severity, 1), 'px-2 py-1.5 text-right tabular-nums text-slate-300'],
+                    [num(row.weighted_sum, 2), 'px-2 py-1.5 text-right tabular-nums text-slate-300'],
+                    [num(row.r_commune, 1), 'px-2 py-1.5 text-right tabular-nums text-slate-200'],
+                    [num(row.r_installation, 1), 'px-2 py-1.5 text-right tabular-nums text-slate-200'],
+                    [num(row.r_final, 1), 'px-2 py-1.5 text-right tabular-nums font-semibold text-white'],
+                ];
+                text.forEach(([value, className]) => {
+                    const td = document.createElement('td');
+                    td.className = className;
+                    td.textContent = value;
+                    tr.append(td);
+                });
+                const cylCell = document.createElement('td');
+                cylCell.className = 'px-2 py-1.5';
+                const cyl = document.createElement('div');
+                cyl.className = 'obs-risk-cyl';
+                cyl.dataset.fill = String(row.fill ?? 0);
+                cyl.dataset.ink = row.ink || '#14532d';
+                cyl.dataset.cap = row.cap || '#9f1239';
+                const band = row.band === 'CRITICO' ? 'CRÍTICO' : (row.band || '');
+                cyl.title = `${num(row.fill, 1)} · ${band}`;
+                cylCell.append(cyl);
+                tr.append(cylCell);
+                body.append(tr);
+            });
+            window.obsPaintRiskCylinders?.();
         },
     };
 }

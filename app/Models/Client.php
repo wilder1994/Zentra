@@ -184,7 +184,9 @@ class Client extends Model
 
     public function observatoryReportTypes(): HasMany
     {
-        return $this->hasMany(ObservatoryReportType::class)->orderBy('sort_order')->orderBy('name');
+        return $this->hasMany(ObservatoryReportType::class, 'security_company_id', 'security_company_id')
+            ->orderBy('sort_order')
+            ->orderBy('name');
     }
 
     public function hasDoors(): bool

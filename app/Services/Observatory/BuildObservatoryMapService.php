@@ -10,6 +10,7 @@ use App\Models\Installation;
 use App\Models\ObservatoryEvent;
 use App\Models\ObservatoryReport;
 use App\Models\ObservatoryReportType;
+use App\Models\RiskModelParameter;
 use App\Services\Company\BuildSupervisionMapService;
 use App\Services\Ops\BuildActivityBubblesService;
 use App\Support\Geo\CaliComunaLayer;
@@ -61,6 +62,9 @@ final class BuildObservatoryMapService
             ->get();
 
         $types = ObservatoryReportType::catalogForScope($companyId, $clientId);
+        $crimeCompany = $companyId ?? ($clientId !== null
+            ? (int) Client::query()->whereKey($clientId)->value('security_company_id')
+            : 0);
 
         return [
             'google_maps' => $this->googleMaps(),
@@ -99,9 +103,11 @@ final class BuildObservatoryMapService
                         ? route($eventShowRoute, $focus)
                         : null,
                     'heat_weight' => max(1, $openReports->count()),
-                    'risk_weight' => max(1, (int) $openReports->sum(fn (ObservatoryReport $report): int => $report->typeLevel())),
+                    'risk_weight' => (float) ($openReports->max(fn (ObservatoryReport $report): float => $report->typeScore()) ?? 0),
                     'type_slugs' => $openReports->map(fn (ObservatoryReport $report): string => $report->typeSlug())->unique()->values()->all(),
                     'summary' => $this->typeSummary($openReports),
+                    'report_summary' => $this->typeSummary($events->flatMap->reports),
+                    'report_count' => $events->flatMap->reports->count(),
                 ];
             })->values()->all(),
             'points' => $sites->flatMap(function (Installation $site) use ($eventShowRoute, $layer) {
@@ -128,12 +134,15 @@ final class BuildObservatoryMapService
                             'kind' => $report->kindLabel(),
                             'kind_slug' => $report->typeSlug(),
                             'color' => $report->typeColor(),
-                            'level' => $report->typeLevel(),
+                            'score' => $report->typeScore(),
                             'show_url' => route($eventShowRoute, $event),
                         ];
                     })->filter();
                 });
             })->values()->all(),
+            'crimes' => $crimeCompany > 0
+                ? app(ManageObservatoryCrimeFiguresService::class)->mapPayload($crimeCompany, $from, $to)
+                : ['types' => [], 'rows' => []],
             'shifts' => $this->shifts($companyId, $clientId, $installationIds),
             'bubbles' => $this->bubbles($companyId, $clientId),
         ];
@@ -231,8 +240,10 @@ final class BuildObservatoryMapService
         $event->loadMissing(['installation', 'reports.reportType']);
         $site = $event->installation;
         $status = $event->status instanceof ObservatoryEventStatus ? $event->status->value : null;
+        $companyId = (int) ($event->client?->security_company_id ?? 0);
+        $parameters = $companyId > 0 ? RiskModelParameter::forCompany($companyId) : null;
 
-        $points = $event->reports->map(function (ObservatoryReport $report) use ($site, $event, $status): ?array {
+        $points = $event->reports->map(function (ObservatoryReport $report) use ($site, $event, $status, $parameters): ?array {
             $lat = $report->latitude ?? $site?->latitude;
             $lng = $report->longitude ?? $site?->longitude;
             if ($lat === null || $lng === null) {
@@ -249,7 +260,8 @@ final class BuildObservatoryMapService
                 'kind' => $report->kindLabel(),
                 'kind_slug' => $report->typeSlug(),
                 'color' => $report->typeColor(),
-                'level' => $report->typeLevel(),
+                'score' => $report->typeScore(),
+                'band' => $parameters?->bandOf($report->typeScore()) ?? 'BAJO',
                 'show_url' => null,
             ];
         })->filter()->values()->all();
@@ -267,7 +279,8 @@ final class BuildObservatoryMapService
                     'slug' => $point['kind_slug'],
                     'name' => $point['kind'],
                     'color' => $point['color'],
-                    'level' => $point['level'],
+                    'score' => $point['score'],
+                    'band' => $point['band'],
                 ])
                 ->values()
                 ->all(),
@@ -309,7 +322,7 @@ final class BuildObservatoryMapService
     private function worstType($reports): array
     {
         $worst = $reports
-            ->sortByDesc(fn (ObservatoryReport $report): int => $report->typeLevel())
+            ->sortByDesc(fn (ObservatoryReport $report): float => $report->typeScore())
             ->first();
 
         if (! $worst instanceof ObservatoryReport) {

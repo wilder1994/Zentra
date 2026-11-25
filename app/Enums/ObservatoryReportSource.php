@@ -6,28 +6,26 @@ namespace App\Enums;
 
 enum ObservatoryReportSource: string
 {
-    case Comunidad = 'comunidad';
-    case Panel = 'panel';
-    case Campo = 'campo';
-    case Porteria = 'porteria';
-    case Api = 'api';
+    case Link = 'link';
     case Whatsapp = 'whatsapp';
+    case Campo = 'campo';
+    case Api = 'api';
+    case Panel = 'panel';
 
     public function label(): string
     {
         return match ($this) {
-            self::Comunidad => 'Comunidad',
-            self::Panel => 'Panel',
-            self::Campo => 'App de patrulla',
-            self::Porteria => 'Portería',
-            self::Api => 'Integración',
+            self::Link => 'Link público',
             self::Whatsapp => 'WhatsApp',
+            self::Campo => 'App de patrulla',
+            self::Api => 'API',
+            self::Panel => 'Panel',
         };
     }
 
-    /** Canales abiertos al público: solo reportan sobre colegios con perfil de comunidad. */
+    /** El link público y WhatsApp solo aceptan instalaciones de comunidad. */
     public function usesCommunitySites(): bool
     {
-        return in_array($this, [self::Comunidad, self::Whatsapp], true);
+        return $this === self::Link || $this === self::Whatsapp;
     }
 }

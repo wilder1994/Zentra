@@ -47,7 +47,7 @@ final class StorePublicObservatoryReportRequest extends FormRequest
     {
         return [
             'installation_id' => 'colegio',
-            'kind' => 'tipo',
+            'kind' => 'riesgo endógeno',
             'body' => 'qué pasó',
             'reporter_role' => 'quién eres',
             'reporter_name' => 'nombre',

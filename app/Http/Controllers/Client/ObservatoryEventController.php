@@ -17,6 +17,7 @@ use App\Models\ObservatoryReportType;
 use App\Models\User;
 use App\Services\Observatory\BuildObservatoryBoardService;
 use App\Services\Observatory\BuildObservatoryMapService;
+use App\Services\Observatory\BuildInstallationRiskService;
 use App\Services\Observatory\EnsureObservatoryReportTypesService;
 use App\Services\Observatory\BuildObservatoryExportDataService;
 use App\Services\Observatory\ExportObservatoryBoardService;
@@ -73,6 +74,7 @@ final class ObservatoryEventController extends Controller
             'board' => $this->boardPayload($board, $clientId, $siteIds, $filters),
             'map' => $this->mapPayload($clientId, $siteIds, $filters),
             'filterOptions' => $this->filterOptions($clientId, $allowed),
+            'risk' => app(BuildInstallationRiskService::class)->execute((int) $client->security_company_id, $clientId, $siteIds),
         ]);
     }
 
@@ -86,6 +88,7 @@ final class ObservatoryEventController extends Controller
         $filters = ObservatoryFilters::fromRequest($request, null, $clientId, $allowed);
         $board = app(BuildObservatoryBoardService::class);
         $siteIds = $filters->siteIds(null, $allowed);
+        $companyId = (int) Client::query()->whereKey($clientId)->value('security_company_id');
 
         return response()->json(app(PresentObservatoryLiveService::class)->execute(
             $this->boardPayload($board, $clientId, $siteIds, $filters),
@@ -93,6 +96,7 @@ final class ObservatoryEventController extends Controller
             $this->eventsQuery($board, $clientId, $siteIds, $filters)->paginate(20),
             'client.observatory.events.show',
             false,
+            app(BuildInstallationRiskService::class)->execute($companyId, $clientId, $siteIds),
         ));
     }
 
@@ -247,6 +251,7 @@ final class ObservatoryEventController extends Controller
                 'body' => (string) $request->validated('body'),
                 'is_anonymous' => $anonymous,
                 'source' => ObservatoryReportSource::Panel,
+                'community_only' => false,
                 'reporter_role' => $role,
                 'reporter_name' => $anonymous ? null : $user->name,
                 'reported_by' => $user,

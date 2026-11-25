@@ -53,14 +53,6 @@ final class ExportObservatoryBoardService
 
     private const WHITE = 'FFFFFFFF';
 
-    private const ROW_RED = 'FF7F1D1D';
-
-    private const ROW_AMBER = 'FF78350F';
-
-    private const ROW_GREEN = 'FF064E3B';
-
-    private const ROWS_PER_SLIDE = 12;
-
     /** @var list<string> */
     private array $tempFiles = [];
 
@@ -96,7 +88,6 @@ final class ExportObservatoryBoardService
             foreach ($data['by_type'] as $type) {
                 $this->typeSlide($this->slide($ppt), $type, $board, (int) $board['total'], $meta);
             }
-            $this->rankingSlides($ppt, $data['ranking'], $meta);
             $this->closingSlide($this->slide($ppt), $meta, $logo);
 
             $path = $this->save($ppt);
@@ -246,7 +237,7 @@ final class ExportObservatoryBoardService
 
         $kinds = $this->combine($board['kinds']['labels'] ?? [], $board['kinds']['values'] ?? []);
         $kindColors = array_map(fn ($c): string => $this->argb((string) $c), $board['kinds']['colors'] ?? []);
-        $this->coloredBars($slide, 'Reportes por tipo', $kinds, $kindColors, 338, 208, 284, 206);
+        $this->coloredBars($slide, 'Riesgo endógeno', $kinds, $kindColors, 338, 208, 284, 206);
 
         $sources = array_filter($this->combine($board['sources']['labels'] ?? [], $board['sources']['values'] ?? []));
         $this->coloredBars($slide, 'Canal de origen', $sources, [self::CYAN], 636, 208, 284, 206);
@@ -273,7 +264,7 @@ final class ExportObservatoryBoardService
 
         arsort($kinds);
         if (($top = array_key_first($kinds)) !== null && $kinds[$top] > 0) {
-            $text .= ' El tipo con más reportes fue '.$top.' ('.$this->int($kinds[$top]).').';
+            $text .= ' El riesgo endógeno con más reportes fue '.$top.' ('.$this->int($kinds[$top]).').';
         }
 
         $peaks = array_filter($this->combine($board['peaks']['labels'] ?? [], $board['peaks']['values'] ?? []));
@@ -319,9 +310,9 @@ final class ExportObservatoryBoardService
         if ($data['without_coords'] > 0) {
             $note .= ' · '.$this->count($data['without_coords'], 'sin ubicación', 'sin ubicación');
         }
-        $note .= '. Cada mancha es una instalación: más grande y más intensa = más folios; el color es el tipo predominante.';
+        $note .= '. Cada mancha es una instalación: más grande y más intensa = más folios; el color es el riesgo endógeno predominante.';
         if ($legend !== []) {
-            $note .= ' Por tipo: '.implode(' · ', $legend).'.';
+            $note .= ' Catálogo endógeno: '.implode(' · ', $legend).'.';
         }
         $this->paragraphs($slide, [[$note, self::INK]], 40, 452, 880, 68, 11);
     }
@@ -362,7 +353,8 @@ final class ExportObservatoryBoardService
      */
     private function typeSlide(Slide $slide, array $type, array $board, int $total, array $meta): void
     {
-        $this->heading($slide, $type['name'].' · nivel '.$type['level'], $this->caption($meta));
+        $band = ($type['band'] ?? 'BAJO') === 'CRITICO' ? 'CRÍTICO' : (string) ($type['band'] ?? 'BAJO');
+        $this->heading($slide, $type['name'].' · '.$band, $this->caption($meta));
         $this->box($slide, 40, 66, 6, 22, $this->argb($type['color']));
 
         $monthly = ($board['grain'] ?? 'day') !== 'day';
@@ -373,7 +365,7 @@ final class ExportObservatoryBoardService
         if ($type['events'] === 0) {
             $this->box($slide, 40, 100, 880, 285, self::CARD);
             $this->text($slide, 'Sin folios de '.$type['name'].' con los filtros y el periodo elegidos.', 40, 225, 880, 30, 14, self::MUTED, false, Alignment::HORIZONTAL_CENTER);
-            $this->paragraphs($slide, [['Este tipo no tuvo reportes en el periodo. Si se esperaban casos, revisa los filtros del tablero (estado, comuna o instalación).', self::MUTED]], 40, 398, 880, 70, 12);
+            $this->paragraphs($slide, [['Este riesgo endógeno no tuvo reportes en el periodo. Si se esperaban casos, revisa los filtros del tablero (estado, comuna o instalación).', self::MUTED]], 40, 398, 880, 70, 12);
 
             return;
         }
@@ -419,82 +411,6 @@ final class ExportObservatoryBoardService
             }
             $text .= ' Instalaciones con más folios: '.implode(', ', $items).'.';
         }
-
-        return $text;
-    }
-
-    /** @param  list<array{name: string, client: ?string, comuna: ?string, count: int, score: int, top_type: string}>  $rows */
-    private function rankingSlides(PhpPresentation $ppt, array $rows, array $meta): void
-    {
-        $pages = $rows === [] ? [[]] : array_chunk(array_slice($rows, 0, self::ROWS_PER_SLIDE * 3), self::ROWS_PER_SLIDE);
-        $max = $rows === [] ? 0 : max(array_column($rows, 'score'));
-        $total = count($pages);
-
-        foreach ($pages as $page => $chunk) {
-            $slide = $this->slide($ppt);
-            $this->heading(
-                $slide,
-                'Instalaciones por riesgo'.($total > 1 ? ' ('.($page + 1).'/'.$total.')' : ''),
-                'Puntaje = suma de los niveles de sus reportes · rojo alto · ámbar medio · verde bajo',
-            );
-
-            if ($chunk === []) {
-                $this->text($slide, 'No hay instalaciones con folios en el periodo.', 40, 110, 880, 40, 14, self::MUTED);
-
-                continue;
-            }
-
-            $widths = [40, 290, 200, 110, 70, 70, 100];
-            $table = $slide->createTableShape(count($widths));
-            $table->setOffsetX(40)->setOffsetY(100)->setWidth(array_sum($widths));
-            $this->tableRow($table->createRow(), ['#', 'Instalación', 'Cliente', 'Comuna', 'Folios', 'Puntaje', 'Tipo principal'], $widths, self::CARD, self::MUTED, true);
-
-            foreach ($chunk as $index => $row) {
-                $ratio = $max > 0 ? $row['score'] / $max : 0;
-                $fill = match (true) {
-                    $ratio >= 0.66 => self::ROW_RED,
-                    $ratio >= 0.33 => self::ROW_AMBER,
-                    default => self::ROW_GREEN,
-                };
-                $this->tableRow($table->createRow(), [
-                    (string) ($page * self::ROWS_PER_SLIDE + $index + 1),
-                    Str::limit($row['name'], 38),
-                    Str::limit((string) ($row['client'] ?? '—'), 22),
-                    (string) ($row['comuna'] ?? '—'),
-                    $this->int($row['count']),
-                    $this->int($row['score']),
-                    $row['top_type'],
-                ], $widths, $fill, self::INK);
-            }
-
-            if ($page === 0) {
-                $tableBottom = 100 + 26 * (count($chunk) + 1);
-                if (count($chunk) <= 6) {
-                    $scores = [];
-                    foreach (array_slice($chunk, 0, 6) as $row) {
-                        $scores[Str::limit($row['name'], 22)] = $row['score'];
-                    }
-                    $this->coloredBars($slide, 'Puntaje por instalación', $scores, [self::RED], 40, $tableBottom + 14, 880, 384 - $tableBottom - 14);
-                }
-                $this->paragraphs($slide, [[$this->rankingNarrative($rows), self::INK]], 40, 398, 880, 122, 12);
-            }
-        }
-    }
-
-    /** @param  list<array{name: string, count: int, score: int, top_type: string}>  $rows */
-    private function rankingNarrative(array $rows): string
-    {
-        $first = $rows[0];
-        $totalScore = array_sum(array_column($rows, 'score'));
-        $text = $this->count(count($rows), 'instalación tuvo', 'instalaciones tuvieron').' folios en el periodo. '
-            .'La de mayor riesgo es '.$first['name'].' con '.$this->int($first['score']).' puntos y '
-            .$this->count($first['count'], 'folio', 'folios').', sobre todo de '.$first['top_type'].'.';
-
-        if (count($rows) > 1 && $totalScore > 0) {
-            $topTwo = $rows[0]['score'] + $rows[1]['score'];
-            $text .= ' Las dos primeras concentran el '.$this->pct($topTwo, $totalScore).' del puntaje.';
-        }
-        $text .= ' El puntaje suma el nivel de cada reporte (nivel 3 pesa más que nivel 1), así que una instalación con pocos folios graves puede quedar arriba de otra con muchos leves.';
 
         return $text;
     }
@@ -871,7 +787,7 @@ final class ExportObservatoryBoardService
         return number_format((float) $value, 0, ',', '.');
     }
 
-    private function pct(int $part, int $total): string
+    private function pct(int|float $part, int|float $total): string
     {
         return $total > 0 ? number_format($part * 100 / $total, 1, ',', '.').' %' : '0 %';
     }

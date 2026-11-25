@@ -117,7 +117,7 @@ final class SigBoardAndPanicTest extends TestCase
             ->getJson(route('company.observatory.live'))
             ->assertOk()
             ->assertJsonStructure([
-                'board' => ['total', 'nuevo', 'en_atencion', 'cerrado', 'load_rate', 'top'],
+                'board' => ['total', 'nuevo', 'en_atencion', 'cerrado', 'load_rate', 'trend', 'peaks', 'origins', 'risk'],
                 'map' => ['sites', 'points'],
                 'events',
             ]);

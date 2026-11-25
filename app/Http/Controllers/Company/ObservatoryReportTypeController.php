@@ -32,7 +32,7 @@ final class ObservatoryReportTypeController extends Controller
             return back()->withInput()->withErrors($e->errors());
         }
 
-        return back()->with('success', 'Tipo creado. Ya aparece en el link y en el mapa.');
+        return back()->with('success', 'Registro del catálogo endógeno creado. Ya aparece en el link y en el mapa.');
     }
 
     public function update(StoreObservatoryReportTypeRequest $request, ObservatoryReportType $type): RedirectResponse
@@ -45,7 +45,7 @@ final class ObservatoryReportTypeController extends Controller
             return back()->withErrors($e->errors());
         }
 
-        return back()->with('success', 'Tipo actualizado.');
+        return back()->with('success', 'Catálogo endógeno actualizado.');
     }
 
     public function destroy(Request $request, ObservatoryReportType $type): RedirectResponse
@@ -58,35 +58,12 @@ final class ObservatoryReportTypeController extends Controller
             return back()->withErrors($e->errors());
         }
 
-        return back()->with('success', 'Tipo eliminado.');
-    }
-
-    public function copy(Request $request, Client $client): RedirectResponse
-    {
-        $this->assertClient($request, $client);
-        $companyId = $this->companyId($request);
-
-        $validated = $request->validate([
-            'client_ids' => ['required', 'array', 'min:1'],
-            'client_ids.*' => ['integer'],
-        ], ['client_ids.required' => 'Elige al menos un cliente.']);
-
-        $targets = Client::query()
-            ->where('security_company_id', $companyId)
-            ->where('has_observatory', true)
-            ->whereKey($validated['client_ids'])
-            ->whereKeyNot($client->id)
-            ->get();
-        $created = $this->types->copy($client, $targets);
-
-        return back()->with('success', $created === 0
-            ? 'Los clientes elegidos ya tenían todos estos tipos.'
-            : "Se crearon {$created} tipos en {$targets->count()} ".($targets->count() === 1 ? 'cliente' : 'clientes').'.');
+        return back()->with('success', 'Registro del catálogo endógeno eliminado.');
     }
 
     private function clientOf(ObservatoryReportType $type): Client
     {
-        return Client::query()->findOrFail($type->client_id);
+        return Client::query()->where('security_company_id', $type->security_company_id)->firstOrFail();
     }
 
     private function assertClient(Request $request, Client $client): void

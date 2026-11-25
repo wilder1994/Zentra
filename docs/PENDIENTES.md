@@ -56,6 +56,12 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 25 nov 2026 · Tablero del Observatorio
+Semáforo de Riesgo por instalación en cilindro horizontal ECharts (estilo Decowandy: lados rectos, inicio plano, disco solo en la punta, color de la banda). Orígenes en cilindros horizontales: Alumno, Padre, Vecino, Usuario panel, Usuario API, Usuario app patrulla. Tendencia endógena y Días con más reportes comparten la fila al 50%. El sondeo de 5 s redibuja tendencia, picos, orígenes, riesgo por instalación y semáforo. No había migración del bloque eliminado «Instalaciones por riesgo»; no se borró ninguna.
+
+### 24 nov 2026 · Riesgos del observatorio en el mapa (local)
+Pestaña Riesgos: delitos y cifras por comuna. El mapa usa el periodo del tablero. Riesgos: dona, calor sobre el polígono y pin por comuna. Reportes: dona, punto de calor y total por instalación. Hecho en local. Sin commit y sin VPS hasta que se confirme.
+
 ### 24 nov 2026 · Cierre del sistema suma el mapa al km final
 Si cierra el sistema, el km final y el último km de la placa quedan en el inicio más los km del mapa. Sin GPS, el final queda igual al inicio. El cierre del supervisor sigue siendo el odómetro real. `AutoCloseExpiredSupervisorShiftsService`. Commit `33cf37a`.
 
@@ -161,7 +167,7 @@ Reporte de campo: «abro a las 17:30 y a las 18:00 me cierra» y «cierro sesió
 ### 21 oct 2026 · PPTX del Observatorio al nivel de Supervisión (commit 487a92a + c0e8af9, desplegado 21 oct)
 `ExportObservatoryBoardService` (estilo de `ExportSupervisionExecutiveReportService`) + `BuildObservatoryExportDataService` + `RenderObservatoryHeatMapService`. Test: `ObservatoryCompanyManageTest::test_board_pptx_follows_scope_and_filters`.
 
-- Portada con logos y periodo → Resumen (5 tarjetas, donas/barras, texto) → Mapa de calor (Static Maps oscuro + manchas por tipo + folios; sin clave dibuja sobre fondo liso) → una diapositiva por tipo (barras por día/mes, dona de estados, texto) → Instalaciones por riesgo (tabla con semáforo + barras + texto, hasta 3 páginas) → Gracias.
+- Portada con logos y periodo → Resumen (5 tarjetas, donas/barras, texto) → Mapa de calor (Static Maps oscuro + manchas por tipo + folios; sin clave dibuja sobre fondo liso) → una diapositiva por tipo (barras por día/mes, dona de estados, texto) → Gracias.
 - Respeta alcance y filtros: empresa, cliente o instalación; fechas, estado, tipo (solo ese tipo), comuna y texto. Colaborador con clientes puntuales solo ve los suyos (tablero, en vivo y PPTX).
 
 ### 21 oct 2026 · Integraciones API en la ficha de empresa (súper admin) (commit 487a92a + c0e8af9, desplegado 21 oct)

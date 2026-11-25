@@ -180,6 +180,7 @@ final class ObservatoryController extends Controller
             'body' => (string) $request->validated('body'),
             'is_anonymous' => $anonymous,
             'source' => $source,
+            'community_only' => false,
             'reporter_role' => $role,
             'reporter_name' => $anonymous ? null : ($request->validated('reporter_name') ?? $user->name),
             'reporter_phone' => $anonymous ? null : $request->validated('reporter_phone'),
@@ -212,7 +213,7 @@ final class ObservatoryController extends Controller
     {
         if ($user->hasRole(AssignableRoles::CLIENT_INSTALLATION_ADMIN)) {
             return [
-                ObservatoryReportSource::Panel,
+                ObservatoryReportSource::Api,
                 $user->isSiteSupport($installationId)
                     ? ObservatoryReporterRole::Apoyo
                     : ObservatoryReporterRole::Rector,

@@ -141,7 +141,7 @@ final class ObservatoryApiTest extends TestCase
             'body' => 'Rector reporta una amenaza desde su software.',
         ])->assertCreated();
 
-        $this->assertSame('panel', ObservatoryReport::query()->firstOrFail()->source->value);
+        $this->assertSame('api', ObservatoryReport::query()->firstOrFail()->source->value);
         $this->assertSame('rector', ObservatoryReport::query()->firstOrFail()->reporter_role->value);
 
         $guard = User::query()->where('email', 'guardia@control-acceso.test')->firstOrFail();

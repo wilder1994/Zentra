@@ -11,9 +11,12 @@ use App\Models\Installation;
 use App\Models\ObservatoryEvent;
 use App\Models\ObservatoryReport;
 use App\Models\ObservatoryReportType;
+use App\Models\RiskModelParameter;
 use App\Models\SecurityCompany;
 use App\Services\Observatory\BuildObservatoryBoardService;
+use App\Services\Observatory\ManageObservatoryCrimeFiguresService;
 use App\Services\Observatory\BuildObservatoryMapService;
+use App\Services\Observatory\BuildInstallationRiskService;
 use App\Services\Observatory\EnsureObservatoryReportTypesService;
 use App\Services\Observatory\BuildObservatoryExportDataService;
 use App\Services\Observatory\ExportObservatoryBoardService;
@@ -60,6 +63,7 @@ final class ObservatoryEventController extends Controller
             'map' => $this->map($companyId, $siteIds, $filters),
             'filterOptions' => $this->filterOptions($companyId, $clients, $filters),
             'shareClients' => $clients,
+            'risk' => app(BuildInstallationRiskService::class)->execute($companyId, $filters->clientId, $siteIds),
         ]);
     }
 
@@ -79,6 +83,7 @@ final class ObservatoryEventController extends Controller
             $this->events($board, $companyId, $siteIds, $filters)->paginate(20),
             'company.observatory.events.show',
             true,
+            app(BuildInstallationRiskService::class)->execute($companyId, $filters->clientId, $siteIds),
         ));
     }
 
@@ -132,20 +137,45 @@ final class ObservatoryEventController extends Controller
         $this->authorize('viewAny', ObservatoryEvent::class);
         $companyId = $this->companyId($request);
         $clients = $this->clients($companyId);
-        $clientId = (int) $request->integer('client_id');
-        $client = $clientId > 0 ? $clients->firstWhere('id', $clientId) : null;
         $ensure = app(EnsureObservatoryReportTypesService::class);
-
-        if ($client instanceof Client) {
-            $ensure->execute($client);
+        $anchor = $clients->first();
+        if ($anchor instanceof Client) {
+            $ensure->execute($anchor);
         }
 
+        $crimes = app(ManageObservatoryCrimeFiguresService::class);
+        $year = $request->integer('year');
+        if (! in_array($year, $crimes->years(), true)) {
+            $year = (int) now()->year;
+        }
+        $section = (string) $request->query('seccion', '');
+        if (! in_array($section, ['', 'motor', 'catalogo', 'comunas', 'log'], true)) {
+            $section = '';
+        }
+        $axis = $request->query('eje') === 'endogeno' ? 'endogeno' : 'exogeno';
+
         return view('modules.observatory.company.types', [
+            'section' => $section,
+            'axis' => $axis,
             'filterClients' => $clients,
-            'filterClient' => $client,
-            'types' => $client instanceof Client ? $client->observatoryReportTypes()->get() : collect(),
-            'nextColor' => $client instanceof Client ? $ensure->nextColor($client) : '#94a3b8',
+            'types' => ObservatoryReportType::query()
+                ->where('security_company_id', $companyId)
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(),
+            'nextColor' => $anchor instanceof Client ? $ensure->nextColor($anchor) : '#94a3b8',
+            'storeClient' => $anchor,
             'canEdit' => $request->user()?->can('observatory.events.update') ?? false,
+            'parameters' => RiskModelParameter::forCompany($companyId),
+            'crimeTypes' => $crimes->types($companyId),
+            'crimeLockedIds' => $crimes->typeIdsWithFigures($companyId),
+            'crimeYear' => $year,
+            'crimeYears' => $crimes->years(),
+            'crimeGrid' => $crimes->grid($companyId, $year),
+            'crimeComunas' => app(CaliComunaLayer::class)->catalog(),
+            'reportLog' => $section === 'log'
+                ? app(BuildInstallationRiskService::class)->reportLog($companyId)
+                : [],
         ]);
     }
 
@@ -369,6 +399,6 @@ final class ObservatoryEventController extends Controller
             ->where('has_observatory', true)
             ->whereNotNull('slug')
             ->orderBy('name')
-            ->get(['id', 'name', 'slug']);
+            ->get(['id', 'name', 'slug', 'security_company_id']);
     }
 }
