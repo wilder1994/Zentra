@@ -42,11 +42,13 @@ function samePlace(cluster) {
 }
 
 /**
- * Agrupa pines según el zoom: lejos se juntan en una gota con el total, al acercarse se separan.
+ * Agrupa pines según el zoom: lejos se juntan, al acercarse se separan.
+ * `iconForCluster(cluster)` pinta la burbuja. Sin eso, es la gota con el total de pines.
+ * `clusterZIndex` fija el orden. Sin eso, el grupo queda por encima de los demás pines.
  * Cada pin puede llevar `marker.zentraTone` (ver CLUSTER_TONES).
  * `onSamePlace(markers, position, clusterMarker)` se llama si el grupo está en un mismo punto o ya no se puede acercar más.
  */
-export function createClusterer(map, { maxZoom = 16, radius = 64, onSamePlace = null } = {}) {
+export function createClusterer(map, { maxZoom = 16, radius = 64, onSamePlace = null, iconForCluster = null, clusterZIndex = null } = {}) {
     return new MarkerClusterer({
         map,
         markers: [],
@@ -58,9 +60,11 @@ export function createClusterer(map, { maxZoom = 16, radius = 64, onSamePlace = 
                 return new google.maps.Marker({
                     position: cluster.position,
                     optimized: false,
-                    icon: numberDropIcon(CLUSTER_TONES[tone] || CLUSTER_TONES.slate, cluster.count),
+                    icon: typeof iconForCluster === 'function'
+                        ? iconForCluster(cluster)
+                        : numberDropIcon(CLUSTER_TONES[tone] || CLUSTER_TONES.slate, cluster.count),
                     title: cluster.count + ' en esta zona · clic para acercar',
-                    zIndex: Number(google.maps.Marker.MAX_ZINDEX) + cluster.count,
+                    zIndex: clusterZIndex ?? (Number(google.maps.Marker.MAX_ZINDEX) + cluster.count),
                 });
             },
         },

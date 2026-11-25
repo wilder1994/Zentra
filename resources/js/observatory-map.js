@@ -71,6 +71,17 @@ function heatPoint(ratio) {
     };
 }
 
+function siteDot() {
+    return {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 6,
+        fillColor: '#e2e8f0',
+        fillOpacity: 0.95,
+        strokeColor: '#0f172a',
+        strokeWeight: 1,
+    };
+}
+
 function countIcon(total) {
     const label = new Intl.NumberFormat('es-CO').format(Number(total) || 0);
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="54" height="54" viewBox="0 0 54 54">
@@ -224,6 +235,8 @@ export function observatoryMap(cfg) {
 
             const info = new google.maps.InfoWindow({ pixelOffset: new google.maps.Size(0, -4) });
             clusterer = createClusterer(this.map, {
+                clusterZIndex: 4,
+                iconForCluster: (cluster) => this.clusterIcon(cluster),
                 onSamePlace: (markers) => {
                     if (markers[0]) {
                         google.maps.event.trigger(markers[0], 'click');
@@ -661,27 +674,48 @@ export function observatoryMap(cfg) {
             this.showSites();
             this.drawShifts(false);
         },
+        clusterIcon(cluster) {
+            const markers = cluster.markers || [];
+            if (this.layer === 'riesgos') {
+                return countIcon(markers.length);
+            }
+            const slices = new Map();
+            let total = 0;
+            markers.forEach((marker) => {
+                this.siteSummary(marker).forEach((row) => {
+                    const key = row.slug || row.name;
+                    const prev = slices.get(key) || { slug: row.slug, name: row.name, color: row.color, count: 0 };
+                    prev.count += Number(row.count || 0);
+                    slices.set(key, prev);
+                    total += Number(row.count || 0);
+                });
+            });
+            if (this.mode === 'grouped') {
+                return donutIcon([...slices.values()], total);
+            }
+
+            return countIcon(total);
+        },
         showSites() {
-            const totals = placeMarkers
-                .filter((marker) => marker.role === 'site')
-                .map((marker) => this.siteTotal(marker));
-            const max = Math.max(1, ...totals);
-            placeMarkers.forEach((marker) => {
-                if (marker.role !== 'site') {
-                    marker.setMap(null);
-                    return;
-                }
+            clusterer?.clearMarkers();
+            const sites = placeMarkers.filter((marker) => marker.role === 'site');
+            const max = Math.max(1, ...sites.map((marker) => this.siteTotal(marker)));
+            const exogenous = this.layer === 'riesgos';
+            placeMarkers.forEach((marker) => marker.setMap(null));
+            sites.forEach((marker) => {
                 const summary = this.siteSummary(marker);
                 const total = summary.reduce((sum, row) => sum + Number(row.count || 0), 0);
-                if (this.mode === 'heat') {
+                if (exogenous) {
+                    marker.setIcon(siteDot());
+                } else if (this.mode === 'heat') {
                     marker.setIcon(heatPoint(total / max));
                 } else if (this.mode === 'places') {
                     marker.setIcon(countIcon(total));
                 } else {
                     marker.setIcon(donutIcon(summary, total));
                 }
-                marker.setMap(this.map);
             });
+            clusterer?.addMarkers(sites);
         },
 
         siteSummary(marker) {
