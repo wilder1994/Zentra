@@ -731,7 +731,9 @@ final class ObservatoryReportFlowTest extends TestCase
             ->assertSee('Atención de folios', false)
             ->assertDontSee('docs/observatory', false)
             ->assertSee('Compartir link', false)
-            ->assertSee('Catálogo de riesgo endógeno', false);
+            ->assertSee('Catálogo', false)
+            ->assertDontSee('Catálogo de riesgo endógeno', false)
+            ->assertDontSee('Catálogo de riesgo exógeno', false);
     }
 
     public function test_company_board_lists_each_type_slug_once(): void
@@ -751,7 +753,7 @@ final class ObservatoryReportFlowTest extends TestCase
             ->getContent();
 
         $this->assertSame(1, substr_count($html, 'value="amenaza"'));
-        $this->assertSame(1, preg_match_all('#</span>Amenaza#', $html));
+        $this->assertSame(0, preg_match_all('#</span>Amenaza#', $html));
     }
 
     public function test_public_report_requires_role_and_keeps_it_when_anonymous(): void

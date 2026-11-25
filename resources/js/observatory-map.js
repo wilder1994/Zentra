@@ -117,6 +117,7 @@ export function observatoryMap(cfg) {
         layer: 'reportes',
         mode: 'grouped',
         mapType: 'satellite',
+        catalogOpen: false,
         typeFilter: '',
         comuna: cfg.comuna || '',
         comunaQ: '',

@@ -57,21 +57,6 @@
 <style>
     [x-cloak] { display: none !important; }
     .obs-board { --obs-line: {{ $accent === 'indigo' ? '#818cf8' : '#2dd4bf' }}; }
-    .obs-kpi {
-        position: relative;
-        overflow: hidden;
-        border-radius: 0.7rem;
-        border: 1px solid rgb(30 41 59);
-        background: linear-gradient(180deg, rgb(15 23 42 / 0.95), rgb(2 6 23 / 0.8));
-        padding: 0.65rem 0.8rem 0.6rem;
-        transition: border-color .15s ease;
-    }
-    .obs-kpi.is-on { border-color: rgb(245 158 11 / 0.45); }
-    .obs-kpi::before {
-        content: "";
-        position: absolute; inset: 0 auto 0 0; width: 3px;
-        background: var(--obs-tone, #64748b);
-    }
     .obs-card {
         border-radius: 0.75rem;
         border: 1px solid rgb(30 41 59);
@@ -85,7 +70,6 @@
     .obs-chart-lg { height: 13.5rem; }
     .obs-gauge { height: auto; min-height: 10.5rem; display: flex; flex-direction: column; overflow: visible; }
     .obs-gauge-plot { height: 7.25rem; position: relative; overflow: visible; }
-    html[data-theme="light"] .obs-kpi,
     html[data-theme="light"] .obs-card {
         background: var(--ui-surface);
         border-color: var(--ui-border);
@@ -101,25 +85,16 @@
     .obs-trend-row { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
     .obs-origins, .obs-plot { width: 100%; height: 100%; }
     .obs-top { display: grid; gap: .5rem; align-items: stretch; }
-    .obs-top-map, .obs-top-side, .obs-top-catalogs { min-width: 0; }
+    .obs-top-map, .obs-top-side, .obs-top-feed { min-width: 0; }
     @media (min-width: 768px) {
-        .obs-top { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
-        .obs-top-map, .obs-top-side { height: 28rem; }
-        .obs-top-catalogs { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; align-items: stretch; }
-        .obs-top-catalogs > section { height: 16rem; max-height: 16rem; overflow: hidden; display: flex; flex-direction: column; }
-        .obs-top-catalogs > section > div { min-height: 0; flex: 1; overflow: auto; }
+        .obs-top { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+        .obs-top-map { grid-column: 1 / -1; height: 28rem; }
+        .obs-top-side, .obs-top-feed { height: 22rem; }
     }
     @media (min-width: 1024px) {
-        .obs-top { grid-template-columns: minmax(0, 5fr) minmax(0, 3fr) minmax(0, 2fr); }
-        .obs-top-catalogs {
-            grid-column: auto;
-            display: flex;
-            flex-direction: column;
-            height: 28rem;
-            max-height: 28rem;
-            overflow: hidden;
-        }
-        .obs-top-catalogs > section { flex: 1 1 0; height: auto; max-height: none; min-height: 0; }
+        .obs-top { grid-template-columns: minmax(0, 3fr) minmax(0, 1fr) minmax(0, 1fr); }
+        .obs-top-map { grid-column: auto; }
+        .obs-top-map, .obs-top-side, .obs-top-feed { height: 28rem; }
     }
 </style>
 @endpush
@@ -171,27 +146,23 @@
         </div>
     @endif
     @if ($vista === 'tablero')
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-            @foreach ([
-                [null, 'Eventos', $board['total'], $status === '', '#94a3b8'],
-                ['nuevo', 'Nuevos', $board['nuevo'], $status === 'nuevo', '#f59e0b'],
-                ['en_atencion', 'En atención', $board['en_atencion'], $status === 'en_atencion', '#818cf8'],
-                ['cerrado', 'Cerrados', $board['cerrado'], $status === 'cerrado', '#34d399'],
-            ] as [$value, $label, $count, $on, $tone])
-                <a href="{{ $kpiUrl($value) }}" class="obs-kpi {{ $on ? 'is-on' : '' }}" style="--obs-tone: {{ $tone }}">
-                    <p class="text-[10px] uppercase tracking-wide text-slate-500">{{ $label }}</p>
-                    <p class="mt-0.5 text-2xl font-semibold tabular-nums text-white"
-                       @if ($observatoryLiveUrl) x-text="board.{{ $value === null ? 'total' : $value }} ?? {{ (int) $count }}" @endif>{{ $count }}</p>
-                </a>
-            @endforeach
-        </div>
-
+        @php
+            $kpis = [
+                ['key' => 'total', 'label' => 'Eventos', 'count' => (int) $board['total'], 'on' => $status === '', 'tone' => '#94a3b8', 'url' => $kpiUrl(null)],
+                ['key' => 'nuevo', 'label' => 'Nuevos', 'count' => (int) $board['nuevo'], 'on' => $status === 'nuevo', 'tone' => '#f59e0b', 'url' => $kpiUrl('nuevo')],
+                ['key' => 'en_atencion', 'label' => 'En atención', 'count' => (int) $board['en_atencion'], 'on' => $status === 'en_atencion', 'tone' => '#818cf8', 'url' => $kpiUrl('en_atencion')],
+                ['key' => 'cerrado', 'label' => 'Cerrados', 'count' => (int) $board['cerrado'], 'on' => $status === 'cerrado', 'tone' => '#34d399', 'url' => $kpiUrl('cerrado')],
+            ];
+        @endphp
         <div class="obs-top">
             <div class="obs-top-map flex min-h-80 flex-col">
             @include('modules.observatory.partials.map', [
                 'map' => $map,
-                'mapCanvasClass' => 'h-80 md:h-full md:min-h-0 md:flex-1',
+                'mapCanvasClass' => 'h-full min-h-0',
                 'trailUrl' => $observatoryTrailUrl ?? '',
+                'boardMap' => true,
+                'kpis' => $kpis,
+                'kpiLive' => (bool) $observatoryLiveUrl,
             ])
             </div>
             <div class="obs-top-side flex min-h-0 flex-col">
@@ -238,18 +209,13 @@
                 </div>
             </section>
             </div>
-            <div class="obs-top-catalogs">
-                @include('modules.observatory.partials.risk-board-catalogs', ['risk' => $risk ?? []])
-            </div>
-        </div>
-
-        <div class="grid gap-2">
-            <section class="obs-card p-3 flex flex-col min-h-0">
+            <div class="obs-top-feed flex min-h-0 flex-col">
+            <section class="obs-card p-3 flex h-full min-h-0 flex-col">
                 <div class="shrink-0">
                     <h3 class="text-sm font-semibold text-white">Reportes</h3>
                     <p class="text-[11px] text-slate-500">Revista, alarma, apoyo y observatorio. Lo más nuevo arriba.</p>
                 </div>
-                <div class="mt-2 overflow-y-auto max-h-80 lg:max-h-[28rem] sidebar-scroll">
+                <div class="mt-2 min-h-0 flex-1 overflow-y-auto sidebar-scroll">
                     @if ($observatoryLiveUrl)
                         <div class="flex flex-col gap-1.5">
                             <template x-for="row in bubbles" :key="row.id">
@@ -268,6 +234,7 @@
                     @endif
                 </div>
             </section>
+            </div>
         </div>
 
         @if (! empty($risk))
