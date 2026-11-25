@@ -26,6 +26,7 @@ use App\Services\Observatory\UnhookObservatoryReportService;
 use App\Services\Observatory\UpdateObservatoryEventStatusService;
 use App\Services\Ops\NotifyOpsSurface;
 use App\Support\Geo\CaliComunaLayer;
+use App\Support\Geo\CaliVeredaCatalog;
 use App\Support\Observatory\ObservatoryFilters;
 use App\Support\Platform\ActingCompanyResolver;
 use Illuminate\Database\Eloquent\Collection;
@@ -173,6 +174,7 @@ final class ObservatoryEventController extends Controller
             'crimeYears' => $crimes->years(),
             'crimeGrid' => $crimes->grid($companyId, $year),
             'crimeComunas' => app(CaliComunaLayer::class)->catalog(),
+            'crimeVeredas' => CaliVeredaCatalog::all(),
             'reportLog' => $section === 'log'
                 ? app(BuildInstallationRiskService::class)->reportLog($companyId)
                 : [],

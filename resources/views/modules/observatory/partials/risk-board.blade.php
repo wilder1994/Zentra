@@ -73,9 +73,10 @@
     </div>
 </section>
 <script type="application/json" id="obs-risk-cylinder-meta">@json(['stations' => $stations, 'cuts' => $cuts])</script>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js" defer></script>
 <script defer>
 document.addEventListener('DOMContentLoaded', () => {
+    const boot = window.whenEcharts ?? Promise.resolve();
+    boot.then(() => {
     if (!window.echarts || window.__obsRiskCylinders) return;
     window.__obsRiskCylinders = true;
     const meta = JSON.parse(document.getElementById('obs-risk-cylinder-meta')?.textContent || '{}');
@@ -177,5 +178,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
     window.obsPaintRiskCylinders();
+    });
 });
 </script>

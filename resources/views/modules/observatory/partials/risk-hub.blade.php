@@ -2,7 +2,7 @@
     $cards = [
         ['seccion' => 'motor', 'kicker' => '01', 'title' => 'Panel de configuración del motor de riesgos', 'text' => 'Pesos, vida media y semáforo. Escala 0–100.', 'icon' => 'sliders', 'tint' => 'bg-indigo-500 text-white shadow-indigo-500/40'],
         ['seccion' => 'catalogo', 'kicker' => '02', 'title' => 'Catálogo y matriz de delitos y reportes', 'text' => 'Riesgo de la comuna y riesgo de la sede, en matriz 10×10.', 'icon' => 'grid', 'tint' => 'bg-amber-500 text-white shadow-amber-500/40'],
-        ['seccion' => 'comunas', 'kicker' => '03', 'title' => 'Delitos por comuna', 'text' => 'Casos del Observatorio de Seguridad de Cali, por año.', 'icon' => 'map', 'tint' => 'bg-teal-500 text-white shadow-teal-500/40'],
+        ['seccion' => 'comunas', 'kicker' => '03', 'title' => 'Delitos por comuna y veredas', 'text' => 'Casos del Observatorio de Seguridad de Cali, por año. Comunas y veredas en tablas aparte.', 'icon' => 'map', 'tint' => 'bg-teal-500 text-white shadow-teal-500/40'],
         ['seccion' => 'log', 'kicker' => '04', 'title' => 'Log de reportes por instalación', 'text' => 'Cada reporte, con su cruce, decaimiento y aporte.', 'icon' => 'list', 'tint' => 'bg-sky-500 text-white shadow-sky-500/40'],
     ];
 @endphp

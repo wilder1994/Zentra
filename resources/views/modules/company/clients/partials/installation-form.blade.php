@@ -26,6 +26,7 @@
     $areaLng = old('longitude', $installation?->longitude);
     $idescLocked = is_numeric($areaLat) && is_numeric($areaLng)
         && app(\App\Support\Geo\CaliComunaLayer::class)->locate((float) $areaLat, (float) $areaLng) !== null;
+    $veredaOptions = \App\Support\Geo\CaliVeredaCatalog::all();
     $clientStructureLabel = $client->structureType?->name;
 @endphp
 
@@ -113,12 +114,20 @@
                 commune: @js(old('commune', $installation?->commune ?? '')),
                 city: @js(old('city', $installation?->city ?? $client->city ?? '')),
                 idescLocked: @js($idescLocked),
+                veredas: @js($veredaOptions),
             })"
             @geo-place.window="applyPlace($event.detail)"
         >
-            <label class="block text-xs text-slate-400 mb-1" x-text="areaLabel">Comuna / área</label>
-            <input type="text" name="commune" x-model="commune" @input="refreshKind()" placeholder="Se llena con el mapa"
-                   x-bind:readonly="idescLocked" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm text-white read-only:text-slate-400">
+            <label class="block text-xs text-slate-400 mb-1" x-text="areaLabel">Zona rural</label>
+            <input type="text" name="commune" x-model="commune" x-show="idescLocked" x-bind:disabled="!idescLocked" readonly
+                   class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm text-slate-400">
+            <select name="commune" x-model="commune" x-show="!idescLocked" x-cloak x-bind:disabled="idescLocked"
+                    class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm text-white">
+                <option value="">Elige la vereda</option>
+                @foreach ($veredaOptions as $row)
+                    <option value="{{ $row['label'] }}">{{ $row['label'] }}</option>
+                @endforeach
+            </select>
             <p class="mt-1 text-[11px] text-slate-500" x-text="areaHint"></p>
             <x-ui.field-error :messages="$errors->get('commune')" />
         </div>

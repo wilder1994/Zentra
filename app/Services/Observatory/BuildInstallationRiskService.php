@@ -11,8 +11,10 @@ use App\Models\ObservatoryReport;
 use App\Models\ObservatoryReportType;
 use App\Models\RiskModelParameter;
 use App\Support\Geo\CaliComunaLayer;
+use App\Support\Geo\CaliVeredaCatalog;
 use App\Support\Observatory\RiskMath;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /** Riesgo actual por instalación: comuna de Cali + reportes con decaimiento. */
 final class BuildInstallationRiskService
@@ -65,6 +67,11 @@ final class BuildInstallationRiskService
                 $site->longitude !== null ? (float) $site->longitude : null,
             );
             $code = $hit['code'] ?? '';
+            $vereda = null;
+            if ($code === '') {
+                $vereda = CaliVeredaCatalog::match($site->commune);
+                $code = $vereda['code'] ?? '';
+            }
             $rCommune = $code !== '' ? (float) ($commune[$code] ?? 0) : 0.0;
             $bucket = $bySite->get((int) $site->id, collect());
             $sum = 0.0;
@@ -85,7 +92,7 @@ final class BuildInstallationRiskService
                 'id' => (int) $site->id,
                 'name' => $site->name,
                 'client' => $site->client?->name ?? '',
-                'comuna' => $hit['name'] ?? 'Sin comuna Cali',
+                'comuna' => $hit['name'] ?? ($vereda['label'] ?? 'Sin comuna Cali'),
                 'reports' => $bucket->count(),
                 'max_severity' => round($max, 1),
                 'weighted_sum' => round($sum, 2),
@@ -175,20 +182,41 @@ final class BuildInstallationRiskService
         $index = [];
         foreach ($this->comunas->catalog() as $comuna) {
             $code = (string) $comuna['code'];
-            $total = 0.0;
-            foreach ($figures->where('comuna_code', $code) as $figure) {
-                $total += (int) $figure->total * ($weights[(int) $figure->observatory_crime_type_id] ?? 0);
-            }
-            $index[$code] = $total;
+            $index[$code] = $this->weighted($figures, $code, $weights);
+        }
+        foreach (CaliVeredaCatalog::all() as $vereda) {
+            $index[$vereda['code']] = $this->weighted($figures, $vereda['code'], $weights);
         }
 
-        $max = max($index === [] ? [0] : $index);
+        $comunaMax = 0.0;
+        foreach ($this->comunas->codes() as $code) {
+            $comunaMax = max($comunaMax, $index[$code] ?? 0);
+        }
+        $veredaMax = 0.0;
+        foreach (CaliVeredaCatalog::codes() as $code) {
+            $veredaMax = max($veredaMax, $index[$code] ?? 0);
+        }
         $scores = [];
         foreach ($index as $code => $value) {
+            $max = str_starts_with((string) $code, 'v') ? $veredaMax : $comunaMax;
             $scores[$code] = $max > 0 ? round(($value / $max) * 100, 1) : 0.0;
         }
 
         return $scores;
+    }
+
+    /**
+     * @param  Collection<int, ObservatoryCrimeFigure>  $figures
+     * @param  array<int, float>  $weights
+     */
+    private function weighted(Collection $figures, string $code, array $weights): float
+    {
+        $total = 0.0;
+        foreach ($figures->where('comuna_code', $code) as $figure) {
+            $total += (int) $figure->total * ($weights[(int) $figure->observatory_crime_type_id] ?? 0);
+        }
+
+        return $total;
     }
 
     private function elapsedDays(?Carbon $at): int

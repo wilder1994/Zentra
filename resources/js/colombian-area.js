@@ -93,26 +93,26 @@ export function pickArea(components, city) {
 }
 
 export function installationAreaFields(config) {
+    const veredas = Array.isArray(config.veredas) ? config.veredas : [];
+    const initial = String(config.commune || '');
+    const locked = Boolean(config.idescLocked);
+    const known = veredas.find((row) => row.label === initial || row.name === initial);
+
     return {
-        commune: config.commune || '',
+        commune: locked ? initial : (known ? known.label : ''),
         city: config.city || '',
-        idescLocked: Boolean(config.idescLocked),
-        areaKind: classifyArea(config.commune || '', config.city || ''),
+        veredas,
+        idescLocked: locked,
+        areaKind: locked ? 'comuna' : 'vereda',
         get areaLabel() {
-            return areaKindLabel(this.areaKind);
+            return this.idescLocked ? 'Comuna' : 'Zona rural';
         },
         get areaHint() {
             if (this.idescLocked) {
                 return 'La pone el pin (comuna IDESC de Cali). No se edita.';
             }
-            if (this.areaKind !== 'none') {
-                return 'Sale del mapa. Puedes corregirlo si es vereda, corregimiento o localidad.';
-            }
-            if (this.commune) {
-                return 'No parece comuna, localidad, vereda o corregimiento. Escríbelo con esa palabra (ej. Vereda El Cerrito).';
-            }
 
-            return 'Si el pin cae en Cali, la comuna sale sola. En un pueblo o vereda, escríbela.';
+            return 'El pin no cae en una comuna de Cali. Elige la vereda.';
         },
         applyPlace(detail) {
             if (detail.city) {
@@ -125,19 +125,16 @@ export function installationAreaFields(config) {
                 return;
             }
             this.idescLocked = false;
-            if (detail.area) {
-                this.commune = detail.area;
-            } else if (detail.areaKind === 'none') {
-                this.commune = '';
-            }
-            this.refreshKind();
-        },
-        refreshKind() {
-            if (this.idescLocked) {
-                this.areaKind = 'comuna';
+            this.areaKind = 'vereda';
+            const kept = this.veredas.find((row) => row.label === this.commune);
+            if (kept) {
                 return;
             }
-            this.areaKind = classifyArea(this.commune, this.city);
+            const fromMap = this.veredas.find((row) => row.label === detail.area || row.name === detail.area);
+            this.commune = fromMap ? fromMap.label : '';
+        },
+        refreshKind() {
+            this.areaKind = this.idescLocked ? 'comuna' : 'vereda';
         },
     };
 }

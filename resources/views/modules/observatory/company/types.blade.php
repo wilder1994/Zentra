@@ -3,7 +3,7 @@
         <x-slot:headerTabs>
             <div class="flex w-full items-center gap-3 pt-3">
                 <a href="{{ route('company.observatory.types.index') }}" class="text-[11px] font-semibold uppercase tracking-wide text-indigo-300 hover:text-indigo-200">← Riesgos</a>
-                <h2 class="text-sm font-semibold text-white">Delitos por comuna</h2>
+                <h2 class="text-sm font-semibold text-white">Delitos por comuna y veredas</h2>
                 @if ($canEdit)
                     <button type="submit" form="crime-figures-form" class="ml-auto h-8 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white">Guardar</button>
                 @endif

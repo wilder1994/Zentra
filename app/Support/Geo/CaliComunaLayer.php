@@ -185,6 +185,14 @@ final class CaliComunaLayer
             ];
         }
 
+        $vereda = CaliVeredaCatalog::match(is_string($commune) ? $commune : null);
+        if ($vereda !== null) {
+            return [
+                'commune' => $vereda['label'],
+                'area_kind' => ColombianAreaKind::Vereda->value,
+            ];
+        }
+
         $name = is_string($commune) ? $commune : null;
         $town = is_string($city) ? $city : null;
 

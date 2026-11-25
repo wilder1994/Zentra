@@ -653,13 +653,15 @@ export function observatoryMap(cfg) {
         applyMode() {
             clusterer?.clearMarkers();
             if (this.layer === 'riesgos') {
-                placeMarkers.forEach((marker) => marker.setMap(null));
                 this.drawCrimes();
-                this.drawShifts(false);
-                return;
+            } else {
+                this.clearCrimes();
+                this.styleComunas();
             }
-            this.clearCrimes();
-            this.styleComunas();
+            this.showSites();
+            this.drawShifts(false);
+        },
+        showSites() {
             const totals = placeMarkers
                 .filter((marker) => marker.role === 'site')
                 .map((marker) => this.siteTotal(marker));
@@ -672,10 +674,8 @@ export function observatoryMap(cfg) {
                 const summary = this.siteSummary(marker);
                 const total = summary.reduce((sum, row) => sum + Number(row.count || 0), 0);
                 if (total < 1) {
-                    marker.setMap(null);
-                    return;
-                }
-                if (this.mode === 'heat') {
+                    marker.setIcon(marker.pinIcon);
+                } else if (this.mode === 'heat') {
                     marker.setIcon(heatPoint(total / max));
                 } else if (this.mode === 'places') {
                     marker.setIcon(countIcon(total));
@@ -684,7 +684,6 @@ export function observatoryMap(cfg) {
                 }
                 marker.setMap(this.map);
             });
-            this.drawShifts(false);
         },
 
         siteSummary(marker) {

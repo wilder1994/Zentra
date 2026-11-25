@@ -57,66 +57,30 @@ const GRID = isLight() ? '#d5e3de' : '#1e293b';
 const MUTED = isLight() ? '#6b827a' : '#64748b';
 const SURFACE = isLight() ? '#f7fbf9' : '#0f172a';
 
-function chartFont() {
-    return { family: 'Figtree, ui-sans-serif, system-ui', size: 10 };
-}
-
-function lineOptions(showLegend = false) {
+function tip() {
     return {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-            legend: {
-                display: showLegend,
-                position: 'bottom',
-                labels: { color: SLATE, boxWidth: 8, font: { ...chartFont(), size: 10 }, padding: 8 },
-            },
-            tooltip: {
-                backgroundColor: '#0f172a',
-                borderColor: '#334155',
-                borderWidth: 1,
-                titleColor: '#e2e8f0',
-                bodyColor: '#cbd5e1',
-                padding: 8,
-            },
-        },
-        scales: {
-            x: {
-                ticks: { color: MUTED, font: chartFont(), maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
-                grid: { color: GRID, drawBorder: false },
-            },
-            y: {
-                beginAtZero: true,
-                suggestedMax: 4,
-                ticks: { color: MUTED, precision: 0, font: chartFont() },
-                grid: { color: GRID, drawBorder: false },
-            },
-        },
+        backgroundColor: '#0f172a',
+        borderColor: '#334155',
+        borderWidth: 1,
+        textStyle: { color: '#e2e8f0', fontSize: 11 },
     };
 }
 
-function doughnutOptions(empty) {
-    return {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'bottom',
-                labels: { color: SLATE, boxWidth: 8, font: { ...chartFont(), size: 10 }, padding: 8 },
-            },
-            tooltip: {
-                callbacks: {
-                    label(ctx) {
-                        if (empty) {
-                            return ` ${ctx.label}: 0`;
-                        }
-                        return ` ${ctx.label}: ${ctx.parsed}`;
-                    },
-                },
-            },
-        },
-    };
+function mixHex(hex, toward, amount) {
+    const parse = (value) => [1, 3, 5].map((index) => parseInt(value.slice(index, index + 2), 16));
+    const [red, green, blue] = parse(hex);
+    const [toRed, toGreen, toBlue] = parse(toward);
+    const channel = (from, to) => Math.round(from + (to - from) * amount).toString(16).padStart(2, '0');
+
+    return `#${channel(red, toRed)}${channel(green, toGreen)}${channel(blue, toBlue)}`;
+}
+
+function cylinderGradient(ink, vertical) {
+    return new window.echarts.graphic.LinearGradient(0, 0, vertical ? 1 : 0, vertical ? 0 : 1, [
+        { offset: 0, color: mixHex(ink, '#ffffff', 0.55) },
+        { offset: 0.42, color: ink },
+        { offset: 1, color: mixHex(ink, '#020617', 0.4) },
+    ]);
 }
 
 function mixRgb(from, to, t) {
@@ -135,80 +99,16 @@ function loadColor(t) {
     return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
 }
 
-function drawLoadGauge(canvas, value) {
-    const parent = canvas.parentElement;
-    const width = Math.max(1, parent?.clientWidth ?? canvas.clientWidth);
-    const height = Math.max(1, parent?.clientHeight ?? canvas.clientHeight);
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.round(width * dpr);
-    canvas.height = Math.round(height * dpr);
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-        return;
-    }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, width, height);
-
-    const pad = 8;
-    const thickness = Math.max(10, Math.min(width, height) * 0.12);
-    const cx = width / 2;
-    const cy = height - pad - 4;
-    const radius = Math.max(12, Math.min((width / 2) - pad - thickness / 2, cy - pad - thickness / 2));
-    const start = Math.PI;
-    const sweep = Math.PI;
-    const steps = 96;
-
-    ctx.lineCap = 'butt';
-    ctx.lineWidth = thickness;
-    for (let i = 0; i < steps; i += 1) {
-        const t0 = i / steps;
-        const a0 = start + sweep * t0;
-        const a1 = start + sweep * ((i + 1) / steps);
-        ctx.beginPath();
-        ctx.strokeStyle = loadColor(t0);
-        ctx.arc(cx, cy, radius, a0, a1);
-        ctx.stroke();
-    }
-
-    ctx.beginPath();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = SURFACE;
-    ctx.arc(cx, cy, Math.max(4, radius - thickness / 2 - 1.5), start, start + sweep);
-    ctx.stroke();
-
-    const load = Math.max(0, Math.min(100, Number(value) || 0)) / 100;
-    const angle = start + sweep * load;
-    const needle = Math.max(8, radius - thickness * 0.55);
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(angle);
-    ctx.beginPath();
-    ctx.moveTo(-6, 4);
-    ctx.lineTo(needle, 0);
-    ctx.lineTo(-6, -4);
-    ctx.closePath();
-    ctx.fillStyle = loadColor(load);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(0, 0, 6, 0, Math.PI * 2);
-    ctx.fillStyle = load >= 0.7 ? '#fecaca' : '#e2e8f0';
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(0, 0, 3, 0, Math.PI * 2);
-    ctx.fillStyle = loadColor(load);
-    ctx.fill();
-    ctx.restore();
-}
-
 export function observatoryBoard(payload) {
     return {
         payload,
         charts: [],
-        init() {
+        async init() {
+            await (window.whenEcharts ?? import('./echarts'));
             this.draw();
+            window.addEventListener('resize', () => {
+                this.charts.forEach((chart) => chart.resize());
+            });
             window.addEventListener('ops-live-data', (event) => {
                 const board = event.detail?.board;
                 if (!board) {
@@ -220,12 +120,6 @@ export function observatoryBoard(payload) {
                     loadEl.textContent = `${board.load_rate}%`;
                 }
             });
-            const paint = () => this.paintOrigins(this.payload?.origins);
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', paint);
-            } else {
-                paint();
-            }
         },
         replacePayload(board) {
             const next = { ...this.payload, ...board };
@@ -233,7 +127,7 @@ export function observatoryBoard(payload) {
                 this.payload = next;
                 return;
             }
-            this.charts.forEach((chart) => chart.destroy());
+            this.charts.forEach((chart) => chart.dispose());
             this.charts = [];
             this.payload = next;
             this.draw();
@@ -249,7 +143,15 @@ export function observatoryBoard(payload) {
                 load_rate: source.load_rate ?? null,
             };
         },
-        track(chart) {
+        mount(el) {
+            if (!el) {
+                return null;
+            }
+            const current = window.echarts.getInstanceByDom(el);
+            if (current) {
+                current.dispose();
+            }
+            const chart = window.echarts.init(el);
             this.charts.push(chart);
 
             return chart;
@@ -269,122 +171,214 @@ export function observatoryBoard(payload) {
             this.paintRisk(data.risk);
         },
         lines(el, series) {
-            if (!el) {
+            const chart = this.mount(el);
+            if (!chart) {
                 return;
             }
             const labels = series.labels?.length ? series.labels : ['—'];
             const rows = (series.series || []).length
                 ? series.series
                 : [{ label: 'Reportes', color: '#94a3b8', values: [0] }];
-            this.track(new Chart(el, {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets: rows.map((row) => ({
-                        label: row.label,
-                        data: row.values?.length ? row.values : labels.map(() => 0),
-                        borderColor: row.color,
-                        backgroundColor: 'transparent',
-                        fill: false,
-                        tension: 0.35,
-                        pointRadius: 2,
-                        pointHoverRadius: 4,
-                        pointBackgroundColor: row.color,
-                        borderWidth: 2,
-                    })),
+            chart.setOption({
+                animation: false,
+                grid: { left: 8, right: 12, top: 16, bottom: rows.length > 1 ? 36 : 8, containLabel: true },
+                tooltip: { trigger: 'axis', ...tip() },
+                legend: {
+                    show: rows.length > 1,
+                    bottom: 0,
+                    icon: 'circle',
+                    itemWidth: 8,
+                    itemHeight: 8,
+                    textStyle: { color: SLATE, fontSize: 10 },
                 },
-                options: lineOptions(rows.length > 1),
-            }));
+                xAxis: {
+                    type: 'category',
+                    data: labels,
+                    axisTick: { show: false },
+                    axisLine: { lineStyle: { color: GRID } },
+                    axisLabel: { color: MUTED, fontSize: 10 },
+                },
+                yAxis: {
+                    type: 'value',
+                    min: 0,
+                    minInterval: 1,
+                    axisLabel: { color: MUTED, fontSize: 10 },
+                    splitLine: { lineStyle: { color: GRID } },
+                },
+                series: rows.map((row) => ({
+                    type: 'line',
+                    name: row.label,
+                    data: row.values?.length ? row.values : labels.map(() => 0),
+                    smooth: 0.35,
+                    symbol: 'circle',
+                    symbolSize: 6,
+                    lineStyle: { width: 2, color: row.color },
+                    itemStyle: { color: row.color },
+                })),
+            }, true);
         },
         bars(el, series) {
-            if (!el) {
+            const chart = this.mount(el);
+            if (!chart) {
                 return;
             }
             const labels = series.labels?.length ? series.labels : ['—'];
-            const values = series.values?.length ? series.values : [0];
-            this.track(new Chart(el, {
-                type: 'bar',
-                data: {
-                    labels,
-                    datasets: [{
-                        data: values,
-                        backgroundColor: '#f59e0b',
-                        borderRadius: 5,
-                        maxBarThickness: 22,
-                    }],
+            const values = (series.values?.length ? series.values : [0]).map((value) => Number(value) || 0);
+            const ink = '#f59e0b';
+            const width = 18;
+            const cap = 7;
+            const max = Math.max(1, ...values);
+            const track = isLight() ? '#e2e8f0' : '#1e293b';
+            chart.setOption({
+                animation: false,
+                grid: { left: 8, right: 12, top: 16, bottom: 8, containLabel: true },
+                tooltip: { trigger: 'axis', ...tip() },
+                xAxis: {
+                    type: 'category',
+                    data: labels,
+                    axisTick: { show: false },
+                    axisLine: { show: false },
+                    axisLabel: { color: MUTED, fontSize: 10 },
                 },
-                options: {
-                    ...lineOptions(),
-                    plugins: { ...lineOptions().plugins, legend: { display: false } },
+                yAxis: {
+                    type: 'value',
+                    min: 0,
+                    max,
+                    show: false,
                 },
-            }));
+                series: [
+                    {
+                        type: 'bar',
+                        barWidth: width,
+                        barGap: '-100%',
+                        silent: true,
+                        z: 1,
+                        data: values.map(() => max),
+                        itemStyle: { color: track, borderRadius: 0 },
+                    },
+                    {
+                        type: 'bar',
+                        barWidth: width,
+                        barGap: '-100%',
+                        z: 2,
+                        data: values.map((value) => ({
+                            value: value > 0 ? value : null,
+                            itemStyle: { color: cylinderGradient(ink, true), borderRadius: 0 },
+                        })),
+                    },
+                    {
+                        type: 'pictorialBar',
+                        symbol: 'circle',
+                        symbolSize: [width, cap],
+                        symbolPosition: 'end',
+                        symbolOffset: [0, -cap / 2],
+                        silent: true,
+                        barGap: '-100%',
+                        z: 3,
+                        data: values.map((value) => ({
+                            value: value > 0 ? value : null,
+                            itemStyle: { color: ink },
+                        })),
+                    },
+                ],
+            }, true);
         },
         pie(el, series) {
-            if (!el) {
+            const chart = this.mount(el);
+            if (!chart) {
                 return;
             }
             const labels = series.labels?.length ? series.labels : ['Link público', 'WhatsApp', 'App de patrulla', 'API', 'Panel'];
             const values = series.values?.length ? series.values : labels.map(() => 0);
             const colors = ['#14b8a6', '#22c55e', '#f59e0b', '#a78bfa', '#818cf8'];
-            const empty = values.every((n) => Number(n) === 0);
-            this.track(new Chart(el, {
-                type: 'doughnut',
-                data: {
-                    labels,
-                    datasets: [{
-                        data: empty ? values.map(() => 1) : values,
-                        backgroundColor: empty ? values.map(() => GRID) : colors.slice(0, values.length),
-                        borderColor: SURFACE,
-                        borderWidth: 2,
-                    }],
+            const empty = values.every((value) => Number(value) === 0);
+            chart.setOption({
+                animation: false,
+                tooltip: {
+                    ...tip(),
+                    formatter(item) {
+                        return `${item.name}: ${empty ? 0 : item.value}`;
+                    },
                 },
-                options: {
-                    ...doughnutOptions(empty),
-                    cutout: '62%',
+                legend: {
+                    bottom: 0,
+                    icon: 'circle',
+                    itemWidth: 8,
+                    itemHeight: 8,
+                    textStyle: { color: SLATE, fontSize: 10 },
                 },
-            }));
+                series: [{
+                    type: 'pie',
+                    radius: ['48%', '72%'],
+                    center: ['50%', '42%'],
+                    label: { show: false },
+                    data: labels.map((label, index) => ({
+                        name: label,
+                        value: empty ? 1 : Number(values[index] || 0),
+                        itemStyle: {
+                            color: empty ? GRID : colors[index % colors.length],
+                            borderColor: SURFACE,
+                            borderWidth: 2,
+                        },
+                    })),
+                }],
+            }, true);
         },
         gauge(el, value) {
-            if (!el) {
+            const chart = this.mount(el);
+            if (!chart) {
                 return;
             }
-            const paint = () => drawLoadGauge(el, value);
-            paint();
-            if (typeof ResizeObserver !== 'undefined') {
-                const observer = new ResizeObserver(paint);
-                observer.observe(el.parentElement ?? el);
-            }
+            const load = Math.max(0, Math.min(100, Number(value) || 0));
+            chart.setOption({
+                animation: false,
+                series: [{
+                    type: 'gauge',
+                    startAngle: 180,
+                    endAngle: 0,
+                    min: 0,
+                    max: 100,
+                    radius: '140%',
+                    center: ['50%', '78%'],
+                    pointer: {
+                        show: true,
+                        length: '62%',
+                        width: 4,
+                        itemStyle: { color: loadColor(load / 100) },
+                    },
+                    progress: { show: false },
+                    axisLine: {
+                        lineStyle: {
+                            width: 12,
+                            color: [[0.5, '#10b981'], [0.75, '#f59e0b'], [1, '#ef4444']],
+                        },
+                    },
+                    axisTick: { show: false },
+                    splitLine: { show: false },
+                    axisLabel: { show: false },
+                    detail: { show: false },
+                    data: [{ value: load }],
+                }],
+            }, true);
         },
         paintOrigins(series) {
             const node = document.querySelector('.obs-origins');
-            if (!node || !window.echarts || !series) {
+            if (!node || !series) {
                 return;
             }
             const labels = series.labels?.length ? series.labels : ['Sin origen'];
-            const values = series.values?.length ? series.values : [0];
-            const palette = [
-                ['#d1fae5', '#22c55e', '#14532d'],
-                ['#fef3c7', '#eab308', '#854d0e'],
-                ['#ffedd5', '#f97316', '#9a3412'],
-                ['#ffe4e6', '#f43f5e', '#9f1239'],
-                ['#e0e7ff', '#818cf8', '#3730a3'],
-                ['#ccfbf1', '#14b8a6', '#115e59'],
-                ['#f3e8ff', '#a78bfa', '#6b21a8'],
-                ['#e2e8f0', '#94a3b8', '#334155'],
-            ];
+            const values = (series.values?.length ? series.values : [0]).map((value) => Number(value) || 0);
+            const palette = ['#22c55e', '#eab308', '#f97316', '#f43f5e', '#818cf8', '#14b8a6', '#a78bfa', '#94a3b8'];
             const width = 12;
-            const tip = 5;
-            const colorsOf = (index) => palette[index % palette.length];
-            const shaft = (colors) => new window.echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0, color: colors[0] },
-                { offset: 0.42, color: colors[1] },
-                { offset: 1, color: colors[2] },
-            ]);
-            const chart = window.echarts.getInstanceByDom(node) || window.echarts.init(node);
+            const cap = 5;
+            const max = Math.max(1, ...values);
+            const track = isLight() ? '#e2e8f0' : '#1e293b';
+            const chart = this.mount(node);
             chart.setOption({
                 animation: false,
-                grid: { left: 16, right: 14, top: 6, bottom: 4, containLabel: true },
-                xAxis: { type: 'value', min: 0, show: false },
+                grid: { left: 8, right: 16, top: 4, bottom: 4, containLabel: true },
+                tooltip: { trigger: 'axis', ...tip() },
+                xAxis: { type: 'value', min: 0, max, show: false },
                 yAxis: {
                     type: 'category',
                     inverse: true,
@@ -398,24 +392,33 @@ export function observatoryBoard(payload) {
                         type: 'bar',
                         barWidth: width,
                         barGap: '-100%',
+                        silent: true,
+                        z: 1,
+                        data: values.map(() => max),
+                        itemStyle: { color: track, borderRadius: 0 },
+                    },
+                    {
+                        type: 'bar',
+                        barWidth: width,
+                        barGap: '-100%',
                         z: 2,
                         data: values.map((value, index) => ({
-                            value: Number(value) > 0 ? Number(value) : null,
-                            itemStyle: { borderRadius: 0, color: shaft(colorsOf(index)) },
+                            value: value > 0 ? value : null,
+                            itemStyle: { color: cylinderGradient(palette[index % palette.length], false), borderRadius: 0 },
                         })),
                     },
                     {
                         type: 'pictorialBar',
                         symbol: 'circle',
-                        symbolSize: [tip, width],
+                        symbolSize: [cap, width],
                         symbolPosition: 'end',
-                        symbolOffset: [tip / 2, 0],
+                        symbolOffset: [cap / 2, 0],
+                        silent: true,
                         barGap: '-100%',
                         z: 3,
-                        silent: true,
                         data: values.map((value, index) => ({
-                            value: Number(value) > 0 ? Number(value) : null,
-                            itemStyle: { color: colorsOf(index)[0] },
+                            value: value > 0 ? value : null,
+                            itemStyle: { color: palette[index % palette.length] },
                         })),
                     },
                 ],

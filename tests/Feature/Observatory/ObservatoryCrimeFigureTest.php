@@ -25,7 +25,9 @@ final class ObservatoryCrimeFigureTest extends TestCase
             ->get(route('company.observatory.types.index', ['seccion' => 'comunas']))
             ->assertOk()
             ->assertSee('← Riesgos')
-            ->assertSee('Delitos por comuna')
+            ->assertSee('Delitos por comuna y veredas')
+            ->assertSee('El Estero')
+            ->assertSee('R vereda normalizado')
             ->assertSee('Guardar')
             ->assertDontSee('Tablero')
             ->assertDontSee('Crear delito')
@@ -41,11 +43,15 @@ final class ObservatoryCrimeFigureTest extends TestCase
         $this->actingAs($admin)
             ->post(route('company.observatory.crimes.figures'), [
                 'year' => (int) now()->year,
-                'figures' => [$code => [$typeId => 4321]],
+                'figures' => [
+                    $code => [$typeId => 4321],
+                    'v02' => [$typeId => 17],
+                ],
             ])
             ->assertRedirect();
 
         $this->assertSame(4321, (int) ObservatoryCrimeFigure::query()->where('comuna_code', $code)->value('total'));
+        $this->assertSame(17, (int) ObservatoryCrimeFigure::query()->where('comuna_code', 'v02')->value('total'));
         $payload = app(\App\Services\Observatory\ManageObservatoryCrimeFiguresService::class)
             ->mapPayload((int) $admin->security_company_id, now()->startOfYear()->toDateString(), now()->toDateString());
         $found = collect($payload['rows'] ?? [])->contains(

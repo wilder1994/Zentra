@@ -99,7 +99,7 @@
     html[data-theme="light"] .obs-risk-rank thead th { background: var(--ui-surface); }
     .obs-risk-cyl { width: 16.5rem; height: 2.6rem; }
     .obs-trend-row { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
-    .obs-origins { width: 100%; height: 100%; }
+    .obs-origins, .obs-plot { width: 100%; height: 100%; }
     .obs-top { display: grid; gap: .5rem; align-items: stretch; }
     .obs-top-map, .obs-top-side, .obs-top-catalogs { min-width: 0; }
     @media (min-width: 768px) {
@@ -284,14 +284,14 @@
                         <p>Tendencia endógena</p>
                         <h3>{{ $grain === 'year' ? 'Mes a mes' : 'Día a día' }}</h3>
                     </div>
-                    <div class="obs-chart obs-chart-lg"><canvas x-ref="trend" aria-label="Tendencia endógena"></canvas></div>
+                    <div class="obs-chart obs-chart-lg"><div class="obs-plot" x-ref="trend" role="img" aria-label="Tendencia endógena"></div></div>
                 </section>
                 <section class="obs-card">
                     <div class="obs-card-h">
                         <p>Picos</p>
                         <h3>Días con más reportes</h3>
                     </div>
-                    <div class="obs-chart obs-chart-lg"><canvas x-ref="peaks" aria-label="Días con más reportes"></canvas></div>
+                    <div class="obs-chart obs-chart-lg"><div class="obs-plot" x-ref="peaks" role="img" aria-label="Días con más reportes"></div></div>
                 </section>
             </div>
 
@@ -306,7 +306,7 @@
                 <div class="obs-card-h">
                     <h3>Fuentes</h3>
                 </div>
-                <div class="obs-chart"><canvas x-ref="sources" aria-label="Fuentes"></canvas></div>
+                <div class="obs-chart"><div class="obs-plot" x-ref="sources" role="img" aria-label="Fuentes"></div></div>
             </section>
             <section class="obs-card">
                 <div class="obs-card-h">
@@ -315,7 +315,7 @@
                 </div>
                 <div class="obs-chart obs-gauge">
                     <div class="obs-gauge-plot">
-                        <canvas x-ref="gauge" aria-label="Atención de folios"></canvas>
+                        <div class="obs-plot" x-ref="gauge" role="img" aria-label="Atención de folios"></div>
                         <p class="obs-gauge-value pointer-events-none absolute inset-x-0 top-[42%] text-center text-xl font-semibold tabular-nums text-white leading-none">{{ (int) ($board['load_rate'] ?? 0) }}%</p>
                     </div>
                     <div class="obs-gauge-legend shrink-0 grid grid-cols-3 gap-1 px-1 pt-1 text-[10px] leading-tight">

@@ -56,6 +56,12 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 25 nov 2026 · Gráficos del tablero y buscador de veredas
+El tablero pinta tendencia, picos, orígenes, fuentes y el medidor con ECharts, cargado solo en esa página. Orígenes ya no espera un script de más abajo y en cero muestra el tubo vacío. Los días con más reportes siguen en vertical, ahora en cilindro. En Delitos por comuna y veredas hay un buscador junto a Comunas y otro junto a Veredas; el scroll horizontal sigue.
+
+### 25 nov 2026 · Instalaciones en el mapa y veredas
+En Endógeno y en Exógeno el mapa muestra todas las instalaciones con coordenadas, aunque no tengan reportes. Si el pin no cae en una comuna de Cali, el formulario queda en Zona rural y guarda la vereda elegida. La grilla se llama Delitos por comuna y veredas: comunas y veredas van en tablas aparte. Catálogo: Acuerdo 0636 de 2026 (93 veredas y 2 sectores rurales).
+
 ### 25 nov 2026 · Tablero del Observatorio
 Semáforo de Riesgo por instalación en cilindro horizontal ECharts (estilo Decowandy: lados rectos, inicio plano, disco solo en la punta, color de la banda). Orígenes en cilindros horizontales: Alumno, Padre, Vecino, Usuario panel, Usuario API, Usuario app patrulla. Tendencia endógena y Días con más reportes comparten la fila al 50%. El tablero no se recalcula cada 5 s: Reverb avisa al cambiar un reporte y entonces se redibujan tendencia, picos, orígenes, riesgo por instalación y semáforo. El mapa abre en Endógeno agrupado. No había migración del bloque eliminado «Instalaciones por riesgo»; no se borró ninguna. Commit `f7e4b8f`. El tiempo real y el mapa en Endógeno agrupado: `50fb6f6`.
 

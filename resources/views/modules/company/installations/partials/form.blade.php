@@ -11,6 +11,7 @@
     $areaLng = old('longitude', $installation?->longitude);
     $idescLocked = is_numeric($areaLat) && is_numeric($areaLng)
         && app(\App\Support\Geo\CaliComunaLayer::class)->locate((float) $areaLat, (float) $areaLng) !== null;
+    $veredaOptions = \App\Support\Geo\CaliVeredaCatalog::all();
     $installationProfiles = $installationProfiles ?? [];
 @endphp
 
@@ -128,12 +129,20 @@
                 commune: @js(old('commune', $installation?->commune ?? '')),
                 city: @js(old('city', $installation?->city ?? '')),
                 idescLocked: @js($idescLocked),
+                veredas: @js($veredaOptions),
             })"
             @geo-place.window="applyPlace($event.detail)"
         >
-            <x-ui.label for="commune" x-text="areaLabel">Comuna / área</x-ui.label>
-            <x-ui.input id="commune" name="commune" x-model="commune" @input="refreshKind()" placeholder="Se llena con el mapa"
-                        class="read-only:text-slate-400" x-bind:readonly="idescLocked" />
+            <x-ui.label for="commune" x-text="areaLabel">Zona rural</x-ui.label>
+            <x-ui.input id="commune" name="commune" x-model="commune" x-show="idescLocked" x-bind:disabled="!idescLocked" readonly
+                        class="read-only:text-slate-400" />
+            <select id="commune-vereda" name="commune" x-model="commune" x-show="!idescLocked" x-cloak x-bind:disabled="idescLocked"
+                    class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white">
+                <option value="">Elige la vereda</option>
+                @foreach ($veredaOptions as $row)
+                    <option value="{{ $row['label'] }}">{{ $row['label'] }}</option>
+                @endforeach
+            </select>
             <p class="mt-1 text-[11px] text-slate-500" x-text="areaHint"></p>
             <x-ui.field-error :messages="$errors->get('commune')" />
         </div>

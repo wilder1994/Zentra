@@ -7,6 +7,7 @@ namespace App\Services\Observatory;
 use App\Models\ObservatoryCrimeFigure;
 use App\Models\ObservatoryCrimeType;
 use App\Support\Geo\CaliComunaLayer;
+use App\Support\Geo\CaliVeredaCatalog;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -127,7 +128,7 @@ final class ManageObservatoryCrimeFiguresService
         $types = $this->types($companyId)
             ->where('is_active', true)
             ->keyBy(fn (ObservatoryCrimeType $type): int => (int) $type->id);
-        $codes = $this->comunas->codes();
+        $codes = array_values(array_unique(array_merge($this->comunas->codes(), CaliVeredaCatalog::codes())));
 
         DB::transaction(function () use ($companyId, $year, $cells, $types, $codes): void {
             foreach ($codes as $code) {
