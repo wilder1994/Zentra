@@ -56,6 +56,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 25 nov 2026 · Encabezado del mapa y fila 60/20/20
+Los cuatro números quedan como texto en el encabezado del mapa, junto a Mapa y Satélite. Sobre el mapa van el suiche y el botón Catálogo. Salen las tarjetas de KPI, la franja de etiquetas y los dos catálogos del lado. La fila es mapa 60 %, convenciones y supervisores 20 %, reportes 20 %. Commit `7bc7fdd`.
+
 ### 25 nov 2026 · Filtros del mapa por comuna
 Exógeno ya no pinta las sedes. Agrupado es la dona de cada comuna, el calor es solo el polígono y Comuna es el círculo blanco con el total de esa comuna. En Endógeno el calor sigue en el punto de color, también cuando las sedes se agrupan. Commit `8b62470`.
 
