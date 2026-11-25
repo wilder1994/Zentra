@@ -229,7 +229,7 @@ final class BuildObservatoryMapService
             ? (int) Client::query()->whereKey($clientId)->value('security_company_id')
             : 0);
 
-        return app(BuildActivityBubblesService::class)->forCompany($resolvedCompany, $clientId);
+        return app(BuildActivityBubblesService::class)->forCompany($resolvedCompany, $clientId, true);
     }
 
     /**

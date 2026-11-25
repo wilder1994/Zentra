@@ -224,9 +224,7 @@
                                         <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-300" x-text="row.kind_label"></p>
                                         <p class="text-[10px] text-slate-500 tabular-nums" x-text="row.at"></p>
                                     </div>
-                                    <template x-for="line in row.lines" :key="line.label">
-                                        <p class="text-[12px] text-slate-300 leading-snug"><span class="text-slate-500" x-text="line.label"></span> <span class="text-slate-100" x-text="line.value"></span></p>
-                                    </template>
+                                    <p class="text-[12px] leading-snug text-slate-200" x-text="row.text"></p>
                                 </article>
                             </template>
                             <p class="py-6 text-center text-sm text-slate-500" x-show="!bubbles.length">Sin reportes todavía.</p>
