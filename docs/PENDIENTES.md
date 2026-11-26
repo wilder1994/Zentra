@@ -56,6 +56,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 26 nov 2026 · Atención de folios
+Un solo título, Atención de folios más el total. El arco es media dona con el tubo de Fuentes, puntas y cortes rectos, y solo pinta los estados que tienen folios. La leyenda es Cerrados, En trámite y Nuevos. La tarjetica de Gestión queda un centímetro sobre el borde del arco, con marco hundido y visor iluminado. Gestión y el porcentaje van en la misma línea y del mismo tamaño. La dona y el arco usan el mismo grosor de anillo y crecen centrados; las leyendas bajan al borde de la tarjeta. El folio nuevo pesa completo y el que está en trámite pesa la mitad. Commit `23a653f`.
+
 ### 26 nov 2026 · Gráficos del tablero
 Segunda fila: Atención de folios, Fuentes y Orígenes, a tercios. Tercera: Tendencia endógena, Delitos endógenos por comuna (un cilindro por delito) e Instalaciones con más reportes (cilindro partido por delito, total visible, scroll interno y buscador). Riesgo por instalación baja a la fila de abajo, a todo el ancho. En el mapa, Eventos, Nuevos, En atención y Cerrados muestran el número. Commit `538057c`.
 
