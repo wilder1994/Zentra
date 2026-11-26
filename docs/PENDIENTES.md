@@ -56,6 +56,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 26 nov 2026 · Gestión que sube
+La tarjetica suma lo trabajado. Cerrar un folio suma su parte completa y pasarlo a trámite suma la mitad. Diez folios nuevos marcan 0 %. El arco no cambia. Commit `53e995c`.
+
 ### 26 nov 2026 · Atención de folios
 Un solo título, Atención de folios más el total. El arco es media dona con el tubo de Fuentes, puntas y cortes rectos, y solo pinta los estados que tienen folios. La leyenda es Cerrados, En trámite y Nuevos. La tarjetica de Gestión queda un centímetro sobre el borde del arco, con marco hundido y visor iluminado. Gestión y el porcentaje van en la misma línea y del mismo tamaño. La dona y el arco usan el mismo grosor de anillo y crecen centrados; las leyendas bajan al borde de la tarjeta. El folio nuevo pesa completo y el que está en trámite pesa la mitad. Commit `23a653f`.
 
