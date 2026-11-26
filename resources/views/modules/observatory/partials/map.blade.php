@@ -34,8 +34,7 @@
                     @foreach ($kpis as $kpi)
                         <a href="{{ $kpi['url'] }}" class="inline-flex items-baseline gap-1 {{ $kpi['on'] ? 'text-white' : 'text-slate-400 hover:text-slate-200' }}">
                             <span class="text-[10px] uppercase tracking-wide">{{ $kpi['label'] }}</span>
-                            <span class="text-sm font-semibold tabular-nums" style="color: {{ $kpi['tone'] }}"
-                                  @if ($kpiLive) x-text="($parent.board && $parent.board.{{ $kpi['key'] }} != null) ? $parent.board.{{ $kpi['key'] }} : {{ (int) $kpi['count'] }}" @endif>{{ $kpi['count'] }}</span>
+                            <span class="text-sm font-semibold tabular-nums" style="color: {{ $kpi['tone'] }}" data-obs-kpi="{{ $kpi['key'] }}">{{ $kpi['count'] }}</span>
                         </a>
                     @endforeach
                     <div class="ml-auto flex gap-1">

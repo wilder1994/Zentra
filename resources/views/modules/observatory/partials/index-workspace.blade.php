@@ -8,6 +8,8 @@
         'total' => 0, 'nuevo' => 0, 'en_atencion' => 0, 'cerrado' => 0, 'closed_rate' => 0, 'load_rate' => 0,
         'trend' => ['labels' => ['—'], 'series' => []],
         'peaks' => ['labels' => ['—'], 'values' => [0]],
+        'crimes' => ['labels' => [], 'values' => [], 'colors' => []],
+        'sites' => ['rows' => []],
         'kinds' => ['labels' => [], 'values' => []], 'sources' => ['labels' => [], 'values' => []],
         'origins' => ['labels' => [], 'values' => []],
     ];
@@ -36,6 +38,8 @@
         'load_rate' => (int) ($board['load_rate'] ?? 0),
         'trend' => $board['trend'] ?? ['labels' => ['—'], 'series' => []],
         'peaks' => $board['peaks'] ?? ['labels' => ['—'], 'values' => [0]],
+        'crimes' => $board['crimes'] ?? ['labels' => [], 'values' => [], 'colors' => []],
+        'sites' => $board['sites'] ?? ['rows' => []],
         'sources' => $board['sources'] ?? ['labels' => [], 'values' => []],
         'origins' => $board['origins'] ?? ['labels' => [], 'values' => []],
     ];
@@ -82,7 +86,13 @@
     .obs-risk-rank thead th { position: sticky; top: 0; z-index: 1; background: rgb(15 23 42); }
     html[data-theme="light"] .obs-risk-rank thead th { background: var(--ui-surface); }
     .obs-risk-cyl { width: 16.5rem; height: 2.6rem; }
-    .obs-trend-row { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+    .obs-chart-row { display: grid; gap: .5rem; }
+    .obs-rank-scroll { height: 100%; overflow-x: hidden; overflow-y: auto; }
+    .obs-site-search {
+        height: 1.75rem; width: 9.5rem; border-radius: .375rem; border: 1px solid rgb(51 65 85);
+        background: rgb(2 6 23); color: #e2e8f0; font-size: 11px; padding: 0 .5rem;
+    }
+    html[data-theme="light"] .obs-site-search { background: #fff; color: var(--ui-text); border-color: var(--ui-border); }
     .obs-origins, .obs-plot { width: 100%; height: 100%; }
     .obs-top { display: grid; gap: .5rem; align-items: stretch; }
     .obs-top-map, .obs-top-side, .obs-top-feed { min-width: 0; }
@@ -92,6 +102,7 @@
         .obs-top-side, .obs-top-feed { height: 22rem; }
     }
     @media (min-width: 1024px) {
+        .obs-chart-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         .obs-top { grid-template-columns: minmax(0, 3fr) minmax(0, 1fr) minmax(0, 1fr); }
         .obs-top-map { grid-column: auto; }
         .obs-top-map, .obs-top-side, .obs-top-feed { height: 28rem; }
@@ -231,15 +242,39 @@
             </div>
         </div>
 
-        @if (! empty($risk))
-            @include('modules.observatory.partials.risk-board', [
-                'risk' => $risk,
-                'showClientColumn' => $showClientColumn ?? false,
-            ])
-        @endif
-
         <div class="space-y-3" x-data="observatoryBoard(@js($charts))">
-            <div class="obs-trend-row">
+            <div class="obs-chart-row">
+                <section class="obs-card">
+                    <div class="obs-card-h">
+                        <p>Atención</p>
+                        <h3>Atención de folios</h3>
+                    </div>
+                    <div class="obs-chart obs-gauge">
+                        <div class="obs-gauge-plot">
+                            <div class="obs-plot" x-ref="gauge" role="img" aria-label="Atención de folios"></div>
+                            <p class="obs-gauge-value pointer-events-none absolute inset-x-0 top-[42%] text-center text-xl font-semibold tabular-nums text-white leading-none">{{ (int) ($board['load_rate'] ?? 0) }}%</p>
+                        </div>
+                        <div class="obs-gauge-legend shrink-0 grid grid-cols-3 gap-1 px-1 pt-1 text-[10px] leading-tight">
+                            <p class="text-emerald-400">Cerrados <span class="font-semibold tabular-nums text-emerald-300" @if ($observatoryLiveUrl) x-text="payload.cerrado ?? {{ (int) ($board['cerrado'] ?? 0) }}" @endif>{{ (int) ($board['cerrado'] ?? 0) }}</span></p>
+                            <p class="text-center text-amber-400">En trámite <span class="font-semibold tabular-nums text-amber-300" @if ($observatoryLiveUrl) x-text="payload.en_atencion ?? {{ (int) ($board['en_atencion'] ?? 0) }}" @endif>{{ (int) ($board['en_atencion'] ?? 0) }}</span></p>
+                            <p class="text-right text-red-400">Total <span class="font-semibold tabular-nums text-red-300" @if ($observatoryLiveUrl) x-text="payload.total ?? {{ (int) ($board['total'] ?? 0) }}" @endif>{{ (int) ($board['total'] ?? 0) }}</span></p>
+                        </div>
+                    </div>
+                </section>
+                <section class="obs-card">
+                    <div class="obs-card-h">
+                        <h3>Fuentes</h3>
+                    </div>
+                    <div class="obs-chart"><div class="obs-plot" x-ref="sources" role="img" aria-label="Fuentes"></div></div>
+                </section>
+                <section class="obs-card">
+                    <div class="obs-card-h">
+                        <h3>Orígenes</h3>
+                    </div>
+                    <div class="obs-chart"><div class="obs-origins" data-origins='@json($charts['origins'])'></div></div>
+                </section>
+            </div>
+            <div class="obs-chart-row">
                 <section class="obs-card">
                     <div class="obs-card-h">
                         <p>Tendencia endógena</p>
@@ -249,45 +284,35 @@
                 </section>
                 <section class="obs-card">
                     <div class="obs-card-h">
-                        <p>Picos</p>
-                        <h3>Días con más reportes</h3>
+                        <p>Delitos</p>
+                        <h3>Delitos endógenos por comuna</h3>
                     </div>
-                    <div class="obs-chart obs-chart-lg"><div class="obs-plot" x-ref="peaks" role="img" aria-label="Días con más reportes"></div></div>
+                    <div class="obs-chart obs-chart-lg">
+                        <div class="obs-rank-scroll"><div class="obs-plot" x-ref="crimes" role="img" aria-label="Delitos endógenos"></div></div>
+                    </div>
+                </section>
+                <section class="obs-card">
+                    <div class="obs-card-h flex items-start justify-between gap-2">
+                        <div>
+                            <p>Sedes</p>
+                            <h3>Instalaciones con más reportes</h3>
+                        </div>
+                        <input type="search" class="obs-site-search" placeholder="Buscar" autocomplete="off"
+                               x-model="siteQuery" @input="paintSites()" @keydown.enter.prevent>
+                    </div>
+                    <div class="obs-chart obs-chart-lg">
+                        <div class="obs-rank-scroll"><div class="obs-plot" x-ref="sites" role="img" aria-label="Instalaciones con más reportes"></div></div>
+                    </div>
                 </section>
             </div>
+        </div>
 
-        <div class="grid gap-2 md:grid-cols-2 lg:grid-cols-[1.15fr_1.15fr_0.85fr] lg:items-stretch">
-            <section class="obs-card">
-                <div class="obs-card-h">
-                    <h3>Orígenes</h3>
-                </div>
-                <div class="obs-chart"><div class="obs-origins" data-origins='@json($charts['origins'])'></div></div>
-            </section>
-            <section class="obs-card">
-                <div class="obs-card-h">
-                    <h3>Fuentes</h3>
-                </div>
-                <div class="obs-chart"><div class="obs-plot" x-ref="sources" role="img" aria-label="Fuentes"></div></div>
-            </section>
-            <section class="obs-card">
-                <div class="obs-card-h">
-                    <p>Atención</p>
-                    <h3>Atención de folios</h3>
-                </div>
-                <div class="obs-chart obs-gauge">
-                    <div class="obs-gauge-plot">
-                        <div class="obs-plot" x-ref="gauge" role="img" aria-label="Atención de folios"></div>
-                        <p class="obs-gauge-value pointer-events-none absolute inset-x-0 top-[42%] text-center text-xl font-semibold tabular-nums text-white leading-none">{{ (int) ($board['load_rate'] ?? 0) }}%</p>
-                    </div>
-                    <div class="obs-gauge-legend shrink-0 grid grid-cols-3 gap-1 px-1 pt-1 text-[10px] leading-tight">
-                        <p class="text-emerald-400">Cerrados <span class="font-semibold tabular-nums text-emerald-300" @if ($observatoryLiveUrl) x-text="payload.cerrado ?? {{ (int) ($board['cerrado'] ?? 0) }}" @endif>{{ (int) ($board['cerrado'] ?? 0) }}</span></p>
-                        <p class="text-center text-amber-400">En trámite <span class="font-semibold tabular-nums text-amber-300" @if ($observatoryLiveUrl) x-text="payload.en_atencion ?? {{ (int) ($board['en_atencion'] ?? 0) }}" @endif>{{ (int) ($board['en_atencion'] ?? 0) }}</span></p>
-                        <p class="text-right text-red-400">Total <span class="font-semibold tabular-nums text-red-300" @if ($observatoryLiveUrl) x-text="payload.total ?? {{ (int) ($board['total'] ?? 0) }}" @endif>{{ (int) ($board['total'] ?? 0) }}</span></p>
-                    </div>
-                </div>
-            </section>
-        </div>
-        </div>
+        @if (! empty($risk))
+            @include('modules.observatory.partials.risk-board', [
+                'risk' => $risk,
+                'showClientColumn' => $showClientColumn ?? false,
+            ])
+        @endif
     @else
         <div class="rounded-xl border border-slate-800 overflow-hidden bg-slate-900/80">
             <table class="min-w-full text-sm">

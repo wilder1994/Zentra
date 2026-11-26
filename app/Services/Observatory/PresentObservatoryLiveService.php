@@ -28,6 +28,8 @@ final class PresentObservatoryLiveService
                 'load_rate' => (int) ($board['load_rate'] ?? 0),
                 'trend' => $board['trend'] ?? ['labels' => ['—'], 'series' => []],
                 'peaks' => $board['peaks'] ?? ['labels' => ['—'], 'values' => [0]],
+                'crimes' => $board['crimes'] ?? ['labels' => [], 'values' => [], 'colors' => []],
+                'sites' => $board['sites'] ?? ['rows' => []],
                 'sources' => $board['sources'] ?? ['labels' => [], 'values' => []],
                 'origins' => $board['origins'] ?? ['labels' => [], 'values' => []],
                 'risk' => $this->riskBoard($risk),

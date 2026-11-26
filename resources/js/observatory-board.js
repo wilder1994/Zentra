@@ -102,6 +102,7 @@ function loadColor(t) {
 export function observatoryBoard(payload) {
     return {
         payload,
+        siteQuery: '',
         charts: [],
         async init() {
             await (window.whenEcharts ?? import('./echarts'));
@@ -119,6 +120,14 @@ export function observatoryBoard(payload) {
                 if (loadEl && board.load_rate !== undefined) {
                     loadEl.textContent = `${board.load_rate}%`;
                 }
+                ['total', 'nuevo', 'en_atencion', 'cerrado'].forEach((key) => {
+                    if (board[key] === undefined) {
+                        return;
+                    }
+                    document.querySelectorAll(`[data-obs-kpi="${key}"]`).forEach((node) => {
+                        node.textContent = String(board[key]);
+                    });
+                });
             });
         },
         replacePayload(board) {
@@ -136,7 +145,8 @@ export function observatoryBoard(payload) {
             const source = data ?? {};
             return {
                 trend: source.trend ?? null,
-                peaks: source.peaks ?? null,
+                crimes: source.crimes ?? null,
+                sites: source.sites ?? null,
                 sources: source.sources ?? null,
                 origins: source.origins ?? null,
                 risk: source.risk ?? null,
@@ -149,6 +159,7 @@ export function observatoryBoard(payload) {
             }
             const current = window.echarts.getInstanceByDom(el);
             if (current) {
+                this.charts = this.charts.filter((chart) => chart !== current);
                 current.dispose();
             }
             const chart = window.echarts.init(el);
@@ -159,16 +170,30 @@ export function observatoryBoard(payload) {
         draw() {
             const data = this.payload ?? {};
             const trend = data.trend ?? { labels: ['—'], series: [] };
-            const peaks = data.peaks ?? { labels: ['—'], values: [0] };
             const sources = data.sources ?? { labels: [], values: [] };
             const load = Number(data.load_rate ?? 0);
 
             this.lines(this.$refs.trend, trend);
-            this.bars(this.$refs.peaks, peaks);
+            this.paintCrimes(data.crimes);
+            this.paintSites();
             this.pie(this.$refs.sources, sources);
             this.gauge(this.$refs.gauge, load);
             this.paintOrigins(data.origins);
             this.paintRisk(data.risk);
+        },
+        normalize(value) {
+            return String(value || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/\p{M}/gu, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        },
+        rankHeight(el, count) {
+            const row = 32;
+            const visible = Math.max(row, el.parentElement?.clientHeight || row * 5);
+            const rows = Math.max(count, 1);
+            el.style.height = rows * row > visible ? `${rows * row}px` : '100%';
         },
         lines(el, series) {
             const chart = this.mount(el);
@@ -217,72 +242,6 @@ export function observatoryBoard(payload) {
                 })),
             }, true);
         },
-        bars(el, series) {
-            const chart = this.mount(el);
-            if (!chart) {
-                return;
-            }
-            const labels = series.labels?.length ? series.labels : ['—'];
-            const values = (series.values?.length ? series.values : [0]).map((value) => Number(value) || 0);
-            const ink = '#f59e0b';
-            const width = 18;
-            const cap = 7;
-            const max = Math.max(1, ...values);
-            const track = isLight() ? '#e2e8f0' : '#1e293b';
-            chart.setOption({
-                animation: false,
-                grid: { left: 8, right: 12, top: 16, bottom: 8, containLabel: true },
-                tooltip: { trigger: 'axis', ...tip() },
-                xAxis: {
-                    type: 'category',
-                    data: labels,
-                    axisTick: { show: false },
-                    axisLine: { show: false },
-                    axisLabel: { color: MUTED, fontSize: 10 },
-                },
-                yAxis: {
-                    type: 'value',
-                    min: 0,
-                    max,
-                    show: false,
-                },
-                series: [
-                    {
-                        type: 'bar',
-                        barWidth: width,
-                        barGap: '-100%',
-                        silent: true,
-                        z: 1,
-                        data: values.map(() => max),
-                        itemStyle: { color: track, borderRadius: 0 },
-                    },
-                    {
-                        type: 'bar',
-                        barWidth: width,
-                        barGap: '-100%',
-                        z: 2,
-                        data: values.map((value) => ({
-                            value: value > 0 ? value : null,
-                            itemStyle: { color: cylinderGradient(ink, true), borderRadius: 0 },
-                        })),
-                    },
-                    {
-                        type: 'pictorialBar',
-                        symbol: 'circle',
-                        symbolSize: [width, cap],
-                        symbolPosition: 'end',
-                        symbolOffset: [0, -cap / 2],
-                        silent: true,
-                        barGap: '-100%',
-                        z: 3,
-                        data: values.map((value) => ({
-                            value: value > 0 ? value : null,
-                            itemStyle: { color: ink },
-                        })),
-                    },
-                ],
-            }, true);
-        },
         pie(el, series) {
             const chart = this.mount(el);
             if (!chart) {
@@ -309,18 +268,37 @@ export function observatoryBoard(payload) {
                 },
                 series: [{
                     type: 'pie',
-                    radius: ['48%', '72%'],
-                    center: ['50%', '42%'],
-                    label: { show: false },
-                    data: labels.map((label, index) => ({
-                        name: label,
-                        value: empty ? 1 : Number(values[index] || 0),
-                        itemStyle: {
-                            color: empty ? GRID : colors[index % colors.length],
-                            borderColor: SURFACE,
-                            borderWidth: 2,
-                        },
-                    })),
+                    radius: ['46%', '78%'],
+                    center: ['50%', '40%'],
+                    label: {
+                        show: !empty,
+                        position: 'inside',
+                        formatter: (item) => (Number(item.value) > 0 ? String(item.value) : ''),
+                        color: '#fff',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        textBorderColor: '#0f172a',
+                        textBorderWidth: 2,
+                    },
+                    data: labels.map((label, index) => {
+                        const ink = colors[index % colors.length];
+                        return {
+                            name: label,
+                            value: empty ? 1 : Number(values[index] || 0),
+                            itemStyle: {
+                                color: empty ? GRID : new window.echarts.graphic.RadialGradient(0.5, 0.5, 1, [
+                                    { offset: 0.46, color: mixHex(ink, '#020617', 0.45) },
+                                    { offset: 0.72, color: ink },
+                                    { offset: 0.9, color: mixHex(ink, '#ffffff', 0.5) },
+                                    { offset: 1, color: mixHex(ink, '#020617', 0.3) },
+                                ]),
+                                borderColor: SURFACE,
+                                borderWidth: 2,
+                                shadowBlur: 8,
+                                shadowColor: 'rgba(2, 6, 23, 0.35)',
+                            },
+                        };
+                    }),
                 }],
             }, true);
         },
@@ -348,8 +326,9 @@ export function observatoryBoard(payload) {
                     },
                     progress: { show: false },
                     axisLine: {
+                        roundCap: true,
                         lineStyle: {
-                            width: 12,
+                            width: 18,
                             color: [[0.5, '#10b981'], [0.75, '#f59e0b'], [1, '#ef4444']],
                         },
                     },
@@ -360,6 +339,220 @@ export function observatoryBoard(payload) {
                     data: [{ value: load }],
                 }],
             }, true);
+        },
+        paintCrimes(series) {
+            const el = this.$refs.crimes;
+            if (!el) {
+                return;
+            }
+            const labels = series?.labels?.length ? series.labels : [];
+            const values = (series?.values || []).map((value) => Number(value) || 0);
+            const colors = series?.colors || [];
+            this.rankHeight(el, labels.length || 1);
+            const chart = this.mount(el);
+            if (!chart) {
+                return;
+            }
+            if (labels.length === 0) {
+                chart.setOption({
+                    animation: false,
+                    graphic: [{ type: 'text', left: 'center', top: 'middle', style: { text: 'Sin reportes', fill: MUTED, fontSize: 12 } }],
+                    xAxis: { show: false },
+                    yAxis: { show: false },
+                    series: [],
+                }, true);
+                chart.resize();
+                return;
+            }
+            const width = 12;
+            const cap = 5;
+            const max = Math.max(1, ...values);
+            const track = isLight() ? '#e2e8f0' : '#1e293b';
+            chart.setOption({
+                animation: false,
+                grid: { left: 8, right: 36, top: 4, bottom: 4, containLabel: true },
+                tooltip: { trigger: 'axis', ...tip() },
+                xAxis: { type: 'value', min: 0, max, show: false },
+                yAxis: {
+                    type: 'category',
+                    inverse: true,
+                    data: labels,
+                    axisLine: { show: false },
+                    axisTick: { show: false },
+                    axisLabel: { color: '#94a3b8', fontSize: 10, width: 96, overflow: 'truncate' },
+                },
+                series: [
+                    {
+                        type: 'bar',
+                        barWidth: width,
+                        barGap: '-100%',
+                        silent: true,
+                        z: 1,
+                        data: values.map(() => max),
+                        itemStyle: { color: track, borderRadius: 0 },
+                    },
+                    {
+                        type: 'bar',
+                        barWidth: width,
+                        barGap: '-100%',
+                        z: 2,
+                        label: {
+                            show: true,
+                            position: 'right',
+                            distance: 8,
+                            color: SLATE,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            formatter: (item) => (item.value > 0 ? String(item.value) : ''),
+                        },
+                        data: values.map((value, index) => ({
+                            value: value > 0 ? value : null,
+                            itemStyle: { color: cylinderGradient(colors[index] || '#94a3b8', false), borderRadius: 0 },
+                        })),
+                    },
+                    {
+                        type: 'pictorialBar',
+                        symbol: 'circle',
+                        symbolSize: [cap, width],
+                        symbolPosition: 'end',
+                        symbolOffset: [cap / 2, 0],
+                        silent: true,
+                        barGap: '-100%',
+                        z: 3,
+                        data: values.map((value, index) => ({
+                            value: value > 0 ? value : null,
+                            itemStyle: { color: colors[index] || '#94a3b8' },
+                        })),
+                    },
+                ],
+            }, true);
+            chart.resize();
+        },
+        paintSites() {
+            const el = this.$refs.sites;
+            if (!el) {
+                return;
+            }
+            const query = this.normalize(this.siteQuery);
+            const rows = (this.payload?.sites?.rows || []).filter((row) => query === '' || this.normalize(row.name).includes(query));
+            this.rankHeight(el, rows.length || 1);
+            const chart = this.mount(el);
+            if (!chart) {
+                return;
+            }
+            if (rows.length === 0) {
+                chart.setOption({
+                    animation: false,
+                    graphic: [{ type: 'text', left: 'center', top: 'middle', style: { text: query ? 'Sin instalaciones' : 'Sin reportes', fill: MUTED, fontSize: 12 } }],
+                    xAxis: { show: false },
+                    yAxis: { show: false },
+                    series: [],
+                }, true);
+                chart.resize();
+                return;
+            }
+            const names = [];
+            rows.forEach((row) => (row.parts || []).forEach((part) => {
+                if (!names.includes(part.name)) {
+                    names.push(part.name);
+                }
+            }));
+            const totals = rows.map((row) => Number(row.total) || 0);
+            const max = Math.max(1, ...totals);
+            const width = 12;
+            const cap = 5;
+            const track = isLight() ? '#e2e8f0' : '#1e293b';
+            const stacked = names.map((name) => ({
+                name,
+                type: 'bar',
+                stack: 'site',
+                barWidth: width,
+                barGap: '-100%',
+                z: 2,
+                data: rows.map((row) => {
+                    const part = (row.parts || []).find((item) => item.name === name);
+                    return {
+                        value: part ? Number(part.count) || 0 : 0,
+                        itemStyle: { color: cylinderGradient(part?.color || '#94a3b8', false), borderRadius: 0 },
+                    };
+                }),
+            }));
+            chart.setOption({
+                animation: false,
+                grid: { left: 8, right: 36, top: 4, bottom: 4, containLabel: true },
+                tooltip: {
+                    trigger: 'axis',
+                    ...tip(),
+                    formatter(items) {
+                        const list = Array.isArray(items) ? items : [items];
+                        const title = list[0]?.axisValueLabel || list[0]?.name || '';
+                        const lines = list
+                            .filter((item) => item.seriesName && Number(item.value) > 0)
+                            .map((item) => `${item.marker}${item.seriesName}: ${item.value}`);
+                        const total = totals[list[0]?.dataIndex] ?? 0;
+                        return [title, ...lines, `Total: ${total}`].join('<br>');
+                    },
+                },
+                xAxis: { type: 'value', min: 0, max, show: false },
+                yAxis: {
+                    type: 'category',
+                    inverse: true,
+                    data: rows.map((row) => row.name),
+                    axisLine: { show: false },
+                    axisTick: { show: false },
+                    axisLabel: { color: '#94a3b8', fontSize: 10, width: 96, overflow: 'truncate' },
+                },
+                series: [
+                    {
+                        type: 'bar',
+                        barWidth: width,
+                        barGap: '-100%',
+                        silent: true,
+                        z: 1,
+                        data: totals.map(() => max),
+                        itemStyle: { color: track, borderRadius: 0 },
+                    },
+                    ...stacked,
+                    {
+                        type: 'pictorialBar',
+                        symbol: 'circle',
+                        symbolSize: [cap, width],
+                        symbolPosition: 'end',
+                        symbolOffset: [cap / 2, 0],
+                        silent: true,
+                        barGap: '-100%',
+                        z: 4,
+                        data: rows.map((row) => {
+                            const last = (row.parts || [])[(row.parts || []).length - 1];
+                            return {
+                                value: Number(row.total) > 0 ? Number(row.total) : null,
+                                itemStyle: { color: last?.color || '#94a3b8' },
+                            };
+                        }),
+                    },
+                    {
+                        type: 'bar',
+                        barWidth: width,
+                        barGap: '-100%',
+                        silent: true,
+                        z: 5,
+                        label: {
+                            show: true,
+                            position: 'right',
+                            distance: 8,
+                            color: SLATE,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            formatter: (item) => (item.value > 0 ? String(item.value) : ''),
+                        },
+                        data: totals.map((total) => ({
+                            value: total > 0 ? total : null,
+                            itemStyle: { color: 'transparent' },
+                        })),
+                    },
+                ],
+            }, true);
+            chart.resize();
         },
         paintOrigins(series) {
             const node = document.querySelector('.obs-origins');

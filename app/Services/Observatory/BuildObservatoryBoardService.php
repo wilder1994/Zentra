@@ -8,6 +8,7 @@ use App\Enums\ObservatoryEventStatus;
 use App\Enums\ObservatoryReporterRole;
 use App\Enums\ObservatoryReportSource;
 use App\Models\Client;
+use App\Models\Installation;
 use App\Models\ObservatoryEvent;
 use App\Models\ObservatoryReport;
 use App\Models\ObservatoryReportType;
@@ -50,6 +51,7 @@ final class BuildObservatoryBoardService
         $enAtencion = (int) ($counts[ObservatoryEventStatus::EnAtencion->value] ?? 0);
         $cerrado = (int) ($counts[ObservatoryEventStatus::Cerrado->value] ?? 0);
         $types = $this->types($companyId, $clientId);
+        $kinds = $this->seriesByType($query, $types);
 
         return [
             'total' => $total,
@@ -60,7 +62,9 @@ final class BuildObservatoryBoardService
             'load_rate' => self::loadRate($nuevo, $enAtencion, $total),
             'trend' => $this->trendByType($companyId, $clientId, $installationIds, $from, $to, $grain, $types, $status, $typeIds),
             'peaks' => $this->peakDays($companyId, $clientId, $installationIds, $from, $to, $status, $typeIds),
-            'kinds' => $this->seriesByType($query, $types),
+            'kinds' => $kinds,
+            'crimes' => $this->crimeRank($kinds),
+            'sites' => $this->siteRank($query, $types),
             'sources' => $this->seriesByReport($query, 'source', ObservatoryReportSource::cases()),
             'origins' => $this->originSeries($query),
             'types' => $types,
@@ -225,6 +229,90 @@ final class BuildObservatoryBoardService
         }
 
         return ['labels' => $labels, 'values' => $values, 'colors' => $colors];
+    }
+
+    /**
+     * @param  array{labels: list<string>, values: list<int>, colors?: list<string>}  $kinds
+     * @return array{labels: list<string>, values: list<int>, colors: list<string>}
+     */
+    private function crimeRank(array $kinds): array
+    {
+        $rows = [];
+        foreach ($kinds['labels'] as $index => $label) {
+            $value = (int) ($kinds['values'][$index] ?? 0);
+            if ($value < 1) {
+                continue;
+            }
+            $rows[] = [
+                'label' => (string) $label,
+                'value' => $value,
+                'color' => (string) ($kinds['colors'][$index] ?? '#94a3b8'),
+            ];
+        }
+        usort($rows, fn (array $left, array $right): int => $right['value'] <=> $left['value'] ?: strcmp($left['label'], $right['label']));
+
+        return [
+            'labels' => array_column($rows, 'label'),
+            'values' => array_map(intval(...), array_column($rows, 'value')),
+            'colors' => array_column($rows, 'color'),
+        ];
+    }
+
+    /**
+     * @param  list<array{id: int, ids?: list<int>, name: string, color: string}>  $types
+     * @return array{rows: list<array{name: string, total: int, parts: list<array{name: string, color: string, count: int}>}>}
+     */
+    private function siteRank(Builder $query, array $types): array
+    {
+        $eventIds = (clone $query)->pluck('id');
+        if ($eventIds->isEmpty()) {
+            return ['rows' => []];
+        }
+
+        $raw = ObservatoryReport::query()
+            ->whereIn('event_id', $eventIds->all())
+            ->whereNotNull('installation_id')
+            ->selectRaw('installation_id, COALESCE(observatory_report_type_id, 0) as type_id, COUNT(*) as aggregate')
+            ->groupBy('installation_id', 'type_id')
+            ->get();
+
+        $bySite = [];
+        foreach ($raw as $row) {
+            $bySite[(int) $row->installation_id][(int) $row->type_id] = (int) $row->aggregate;
+        }
+        $names = Installation::query()->whereIn('id', array_keys($bySite))->pluck('name', 'id');
+        $rows = [];
+        foreach ($bySite as $siteId => $counts) {
+            $parts = [];
+            $matched = 0;
+            foreach ($types as $type) {
+                $count = 0;
+                foreach ($type['ids'] ?? [$type['id']] as $typeId) {
+                    $count += (int) ($counts[(int) $typeId] ?? 0);
+                }
+                if ($count < 1) {
+                    continue;
+                }
+                $parts[] = ['name' => $type['name'], 'color' => $type['color'], 'count' => $count];
+                $matched += $count;
+            }
+            $leftover = array_sum($counts) - $matched;
+            if ($leftover > 0) {
+                $parts[] = ['name' => 'Otro', 'color' => '#94a3b8', 'count' => $leftover];
+                $matched += $leftover;
+            }
+            if ($matched < 1) {
+                continue;
+            }
+            $rows[] = [
+                'name' => (string) ($names[$siteId] ?? 'Instalación'),
+                'total' => $matched,
+                'parts' => $parts,
+            ];
+        }
+        usort($rows, fn (array $left, array $right): int => $right['total'] <=> $left['total'] ?: strcmp($left['name'], $right['name']));
+
+        return ['rows' => $rows];
     }
 
     /**
