@@ -48,6 +48,11 @@ final class NotifyOpsSurface
         );
     }
 
+    public function supervisionMap(int $companyId, ?string $actor): void
+    {
+        $this->send($companyId, null, 'supervision-ping', 'Mapa de supervisión', $actor);
+    }
+
     public function send(int $companyId, ?int $clientId, string $kind, string $summary, ?string $actor): void
     {
         if ($companyId < 1 && ($clientId === null || $clientId < 1)) {

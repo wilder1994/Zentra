@@ -13,17 +13,34 @@ export function opsLiveAlerts() {
         alertId: 0,
         canAttend: false,
         note: '',
+        toasts: [],
         lat: '',
         lng: '',
         timer: null,
         alarmTimer: null,
+        reportAlarm: null,
         ctx: null,
+        booted: false,
+        inflight: false,
+        again: false,
         init() {
             const last = Number(localStorage.getItem('ops_alert_after') || '0');
             this.after = Number.isFinite(last) ? last : 0;
             this.locate();
             this.tick();
-            this.timer = setInterval(() => this.tick(), 4000);
+            window.addEventListener('ops-surface-changed', (event) => {
+                if (event.detail?.kind === 'supervision-ping') {
+                    return;
+                }
+                this.tick();
+            });
+            window.addEventListener('observatory-pin-clicked', () => this.stopReportAlarm());
+            this.timer = setInterval(() => {
+                const state = window.Echo?.connector?.pusher?.connection?.state;
+                if (state !== 'connected') {
+                    this.tick();
+                }
+            }, 12000);
         },
         locate() {
             if (!navigator.geolocation) return;
@@ -34,15 +51,35 @@ export function opsLiveAlerts() {
         },
         async tick() {
             if (!this.pollUrl) return;
+            if (this.inflight) {
+                this.again = true;
+                return;
+            }
+            this.inflight = true;
             try {
-                const after = (this.open && this.alertId) ? Math.max(0, this.alertId - 1) : this.after;
-                const res = await fetch(`${this.pollUrl}?after=${after}`, {
+                do {
+                    this.again = false;
+                    await this.pull();
+                } while (this.again);
+            } finally {
+                this.inflight = false;
+            }
+        },
+        async pull() {
+            try {
+            const res = await fetch(`${this.pollUrl}?after=0`, {
                     headers: { Accept: 'application/json' },
                     credentials: 'same-origin',
                 });
                 if (!res.ok) return;
                 const data = await res.json();
                 const alerts = Array.isArray(data.alerts) ? data.alerts : [];
+                if (window.Alpine?.store('opsNotices')) {
+                    window.Alpine.store('opsNotices').items = alerts;
+                }
+                this.syncReports(alerts);
+                this.booted = true;
+                const panics = alerts.filter((row) => row.type === 'panic' && Number(row.id) > this.after);
                 if (this.open) {
                     const current = alerts.find((row) => Number(row.id) === this.alertId);
                     if (!current) {
@@ -52,8 +89,9 @@ export function opsLiveAlerts() {
                     this.canAttend = Boolean(current.can_attend);
                     return;
                 }
-                if (!alerts.length) return;
-                const first = alerts[0];
+                if (!panics.length) return;
+                this.stopReportAlarm();
+                const first = panics[0];
                 this.alertId = Number(first.id) || 0;
                 this.type = first.type || '';
                 this.title = first.title;
@@ -74,6 +112,20 @@ export function opsLiveAlerts() {
                 this.alarmTimer = null;
             }
         },
+        startReportAlarm() {
+            if (this.open) {
+                return;
+            }
+            this.stopReportAlarm();
+            this.beepAt(620);
+            this.reportAlarm = setInterval(() => this.beepAt(620), 900);
+        },
+        stopReportAlarm() {
+            if (this.reportAlarm) {
+                clearInterval(this.reportAlarm);
+                this.reportAlarm = null;
+            }
+        },
         beep() {
             try {
                 const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -86,12 +138,70 @@ export function opsLiveAlerts() {
                 const gain = this.ctx.createGain();
                 osc.type = 'sawtooth';
                 osc.frequency.value = this.type === 'panic' ? 880 : 620;
-                gain.gain.value = 0.08;
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                setTimeout(() => osc.stop(), 700);
+                this.play(osc, gain);
             } catch (_) {}
+        },
+        beepAt(frequency) {
+            try {
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if (!Ctx) return;
+                this.ctx = this.ctx || new Ctx();
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.value = frequency;
+                this.play(osc, gain);
+            } catch (_) {}
+        },
+        play(osc, gain) {
+            gain.gain.value = 0.08;
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            setTimeout(() => osc.stop(), 700);
+        },
+        toastSeen() {
+            try {
+                return new Set(JSON.parse(localStorage.getItem('ops_obs_toast') || '[]').map(Number));
+            } catch {
+                return new Set();
+            }
+        },
+        rememberToast(id) {
+            const seen = this.toastSeen();
+            seen.add(Number(id));
+            localStorage.setItem('ops_obs_toast', JSON.stringify([...seen].slice(-40)));
+        },
+        syncReports(alerts) {
+            const onMap = Boolean(document.querySelector('[data-obs-map]'));
+            const seen = this.toastSeen();
+            let hear = false;
+            alerts.filter((row) => row.type === 'observatory').forEach((row) => {
+                const id = Number(row.id);
+                if (!id || seen.has(id) || this.toasts.some((item) => Number(item.id) === id)) {
+                    return;
+                }
+                this.rememberToast(id);
+                if (!this.booted) {
+                    return;
+                }
+                if (!onMap) {
+                    this.toasts.push(row);
+                }
+                if (row.can_attend) {
+                    hear = true;
+                }
+            });
+            if (hear) {
+                this.startReportAlarm();
+            }
+        },
+        dismissToast(id) {
+            this.toasts = this.toasts.filter((row) => Number(row.id) !== Number(id));
+            this.stopReportAlarm();
         },
         ack() {
             this.stopAlarm();

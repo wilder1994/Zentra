@@ -81,6 +81,11 @@ final class BuildObservatoryMapService
                 $worst = $this->worstType($openReports);
                 $status = $this->worstStatus($events);
                 $focus = $open->sortByDesc('id')->first() ?? $events->sortByDesc('id')->first();
+                $pending = $events
+                    ->filter(fn (ObservatoryEvent $event): bool => $event->status === ObservatoryEventStatus::Nuevo)
+                    ->sortByDesc('id')
+                    ->first();
+                $pendingReport = $pending?->reports->sortByDesc('id')->first();
                 $comunaHit = $layer->locate((float) $site->latitude, (float) $site->longitude);
 
                 return [
@@ -108,6 +113,13 @@ final class BuildObservatoryMapService
                     'summary' => $this->typeSummary($openReports),
                     'report_summary' => $this->typeSummary($events->flatMap->reports),
                     'report_count' => $events->flatMap->reports->count(),
+                    'pending' => $pending instanceof ObservatoryEvent ? [
+                        'event_id' => (int) $pending->id,
+                        'folio' => $pending->folio(),
+                        'kind' => $pendingReport?->kindLabel() ?? $pending->kindLabel(),
+                        'text' => mb_substr(trim((string) ($pendingReport?->body ?? '')), 0, 160),
+                        'show_url' => route($eventShowRoute, $pending),
+                    ] : null,
                 ];
             })->values()->all(),
             'points' => $sites->flatMap(function (Installation $site) use ($eventShowRoute, $layer) {

@@ -25,6 +25,23 @@
             </div>
         </div>
     </template>
+    <template x-teleport="body">
+        <div class="fixed bottom-4 right-4 z-[70] flex w-full max-w-sm flex-col gap-2">
+            <template x-for="row in toasts" :key="row.id">
+                <article class="ops-obs-toast rounded-xl border bg-slate-950 p-3 text-sm text-slate-100 shadow-lg">
+                    <div class="flex items-start justify-between gap-2">
+                        <p class="font-semibold" x-text="row.title"></p>
+                        <button type="button" class="text-slate-400" @click="dismissToast(row.id)" aria-label="Cerrar">×</button>
+                    </div>
+                    <p class="mt-1 text-slate-300" x-text="row.body"></p>
+                    <div class="mt-2 flex gap-3 text-xs font-semibold">
+                        <a x-show="row.map_url" :href="row.map_url" class="text-teal-300" @click="stopReportAlarm()">Ver mapa</a>
+                        <a x-show="row.can_attend && row.show_url" :href="row.show_url" class="text-amber-300" @click="stopReportAlarm()">Atender</a>
+                    </div>
+                </article>
+            </template>
+        </div>
+    </template>
 
     @if ($showPanic)
         <button type="button" class="w-full mb-2 inline-flex items-center justify-center h-9 rounded-lg bg-red-700 text-sm font-medium text-white hover:bg-red-600 disabled:opacity-60" :disabled="panicBusy" @click="sendPanic()">

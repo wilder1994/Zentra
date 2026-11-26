@@ -14,6 +14,7 @@ use App\Models\SupervisorShift;
 use App\Models\SupervisorShiftTemplate;
 use App\Models\SupervisorZone;
 use App\Models\User;
+use App\Services\Ops\NotifyOpsSurface;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -111,6 +112,8 @@ final class OpenSupervisorShiftService
             ]);
 
             $vehicle->update(['last_km' => $input->kmStart]);
+
+            app(NotifyOpsSurface::class)->supervisionMap($companyId, $user->name);
 
             return $shift->fresh(['fleetVehicle', 'zone', 'shiftTemplate']);
         });

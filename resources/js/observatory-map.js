@@ -103,6 +103,38 @@ function riskTone(open, score) {
     return 'emerald';
 }
 
+let pulseOverlays = new Map();
+let siteCard = null;
+let openSiteId = 0;
+const knownPending = new Set();
+let pendingSeeded = false;
+
+function pinOverlay(position, html, pulse = false) {
+    const overlay = new google.maps.OverlayView();
+    overlay.onAdd = function onAdd() {
+        const div = document.createElement('div');
+        div.className = pulse ? 'obs-pin-ring' : 'obs-pin-cards';
+        div.innerHTML = html;
+        div.addEventListener('click', (event) => event.stopPropagation());
+        this.div = div;
+        this.getPanes().overlayMouseTarget.appendChild(div);
+    };
+    overlay.draw = function draw() {
+        const point = this.getProjection()?.fromLatLngToDivPixel(position);
+        if (!point || !this.div) {
+            return;
+        }
+        this.div.style.left = `${point.x}px`;
+        this.div.style.top = `${point.y}px`;
+    };
+    overlay.onRemove = function onRemove() {
+        this.div?.remove();
+        this.div = null;
+    };
+
+    return overlay;
+}
+
 export function observatoryMap(cfg) {
     const layerUrl = '/geo/cali-comunas.geojson';
     let clusterer = null;
@@ -223,6 +255,15 @@ export function observatoryMap(cfg) {
             });
 
             const info = new google.maps.InfoWindow({ pixelOffset: new google.maps.Size(0, -4) });
+            this.infoWindow = info;
+            this.seedPending();
+            window.addEventListener('ops-live-data', (event) => {
+                const sites = event.detail?.map?.sites;
+                if (Array.isArray(sites)) {
+                    this.applyLiveSites(sites);
+                }
+            });
+            this.map.addListener('click', () => this.closeSiteCards());
             clusterer = createClusterer(this.map, {
                 clusterZIndex: 4,
                 iconForCluster: (cluster) => this.clusterIcon(cluster),
@@ -252,23 +293,9 @@ export function observatoryMap(cfg) {
                     riskWeight: open ? Number(site.risk_weight || 1) : 0,
                 });
                 marker.zentraTone = riskTone(open, site.risk_weight);
-                marker.addListener('click', () => {
-                    const mix = (site.summary || [])
-                        .map((row) => `${this.esc(row.name)} (${row.count})`)
-                        .join(' · ');
-                    const link = site.show_url
-                        ? `<a href="${this.esc(site.show_url)}">Ver evento</a>`
-                        : '<span>Sin eventos</span>';
-                    const share = shareButton({ title: site.name, subtitle: site.client || '', address: site.address || '', lat: pos.lat, lng: pos.lng }, { label: true });
-                    info.setContent(
-                        `<div class="zmap-share-light" style="color:#0f172a;font:13px/1.4 sans-serif;max-width:240px">`
-                        + `<strong>${this.esc(site.name)}</strong><br>`
-                        + `${site.client ? this.esc(site.client) + '<br>' : ''}`
-                        + `${site.address ? '<span style="color:#475569">' + this.esc(site.address) + '</span><br>' : ''}`
-                        + `${mix || this.esc(site.status_label)}`
-                        + `<div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between;gap:8px">${link}${share}</div></div>`,
-                    );
-                    info.open(this.map, marker);
+                marker.addListener('click', (event) => {
+                    event?.stop?.();
+                    this.openSiteCards(marker);
                 });
                 placeMarkers.push(marker);
             });
@@ -634,6 +661,118 @@ export function observatoryMap(cfg) {
             }
             this.showSites();
             this.drawShifts(false);
+            this.syncPulses();
+        },
+        seedPending() {
+            (cfg.sites || []).forEach((site) => {
+                const id = Number(site.pending?.event_id || 0);
+                if (id) {
+                    knownPending.add(id);
+                }
+            });
+            pendingSeeded = true;
+            this.syncPulses();
+        },
+        applyLiveSites(sites) {
+            const byId = new Map(sites.map((site) => [Number(site.id), site]));
+            placeMarkers.forEach((marker) => {
+                if (marker.role !== 'site') {
+                    return;
+                }
+                const next = byId.get(Number(marker.site?.id));
+                if (next) {
+                    marker.site = { ...marker.site, ...next };
+                }
+            });
+            const fresh = [];
+            sites.forEach((site) => {
+                const id = Number(site.pending?.event_id || 0);
+                if (!id || knownPending.has(id)) {
+                    return;
+                }
+                knownPending.add(id);
+                if (pendingSeeded) {
+                    fresh.push(site);
+                }
+            });
+            if (fresh[0] && this.layer === 'reportes') {
+                this.focusSite(fresh[0]);
+            }
+            this.showSites();
+            this.syncPulses();
+            if (openSiteId) {
+                const marker = placeMarkers.find((item) => item.role === 'site' && Number(item.site?.id) === openSiteId);
+                if (marker) {
+                    this.openSiteCards(marker);
+                }
+            }
+        },
+        focusSite(site) {
+            if (!this.map || site.lat == null || site.lng == null) {
+                return;
+            }
+            this.map.panTo({ lat: Number(site.lat), lng: Number(site.lng) });
+            this.map.setZoom(17);
+        },
+        closeSiteCards() {
+            siteCard?.setMap(null);
+            siteCard = null;
+            openSiteId = 0;
+        },
+        openSiteCards(marker) {
+            window.dispatchEvent(new CustomEvent('observatory-pin-clicked'));
+            const site = marker.site || {};
+            openSiteId = Number(site.id) || 0;
+            siteCard?.setMap(null);
+            const dane = site.dane_code ? this.esc(site.dane_code) : 'Sin código DANE';
+            const pending = site.pending;
+            const report = pending
+                ? `<article class="zmap-card obs-pin-card obs-pin-card-alert">`
+                    + `<p class="zmap-card-kind">Reporte pendiente</p>`
+                    + `<p class="zmap-card-title">${this.esc(pending.folio)} · ${this.esc(pending.kind || '')}</p>`
+                    + (pending.text ? `<p class="zmap-card-meta">${this.esc(pending.text)}</p>` : '')
+                    + (pending.show_url ? `<a class="zmap-card-link" href="${this.esc(pending.show_url)}">Abrir folio</a>` : '')
+                    + `</article>`
+                : '';
+            const html = report
+                + `<article class="zmap-card obs-pin-card">`
+                + `<p class="zmap-card-kind">Instalación</p>`
+                + `<p class="zmap-card-title">${this.esc(site.name)}</p>`
+                + (site.client ? `<p class="zmap-card-meta">${this.esc(site.client)}</p>` : '')
+                + (site.address ? `<p class="zmap-card-faint">${this.esc(site.address)}</p>` : '')
+                + `<p class="zmap-card-meta">DANE ${dane}</p>`
+                + `</article>`;
+            siteCard = pinOverlay(marker.getPosition(), html);
+            siteCard.setMap(this.map);
+        },
+        syncPulses() {
+            const want = new Set();
+            if (this.map && this.layer === 'reportes') {
+                placeMarkers.forEach((marker) => {
+                    if (marker.role === 'site' && marker.site?.pending) {
+                        want.add(Number(marker.site.id));
+                    }
+                });
+            }
+            pulseOverlays.forEach((overlay, id) => {
+                if (want.has(id)) {
+                    return;
+                }
+                overlay.setMap(null);
+                pulseOverlays.delete(id);
+            });
+            want.forEach((id) => {
+                if (pulseOverlays.has(id) || !this.map) {
+                    return;
+                }
+                const marker = placeMarkers.find((item) => item.role === 'site' && Number(item.site?.id) === id);
+                if (!marker) {
+                    return;
+                }
+                const overlay = pinOverlay(marker.getPosition(), '<span class="obs-pin-pulse"></span>', true);
+                overlay.setMap(this.map);
+                pulseOverlays.set(id, overlay);
+            });
         },
         clusterIcon(cluster) {
             const markers = cluster.markers || [];

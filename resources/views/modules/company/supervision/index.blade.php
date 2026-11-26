@@ -165,7 +165,7 @@
                             'Clic en un supervisor: solo su recorrido en vivo. Otro clic o «Ver todos» vuelve a la vista general.',
                             'Pasa el cursor por la moto para ver quién es y su señal. Clic en un pin o grupo: sus eventos.',
                             'Ver: ficha del turno en curso.',
-                            'La lista y el mapa se actualizan solos cada 10 s.',
+                            'La lista y el mapa se actualizan cuando llega un punto.',
                             'Revistas por día operativo: de 06:00 a 06:00.',
                         ]])
                         <div class="mt-2 overflow-auto flex-1" id="supervision-live-list">
@@ -1467,8 +1467,14 @@
                             liveFitted = true;
                         } catch (e) {}
                     };
-                    livePollTimer = setInterval(pollLive, 5000);
+                    window.addEventListener('ops-surface-changed', () => pollLive(true));
                     window.addEventListener('supervision:refresh-live', () => pollLive(true));
+                    livePollTimer = setInterval(() => {
+                        const state = window.Echo?.connector?.pusher?.connection?.state;
+                        if (state !== 'connected') {
+                            pollLive(false);
+                        }
+                    }, 12000);
                     } catch (e) {
                         fallback?.classList.remove('hidden');
                     }

@@ -52,6 +52,9 @@ final class ResolveLiveOperationalAlertsService
                 'body' => $alert->body,
                 'latitude' => $alert->latitude,
                 'longitude' => $alert->longitude,
+                'installation_id' => $alert->installation_id ? (int) $alert->installation_id : null,
+                'show_url' => $this->eventUrl($user, $alert),
+                'map_url' => $this->mapUrl($user),
                 'can_attend' => $this->canAttend($user, $alert),
             ])
             ->all();
@@ -104,6 +107,10 @@ final class ResolveLiveOperationalAlertsService
 
     private function canAttend(User $user, OperationalAlert $alert): bool
     {
+        if ($alert->type === OperationalAlertType::Observatory) {
+            return $user->can('observatory.events.update');
+        }
+
         if ($alert->type !== OperationalAlertType::Panic || ! $user->can('ops.panic.attend')) {
             return false;
         }
@@ -114,5 +121,36 @@ final class ResolveLiveOperationalAlertsService
         }
 
         return $attention->isAttendedBy($user);
+    }
+
+    private function eventUrl(User $user, OperationalAlert $alert): ?string
+    {
+        $eventId = (int) (($alert->payload ?? [])['event_id'] ?? 0);
+        if ($alert->type !== OperationalAlertType::Observatory || $eventId < 1) {
+            return null;
+        }
+
+        $name = $this->companyPanel($user)
+            ? 'company.observatory.events.show'
+            : 'client.observatory.events.show';
+
+        return route($name, $eventId);
+    }
+
+    private function mapUrl(User $user): ?string
+    {
+        if (! $user->can('observatory.view')) {
+            return null;
+        }
+
+        return $this->companyPanel($user)
+            ? route('company.observatory.events.index')
+            : route('client.observatory.events.index');
+    }
+
+    private function companyPanel(User $user): bool
+    {
+        return $user->hasAnyRole(['company-admin', 'colaborador'])
+            || ($user->security_company_id && ! $user->hasAnyRole(['client-admin', 'client-installation-admin']));
     }
 }

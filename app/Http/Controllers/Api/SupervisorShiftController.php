@@ -26,6 +26,7 @@ use App\Services\Company\CloseSupervisorShiftService;
 use App\Services\Company\LookupSupervisorVisitService;
 use App\Services\Company\ManageSupervisorShiftService;
 use App\Services\Company\OpenSupervisorShiftService;
+use App\Services\Ops\NotifyOpsSurface;
 use App\Services\Company\RecordSupervisorFieldLogService;
 use App\Services\Company\RecordSupervisorProReviewService;
 use App\Services\Company\RefreshLateSyncedShiftService;
@@ -339,6 +340,9 @@ final class SupervisorShiftController extends Controller
         abort_if($shift === null, 422, 'No hay turno abierto.');
 
         $point = $this->storePing($shift, $data, $at);
+        if ($point->wasRecentlyCreated) {
+            app(NotifyOpsSurface::class)->supervisionMap((int) $shift->security_company_id, $request->user()->name);
+        }
         if (isset($data['pending_outbox']) && $shift->isOpen()) {
             $shift->update(['pending_outbox_count' => max(0, (int) $data['pending_outbox'])]);
         }
@@ -366,6 +370,7 @@ final class SupervisorShiftController extends Controller
         $user = $request->user();
         $stored = 0;
         $late = [];
+        $moved = null;
         foreach ($data['points'] as $row) {
             $at = SupervisorCaptureTime::parse($row['recorded_at'] ?? null);
             $shift = $this->shiftService->shiftForCapture($user, $at);
@@ -373,14 +378,20 @@ final class SupervisorShiftController extends Controller
                 continue;
             }
             try {
-                $this->storePing($shift, $row, $at);
+                $point = $this->storePing($shift, $row, $at);
                 $stored++;
+                if ($point->wasRecentlyCreated) {
+                    $moved = $shift;
+                }
                 if (! $shift->isOpen()) {
                     $late[$shift->id] = $shift;
                 }
             } catch (ValidationException) {
                 continue;
             }
+        }
+        if ($moved instanceof SupervisorShift) {
+            app(NotifyOpsSurface::class)->supervisionMap((int) $moved->security_company_id, $user->name);
         }
         foreach ($late as $shift) {
             $this->lateSync->execute($shift);

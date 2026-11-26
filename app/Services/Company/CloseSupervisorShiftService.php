@@ -6,6 +6,7 @@ namespace App\Services\Company;
 
 use App\Enums\SupervisorShiftStatus;
 use App\Models\SupervisorShift;
+use App\Services\Ops\NotifyOpsSurface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -72,6 +73,11 @@ final class CloseSupervisorShiftService
                 $this->shiftSheets->freeze($closed);
             }
 
+            app(NotifyOpsSurface::class)->supervisionMap(
+                (int) $shift->security_company_id,
+                $shift->user?->name,
+            );
+
             return $closed ?? $shift;
         });
     }
@@ -114,6 +120,11 @@ final class CloseSupervisorShiftService
             if ($closed instanceof SupervisorShift) {
                 $this->shiftSheets->freeze($closed);
             }
+
+            app(NotifyOpsSurface::class)->supervisionMap(
+                (int) $shift->security_company_id,
+                $shift->user?->name,
+            );
 
             return $closed ?? $shift;
         });

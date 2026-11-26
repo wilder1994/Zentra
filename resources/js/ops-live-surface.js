@@ -5,7 +5,12 @@ function echoIsConnected() {
 }
 
 function bindOpsLiveRefresh(refresh) {
-    window.addEventListener('ops-surface-changed', () => refresh());
+    window.addEventListener('ops-surface-changed', (event) => {
+        if (event.detail?.kind === 'supervision-ping') {
+            return;
+        }
+        refresh();
+    });
     window.setInterval(() => {
         if (!echoIsConnected()) {
             refresh();
@@ -23,7 +28,9 @@ export function opsLiveSurface() {
             const onChanged = (payload) => {
                 const actor = payload?.actor || '';
                 const summary = payload?.summary || 'Tablero actualizado';
-                this.toast = actor ? `${actor} · ${summary}` : summary;
+                if (payload?.kind !== 'supervision-ping') {
+                    this.toast = actor ? `${actor} · ${summary}` : summary;
+                }
                 window.clearTimeout(this.hideTimer);
                 this.hideTimer = window.setTimeout(() => {
                     this.toast = '';

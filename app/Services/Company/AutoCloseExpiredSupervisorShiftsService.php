@@ -6,6 +6,7 @@ namespace App\Services\Company;
 
 use App\Enums\SupervisorShiftStatus;
 use App\Models\SupervisorShift;
+use App\Services\Ops\NotifyOpsSurface;
 use Illuminate\Support\Facades\DB;
 
 final class AutoCloseExpiredSupervisorShiftsService
@@ -83,6 +84,11 @@ final class AutoCloseExpiredSupervisorShiftsService
             if ($closed instanceof SupervisorShift) {
                 $this->shiftSheets->freeze($closed);
             }
+
+            app(NotifyOpsSurface::class)->supervisionMap(
+                (int) $shift->security_company_id,
+                $shift->user?->name,
+            );
         });
     }
 }

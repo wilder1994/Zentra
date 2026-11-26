@@ -27,6 +27,7 @@
                 'crimes' => $map['crimes'] ?? ['year' => (int) now()->year, 'years' => [], 'types' => [], 'byYear' => []],
                 'reportTypes' => $types,
             ]))"
+            data-obs-map
             class="relative flex-1 min-h-80 flex flex-col"
         >
             @if ($boardMap)

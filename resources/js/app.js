@@ -85,6 +85,10 @@ Alpine.data('settingsHub', settingsHub);
 Alpine.data('shiftZones', shiftZones);
 Alpine.data('authorizationValidityPicker', authorizationValidityPicker);
 
+document.addEventListener('alpine:init', () => {
+    Alpine.store('opsNotices', { open: false, items: [] });
+});
+
 if (document.getElementById('obs-risk-cylinder-meta') || document.querySelector('.obs-origins')) {
     window.whenEcharts = import('./echarts');
 }
