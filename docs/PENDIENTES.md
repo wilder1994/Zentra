@@ -56,6 +56,12 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 26 nov 2026 · Aviso del reporte
+El reporte sale del modal central. En el mapa el pin Nuevo palpita y el zoom ocurre una vez; la tarjeta de la instalación sale en cada clic y la del reporte solo mientras sigue Nuevo. Fuera del mapa el aviso va abajo a la derecha. Notificaciones queda entre el nombre y Cerrar sesión. El pánico no cambia. Commit `2885830`.
+
+### 26 nov 2026 · Avisos y mapa en vivo
+Notificaciones, el aviso de la esquina y el pánico se piden al abrir y cuando el canal avisa. Se quitó la consulta de cada 4 segundos. Si el canal se cae, se pide cada 12 segundos. El reporte suena solo para quien gestiona, hasta cerrar, atender o tocar el pin. El mapa de supervisión deja la consulta de cada 5 segundos y se mueve cuando llega un punto, se abre o se cierra un turno. Commit `2885830`.
+
 ### 26 nov 2026 · Gestión que sube
 La tarjetica suma lo trabajado. Cerrar un folio suma su parte completa y pasarlo a trámite suma la mitad. Diez folios nuevos marcan 0 %. El arco no cambia. Commit `53e995c`.
 
