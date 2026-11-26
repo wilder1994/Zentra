@@ -105,11 +105,29 @@ function riskTone(open, score) {
 
 let siteCard = null;
 let openSiteId = 0;
+let cardGeneration = 0;
 const knownPending = new Set();
 let pendingSeeded = false;
-function pinCard(position, html, onClose) {
+function pinLift(marker) {
+    const icon = marker.getIcon?.();
+    if (icon && icon.anchor && Number.isFinite(icon.anchor.y)) {
+        return icon.anchor.y + 1;
+    }
+    if (icon && Number.isFinite(icon.scale)) {
+        return Math.ceil(icon.scale) + 1;
+    }
+
+    return 57;
+}
+
+function pinCard(position, html, onClose, lift) {
+    const generation = cardGeneration;
     const overlay = new google.maps.OverlayView();
+    let cancelled = false;
     overlay.onAdd = function onAdd() {
+        if (cancelled || generation !== cardGeneration) {
+            return;
+        }
         const div = document.createElement('div');
         div.className = 'obs-pin-cards';
         div.innerHTML = html;
@@ -120,6 +138,7 @@ function pinCard(position, html, onClose) {
             onClose();
         });
         this.node = div;
+        div.style.setProperty('--obs-pin-lift', `${lift}px`);
         this.getPanes().floatPane.appendChild(div);
     };
     overlay.draw = function draw() {
@@ -135,6 +154,7 @@ function pinCard(position, html, onClose) {
         this.node = null;
     };
     overlay.drop = function drop() {
+        cancelled = true;
         this.node?.remove();
         this.node = null;
         this.setMap(null);
@@ -283,6 +303,7 @@ export function observatoryMap(cfg) {
                     }
                 },
             });
+            clusterer.addListener('clusteringend', () => this.paintNeon());
 
             sites.forEach((site) => {
                 const pos = { lat: Number(site.lat), lng: Number(site.lng) };
@@ -722,6 +743,7 @@ export function observatoryMap(cfg) {
             this.map.setZoom(17);
         },
         closeSiteCards() {
+            cardGeneration += 1;
             siteCard?.drop?.();
             siteCard = null;
             openSiteId = 0;
@@ -735,8 +757,8 @@ export function observatoryMap(cfg) {
                 this.closeSiteCards();
                 return;
             }
+            this.closeSiteCards();
             openSiteId = id;
-            siteCard?.drop?.();
             const dane = site.dane_code ? this.esc(site.dane_code) : 'Sin código DANE';
             const comuna = site.comuna_name ? this.esc(site.comuna_name) : 'Sin comuna';
             const share = shareButton({
@@ -751,23 +773,22 @@ export function observatoryMap(cfg) {
                 ? `<article class="zmap-card obs-pin-card obs-pin-card-alert">`
                     + `<p class="zmap-card-kind">Reporte pendiente</p>`
                     + `<p class="zmap-card-title">${this.esc(pending.folio)} · ${this.esc(pending.kind || '')}</p>`
-                    + (pending.text ? `<p class="zmap-card-meta">${this.esc(pending.text)}</p>` : '')
+                    + (pending.source ? `<p class="zmap-card-meta">${this.esc(pending.source)}</p>` : '')
+                    + `<p class="zmap-card-meta">${this.esc(pending.text || 'Sin observación')}</p>`
                     + (pending.show_url ? `<a class="zmap-card-link" href="${this.esc(pending.show_url)}">Abrir folio</a>` : '')
                     + `</article>`
                 : '';
             const html = `<button type="button" class="obs-pin-x" data-obs-close aria-label="Cerrar">×</button>`
                 + report
                 + `<article class="zmap-card obs-pin-card">`
-                + `<p class="zmap-card-kind">Instalación</p>`
                 + `<p class="zmap-card-title">${this.esc(site.name)}</p>`
-                + (site.client ? `<p class="zmap-card-meta">${this.esc(site.client)}</p>` : '')
                 + (site.address ? `<p class="zmap-card-faint">${this.esc(site.address)}</p>` : '')
                 + `<p class="zmap-card-meta">${comuna}</p>`
                 + `<p class="zmap-card-meta">DANE ${dane}</p>`
                 + `<p class="zmap-card-meta">${Number(site.posts_count || 0)} puestos · ${Number(site.guards_count || 0)} guardas</p>`
                 + `<div class="obs-pin-share">${share}</div>`
                 + `</article>`;
-            siteCard = pinCard(marker.getPosition(), html, () => this.closeSiteCards());
+            siteCard = pinCard(marker.getPosition(), html, () => this.closeSiteCards(), pinLift(marker));
             siteCard.setMap(this.map);
         },
         paintNeon() {
@@ -780,6 +801,16 @@ export function observatoryMap(cfg) {
                     }
                     any = true;
                     marker.setIcon(this.neonIcon(marker, ink));
+                });
+                (clusterer?.clusters || []).forEach((cluster) => {
+                    if ((cluster.markers || []).length < 2 || !cluster.marker) {
+                        return;
+                    }
+                    if (!cluster.markers.some((marker) => marker.site?.pending)) {
+                        return;
+                    }
+                    any = true;
+                    cluster.marker.setIcon(this.clusterIcon(cluster, ink));
                 });
             }
             if (any && !this.neonTimer) {
@@ -807,14 +838,14 @@ export function observatoryMap(cfg) {
 
             return donutIcon(summary, total, ink);
         },
-        clusterIcon(cluster) {
+        clusterIcon(cluster, neon = '') {
             const markers = cluster.markers || [];
             if (this.mode === 'heat') {
                 const max = Math.max(1, ...placeMarkers.filter((marker) => marker.role === 'site').map((marker) => this.siteTotal(marker)));
                 const total = markers.reduce((sum, marker) => sum + this.siteTotal(marker), 0);
                 const ratio = markers.length ? (total / markers.length) / max : 0;
 
-                return heatPoint(ratio);
+                return heatPoint(ratio, neon);
             }
             const slices = new Map();
             let total = 0;
@@ -828,10 +859,10 @@ export function observatoryMap(cfg) {
                 });
             });
             if (this.mode === 'grouped') {
-                return donutIcon([...slices.values()], total);
+                return donutIcon([...slices.values()], total, neon);
             }
 
-            return countIcon(total);
+            return countIcon(total, neon);
         },
         showSites() {
             clusterer?.clearMarkers();

@@ -124,7 +124,8 @@ final class BuildObservatoryMapService
                         'event_id' => (int) $pending->id,
                         'folio' => $pending->folio(),
                         'kind' => $pendingReport?->kindLabel() ?? $pending->kindLabel(),
-                        'text' => mb_substr(trim((string) ($pendingReport?->body ?? '')), 0, 160),
+                        'text' => mb_substr(trim((string) ($pendingReport?->body ?? '')), 0, 240),
+                        'source' => $pendingReport?->sourceLabel() ?? '',
                         'show_url' => route($eventShowRoute, $pending),
                     ] : null,
                 ];

@@ -370,12 +370,18 @@ html[data-theme="light"] .company-alert-tile {
 }
 .obs-pin-cards {
     position: absolute;
-    transform: translate(-50%, calc(-100% - 18px));
+    transform: translate(-50%, calc(-100% - var(--obs-pin-lift, 57px)));
     display: flex;
     flex-direction: column;
     gap: 6px;
     width: 240px;
 }
+.obs-pin-cards:has(.obs-pin-card-alert) {
+    flex-direction: row;
+    align-items: stretch;
+    width: max-content;
+}
+.obs-pin-cards:has(.obs-pin-card-alert) .obs-pin-card { width: 220px; }
 .obs-pin-x {
     position: absolute;
     top: 4px;

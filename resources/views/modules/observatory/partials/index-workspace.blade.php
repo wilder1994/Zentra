@@ -119,14 +119,14 @@
     .obs-top-map, .obs-top-side, .obs-top-feed { min-width: 0; }
     @media (min-width: 768px) {
         .obs-top { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-        .obs-top-map { grid-column: 1 / -1; height: 28rem; }
-        .obs-top-side, .obs-top-feed { height: 22rem; }
+        .obs-top-map { grid-column: 1 / -1; height: 32.2rem; }
+        .obs-top-side, .obs-top-feed { height: 25.3rem; }
     }
     @media (min-width: 1024px) {
         .obs-chart-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         .obs-top { grid-template-columns: minmax(0, 3fr) minmax(0, 1fr) minmax(0, 1fr); }
         .obs-top-map { grid-column: auto; }
-        .obs-top-map, .obs-top-side, .obs-top-feed { height: 28rem; }
+        .obs-top-map, .obs-top-side, .obs-top-feed { height: 32.2rem; }
     }
 </style>
 @endpush
