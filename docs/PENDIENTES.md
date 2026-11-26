@@ -56,6 +56,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 26 nov 2026 · Tarjeta, grupo y fila
+Un clic deja solo la tarjeta de ese pin; la anterior se va aunque el mapa la pinte tarde. La tarjeta queda a 1 px de la cabeza del pin. Reporte e instalación van en la misma fila y miden igual. La de instalación abre con el nombre de la sede. La del reporte muestra la fuente y la observación. El grupo con un folio Nuevo palpita al alejar el zoom. La primera fila del tablero queda un 15 % más alta. Commit `a3c1947`.
+
 ### 26 nov 2026 · Pin, carga y motos
 La tarjeta del pin se cierra con otro clic o con la X, y muestra comuna, puestos, guardas y compartir. El contorno del pin palpita en neón. El tablero ya no carga el recorrido completo: se pide al clic. El punto GPS mueve solo la moto. Commit `160aaf4`.
 
