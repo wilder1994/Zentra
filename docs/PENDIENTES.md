@@ -56,6 +56,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 26 nov 2026 · Gráficos del tablero
+Segunda fila: Atención de folios, Fuentes y Orígenes, a tercios. Tercera: Tendencia endógena, Delitos endógenos por comuna (un cilindro por delito) e Instalaciones con más reportes (cilindro partido por delito, total visible, scroll interno y buscador). Riesgo por instalación baja a la fila de abajo, a todo el ancho. En el mapa, Eventos, Nuevos, En atención y Cerrados muestran el número. Commit `538057c`.
+
 ### 25 nov 2026 · Lista de supervisores en el Observatorio
 Cada supervisor ocupa tres líneas: nombre con km y revistas, señal y zona, y el estado corto (Detenido, En ruta o Sin GPS). El clic sigue pintando el recorrido. En Supervisión la frase larga no cambia. Commit `3555881`.
 
