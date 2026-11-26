@@ -198,8 +198,8 @@ final class ExportObservatoryBoardService
         $total = (int) $board['total'];
         $load = (int) ($board['load_rate'] ?? 0);
         $loadFill = $total === 0 ? self::CARD : match (true) {
-            $load <= 33 => self::GREEN,
-            $load <= 66 => self::GOLD,
+            $load >= 67 => self::GREEN,
+            $load >= 34 => self::GOLD,
             default => self::RED,
         };
         $loadInk = $total === 0 ? self::INK : self::NAVY;
@@ -209,7 +209,7 @@ final class ExportObservatoryBoardService
             [$this->int((int) $board['nuevo']), 'Nuevos', 'sin atender aún', self::CARD, self::AMBER],
             [$this->int((int) $board['en_atencion']), 'En atención', 'en seguimiento', self::CARD, self::INDIGO],
             [$this->int((int) $board['cerrado']), 'Cerrados', $this->pct((int) $board['cerrado'], $total).' del total', self::CARD, self::GREEN],
-            [$load.' %', 'Carga pendiente', $total === 0 ? 'sin folios' : ($load <= 33 ? 'baja' : ($load <= 66 ? 'media' : 'alta')), $loadFill, $loadInk],
+            [$load.' %', 'Gestión', $total === 0 ? 'sin folios' : ($load >= 67 ? 'alta' : ($load >= 34 ? 'media' : 'baja')), $loadFill, $loadInk],
         ];
         foreach ($boxes as $index => [$value, $label, $detail, $fill, $ink]) {
             $shape = $slide->createRichTextShape()
@@ -260,7 +260,7 @@ final class ExportObservatoryBoardService
         $text = 'En el periodo se abrieron '.$this->count($total, 'folio', 'folios').': '
             .$this->int((int) $board['nuevo']).' nuevos, '.$this->int((int) $board['en_atencion']).' en atención y '
             .$this->int((int) $board['cerrado']).' cerrados ('.$this->pct((int) $board['cerrado'], $total).').';
-        $text .= ' La gestión pendiente es de '.((int) $board['load_rate']).' % (un folio nuevo pesa 1 y uno en trámite la mitad).';
+        $text .= ' La gestión es de '.((int) $board['load_rate']).' % (cerrar suma el folio completo y pasarlo a trámite suma la mitad).';
 
         arsort($kinds);
         if (($top = array_key_first($kinds)) !== null && $kinds[$top] > 0) {

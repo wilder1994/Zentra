@@ -78,7 +78,8 @@ final class BuildObservatoryBoardService
             return 0;
         }
 
-        $score = $nuevo + ($enAtencion * 0.5);
+        $cerrado = max(0, $total - $nuevo - $enAtencion);
+        $score = $cerrado + ($enAtencion * 0.5);
 
         return (int) round(100 * $score / $total);
     }
