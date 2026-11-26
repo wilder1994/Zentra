@@ -56,6 +56,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 26 nov 2026 · Pin, carga y motos
+La tarjeta del pin se cierra con otro clic o con la X, y muestra comuna, puestos, guardas y compartir. El contorno del pin palpita en neón. El tablero ya no carga el recorrido completo: se pide al clic. El punto GPS mueve solo la moto. Commit `160aaf4`.
+
 ### 26 nov 2026 · Aviso del reporte
 El reporte sale del modal central. En el mapa el pin Nuevo palpita y el zoom ocurre una vez; la tarjeta de la instalación sale en cada clic y la del reporte solo mientras sigue Nuevo. Fuera del mapa el aviso va abajo a la derecha. Notificaciones queda entre el nombre y Cerrar sesión. El pánico no cambia. Commit `2885830`.
 
