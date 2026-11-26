@@ -276,7 +276,7 @@ final class BuildObservatoryOpenApiSpec
                             'en_atencion' => ['type' => 'integer'],
                             'cerrado' => ['type' => 'integer'],
                             'closed_rate' => ['type' => 'integer', 'description' => 'Porcentaje de eventos cerrados (0 si no hay)'],
-                            'load_rate' => ['type' => 'integer', 'description' => 'Atención: (nuevos + en trámite × 0,4) / total × 100. Rojo = cola, verde = cerrados'],
+                            'load_rate' => ['type' => 'integer', 'description' => 'Gestión pendiente: (nuevos + en trámite × 0,5) / total × 100'],
                             'trend' => ['$ref' => '#/components/schemas/Series'],
                             'kinds' => ['$ref' => '#/components/schemas/Series'],
                             'sources' => ['$ref' => '#/components/schemas/Series'],

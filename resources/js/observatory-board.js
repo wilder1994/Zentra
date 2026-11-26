@@ -83,20 +83,13 @@ function cylinderGradient(ink, vertical) {
     ]);
 }
 
-function mixRgb(from, to, t) {
-    return from.map((c, i) => Math.round(c + (to[i] - c) * t));
-}
-
-function loadColor(t) {
-    const clamped = Math.max(0, Math.min(1, t));
-    const green = [16, 185, 129];
-    const amber = [245, 158, 11];
-    const red = [239, 68, 68];
-    const rgb = clamped < 0.5
-        ? mixRgb(green, amber, clamped / 0.5)
-        : mixRgb(amber, red, (clamped - 0.5) / 0.5);
-
-    return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+function tubeInk(ink) {
+    return new window.echarts.graphic.RadialGradient(0.5, 0.5, 1, [
+        { offset: 0.46, color: mixHex(ink, '#020617', 0.45) },
+        { offset: 0.72, color: ink },
+        { offset: 0.9, color: mixHex(ink, '#ffffff', 0.5) },
+        { offset: 1, color: mixHex(ink, '#020617', 0.3) },
+    ]);
 }
 
 export function observatoryBoard(payload) {
@@ -109,6 +102,8 @@ export function observatoryBoard(payload) {
             this.draw();
             window.addEventListener('resize', () => {
                 this.charts.forEach((chart) => chart.resize());
+                this.pie(this.$refs.sources, this.payload?.sources ?? { labels: [], values: [] });
+                this.gauge(this.$refs.gauge);
             });
             window.addEventListener('ops-live-data', (event) => {
                 const board = event.detail?.board;
@@ -116,10 +111,6 @@ export function observatoryBoard(payload) {
                     return;
                 }
                 this.replacePayload(board);
-                const loadEl = document.querySelector('.obs-gauge-value');
-                if (loadEl && board.load_rate !== undefined) {
-                    loadEl.textContent = `${board.load_rate}%`;
-                }
                 ['total', 'nuevo', 'en_atencion', 'cerrado'].forEach((key) => {
                     if (board[key] === undefined) {
                         return;
@@ -171,13 +162,12 @@ export function observatoryBoard(payload) {
             const data = this.payload ?? {};
             const trend = data.trend ?? { labels: ['—'], series: [] };
             const sources = data.sources ?? { labels: [], values: [] };
-            const load = Number(data.load_rate ?? 0);
 
             this.lines(this.$refs.trend, trend);
             this.paintCrimes(data.crimes);
             this.paintSites();
             this.pie(this.$refs.sources, sources);
-            this.gauge(this.$refs.gauge, load);
+            this.gauge(this.$refs.gauge);
             this.paintOrigins(data.origins);
             this.paintRisk(data.risk);
         },
@@ -251,6 +241,13 @@ export function observatoryBoard(payload) {
             const values = series.values?.length ? series.values : labels.map(() => 0);
             const colors = ['#14b8a6', '#22c55e', '#f59e0b', '#a78bfa', '#818cf8'];
             const empty = values.every((value) => Number(value) === 0);
+            const legendH = 34;
+            const width = el.clientWidth || 240;
+            const height = el.clientHeight || 160;
+            const availH = Math.max(90, height - legendH);
+            const band = 22;
+            const outer = Math.max(52, Math.min(width / 2 - 8, availH / 2 - 4));
+            const inner = Math.max(16, outer - band);
             chart.setOption({
                 animation: false,
                 tooltip: {
@@ -268,8 +265,8 @@ export function observatoryBoard(payload) {
                 },
                 series: [{
                     type: 'pie',
-                    radius: ['46%', '78%'],
-                    center: ['50%', '40%'],
+                    radius: [inner, outer],
+                    center: ['50%', Math.round(availH / 2)],
                     label: {
                         show: !empty,
                         position: 'inside',
@@ -302,41 +299,56 @@ export function observatoryBoard(payload) {
                 }],
             }, true);
         },
-        gauge(el, value) {
+        gauge(el) {
             const chart = this.mount(el);
             if (!chart) {
                 return;
             }
-            const load = Math.max(0, Math.min(100, Number(value) || 0));
+            const board = this.payload ?? {};
+            const parts = [
+                { name: 'Cerrados', value: Number(board.cerrado) || 0, ink: '#10b981' },
+                { name: 'En trámite', value: Number(board.en_atencion) || 0, ink: '#f59e0b' },
+                { name: 'Nuevos', value: Number(board.nuevo) || 0, ink: '#ef4444' },
+            ].filter((part) => part.value > 0);
+            const empty = parts.length === 0;
+            const shown = empty
+                ? [{ name: '', value: 1, ink: isLight() ? '#cbd5e1' : '#334155' }]
+                : parts;
+            const span = shown.reduce((sum, part) => sum + part.value, 0);
+            const width = el.clientWidth || 240;
+            const height = el.clientHeight || 150;
+            const band = 22;
+            const outer = Math.max(72, Math.min(width / 2 - 8, height - 4));
+            const inner = Math.max(16, outer - band);
             chart.setOption({
                 animation: false,
+                tooltip: {
+                    ...tip(),
+                    formatter(item) {
+                        return item.name ? `${item.name}: ${item.value}` : '';
+                    },
+                },
                 series: [{
-                    type: 'gauge',
+                    type: 'pie',
                     startAngle: 180,
-                    endAngle: 0,
-                    min: 0,
-                    max: 100,
-                    radius: '140%',
-                    center: ['50%', '78%'],
-                    pointer: {
-                        show: true,
-                        length: '62%',
-                        width: 4,
-                        itemStyle: { color: loadColor(load / 100) },
-                    },
-                    progress: { show: false },
-                    axisLine: {
-                        roundCap: true,
-                        lineStyle: {
-                            width: 18,
-                            color: [[0.5, '#10b981'], [0.75, '#f59e0b'], [1, '#ef4444']],
+                    clockwise: true,
+                    radius: [inner, outer],
+                    center: ['50%', '100%'],
+                    label: { show: false },
+                    emphasis: { disabled: true },
+                    data: [
+                        ...shown.map((part) => ({
+                            name: part.name,
+                            value: part.value,
+                            itemStyle: { color: tubeInk(part.ink), borderWidth: 0 },
+                        })),
+                        {
+                            name: '',
+                            value: span,
+                            itemStyle: { color: 'transparent' },
+                            tooltip: { show: false },
                         },
-                    },
-                    axisTick: { show: false },
-                    splitLine: { show: false },
-                    axisLabel: { show: false },
-                    detail: { show: false },
-                    data: [{ value: load }],
+                    ],
                 }],
             }, true);
         },

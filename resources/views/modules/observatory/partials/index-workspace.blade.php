@@ -72,8 +72,29 @@
     .obs-card-h h3 { margin: .1rem 0 0; font-size: .85rem; font-weight: 600; color: #e2e8f0; }
     .obs-chart { height: 9.5rem; padding: .35rem .75rem .65rem; }
     .obs-chart-lg { height: 13.5rem; }
-    .obs-gauge { height: auto; min-height: 10.5rem; display: flex; flex-direction: column; overflow: visible; }
-    .obs-gauge-plot { height: 7.25rem; position: relative; overflow: visible; }
+    .obs-gauge { height: auto; min-height: 10.5rem; display: flex; flex-direction: column; overflow: hidden; }
+    .obs-gauge-plot { height: 7.25rem; position: relative; overflow: hidden; }
+    .obs-card-fill { display: flex; flex-direction: column; }
+    .obs-card-fill > .obs-chart { flex: 1; height: auto; min-height: 12rem; padding-bottom: .35rem; }
+    .obs-card-fill > .obs-donut { display: flex; flex-direction: column; }
+    .obs-card-fill .obs-gauge-plot,
+    .obs-card-fill .obs-donut-plot { flex: 1; height: auto; min-height: 10rem; }
+    .obs-card-fill .obs-gauge-legend { margin-top: auto; padding-top: .15rem; padding-bottom: .4rem; }
+    .obs-odo {
+        position: absolute; left: 50%; bottom: 1cm; transform: translateX(-50%);
+        pointer-events: none; padding: .18rem; border-radius: .35rem;
+        background: linear-gradient(180deg, #1e293b, #020617 55%, #0f172a);
+        box-shadow: 0 2px 0 #334155, 0 6px 10px rgb(2 6 23 / 0.55), inset 0 1px 0 rgb(148 163 184 / 0.35);
+    }
+    .obs-odo-screen {
+        display: flex; align-items: center; gap: .4rem; padding: .38rem .7rem; border-radius: .2rem;
+        border: 1px solid #0284c7;
+        background: radial-gradient(120% 140% at 50% 0%, rgb(14 165 233 / 0.28), rgb(2 6 23) 62%);
+        box-shadow: inset 0 8px 12px rgb(2 6 23 / 0.85), inset 0 1px 0 rgb(125 211 252 / 0.55), 0 0 8px rgb(56 189 248 / 0.35);
+        font-size: 1rem; font-weight: 700; line-height: 1; white-space: nowrap;
+    }
+    .obs-odo-kicker { color: #7dd3fc; text-shadow: 0 0 6px rgb(125 211 252 / 0.65); }
+    .obs-odo-value { color: #f0f9ff; font-variant-numeric: tabular-nums; text-shadow: 0 0 8px rgb(224 242 254 / 0.8); }
     html[data-theme="light"] .obs-card {
         background: var(--ui-surface);
         border-color: var(--ui-border);
@@ -244,28 +265,32 @@
 
         <div class="space-y-3" x-data="observatoryBoard(@js($charts))">
             <div class="obs-chart-row">
-                <section class="obs-card">
+                <section class="obs-card obs-card-fill">
                     <div class="obs-card-h">
-                        <p>Atención</p>
-                        <h3>Atención de folios</h3>
+                        <h3>Atención de folios <span class="tabular-nums" @if ($observatoryLiveUrl) x-text="payload.total ?? {{ (int) ($board['total'] ?? 0) }}" @endif>{{ (int) ($board['total'] ?? 0) }}</span></h3>
                     </div>
                     <div class="obs-chart obs-gauge">
                         <div class="obs-gauge-plot">
                             <div class="obs-plot" x-ref="gauge" role="img" aria-label="Atención de folios"></div>
-                            <p class="obs-gauge-value pointer-events-none absolute inset-x-0 top-[42%] text-center text-xl font-semibold tabular-nums text-white leading-none">{{ (int) ($board['load_rate'] ?? 0) }}%</p>
+                            <div class="obs-odo">
+                                <div class="obs-odo-screen">
+                                    <span class="obs-odo-kicker">Gestión</span>
+                                    <span class="obs-odo-value" @if ($observatoryLiveUrl) x-text="(payload.load_rate ?? {{ (int) ($board['load_rate'] ?? 0) }}) + '%'" @endif>{{ (int) ($board['load_rate'] ?? 0) }}%</span>
+                                </div>
+                            </div>
                         </div>
                         <div class="obs-gauge-legend shrink-0 grid grid-cols-3 gap-1 px-1 pt-1 text-[10px] leading-tight">
                             <p class="text-emerald-400">Cerrados <span class="font-semibold tabular-nums text-emerald-300" @if ($observatoryLiveUrl) x-text="payload.cerrado ?? {{ (int) ($board['cerrado'] ?? 0) }}" @endif>{{ (int) ($board['cerrado'] ?? 0) }}</span></p>
                             <p class="text-center text-amber-400">En trámite <span class="font-semibold tabular-nums text-amber-300" @if ($observatoryLiveUrl) x-text="payload.en_atencion ?? {{ (int) ($board['en_atencion'] ?? 0) }}" @endif>{{ (int) ($board['en_atencion'] ?? 0) }}</span></p>
-                            <p class="text-right text-red-400">Total <span class="font-semibold tabular-nums text-red-300" @if ($observatoryLiveUrl) x-text="payload.total ?? {{ (int) ($board['total'] ?? 0) }}" @endif>{{ (int) ($board['total'] ?? 0) }}</span></p>
+                            <p class="text-right text-red-400">Nuevos <span class="font-semibold tabular-nums text-red-300" @if ($observatoryLiveUrl) x-text="payload.nuevo ?? {{ (int) ($board['nuevo'] ?? 0) }}" @endif>{{ (int) ($board['nuevo'] ?? 0) }}</span></p>
                         </div>
                     </div>
                 </section>
-                <section class="obs-card">
+                <section class="obs-card obs-card-fill">
                     <div class="obs-card-h">
                         <h3>Fuentes</h3>
                     </div>
-                    <div class="obs-chart"><div class="obs-plot" x-ref="sources" role="img" aria-label="Fuentes"></div></div>
+                    <div class="obs-chart obs-donut"><div class="obs-plot obs-donut-plot" x-ref="sources" role="img" aria-label="Fuentes"></div></div>
                 </section>
                 <section class="obs-card">
                     <div class="obs-card-h">

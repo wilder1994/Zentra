@@ -260,7 +260,7 @@ final class ExportObservatoryBoardService
         $text = 'En el periodo se abrieron '.$this->count($total, 'folio', 'folios').': '
             .$this->int((int) $board['nuevo']).' nuevos, '.$this->int((int) $board['en_atencion']).' en atención y '
             .$this->int((int) $board['cerrado']).' cerrados ('.$this->pct((int) $board['cerrado'], $total).').';
-        $text .= ' La carga pendiente es de '.((int) $board['load_rate']).' % (un folio nuevo pesa 1 y uno en atención 0,4).';
+        $text .= ' La gestión pendiente es de '.((int) $board['load_rate']).' % (un folio nuevo pesa 1 y uno en trámite la mitad).';
 
         arsort($kinds);
         if (($top = array_key_first($kinds)) !== null && $kinds[$top] > 0) {

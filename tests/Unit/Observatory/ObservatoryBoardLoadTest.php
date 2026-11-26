@@ -21,8 +21,8 @@ final class ObservatoryBoardLoadTest extends TestCase
 
     public function test_treating_lowers_load_and_closing_lowers_it_more(): void
     {
-        $this->assertSame(70, BuildObservatoryBoardService::loadRate(5, 5, 10));
-        $this->assertSame(40, BuildObservatoryBoardService::loadRate(2, 5, 10));
+        $this->assertSame(75, BuildObservatoryBoardService::loadRate(5, 5, 10));
+        $this->assertSame(45, BuildObservatoryBoardService::loadRate(2, 5, 10));
         $this->assertSame(0, BuildObservatoryBoardService::loadRate(0, 0, 10));
     }
 }
