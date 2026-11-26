@@ -84,22 +84,83 @@ export function opsLivePage() {
             } catch {
                 this.board = {};
             }
-            window.addEventListener('ops-surface-changed', () => this.refresh());
+            this.trailUrl = this.$el.dataset.trailUrl || '';
+            this.positionsUrl = this.$el.dataset.positionsUrl || '';
+            window.addEventListener('ops-surface-changed', (event) => {
+                if (event.detail?.kind === 'supervision-ping') {
+                    this.refreshPositions();
+                    return;
+                }
+                this.refresh();
+            });
             window.dispatchEvent(new CustomEvent('observatory-shifts', { detail: this.shifts }));
         },
-        pickShift(id) {
+        async pickShift(id) {
             const numeric = Number(id);
             const next = Number(this.selectedShiftId) === numeric ? null : numeric;
             this.selectedShiftId = next;
-            const row = next == null
+            let row = next == null
                 ? null
                 : this.shifts.find((item) => Number(item.shift_id) === next);
+            if (row && (!Array.isArray(row.path) || row.path.length === 0) && this.trailUrl) {
+                try {
+                    const res = await fetch(this.trailUrl.replace('__SHIFT__', String(next)), {
+                        headers: { Accept: 'application/json' },
+                        credentials: 'same-origin',
+                    });
+                    if (res.ok) {
+                        const trail = await res.json();
+                        row = {
+                            ...row,
+                            path: Array.isArray(trail.path) ? trail.path : [],
+                            lat: trail.lat ?? row.lat,
+                            lng: trail.lng ?? row.lng,
+                        };
+                        this.shifts = this.shifts.map((item) => (
+                            Number(item.shift_id) === Number(next) ? row : item
+                        ));
+                    }
+                } catch {
+                    // el clic siguiente vuelve a pedir el recorrido
+                }
+            }
             window.dispatchEvent(new CustomEvent('observatory-shift-pick', {
                 detail: {
                     id: next,
                     path: Array.isArray(row?.path) ? row.path : [],
+                    lat: row?.lat,
+                    lng: row?.lng,
                 },
             }));
+        },
+        async refreshPositions() {
+            if (!this.positionsUrl) {
+                return;
+            }
+            try {
+                const res = await fetch(this.positionsUrl, {
+                    headers: { Accept: 'application/json' },
+                    credentials: 'same-origin',
+                });
+                if (!res.ok) {
+                    return;
+                }
+                const data = await res.json();
+                const incoming = Array.isArray(data.shifts) ? data.shifts : [];
+                const selected = this.selectedShiftId;
+                this.shifts = incoming.map((row) => {
+                    const prev = this.shifts.find((item) => Number(item.shift_id) === Number(row.shift_id));
+                    const keepPath = Number(selected) === Number(row.shift_id) && Array.isArray(prev?.path);
+
+                    return { ...row, path: keepPath ? prev.path : [] };
+                });
+                if (selected != null && !this.shifts.some((row) => Number(row.shift_id) === Number(selected))) {
+                    this.selectedShiftId = null;
+                }
+                window.dispatchEvent(new CustomEvent('observatory-shifts', { detail: this.shifts }));
+            } catch {
+                // el siguiente punto vuelve a pedir las motos
+            }
         },
         signalClass(row) {
             if (row?.signal === 'screen_off') {

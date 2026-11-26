@@ -100,6 +100,24 @@ final class ObservatoryEventController extends Controller
         ));
     }
 
+    public function shiftPositions(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', ObservatoryEvent::class);
+
+        $clientId = (int) $this->tenantContext->clientId();
+        abort_unless($clientId > 0, 403);
+        $allowed = $this->tenantContext->installationIds();
+        $filters = ObservatoryFilters::fromRequest($request, null, $clientId, $allowed);
+
+        return response()->json([
+            'shifts' => app(BuildObservatoryMapService::class)->positions(
+                null,
+                $clientId,
+                $filters->siteIds(null, $allowed),
+            ),
+        ]);
+    }
+
     public function shiftTrail(Request $request, int $shift): JsonResponse
     {
         $this->authorize('viewAny', ObservatoryEvent::class);

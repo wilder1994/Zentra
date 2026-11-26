@@ -6,6 +6,7 @@ namespace App\Services\Observatory;
 
 use App\Enums\ObservatoryEventStatus;
 use App\Models\Client;
+use Illuminate\Support\Facades\DB;
 use App\Models\Installation;
 use App\Models\ObservatoryEvent;
 use App\Models\ObservatoryReport;
@@ -38,6 +39,9 @@ final class BuildObservatoryMapService
         $typeScope = $typeIds === [] ? [0] : $typeIds;
         $sites = Installation::query()
             ->withoutGlobalScopes()
+            ->withCount([
+                'supervisorPosts as posts_count' => fn ($q) => $q->where('is_active', true)->whereNull('archived_at'),
+            ])
             ->with([
                 'client:id,name,security_company_id',
                 'observatoryEvents' => fn ($q) => $q
@@ -60,6 +64,7 @@ final class BuildObservatoryMapService
             ->when($installationIds !== null, fn ($q) => $q->whereIn('id', $installationIds))
             ->orderBy('name')
             ->get();
+        $guardCounts = $this->guardCounts($sites->pluck('id')->all());
 
         $types = ObservatoryReportType::catalogForScope($companyId, $clientId);
         $crimeCompany = $companyId ?? ($clientId !== null
@@ -91,6 +96,8 @@ final class BuildObservatoryMapService
                 return [
                     'id' => (int) $site->id,
                     'name' => $site->name,
+                    'posts_count' => (int) $site->posts_count,
+                    'guards_count' => (int) ($guardCounts[(int) $site->id] ?? 0),
                     'client' => $site->client?->name,
                     'address' => PlaceLabel::of($site),
                     'dane_code' => $site->dane_code,
@@ -155,7 +162,7 @@ final class BuildObservatoryMapService
             'crimes' => $crimeCompany > 0
                 ? app(ManageObservatoryCrimeFiguresService::class)->mapPayload($crimeCompany, $from, $to)
                 : ['types' => [], 'rows' => []],
-            'shifts' => $this->shifts($companyId, $clientId, $installationIds),
+            'shifts' => $this->shifts($companyId, $clientId, $installationIds, false),
             'bubbles' => $this->bubbles($companyId, $clientId),
         ];
     }
@@ -164,7 +171,35 @@ final class BuildObservatoryMapService
      * @param  list<int>|null  $installationIds
      * @return list<array<string, mixed>>
      */
-    private function shifts(?int $companyId, ?int $clientId, ?array $installationIds): array
+    public function positions(?int $companyId, ?int $clientId, ?array $installationIds = null): array
+    {
+        return $this->shifts($companyId, $clientId, $installationIds, false);
+    }
+
+    /**
+     * @param  list<int>  $installationIds
+     * @return array<int, int>
+     */
+    private function guardCounts(array $installationIds): array
+    {
+        if ($installationIds === []) {
+            return [];
+        }
+
+        return DB::table('supervisor_post_employee as link')
+            ->join('supervisor_posts as posts', 'posts.id', '=', 'link.supervisor_post_id')
+            ->whereIn('posts.installation_id', $installationIds)
+            ->where('posts.is_active', true)
+            ->whereNull('posts.archived_at')
+            ->whereNull('posts.deleted_at')
+            ->groupBy('posts.installation_id')
+            ->selectRaw('posts.installation_id as installation_id, count(distinct link.employee_id) as guards')
+            ->pluck('guards', 'installation_id')
+            ->map(static fn ($count): int => (int) $count)
+            ->all();
+    }
+
+    private function shifts(?int $companyId, ?int $clientId, ?array $installationIds, bool $withPath): array
     {
         $resolvedCompany = $companyId ?? ($clientId !== null
             ? (int) Client::query()->whereKey($clientId)->value('security_company_id')
@@ -174,12 +209,12 @@ final class BuildObservatoryMapService
         }
 
         // Empresa: todos los turnos abiertos. Cliente: solo si tiene los dos módulos.
-        // El recorrido viaja en el turno para que el clic pinte sin otra petición.
+        // El recorrido no viaja aquí: el clic lo pide aparte.
         $scope = $clientId === null
             ? null
             : $this->dualClientIds($resolvedCompany, $clientId, $installationIds);
 
-        return app(BuildSupervisionMapService::class)->openShiftsCovering($resolvedCompany, $scope, true);
+        return app(BuildSupervisionMapService::class)->openShiftsCovering($resolvedCompany, $scope, $withPath);
     }
 
     /**

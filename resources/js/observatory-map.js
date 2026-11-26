@@ -3,7 +3,7 @@ import { dropIcon, dropSvg, GLYPHS, MAP_STYLES } from './map-pins';
 import { shareButton } from './map-share';
 
 /** Tono del grupo según el riesgo abierto (los colores del catálogo los define cada cliente). */
-function donutIcon(slices, total) {
+function donutIcon(slices, total, neon = '') {
     const list = (slices || []).filter((row) => Number(row.count) > 0);
     const sum = list.reduce((acc, row) => acc + Number(row.count), 0);
     const cx = 36;
@@ -33,7 +33,7 @@ function donutIcon(slices, total) {
     const label = new Intl.NumberFormat('es-CO').format(Number(total) || 0);
     const size = label.length > 5 ? 9 : 12;
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="72" height="88" viewBox="0 0 72 88">
-        <path d="M36 86 L16 48 A28 28 0 1 1 56 48 Z" fill="#0f172a"/>
+        <path d="M36 86 L16 48 A28 28 0 1 1 56 48 Z" fill="#0f172a" ${neon ? `stroke="${neon}" stroke-width="3.5"` : ''}/>
         <circle cx="36" cy="34" r="28" fill="#e5e7eb"/>
         <circle cx="36" cy="34" r="25" fill="#fff"/>
         ${paths}
@@ -58,7 +58,7 @@ function heatColor(ratio) {
     return `rgb(${mix[0]}, ${mix[1]}, ${mix[2]})`;
 }
 
-function heatPoint(ratio) {
+function heatPoint(ratio, neon = '') {
     const t = Math.max(0, Math.min(1, Number(ratio) || 0));
 
     return {
@@ -66,15 +66,15 @@ function heatPoint(ratio) {
         scale: 7 + Math.round(t * 6),
         fillColor: heatColor(t),
         fillOpacity: 0.92,
-        strokeColor: '#ffffff',
-        strokeWeight: 1,
+        strokeColor: neon || '#ffffff',
+        strokeWeight: neon ? 3 : 1,
     };
 }
 
-function countIcon(total) {
+function countIcon(total, neon = '') {
     const label = new Intl.NumberFormat('es-CO').format(Number(total) || 0);
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="54" height="54" viewBox="0 0 54 54">
-        <circle cx="27" cy="27" r="24" fill="#fff" stroke="#0f172a" stroke-width="3"/>
+        <circle cx="27" cy="27" r="24" fill="#fff" stroke="${neon || '#0f172a'}" stroke-width="${neon ? 4 : 3}"/>
         <text x="27" y="32" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#0f172a">${label}</text>
     </svg>`;
 
@@ -103,33 +103,41 @@ function riskTone(open, score) {
     return 'emerald';
 }
 
-let pulseOverlays = new Map();
 let siteCard = null;
 let openSiteId = 0;
 const knownPending = new Set();
 let pendingSeeded = false;
-
-function pinOverlay(position, html, pulse = false) {
+function pinCard(position, html, onClose) {
     const overlay = new google.maps.OverlayView();
     overlay.onAdd = function onAdd() {
         const div = document.createElement('div');
-        div.className = pulse ? 'obs-pin-ring' : 'obs-pin-cards';
+        div.className = 'obs-pin-cards';
         div.innerHTML = html;
         div.addEventListener('click', (event) => event.stopPropagation());
-        this.div = div;
-        this.getPanes().overlayMouseTarget.appendChild(div);
+        div.querySelector('[data-obs-close]')?.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onClose();
+        });
+        this.node = div;
+        this.getPanes().floatPane.appendChild(div);
     };
     overlay.draw = function draw() {
         const point = this.getProjection()?.fromLatLngToDivPixel(position);
-        if (!point || !this.div) {
+        if (!point || !this.node) {
             return;
         }
-        this.div.style.left = `${point.x}px`;
-        this.div.style.top = `${point.y}px`;
+        this.node.style.left = `${point.x}px`;
+        this.node.style.top = `${point.y}px`;
     };
     overlay.onRemove = function onRemove() {
-        this.div?.remove();
-        this.div = null;
+        this.node?.remove();
+        this.node = null;
+    };
+    overlay.drop = function drop() {
+        this.node?.remove();
+        this.node = null;
+        this.setMap(null);
     };
 
     return overlay;
@@ -160,6 +168,8 @@ export function observatoryMap(cfg) {
         selectedShiftId: null,
         motoMarkers: {},
         motoAnims: {},
+        neonOn: false,
+        neonTimer: null,
 
         init() {
             window.initObservatoryMap = () => this.draw();
@@ -661,7 +671,6 @@ export function observatoryMap(cfg) {
             }
             this.showSites();
             this.drawShifts(false);
-            this.syncPulses();
         },
         seedPending() {
             (cfg.sites || []).forEach((site) => {
@@ -671,7 +680,6 @@ export function observatoryMap(cfg) {
                 }
             });
             pendingSeeded = true;
-            this.syncPulses();
         },
         applyLiveSites(sites) {
             const byId = new Map(sites.map((site) => [Number(site.id), site]));
@@ -699,11 +707,10 @@ export function observatoryMap(cfg) {
                 this.focusSite(fresh[0]);
             }
             this.showSites();
-            this.syncPulses();
             if (openSiteId) {
                 const marker = placeMarkers.find((item) => item.role === 'site' && Number(item.site?.id) === openSiteId);
                 if (marker) {
-                    this.openSiteCards(marker);
+                    this.openSiteCards(marker, true);
                 }
             }
         },
@@ -715,16 +722,30 @@ export function observatoryMap(cfg) {
             this.map.setZoom(17);
         },
         closeSiteCards() {
-            siteCard?.setMap(null);
+            siteCard?.drop?.();
             siteCard = null;
             openSiteId = 0;
+            document.querySelectorAll('.obs-pin-cards').forEach((node) => node.remove());
         },
-        openSiteCards(marker) {
+        openSiteCards(marker, refresh = false) {
             window.dispatchEvent(new CustomEvent('observatory-pin-clicked'));
             const site = marker.site || {};
-            openSiteId = Number(site.id) || 0;
-            siteCard?.setMap(null);
+            const id = Number(site.id) || 0;
+            if (!refresh && openSiteId === id && siteCard) {
+                this.closeSiteCards();
+                return;
+            }
+            openSiteId = id;
+            siteCard?.drop?.();
             const dane = site.dane_code ? this.esc(site.dane_code) : 'Sin código DANE';
+            const comuna = site.comuna_name ? this.esc(site.comuna_name) : 'Sin comuna';
+            const share = shareButton({
+                title: site.name,
+                subtitle: site.client || '',
+                address: site.address || '',
+                lat: site.lat,
+                lng: site.lng,
+            }, { label: true });
             const pending = site.pending;
             const report = pending
                 ? `<article class="zmap-card obs-pin-card obs-pin-card-alert">`
@@ -734,45 +755,57 @@ export function observatoryMap(cfg) {
                     + (pending.show_url ? `<a class="zmap-card-link" href="${this.esc(pending.show_url)}">Abrir folio</a>` : '')
                     + `</article>`
                 : '';
-            const html = report
+            const html = `<button type="button" class="obs-pin-x" data-obs-close aria-label="Cerrar">×</button>`
+                + report
                 + `<article class="zmap-card obs-pin-card">`
                 + `<p class="zmap-card-kind">Instalación</p>`
                 + `<p class="zmap-card-title">${this.esc(site.name)}</p>`
                 + (site.client ? `<p class="zmap-card-meta">${this.esc(site.client)}</p>` : '')
                 + (site.address ? `<p class="zmap-card-faint">${this.esc(site.address)}</p>` : '')
+                + `<p class="zmap-card-meta">${comuna}</p>`
                 + `<p class="zmap-card-meta">DANE ${dane}</p>`
+                + `<p class="zmap-card-meta">${Number(site.posts_count || 0)} puestos · ${Number(site.guards_count || 0)} guardas</p>`
+                + `<div class="obs-pin-share">${share}</div>`
                 + `</article>`;
-            siteCard = pinOverlay(marker.getPosition(), html);
+            siteCard = pinCard(marker.getPosition(), html, () => this.closeSiteCards());
             siteCard.setMap(this.map);
         },
-        syncPulses() {
-            const want = new Set();
+        paintNeon() {
+            const ink = this.neonOn ? '#ffe4e6' : '#fb7185';
+            let any = false;
             if (this.map && this.layer === 'reportes') {
                 placeMarkers.forEach((marker) => {
-                    if (marker.role === 'site' && marker.site?.pending) {
-                        want.add(Number(marker.site.id));
+                    if (marker.role !== 'site' || !marker.site?.pending) {
+                        return;
                     }
+                    any = true;
+                    marker.setIcon(this.neonIcon(marker, ink));
                 });
             }
-            pulseOverlays.forEach((overlay, id) => {
-                if (want.has(id)) {
-                    return;
-                }
-                overlay.setMap(null);
-                pulseOverlays.delete(id);
-            });
-            want.forEach((id) => {
-                if (pulseOverlays.has(id) || !this.map) {
-                    return;
-                }
-                const marker = placeMarkers.find((item) => item.role === 'site' && Number(item.site?.id) === id);
-                if (!marker) {
-                    return;
-                }
-                const overlay = pinOverlay(marker.getPosition(), '<span class="obs-pin-pulse"></span>', true);
-                overlay.setMap(this.map);
-                pulseOverlays.set(id, overlay);
-            });
+            if (any && !this.neonTimer) {
+                this.neonTimer = setInterval(() => {
+                    this.neonOn = !this.neonOn;
+                    this.paintNeon();
+                }, 700);
+            }
+            if (!any && this.neonTimer) {
+                clearInterval(this.neonTimer);
+                this.neonTimer = null;
+            }
+        },
+        neonIcon(marker, ink) {
+            const summary = this.siteSummary(marker);
+            const total = summary.reduce((sum, row) => sum + Number(row.count || 0), 0);
+            if (this.mode === 'heat') {
+                const max = Math.max(1, ...placeMarkers.filter((item) => item.role === 'site').map((item) => this.siteTotal(item)));
+
+                return heatPoint(total / max, ink);
+            }
+            if (this.mode === 'places') {
+                return countIcon(total, ink);
+            }
+
+            return donutIcon(summary, total, ink);
         },
         clusterIcon(cluster) {
             const markers = cluster.markers || [];
@@ -820,6 +853,7 @@ export function observatoryMap(cfg) {
                 }
             });
             clusterer?.addMarkers(sites);
+            this.paintNeon();
         },
 
         siteSummary(marker) {

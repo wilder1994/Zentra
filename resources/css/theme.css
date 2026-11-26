@@ -370,33 +370,30 @@ html[data-theme="light"] .company-alert-tile {
 }
 .obs-pin-cards {
     position: absolute;
-    transform: translate(-50%, calc(-100% - 36px));
+    transform: translate(-50%, calc(-100% - 18px));
     display: flex;
     flex-direction: column;
     gap: 6px;
-    width: 220px;
+    width: 240px;
 }
-.obs-pin-card { padding: 8px 10px; }
+.obs-pin-x {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    z-index: 2;
+    border: 0;
+    background: transparent;
+    color: var(--ui-faint);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+}
+.obs-pin-card { padding: 8px 22px 8px 10px; }
 .obs-pin-card-alert {
     border-color: #fb7185;
     box-shadow: 0 0 0 1px #fb7185, 0 0 14px rgb(244 63 94 / 0.45);
 }
-.obs-pin-ring {
-    position: absolute;
-    width: 18px;
-    height: 18px;
-    margin: -9px 0 0 -9px;
-    pointer-events: none;
-}
-.obs-pin-pulse {
-    display: block;
-    width: 18px;
-    height: 18px;
-    border-radius: 999px;
-    border: 2px solid #fb7185;
-    box-shadow: 0 0 8px #f43f5e;
-    animation: ops-neon 1.15s ease-out infinite;
-}
+.obs-pin-share { margin-top: 6px; }
 .ops-obs-toast {
     border-color: #fb7185;
     animation: ops-neon 1.15s ease-in-out infinite;

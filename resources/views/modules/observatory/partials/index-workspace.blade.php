@@ -136,6 +136,7 @@
          x-data="opsLivePage"
          data-live-url="{{ $observatoryLiveUrl }}"
          data-trail-url="{{ $observatoryTrailUrl ?? '' }}"
+         data-positions-url="{{ $observatoryPositionsUrl ?? '' }}"
          data-show-client="{{ $showClientColumn ? '1' : '0' }}"
          data-events='@json($liveEventRows)'
          data-shifts='@json($map['shifts'] ?? [])'
