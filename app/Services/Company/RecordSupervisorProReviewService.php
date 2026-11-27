@@ -350,6 +350,8 @@ final class RecordSupervisorProReviewService
             ]);
         }
 
+        \App\Support\Media\SheetImage::thumb($path);
+
         return $path;
     }
 

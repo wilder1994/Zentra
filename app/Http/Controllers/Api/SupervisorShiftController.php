@@ -341,7 +341,11 @@ final class SupervisorShiftController extends Controller
 
         $point = $this->storePing($shift, $data, $at);
         if ($point->wasRecentlyCreated) {
-            app(NotifyOpsSurface::class)->supervisionMap((int) $shift->security_company_id, $request->user()->name);
+            app(NotifyOpsSurface::class)->supervisionMap(
+                (int) $shift->security_company_id,
+                $request->user()->name,
+                $this->pingPoint($shift, $point),
+            );
         }
         if (isset($data['pending_outbox']) && $shift->isOpen()) {
             $shift->update(['pending_outbox_count' => max(0, (int) $data['pending_outbox'])]);
@@ -371,6 +375,7 @@ final class SupervisorShiftController extends Controller
         $stored = 0;
         $late = [];
         $moved = null;
+        $lastPoint = null;
         foreach ($data['points'] as $row) {
             $at = SupervisorCaptureTime::parse($row['recorded_at'] ?? null);
             $shift = $this->shiftService->shiftForCapture($user, $at);
@@ -382,6 +387,7 @@ final class SupervisorShiftController extends Controller
                 $stored++;
                 if ($point->wasRecentlyCreated) {
                     $moved = $shift;
+                    $lastPoint = $point;
                 }
                 if (! $shift->isOpen()) {
                     $late[$shift->id] = $shift;
@@ -390,8 +396,12 @@ final class SupervisorShiftController extends Controller
                 continue;
             }
         }
-        if ($moved instanceof SupervisorShift) {
-            app(NotifyOpsSurface::class)->supervisionMap((int) $moved->security_company_id, $user->name);
+        if ($moved instanceof SupervisorShift && $lastPoint !== null) {
+            app(NotifyOpsSurface::class)->supervisionMap(
+                (int) $moved->security_company_id,
+                $user->name,
+                $this->pingPoint($moved, $lastPoint),
+            );
         }
         foreach ($late as $shift) {
             $this->lateSync->execute($shift);
@@ -401,6 +411,17 @@ final class SupervisorShiftController extends Controller
         abort_if($stored === 0 && ! $open, 422, 'No hay turno abierto.');
 
         return response()->json(['stored' => $stored, 'open' => $open]);
+    }
+
+    /** @return array{shift_id: int, lat: float, lng: float, at: ?string} */
+    private function pingPoint(SupervisorShift $shift, SupervisorShiftLocation $point): array
+    {
+        return [
+            'shift_id' => (int) $shift->id,
+            'lat' => (float) $point->latitude,
+            'lng' => (float) $point->longitude,
+            'at' => $point->recorded_at?->toIso8601String(),
+        ];
     }
 
     /** @param  array<string, mixed>  $data */

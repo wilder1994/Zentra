@@ -20,6 +20,7 @@ final class OpsSurfaceChanged implements ShouldBroadcastNow
         public string $kind,
         public string $summary,
         public ?string $actor,
+        public ?array $point = null,
     ) {}
 
     /**
@@ -52,6 +53,7 @@ final class OpsSurfaceChanged implements ShouldBroadcastNow
             'kind' => $this->kind,
             'summary' => $this->summary,
             'actor' => $this->actor,
+            'point' => $this->point,
         ];
     }
 }

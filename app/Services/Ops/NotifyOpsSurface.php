@@ -48,12 +48,18 @@ final class NotifyOpsSurface
         );
     }
 
-    public function supervisionMap(int $companyId, ?string $actor): void
+    /**
+     * @param  array{shift_id: int, lat: float, lng: float, at: ?string}|null  $point
+     */
+    public function supervisionMap(int $companyId, ?string $actor, ?array $point = null): void
     {
-        $this->send($companyId, null, 'supervision-ping', 'Mapa de supervisión', $actor);
+        $this->send($companyId, null, 'supervision-ping', 'Mapa de supervisión', $actor, $point);
     }
 
-    public function send(int $companyId, ?int $clientId, string $kind, string $summary, ?string $actor): void
+    /**
+     * @param  array{shift_id: int, lat: float, lng: float, at: ?string}|null  $point
+     */
+    public function send(int $companyId, ?int $clientId, string $kind, string $summary, ?string $actor, ?array $point = null): void
     {
         if ($companyId < 1 && ($clientId === null || $clientId < 1)) {
             return;
@@ -70,6 +76,7 @@ final class NotifyOpsSurface
                 $kind,
                 mb_substr(trim($summary), 0, 180),
                 $actor,
+                $point,
             ));
         } catch (Throwable) {
             // Reverb o el bus pueden no estar arriba; el sondeo JSON cubre el tablero.

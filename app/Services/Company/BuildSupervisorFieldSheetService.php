@@ -31,7 +31,7 @@ use App\Support\Supervision\SupervisorFieldSheetIntro;
 use App\Support\Supervision\UniformInspection;
 use App\Support\Supervision\WeaponInspectionPhotos;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\Storage;
+use App\Support\Media\SheetImage;
 
 final class BuildSupervisorFieldSheetService
 {
@@ -817,21 +817,6 @@ final class BuildSupervisorFieldSheetService
 
     private function dataUri(?string $path): ?string
     {
-        if ($path === null || $path === '') {
-            return null;
-        }
-
-        if (! Storage::disk('local')->exists($path)) {
-            return null;
-        }
-
-        $bytes = Storage::disk('local')->get($path);
-        if ($bytes === null || $bytes === '') {
-            return null;
-        }
-
-        $mime = Storage::disk('local')->mimeType($path) ?: 'image/jpeg';
-
-        return 'data:'.$mime.';base64,'.base64_encode($bytes);
+        return SheetImage::dataUri($path);
     }
 }

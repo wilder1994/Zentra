@@ -52,11 +52,13 @@ final class CorrectSupervisorShiftOdometerTest extends TestCase
             'km_traveled' => 200,
         ]);
 
+        $mileage = ['tab' => 'sheets', 'vista' => 'supervisores', 'sup' => 'kilometraje'];
         $this->actingAs($admin)
-            ->get(route('company.supervision.index', ['tab' => 'sheets']))
+            ->get(route('company.supervision.index', $mileage))
             ->assertOk()
             ->assertSee('Kilometrajes por revisar')
-            ->assertSee('SJQ123');
+            ->assertSee('SJQ123')
+            ->assertSee('Editar');
 
         $this->actingAs($admin)
             ->get(route('company.supervision.sheets.show', ['kind' => 'shift', 'id' => $bad->id, 'embed' => 1]))
@@ -75,9 +77,11 @@ final class CorrectSupervisorShiftOdometerTest extends TestCase
             ->assertRedirect(route('company.supervision.sheets.show', ['kind' => 'shift', 'id' => $bad->id]));
 
         $this->actingAs($admin)
-            ->get(route('company.supervision.index', ['tab' => 'sheets']))
+            ->get(route('company.supervision.index', $mileage))
             ->assertOk()
-            ->assertDontSee('Kilometrajes por revisar');
+            ->assertDontSee('Kilometrajes por revisar')
+            ->assertSee('SJQ123')
+            ->assertSee('Editar');
 
         $bad->refresh();
         $this->assertSame(15000, $bad->km_start);
@@ -141,8 +145,9 @@ final class CorrectSupervisorShiftOdometerTest extends TestCase
         ]);
 
         $today = now()->toDateString();
+        $mileageToday = ['tab' => 'sheets', 'vista' => 'supervisores', 'sup' => 'kilometraje', 'from' => $today, 'to' => $today];
         $this->actingAs($admin)
-            ->get(route('company.supervision.index', ['tab' => 'sheets', 'from' => $today, 'to' => $today]))
+            ->get(route('company.supervision.index', $mileageToday))
             ->assertOk()
             ->assertSee('Cierre anterior → inicio: 2.496 km', false)
             ->assertDontSee('OLD999');
@@ -152,9 +157,11 @@ final class CorrectSupervisorShiftOdometerTest extends TestCase
             ->assertRedirect();
 
         $this->actingAs($admin)
-            ->get(route('company.supervision.index', ['tab' => 'sheets', 'from' => $today, 'to' => $today]))
+            ->get(route('company.supervision.index', $mileageToday))
             ->assertOk()
-            ->assertDontSee('GAP001');
+            ->assertDontSee('El recorrido del turno pasa de 1.500 km', false)
+            ->assertSee('GAP001')
+            ->assertSee('Editar');
     }
 
     public function test_a_lower_close_is_rejected_and_an_open_shift_only_changes_the_start(): void
@@ -207,6 +214,68 @@ final class CorrectSupervisorShiftOdometerTest extends TestCase
         $this->assertSame(12000, $open->fresh()->km_start);
         $this->assertNull($open->fresh()->km_end);
         $this->assertSame(12000, $vehicle->fresh()->last_km);
+    }
+
+    public function test_mileage_table_lists_shifts_without_a_flag_and_filters_by_difference(): void
+    {
+        $admin = $this->admin();
+        $supervisor = $this->companySupervisor();
+        $small = SupervisorFleetVehicle::query()->create([
+            'security_company_id' => $admin->security_company_id,
+            'plate' => 'LOW010',
+            'brand' => 'Chevrolet',
+            'last_km' => 110,
+        ]);
+        $large = SupervisorFleetVehicle::query()->create([
+            'security_company_id' => $admin->security_company_id,
+            'plate' => 'BIG300',
+            'brand' => 'Chevrolet',
+            'last_km' => 400,
+        ]);
+        foreach ([$small, $large] as $vehicle) {
+            SupervisorShift::query()->create([
+                'security_company_id' => $admin->security_company_id,
+                'user_id' => $supervisor->id,
+                'supervisor_fleet_vehicle_id' => $vehicle->id,
+                'status' => SupervisorShiftStatus::Closed,
+                'started_at' => now()->subHours(2),
+                'ended_at' => now()->subHour(),
+                'km_start' => 100,
+                'km_end' => $vehicle->last_km,
+                'km_traveled' => $vehicle->last_km - 100,
+            ]);
+        }
+
+        $base = ['tab' => 'sheets', 'vista' => 'supervisores', 'sup' => 'kilometraje'];
+        $this->actingAs($admin)
+            ->get(route('company.supervision.index', ['tab' => 'sheets']))
+            ->assertOk()
+            ->assertSee('Fichas de guardas')
+            ->assertDontSee('Diferencia desde')
+            ->assertDontSee('LOW010');
+
+        $this->actingAs($admin)
+            ->get(route('company.supervision.index', $base))
+            ->assertOk()
+            ->assertSee('Diferencia desde')
+            ->assertSee('Km anterior')
+            ->assertSee('LOW010')
+            ->assertSee('BIG300')
+            ->assertSee('Editar')
+            ->assertDontSee('Kilometrajes por revisar');
+
+        $this->actingAs($admin)
+            ->get(route('company.supervision.index', $base + ['km_diff' => 100]))
+            ->assertOk()
+            ->assertDontSee('LOW010')
+            ->assertSee('BIG300');
+
+        $this->actingAs($admin)
+            ->get(route('company.supervision.index', ['tab' => 'sheets', 'vista' => 'supervisores', 'sup' => 'fichas']))
+            ->assertOk()
+            ->assertSee('Fichas de supervisión')
+            ->assertSee('BIG300')
+            ->assertDontSee('Diferencia desde');
     }
 
     private function admin(): User

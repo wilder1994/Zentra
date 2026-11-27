@@ -311,8 +311,10 @@ final class BuildSupervisionMapService
         ];
     }
 
-    /** @return array{live: list<array<string, mixed>>, reviews: list<array<string, mixed>>, events: list<array<string, mixed>>} */
-    public function liveFeed(SecurityCompany $company): array
+    /**
+     * @return array{live: list<array<string, mixed>>, reviews: list<array<string, mixed>>, events: list<array<string, mixed>>, coverage: mixed}
+     */
+    public function liveFeed(SecurityCompany $company, int $shiftId = 0): array
     {
         $live = SupervisorShift::query()
             ->where('security_company_id', $company->id)
@@ -322,12 +324,30 @@ final class BuildSupervisionMapService
                 'user',
                 'zone:id,name',
                 'extraZones' => fn ($q) => $q->active()->with('zone:id,name'),
-                'locations' => fn ($q) => $q->orderBy('recorded_at'),
+                'latestLocation',
             ])
             ->get()
-            ->map(fn (SupervisorShift $shift) => $this->mapLiveShift($shift))
+            ->map(function (SupervisorShift $shift): array {
+                $row = $this->mapRosterShift($shift);
+                $row['sheet_url'] = $this->shiftSheetUrl($shift);
+                $row['zones_url'] = route('company.supervision.shift-zones.show', $shift);
+                $row['path'] = [];
+
+                return $row;
+            })
             ->values()
             ->all();
+
+        if ($shiftId > 0) {
+            $trail = $this->trailOf((int) $company->id, $shiftId);
+            if ($trail !== null) {
+                foreach ($live as $index => $row) {
+                    if ((int) $row['shift_id'] === $shiftId) {
+                        $live[$index]['path'] = $trail['path'];
+                    }
+                }
+            }
+        }
 
         $shiftIds = array_column($live, 'shift_id');
         $reviews = $shiftIds === []

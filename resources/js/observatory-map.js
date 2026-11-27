@@ -1,6 +1,7 @@
 import { createClusterer } from './map-cluster';
 import { dropIcon, dropSvg, GLYPHS, MAP_STYLES } from './map-pins';
 import { shareButton } from './map-share';
+import { slideMoto } from './moto-motion';
 
 /** Tono del grupo según el riesgo abierto (los colores del catálogo los define cada cliente). */
 function donutIcon(slices, total, neon = '') {
@@ -108,6 +109,7 @@ let openSiteId = 0;
 let cardGeneration = 0;
 const knownPending = new Set();
 let pendingSeeded = false;
+
 function pinLift(marker) {
     const icon = marker.getIcon?.();
     if (icon && icon.anchor && Number.isFinite(icon.anchor.y)) {
@@ -967,6 +969,7 @@ export function observatoryMap(cfg) {
                         opacity,
                     });
                     this.motoMarkers[id] = marker;
+                    slideMoto(marker, id, next.lat, next.lng, row.recorded_at || row.end?.at || null);
                 } else {
                     marker.setMap(this.map);
                     marker.setZIndex(selected ? 20 : 18);
@@ -974,31 +977,7 @@ export function observatoryMap(cfg) {
                     marker.setIcon(this.motoIcon(selected));
                     marker.setLabel(this.motoLabel(row));
                     marker.setOpacity(opacity);
-                    const current = marker.getPosition();
-                    const from = current ? { lat: current.lat(), lng: current.lng() } : next;
-                    const meters = this.metersBetween(from, next);
-                    if (this.motoAnims[id]) {
-                        cancelAnimationFrame(this.motoAnims[id]);
-                        delete this.motoAnims[id];
-                    }
-                    if (meters < 3 || meters > 250) {
-                        marker.setPosition(next);
-                    } else {
-                        const started = performance.now();
-                        const step = (now) => {
-                            const t = Math.min(1, (now - started) / 5000);
-                            marker.setPosition({
-                                lat: from.lat + (next.lat - from.lat) * t,
-                                lng: from.lng + (next.lng - from.lng) * t,
-                            });
-                            if (t < 1) {
-                                this.motoAnims[id] = requestAnimationFrame(step);
-                                return;
-                            }
-                            delete this.motoAnims[id];
-                        };
-                        this.motoAnims[id] = requestAnimationFrame(step);
-                    }
+                    slideMoto(marker, id, next.lat, next.lng, row.recorded_at || row.end?.at || null);
                 }
                 if (follow && selected) {
                     bounds?.extend(next);

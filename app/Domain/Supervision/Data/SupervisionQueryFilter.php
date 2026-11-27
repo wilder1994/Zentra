@@ -28,4 +28,17 @@ final readonly class SupervisionQueryFilter
             hasNovelty: $this->hasNovelty,
         );
     }
+
+    public function withoutSheetKind(): self
+    {
+        return new self(
+            from: $this->from,
+            to: $this->to,
+            zoneId: $this->zoneId,
+            supervisorId: $this->supervisorId,
+            sheetKind: null,
+            clientId: $this->clientId,
+            hasNovelty: $this->hasNovelty,
+        );
+    }
 }

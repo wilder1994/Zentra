@@ -233,6 +233,8 @@ final class OpenSupervisorShiftService
             ]);
         }
 
+        \App\Support\Media\SheetImage::thumb($path);
+
         return $path;
     }
 }

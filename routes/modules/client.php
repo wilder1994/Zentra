@@ -69,6 +69,10 @@ Route::middleware(['auth', 'password.changed', 'active', 'tenancy.access', 'clie
                 ->name('observatory.shifts.trail');
             Route::get('/observatory/tablero.pptx', [ObservatoryEventController::class, 'export'])
                 ->name('observatory.board.export');
+            Route::get('/observatory/tablero/{token}', [ObservatoryEventController::class, 'exportStatus'])
+                ->name('observatory.board.export.status');
+            Route::get('/observatory/tablero/{token}/archivo', [ObservatoryEventController::class, 'exportFile'])
+                ->name('observatory.board.export.file');
             Route::get('/observatory/reports/create', [ObservatoryEventController::class, 'create'])
                 ->name('observatory.reports.create');
             Route::post('/observatory/reports', [ObservatoryEventController::class, 'store'])

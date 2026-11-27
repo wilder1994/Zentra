@@ -18,6 +18,8 @@ use App\Services\Company\EnsureSnappedSupervisorRouteService;
 use App\Services\Company\ExportSupervisionExecutiveReportService;
 use App\Services\Company\ListInflatedSupervisorOdometersService;
 use App\Services\Company\ListSupervisorFieldSheetsService;
+use App\Services\Company\ListSupervisorShiftOdometersService;
+use App\Services\Company\ListSupervisorShiftSheetsService;
 use App\Support\Platform\ActingCompanyResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -31,6 +33,8 @@ final class SupervisionMapController extends Controller
         private readonly BuildSupervisionSummaryService $buildSupervisionSummaryService,
         private readonly ExportSupervisionExecutiveReportService $exportReport,
         private readonly ListSupervisorFieldSheetsService $listSheets,
+        private readonly ListSupervisorShiftSheetsService $listShiftSheets,
+        private readonly ListSupervisorShiftOdometersService $listShiftOdometers,
         private readonly ListInflatedSupervisorOdometersService $inflatedOdometers,
         private readonly EnsureSnappedSupervisorRouteService $ensureSnappedRoute,
     ) {}
@@ -72,13 +76,31 @@ final class SupervisionMapController extends Controller
             ),
         );
 
-        $sheets = $tab === 'sheets'
-            ? $this->listSheets->execute(
-                $companyId,
-                $filter->withDates($summary->from, $summary->to),
-                max(1, $request->integer('page', 1)),
-            )
+        [$sheetVista, $sheetSup, $kmDiff] = $this->sheetViews($request, $tab);
+        if ($tab === 'sheets' && ($sheetVista === 'supervisores' || $filter->sheetKind === SupervisorFieldSheetKind::Shift->value)) {
+            $filter = $filter->withoutSheetKind();
+        }
+
+        $dated = $filter->withDates($summary->from, $summary->to);
+        $page = max(1, $request->integer('page', 1));
+        $sheets = $tab === 'sheets' && $sheetVista === 'guardas'
+            ? $this->listSheets->execute($companyId, $dated, $page)
             : null;
+        $shiftSheets = $tab === 'sheets' && $sheetVista === 'supervisores' && $sheetSup === 'fichas'
+            ? $this->listShiftSheets->execute($companyId, $dated, $page)
+            : null;
+        $odometerRows = $tab === 'sheets' && $sheetVista === 'supervisores' && $sheetSup === 'kilometraje'
+            ? $this->listShiftOdometers->execute($companyId, $dated, $page, $kmDiff)
+            : null;
+        $odometerAlerts = $odometerRows !== null
+            ? $this->inflatedOdometers->execute($companyId, $dated)
+            : collect();
+        if ($kmDiff !== null) {
+            $odometerAlerts = $odometerAlerts
+                ->filter(fn ($row): bool => ($row->tripKm !== null && $row->tripKm >= $kmDiff)
+                    || ($row->gapKm !== null && $row->gapKm >= $kmDiff))
+                ->values();
+        }
 
         return view('modules.company.supervision.index', [
             'company' => $company,
@@ -87,6 +109,11 @@ final class SupervisionMapController extends Controller
             'tab' => $tab,
             'filter' => $filter,
             'sheets' => $sheets,
+            'shiftSheets' => $shiftSheets,
+            'sheetVista' => $sheetVista,
+            'sheetSup' => $sheetSup,
+            'kmDiff' => $kmDiff,
+            'odometerRows' => $odometerRows,
             'clients' => Client::query()
                 ->where('security_company_id', $companyId)
                 ->where('has_supervision', true)
@@ -103,10 +130,33 @@ final class SupervisionMapController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'canManageZones' => (bool) $request->user()?->can('company.settings.manage'),
-            'odometerAlerts' => $tab === 'sheets'
-                ? $this->inflatedOdometers->execute($companyId, $filter->withDates($summary->from, $summary->to))
-                : collect(),
+            'odometerAlerts' => $odometerAlerts,
         ]);
+    }
+
+    /**
+     * @return array{0: string, 1: string, 2: ?int}
+     */
+    private function sheetViews(Request $request, string $tab): array
+    {
+        $vista = $request->string('vista')->toString();
+        $sup = $request->string('sup')->toString();
+        if (! in_array($vista, ['guardas', 'supervisores'], true)) {
+            $vista = 'guardas';
+        }
+        if (! in_array($sup, ['fichas', 'kilometraje'], true)) {
+            $sup = 'fichas';
+        }
+
+        $kmDiff = null;
+        if ($tab === 'sheets' && $vista === 'supervisores' && $sup === 'kilometraje') {
+            $raw = $request->string('km_diff')->toString();
+            if ($raw !== '' && ctype_digit($raw) && (int) $raw > 0) {
+                $kmDiff = min((int) $raw, 9_999_999);
+            }
+        }
+
+        return [$vista, $sup, $kmDiff];
     }
 
     public function report(Request $request): BinaryFileResponse
@@ -132,7 +182,7 @@ final class SupervisionMapController extends Controller
         $companyId = app(ActingCompanyResolver::class)->requireId($request->user());
         $company = SecurityCompany::query()->findOrFail($companyId);
 
-        return response()->json($this->buildSupervisionMapService->liveFeed($company));
+        return response()->json($this->buildSupervisionMapService->liveFeed($company, $request->integer('shift')));
     }
 
     public function snappedRoute(Request $request, SupervisorShift $shift): JsonResponse

@@ -7,6 +7,7 @@
         'kind' => $filter->sheetKind,
         'client_id' => $filter->clientId,
         'novelty' => $filter->hasNovelty === null ? '' : ($filter->hasNovelty ? '1' : '0'),
+        'km_diff' => $kmDiff ?? '',
     ];
     $values = array_intersect_key($all, array_flip($fields));
     $wide = count($fields) > 2;
@@ -78,6 +79,13 @@
                                 <option value="1">Con novedad</option>
                                 <option value="0">Sin novedad</option>
                             </select>
+                        </label>
+                    @endif
+                    @if (in_array('km_diff', $fields, true))
+                        <label class="block {{ $wide ? 'sm:col-span-2' : '' }}">
+                            <span class="text-xs text-slate-500">Diferencia desde (km)</span>
+                            <input type="number" min="1" max="9999999" inputmode="numeric" x-model="draft.km_diff"
+                                   placeholder="Todas" class="{{ $selectClass }}">
                         </label>
                     @endif
                     @if (in_array('client_id', $fields, true))

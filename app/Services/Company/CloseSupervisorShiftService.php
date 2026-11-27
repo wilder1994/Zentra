@@ -51,6 +51,8 @@ final class CloseSupervisorShiftService
             $dir = 'supervision/'.$shift->security_company_id.'/'.$shift->id;
             $odoPath = $odometerPhoto->storeAs($dir, 'end_odometer.jpg', 'local');
             $selfiePath = $selfiePhoto->storeAs($dir, 'end_selfie.jpg', 'local');
+            \App\Support\Media\SheetImage::thumb($odoPath);
+            \App\Support\Media\SheetImage::thumb($selfiePath);
 
             $traveled = $shift->km_start !== null ? $kmEnd - (int) $shift->km_start : null;
 
@@ -103,11 +105,15 @@ final class CloseSupervisorShiftService
             $shift->load('fleetVehicle');
             $dir = 'supervision/'.$shift->security_company_id.'/'.$shift->id;
 
+            $odoPath = $odometerPhoto->storeAs($dir, 'end_odometer.jpg', 'local');
+            $selfiePath = $selfiePhoto->storeAs($dir, 'end_selfie.jpg', 'local');
+            \App\Support\Media\SheetImage::thumb($odoPath);
+            \App\Support\Media\SheetImage::thumb($selfiePath);
             $shift->update([
                 'km_end' => $kmEnd,
                 'km_traveled' => $shift->km_start !== null ? $kmEnd - (int) $shift->km_start : $shift->km_traveled,
-                'km_end_photo_path' => $odometerPhoto->storeAs($dir, 'end_odometer.jpg', 'local'),
-                'km_end_selfie_path' => $selfiePhoto->storeAs($dir, 'end_selfie.jpg', 'local'),
+                'km_end_photo_path' => $odoPath,
+                'km_end_selfie_path' => $selfiePath,
                 'close_client_event_id' => $clientEventId,
                 'notes' => trim((string) $shift->notes."\nCierre del supervisor recibido sin red después del cierre automático."),
             ]);

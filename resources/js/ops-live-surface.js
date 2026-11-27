@@ -88,7 +88,9 @@ export function opsLivePage() {
             this.positionsUrl = this.$el.dataset.positionsUrl || '';
             window.addEventListener('ops-surface-changed', (event) => {
                 if (event.detail?.kind === 'supervision-ping') {
-                    this.refreshPositions();
+                    if (!this.applyPoint(event.detail.point)) {
+                        this.refreshPositions();
+                    }
                     return;
                 }
                 this.refresh();
@@ -132,6 +134,36 @@ export function opsLivePage() {
                     lng: row?.lng,
                 },
             }));
+        },
+        applyPoint(point) {
+            if (!point || point.lat == null || point.lng == null || !point.shift_id) {
+                return false;
+            }
+            const id = Number(point.shift_id);
+            const current = this.shifts.find((row) => Number(row.shift_id) === id);
+            if (!current) {
+                return false;
+            }
+            this.shifts = this.shifts.map((row) => {
+                if (Number(row.shift_id) !== id) {
+                    return row;
+                }
+                const path = Number(this.selectedShiftId) === id && Array.isArray(row.path)
+                    ? row.path.concat([{ lat: Number(point.lat), lng: Number(point.lng) }])
+                    : (row.path || []);
+
+                return {
+                    ...row,
+                    lat: Number(point.lat),
+                    lng: Number(point.lng),
+                    recorded_at: point.at || row.recorded_at,
+                    end: { lat: Number(point.lat), lng: Number(point.lng), at: point.at || null },
+                    path,
+                };
+            });
+            window.dispatchEvent(new CustomEvent('observatory-shifts', { detail: this.shifts }));
+
+            return true;
         },
         async refreshPositions() {
             if (!this.positionsUrl) {

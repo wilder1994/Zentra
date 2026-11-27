@@ -8,20 +8,37 @@
     $coverageJson = json_encode($map['coverage'] ?? null, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
     $googleMapsJson = json_encode($map['google_maps'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
     $activeTab = in_array($tab ?? '', ['live', 'history', 'summary', 'sheets'], true) ? $tab : 'live';
+    $sheetVista = in_array($sheetVista ?? '', ['guardas', 'supervisores'], true) ? $sheetVista : 'guardas';
+    $sheetSup = in_array($sheetSup ?? '', ['fichas', 'kilometraje'], true) ? $sheetSup : 'fichas';
+    $onMileage = $activeTab === 'sheets' && $sheetVista === 'supervisores' && $sheetSup === 'kilometraje';
     $tabQuery = array_filter([
         'from' => $summary->from,
         'to' => $summary->to,
         'zone_id' => $filter->zoneId ?? null,
         'supervisor_id' => $filter->supervisorId ?? null,
-        'kind' => $filter->sheetKind ?? null,
+        'kind' => $activeTab === 'sheets' && $sheetVista === 'guardas' ? ($filter->sheetKind ?? null) : null,
         'client_id' => $filter->clientId ?? null,
         'novelty' => $filter->hasNovelty === null ? null : ($filter->hasNovelty ? '1' : '0'),
+        'vista' => $activeTab === 'sheets' ? $sheetVista : null,
+        'sup' => $activeTab === 'sheets' && $sheetVista === 'supervisores' ? $sheetSup : null,
+        'km_diff' => $onMileage && ($kmDiff ?? null) ? $kmDiff : null,
     ], fn ($value) => $value !== null && $value !== '');
+    $guardSheetsUrl = route('company.supervision.index', array_diff_key($tabQuery, ['sup' => true, 'km_diff' => true]) + ['tab' => 'sheets', 'vista' => 'guardas']);
+    $supervisorSheetBase = array_diff_key($tabQuery, ['kind' => true, 'km_diff' => true, 'sup' => true, 'vista' => true]);
+    $supervisorSheetsUrl = route('company.supervision.index', $supervisorSheetBase + ['tab' => 'sheets', 'vista' => 'supervisores', 'sup' => 'fichas']);
+    $mileageUrl = route('company.supervision.index', $supervisorSheetBase + ['tab' => 'sheets', 'vista' => 'supervisores', 'sup' => 'kilometraje']);
     $sheetKindLabels = ['review' => 'Revista', 'alarm' => 'Alarma', 'support' => 'Apoyo', 'document' => 'Documentos'];
     $filterFields = match ($activeTab) {
         'history' => ['supervisor_id'],
         'summary' => ['zone_id', 'supervisor_id'],
-        'sheets' => ['zone_id', 'supervisor_id', 'kind', 'novelty', 'client_id'],
+        'sheets' => array_values(array_filter([
+            'zone_id',
+            'supervisor_id',
+            $sheetVista === 'guardas' ? 'kind' : null,
+            'novelty',
+            'client_id',
+            $onMileage ? 'km_diff' : null,
+        ])),
         default => [],
     };
     $filterTitle = match ($activeTab) {
@@ -37,6 +54,7 @@
         'kind' => ['Tipo', $sheetKindLabels[$filter->sheetKind ?? ''] ?? null],
         'client_id' => ['Cliente', collect($clients ?? [])->firstWhere('id', $filter->clientId)?->name],
         'novelty' => ['Novedad', $filter->hasNovelty === null ? null : ($filter->hasNovelty ? 'Con novedad' : 'Sin novedad')],
+        'km_diff' => ['Diferencia desde', isset($tabQuery['km_diff']) ? number_format((int) $tabQuery['km_diff'], 0, ',', '.').' km' : null],
     ];
     foreach ($filterFields as $key) {
         [$label, $value] = $chipLabels[$key];
@@ -47,7 +65,7 @@
             ];
         }
     }
-    $clearFiltersUrl = route('company.supervision.index', array_intersect_key($tabQuery, ['from' => true, 'to' => true]) + ['tab' => $activeTab]);
+    $clearFiltersUrl = route('company.supervision.index', array_intersect_key($tabQuery, ['from' => true, 'to' => true, 'vista' => true, 'sup' => true]) + ['tab' => $activeTab]);
     $semaphoreClass = match ($summary->semaphore) {
         'green' => 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
         'yellow' => 'bg-amber-500/20 text-amber-300 border-amber-500/40',
@@ -61,6 +79,16 @@
         @if ($activeTab !== 'live')
         <form method="GET" action="{{ route('company.supervision.index') }}" class="flex flex-wrap items-end gap-2" id="supervision-filter">
             <input type="hidden" name="tab" value="{{ $activeTab }}">
+            @if ($activeTab === 'sheets')
+                <input type="hidden" name="vista" value="{{ $sheetVista }}">
+                @if ($sheetVista === 'supervisores')
+                    <input type="hidden" name="sup" value="{{ $sheetSup }}">
+                @endif
+            @endif
+            @if ($activeTab === 'sheets')
+                <x-ui.button :href="$guardSheetsUrl" size="sm" :variant="$sheetVista === 'guardas' ? 'primary' : 'secondary'" class="self-end">Guardas</x-ui.button>
+                <x-ui.button :href="$supervisorSheetsUrl" size="sm" :variant="$sheetVista === 'supervisores' ? 'primary' : 'secondary'" class="self-end">Supervisores</x-ui.button>
+            @endif
             @include('modules.company.supervision.partials.period-picker', ['from' => $summary->from, 'to' => $summary->to])
             @include('modules.company.supervision.partials.filters-panel', [
                 'fields' => $filterFields,
@@ -100,6 +128,12 @@
     </x-slot:headerTabs>
 
     <div class="space-y-4">
+        @if ($activeTab === 'sheets' && $sheetVista === 'supervisores')
+            <div class="flex justify-end gap-1.5">
+                <x-ui.button :href="$supervisorSheetsUrl" size="sm" :variant="$sheetSup === 'fichas' ? 'primary' : 'secondary'">Fichas</x-ui.button>
+                <x-ui.button :href="$mileageUrl" size="sm" :variant="$sheetSup === 'kilometraje' ? 'primary' : 'secondary'">Kilometraje</x-ui.button>
+            </div>
+        @endif
         @if ($filterChips !== [])
             <div class="flex flex-wrap items-center gap-2">
                 @foreach ($filterChips as $chip)
@@ -228,95 +262,180 @@
         @endif
 
         @if ($activeTab === 'sheets')
-            @if (($odometerAlerts ?? collect())->isNotEmpty())
-                <section class="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 overflow-hidden">
-                    <div class="px-4 py-3 border-b border-amber-500/30">
-                        <h3 class="text-sm font-semibold text-amber-100">Kilometrajes por revisar</h3>
-                        <p class="text-xs text-amber-200/80 mt-0.5">Usa el mismo periodo y los mismos filtros. Entra si el recorrido del turno pasa de 1.500 km, o si del cierre anterior de la placa al inicio de este turno hay más de 1.500 km.</p>
+            @if ($sheetVista === 'guardas')
+                <section class="rounded-lg border border-slate-800 bg-slate-900/80 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-800">
+                        <h3 class="text-sm font-semibold text-white">Fichas de guardas</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Revista, alarma, apoyo y documentos. Carta imprimible.</p>
                     </div>
                     <table class="w-full text-sm">
                         <thead>
-                            <tr class="text-xs font-medium text-amber-200/70 border-b border-amber-500/20">
-                                <th class="text-left px-4 py-2">Fecha</th>
+                            <tr class="text-xs font-medium text-slate-500 border-b border-slate-800">
+                                <th class="text-left px-4 py-2">Folio</th>
+                                <th class="text-left px-4 py-2">Tipo</th>
                                 <th class="text-left px-4 py-2">Supervisor</th>
-                                <th class="text-left px-4 py-2">Vehículo</th>
-                                <th class="text-left px-4 py-2">Inicio</th>
-                                <th class="text-left px-4 py-2">Cierre</th>
-                                <th class="text-left px-4 py-2">Por qué</th>
-                                <th></th>
+                                <th class="text-left px-4 py-2">Cliente</th>
+                                <th class="text-left px-4 py-2">Fecha</th>
+                                <th class="text-left px-4 py-2"></th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($odometerAlerts as $alert)
-                                <tr class="border-b border-amber-500/10">
-                                    <td class="px-4 py-2 text-slate-300">{{ $alert->shift->started_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') }}</td>
-                                    <td class="px-4 py-2 text-slate-200">{{ $alert->shift->user?->name ?? '—' }}</td>
-                                    <td class="px-4 py-2 text-slate-400">{{ $alert->shift->fleetVehicle?->plate ?? '—' }}</td>
-                                    <td class="px-4 py-2 text-slate-300">{{ number_format((int) $alert->shift->km_start, 0, ',', '.') }}</td>
-                                    <td class="px-4 py-2 text-slate-300">{{ $alert->shift->km_end !== null ? number_format((int) $alert->shift->km_end, 0, ',', '.') : '—' }}</td>
-                                    <td class="px-4 py-2 text-amber-200">
-                                        @if ($alert->tripOverLimit)
-                                            Inicio → cierre: {{ number_format((int) $alert->tripKm, 0, ',', '.') }} km
-                                        @endif
-                                        @if ($alert->gapOverLimit)
-                                            @if ($alert->tripOverLimit)<br>@endif
-                                            Cierre anterior → inicio: {{ number_format((int) $alert->gapKm, 0, ',', '.') }} km
+                            @forelse ($sheets ?? [] as $row)
+                                <tr class="border-b border-slate-800/80">
+                                    <td class="px-4 py-2 font-mono text-xs text-indigo-300/90">{{ $row->folio }}</td>
+                                    <td class="px-4 py-2 font-medium text-slate-200">
+                                        {{ $row->typeLabel }}
+                                        @if ($row->hasNovelty)
+                                            <span class="ml-1 text-xs text-red-300">novedad</span>
                                         @endif
                                     </td>
+                                    <td class="px-4 py-2 text-slate-300">{{ $row->supervisorName }}</td>
+                                    <td class="px-4 py-2 text-slate-400">{{ $row->clientName ?? '—' }}</td>
+                                    <td class="px-4 py-2 text-slate-400">{{ $row->recordedAt->format('d/m/Y H:i') }}</td>
                                     <td class="px-4 py-2 text-right">
-                                        <a href="{{ route('company.supervision.sheets.show', ['kind' => 'shift', 'id' => $alert->shift->id]) }}" class="text-amber-200 hover:text-white">Corregir</a>
+                                        <a href="{{ route('company.supervision.sheets.show', ['kind' => $row->kind->value, 'id' => $row->id]) }}"
+                                           class="text-indigo-300 hover:text-indigo-200">Ver ficha</a>
                                     </td>
                                 </tr>
-                            @endforeach
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="px-4 py-6 text-sm text-slate-500">No hay fichas en este recorte.</td>
+                                </tr>
+                            @endforelse
                         </tbody>
                     </table>
+                    @if ($sheets)
+                        <div class="px-4 py-3">{{ $sheets->links() }}</div>
+                    @endif
+                </section>
+            @elseif ($sheetSup === 'fichas')
+                <section class="rounded-lg border border-slate-800 bg-slate-900/80 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-800">
+                        <h3 class="text-sm font-semibold text-white">Fichas de supervisión</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Carta del turno. No es el rastro GPS ni el PPTX.</p>
+                    </div>
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-xs font-medium text-slate-500 border-b border-slate-800">
+                                <th class="text-left px-4 py-2">Folio</th>
+                                <th class="text-left px-4 py-2">Supervisor</th>
+                                <th class="text-left px-4 py-2">Placa</th>
+                                <th class="text-left px-4 py-2">Fecha</th>
+                                <th class="text-left px-4 py-2"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($shiftSheets ?? [] as $shift)
+                                <tr class="border-b border-slate-800/80">
+                                    <td class="px-4 py-2 font-mono text-xs text-indigo-300/90">{{ \App\Enums\SupervisorFieldSheetKind::Shift->folio((int) $shift->id, $shift->started_at ?? now()) }}</td>
+                                    <td class="px-4 py-2 text-slate-200">
+                                        {{ $shift->user?->name ?? '—' }}
+                                        @if ($shift->has_novelty_review || $shift->has_novelty_log)
+                                            <span class="ml-1 text-xs text-red-300">novedad</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-2 text-slate-400">{{ $shift->fleetVehicle?->plate ?? '—' }}</td>
+                                    <td class="px-4 py-2 text-slate-400">{{ $shift->started_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?? '—' }}</td>
+                                    <td class="px-4 py-2 text-right">
+                                        <a href="{{ route('company.supervision.sheets.show', ['kind' => 'shift', 'id' => $shift->id]) }}"
+                                           class="text-indigo-300 hover:text-indigo-200">Ver ficha</a>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="px-4 py-6 text-sm text-slate-500">No hay fichas de supervisión en este recorte.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                    @if ($shiftSheets)
+                        <div class="px-4 py-3">{{ $shiftSheets->links() }}</div>
+                    @endif
+                </section>
+            @else
+                @if (($odometerAlerts ?? collect())->isNotEmpty())
+                    <section class="rounded-lg border border-amber-500/40 bg-amber-500/10 overflow-hidden">
+                        <div class="px-4 py-3 border-b border-amber-500/30">
+                            <h3 class="text-sm font-semibold text-amber-100">Kilometrajes por revisar</h3>
+                            <p class="text-xs text-amber-200/80 mt-0.5">El recorrido del turno pasa de 1.500 km, o del cierre anterior de la placa al inicio de este turno hay más de 1.500 km.</p>
+                        </div>
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="text-xs font-medium text-amber-200/70 border-b border-amber-500/20">
+                                    <th class="text-left px-4 py-2">Fecha</th>
+                                    <th class="text-left px-4 py-2">Supervisor</th>
+                                    <th class="text-left px-4 py-2">Vehículo</th>
+                                    <th class="text-left px-4 py-2">Inicio</th>
+                                    <th class="text-left px-4 py-2">Cierre</th>
+                                    <th class="text-left px-4 py-2">Por qué</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($odometerAlerts as $alert)
+                                    <tr class="border-b border-amber-500/10">
+                                        <td class="px-4 py-2 text-slate-300">{{ $alert->shift->started_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') }}</td>
+                                        <td class="px-4 py-2 text-slate-200">{{ $alert->shift->user?->name ?? '—' }}</td>
+                                        <td class="px-4 py-2 text-slate-400">{{ $alert->shift->fleetVehicle?->plate ?? '—' }}</td>
+                                        <td class="px-4 py-2 text-slate-300">{{ number_format((int) $alert->shift->km_start, 0, ',', '.') }}</td>
+                                        <td class="px-4 py-2 text-slate-300">{{ $alert->shift->km_end !== null ? number_format((int) $alert->shift->km_end, 0, ',', '.') : '—' }}</td>
+                                        <td class="px-4 py-2 text-amber-200">
+                                            @if ($alert->tripOverLimit)
+                                                Inicio → cierre: {{ number_format((int) $alert->tripKm, 0, ',', '.') }} km
+                                            @endif
+                                            @if ($alert->gapOverLimit)
+                                                @if ($alert->tripOverLimit)<br>@endif
+                                                Cierre anterior → inicio: {{ number_format((int) $alert->gapKm, 0, ',', '.') }} km
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </section>
+                @endif
+                <section class="rounded-lg border border-slate-800 bg-slate-900/80 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-800">
+                        <h3 class="text-sm font-semibold text-white">Kilometraje</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Todos los turnos del periodo. Editar abre la corrección aunque el sistema no haya marcado un salto.</p>
+                    </div>
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-xs font-medium text-slate-500 border-b border-slate-800">
+                                <th class="text-left px-4 py-2">Fecha</th>
+                                <th class="text-left px-4 py-2">Supervisor</th>
+                                <th class="text-left px-4 py-2">Placa</th>
+                                <th class="text-left px-4 py-2">Km anterior</th>
+                                <th class="text-left px-4 py-2">Km inicio</th>
+                                <th class="text-left px-4 py-2">Km final</th>
+                                <th class="text-right px-4 py-2">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($odometerRows ?? [] as $row)
+                                <tr @class(['border-b border-slate-800/80', 'bg-amber-500/10' => $row->flagged()])>
+                                    <td class="px-4 py-2 text-slate-400">{{ $row->shift->started_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?? '—' }}</td>
+                                    <td class="px-4 py-2 text-slate-200">{{ $row->shift->user?->name ?? '—' }}</td>
+                                    <td class="px-4 py-2 text-slate-400">{{ $row->shift->fleetVehicle?->plate ?? '—' }}</td>
+                                    <td class="px-4 py-2 text-slate-300">{{ $row->previousKm !== null ? number_format($row->previousKm, 0, ',', '.') : '—' }}</td>
+                                    <td class="px-4 py-2 text-slate-300">{{ number_format((int) $row->shift->km_start, 0, ',', '.') }}</td>
+                                    <td class="px-4 py-2 text-slate-300">{{ $row->shift->km_end !== null ? number_format((int) $row->shift->km_end, 0, ',', '.') : '—' }}</td>
+                                    <td class="px-4 py-2 text-right">
+                                        <a href="{{ route('company.supervision.sheets.show', ['kind' => 'shift', 'id' => $row->shift->id]) }}"
+                                           class="text-amber-200 hover:text-white">{{ ($canManageZones ?? false) ? 'Editar' : 'Ver ficha' }}</a>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="7" class="px-4 py-6 text-sm text-slate-500">No hay kilometrajes en este recorte.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                    @if ($odometerRows)
+                        <div class="px-4 py-3">{{ $odometerRows->links() }}</div>
+                    @endif
                 </section>
             @endif
-            <section class="rounded-lg border border-slate-800 bg-slate-900/80 overflow-hidden">
-                <div class="px-4 py-3 border-b border-slate-800">
-                    <h3 class="text-sm font-semibold text-white">Fichas de campo</h3>
-                    <p class="text-xs text-slate-500 mt-0.5">Carta imprimible. No es el rastro GPS ni el PPTX.</p>
-                </div>
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="text-xs font-medium text-slate-500 border-b border-slate-800">
-                            <th class="text-left px-4 py-2">Folio</th>
-                            <th class="text-left px-4 py-2">Tipo</th>
-                            <th class="text-left px-4 py-2">Supervisor</th>
-                            <th class="text-left px-4 py-2">Cliente</th>
-                            <th class="text-left px-4 py-2">Fecha</th>
-                            <th class="text-left px-4 py-2"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($sheets ?? [] as $row)
-                            <tr class="border-b border-slate-800/80">
-                                <td class="px-4 py-2 font-mono text-xs text-indigo-300/90">{{ $row->folio }}</td>
-                                <td class="px-4 py-2 font-medium text-slate-200">
-                                    {{ $row->typeLabel }}
-                                    @if ($row->hasNovelty)
-                                        <span class="ml-1 text-xs text-red-300">novedad</span>
-                                    @endif
-                                </td>
-                                <td class="px-4 py-2 text-slate-300">{{ $row->supervisorName }}</td>
-                                <td class="px-4 py-2 text-slate-400">{{ $row->clientName ?? '—' }}</td>
-                                <td class="px-4 py-2 text-slate-400">{{ $row->recordedAt->format('d/m/Y H:i') }}</td>
-                                <td class="px-4 py-2 text-right">
-                                    <a href="{{ route('company.supervision.sheets.show', ['kind' => $row->kind->value, 'id' => $row->id]) }}"
-                                       class="text-indigo-300 hover:text-indigo-200">Ver ficha</a>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="6" class="px-4 py-6 text-sm text-slate-500">No hay fichas en este recorte.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-                @if ($sheets)
-                    <div class="px-4 py-3">{{ $sheets->links() }}</div>
-                @endif
-            </section>
         @endif
 
         @if ($activeTab === 'summary')
@@ -1142,6 +1261,7 @@
                             shift_id: row.shift_id,
                             lat: row.end.lat,
                             lng: row.end.lng,
+                            at: row.recorded_at || row.end.at || null,
                             user: row.user,
                             signal: row.signal,
                             online: row.online,
@@ -1184,9 +1304,6 @@
                 }
 
                 const motoMarkers = new Map();
-                const motoAnims = new Map();
-                const MOTO_SLIDE_MS = 5000;
-                const MOTO_SNAP_M = 250;
 
                 function slideMoto(pin) {
                     const id = Number(pin.shift_id);
@@ -1204,43 +1321,18 @@
                         });
                         bindPinOpen(marker, pin);
                         motoMarkers.set(id, marker);
+                        window.zentraSlideMoto?.(marker, id, next.lat, next.lng, pin.at || null);
                         return;
                     }
                     marker.zentraPin = pin;
                     marker.setOpacity(pin.opacity ?? 1);
                     if (pin.label) marker.setLabel(pin.label);
-                    const current = marker.getPosition();
-                    const from = current ? { lat: current.lat(), lng: current.lng() } : next;
-                    const meters = pinMeters(from, next);
-                    const running = motoAnims.get(id);
-                    if (running) cancelAnimationFrame(running);
-                    motoAnims.delete(id);
-                    if (meters < 3 || meters > MOTO_SNAP_M) {
-                        marker.setPosition(next);
-                        return;
-                    }
-                    const started = performance.now();
-                    const step = (now) => {
-                        const t = Math.min(1, (now - started) / MOTO_SLIDE_MS);
-                        marker.setPosition({
-                            lat: from.lat + (next.lat - from.lat) * t,
-                            lng: from.lng + (next.lng - from.lng) * t,
-                        });
-                        if (t < 1) {
-                            motoAnims.set(id, requestAnimationFrame(step));
-                            return;
-                        }
-                        motoAnims.delete(id);
-                    };
-                    motoAnims.set(id, requestAnimationFrame(step));
+                    window.zentraSlideMoto?.(marker, id, next.lat, next.lng, pin.at || null);
                 }
 
                 function pruneMotos(seen) {
                     motoMarkers.forEach((marker, id) => {
                         if (seen.has(id)) return;
-                        const frame = motoAnims.get(id);
-                        if (frame) cancelAnimationFrame(frame);
-                        motoAnims.delete(id);
                         marker.setMap(null);
                         motoMarkers.delete(id);
                     });
@@ -1430,6 +1522,18 @@
                         if (!row || !googleMap) return;
                         const id = Number(row.dataset.shiftId);
                         selectedLiveShiftId = selectedLiveShiftId === id ? null : id;
+                        const picked = live.find((item) => Number(item.shift_id) === selectedLiveShiftId);
+                        if (selectedLiveShiftId && picked && (!picked.path || picked.path.length === 0)) {
+                            fetch(liveFeedUrl + '?shift=' + selectedLiveShiftId, { headers: { Accept: 'application/json' } })
+                                .then((res) => res.ok ? res.json() : null)
+                                .then((data) => {
+                                    const fresh = (data?.live || []).find((item) => Number(item.shift_id) === selectedLiveShiftId);
+                                    if (fresh && picked) picked.path = fresh.path || [];
+                                    paintLive(true);
+                                })
+                                .catch(() => paintLive(true));
+                            return;
+                        }
                         paintLive(true);
                     });
 
@@ -1459,7 +1563,14 @@
                             const res = await fetch(liveFeedUrl, { headers: { Accept: 'application/json' } });
                             if (!res.ok) return;
                             const data = await res.json();
-                            live = data.live || [];
+                            const previous = live;
+                            live = (data.live || []).map((row) => {
+                                const prev = previous.find((item) => Number(item.shift_id) === Number(row.shift_id));
+                                if (prev && Number(selectedLiveShiftId) === Number(row.shift_id) && Array.isArray(prev.path) && prev.path.length) {
+                                    return Object.assign({}, row, { path: prev.path });
+                                }
+                                return row;
+                            });
                             reviews = data.reviews || [];
                             events = data.events || [];
                             coverage = data.coverage || coverage;
@@ -1467,7 +1578,26 @@
                             liveFitted = true;
                         } catch (e) {}
                     };
-                    window.addEventListener('ops-surface-changed', () => pollLive(true));
+                    const applyLivePoint = (point) => {
+                        if (!point || point.lat == null || point.lng == null) return false;
+                        const row = live.find((item) => Number(item.shift_id) === Number(point.shift_id));
+                        if (!row) return false;
+                        row.lat = Number(point.lat);
+                        row.lng = Number(point.lng);
+                        row.recorded_at = point.at || row.recorded_at;
+                        row.end = { lat: row.lat, lng: row.lng, at: point.at || null };
+                        if (Number(selectedLiveShiftId) === Number(point.shift_id)) {
+                            row.path = Array.isArray(row.path) ? row.path : [];
+                            row.path.push({ lat: row.lat, lng: row.lng });
+                        }
+                        paintLive(false);
+                        return true;
+                    };
+                    window.addEventListener('ops-surface-changed', (event) => {
+                        const detail = event.detail || {};
+                        if (detail.kind === 'supervision-ping' && applyLivePoint(detail.point)) return;
+                        pollLive(true);
+                    });
                     window.addEventListener('supervision:refresh-live', () => pollLive(true));
                     livePollTimer = setInterval(() => {
                         const state = window.Echo?.connector?.pusher?.connection?.state;

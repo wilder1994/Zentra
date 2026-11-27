@@ -16,6 +16,7 @@ use App\Services\Company\BuildSupervisionMapService;
 use App\Services\Ops\BuildActivityBubblesService;
 use App\Support\Geo\CaliComunaLayer;
 use App\Support\Geo\PlaceLabel;
+use Illuminate\Support\Facades\Cache;
 
 final class BuildObservatoryMapService
 {
@@ -35,6 +36,11 @@ final class BuildObservatoryMapService
         string $status = '',
         ?array $typeIds = null,
     ): array {
+        $key = 'obs-map:'.md5((string) json_encode([
+            $companyId, $clientId, $installationIds, $eventShowRoute, $comuna, $from, $to, $status, $typeIds,
+        ]));
+
+        return Cache::remember($key, 20, function () use ($companyId, $clientId, $installationIds, $eventShowRoute, $comuna, $from, $to, $status, $typeIds): array {
         $layer = app(CaliComunaLayer::class);
         $typeScope = $typeIds === [] ? [0] : $typeIds;
         $sites = Installation::query()
@@ -50,7 +56,10 @@ final class BuildObservatoryMapService
                     ->when($to !== null && $to !== '', fn ($e) => $e->whereDate('opened_at', '<=', $to))
                     ->when($status !== '', fn ($e) => $e->where('status', $status))
                     ->when($typeScope !== null, fn ($e) => $e->whereHas('reports', fn ($r) => $r->whereIn('observatory_report_type_id', $typeScope))),
-                'observatoryEvents.reports' => fn ($q) => $q->when($typeScope !== null, fn ($r) => $r->whereIn('observatory_report_type_id', $typeScope)),
+                'observatoryEvents.reports' => fn ($q) => $q
+                    ->select(['id', 'event_id', 'observatory_report_type_id', 'kind', 'source', 'latitude', 'longitude'])
+                    ->selectRaw('LEFT(COALESCE(body, \'\'), 240) as body')
+                    ->when($typeScope !== null, fn ($r) => $r->whereIn('observatory_report_type_id', $typeScope)),
                 'observatoryEvents.reports.reportType',
             ])
             ->where('is_active', true)
@@ -166,6 +175,7 @@ final class BuildObservatoryMapService
             'shifts' => $this->shifts($companyId, $clientId, $installationIds, false),
             'bubbles' => $this->bubbles($companyId, $clientId),
         ];
+        });
     }
 
     /**

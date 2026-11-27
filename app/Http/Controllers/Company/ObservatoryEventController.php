@@ -114,42 +114,45 @@ final class ObservatoryEventController extends Controller
         return response()->json($trail);
     }
 
-    public function export(Request $request): BinaryFileResponse
+    public function export(Request $request): BinaryFileResponse|\Illuminate\View\View
     {
         $this->authorize('viewAny', ObservatoryEvent::class);
 
-        $companyId = $this->companyId($request);
-        $allowed = $this->allowedSites($request);
-        $filters = ObservatoryFilters::fromRequest($request, $companyId, null, $allowed);
-        $siteIds = $filters->siteIds($companyId, $allowed);
-        $boardService = app(BuildObservatoryBoardService::class);
-        $board = $this->board($boardService, $companyId, $siteIds, $filters);
-        $company = SecurityCompany::query()->findOrFail($companyId);
-        [$scope, $scopeKind] = match (true) {
-            $filters->installationId !== null => [Installation::query()->withoutGlobalScopes()->whereKey($filters->installationId)->value('name'), 'Instalación'],
-            $filters->clientId !== null => [Client::query()->whereKey($filters->clientId)->value('name'), 'Cliente'],
-            default => [$company->displayName(), 'Empresa'],
-        };
-        $types = $filters->typesForExport($board['types'] ?? []);
-        $data = app(BuildObservatoryExportDataService::class)->execute($this->events($boardService, $companyId, $siteIds, $filters), $types);
+        return \App\Jobs\ExportObservatoryBoardJob::start($request, [
+            'panel' => 'company',
+            'company_id' => $this->companyId($request),
+            'allowed' => $this->allowedSites($request),
+        ], 'company.observatory.board.export.status', 'company.observatory.board.export.file');
+    }
 
-        $file = app(ExportObservatoryBoardService::class)->execute($board, $data, [
-            'scope' => (string) ($scope ?: $company->displayName()),
-            'scope_kind' => $scopeKind,
-            'company' => $company->displayName(),
-            'logo_path' => $company->logo_path,
-            'filters' => $filters->labels($board['types'] ?? []),
-            'from' => $filters->from,
-            'to' => $filters->to,
-            'grain' => $filters->grain(),
-            'risk' => app(ExportObservatoryBoardService::class)->riskRows(
-                app(BuildInstallationRiskService::class)->execute($companyId, $filters->clientId, $siteIds),
-            ),
-        ]);
+    public function exportStatus(Request $request, string $token): JsonResponse
+    {
+        $this->authorize('viewAny', ObservatoryEvent::class);
 
-        return response()
-            ->download($file['path'], $file['filename'])
-            ->deleteFileAfterSend();
+        return response()->json($this->exportState($request, $token));
+    }
+
+    public function exportFile(Request $request, string $token): BinaryFileResponse
+    {
+        $this->authorize('viewAny', ObservatoryEvent::class);
+        $state = $this->exportState($request, $token);
+        abort_unless(($state['status'] ?? '') === 'ready' && is_string($state['path'] ?? null) && is_file($state['path']), 404);
+
+        return response()->download($state['path'], (string) $state['filename'])->deleteFileAfterSend();
+    }
+
+    /** @return array<string, mixed> */
+    private function exportState(Request $request, string $token): array
+    {
+        $state = \Illuminate\Support\Facades\Cache::get(\App\Jobs\ExportObservatoryBoardJob::key($token));
+        abort_unless(is_array($state) && (int) ($state['user_id'] ?? 0) === (int) $request->user()->id, 404);
+
+        return [
+            'status' => (string) ($state['status'] ?? 'queued'),
+            'message' => (string) ($state['message'] ?? ''),
+            'path' => $state['path'] ?? null,
+            'filename' => $state['filename'] ?? null,
+        ];
     }
 
     public function paint(Request $request): JsonResponse

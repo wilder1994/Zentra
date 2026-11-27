@@ -15,6 +15,7 @@ use App\Support\Geo\CaliVeredaCatalog;
 use App\Support\Observatory\RiskMath;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 /** Riesgo actual por instalación: comuna de Cali + reportes con decaimiento. */
 final class BuildInstallationRiskService
@@ -33,6 +34,9 @@ final class BuildInstallationRiskService
      */
     public function execute(int $companyId, ?int $clientId, ?array $siteIds): array
     {
+        $key = 'obs-risk:'.md5((string) json_encode([$companyId, $clientId, $siteIds]));
+
+        return Cache::remember($key, 20, function () use ($companyId, $clientId, $siteIds): array {
         $parameters = RiskModelParameter::forCompany($companyId);
         $year = (int) now()->year;
         $commune = $this->communeScores($companyId, $year);
@@ -120,6 +124,7 @@ final class BuildInstallationRiskService
                 ->orderBy('name')
                 ->get(),
         ];
+        });
     }
 
     /**

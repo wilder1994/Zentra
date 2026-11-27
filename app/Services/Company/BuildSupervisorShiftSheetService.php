@@ -463,18 +463,6 @@ final class BuildSupervisorShiftSheetService
 
     private function dataUri(?string $path): ?string
     {
-        if ($path === null || $path === '') {
-            return null;
-        }
-        if (! Storage::disk('local')->exists($path)) {
-            return null;
-        }
-        $bytes = Storage::disk('local')->get($path);
-        if ($bytes === null || $bytes === '') {
-            return null;
-        }
-        $mime = Storage::disk('local')->mimeType($path) ?: 'image/jpeg';
-
-        return 'data:'.$mime.';base64,'.base64_encode($bytes);
+        return \App\Support\Media\SheetImage::dataUri($path);
     }
 }

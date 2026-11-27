@@ -15,6 +15,7 @@ import { installationAreaFields } from './colombian-area';
 import { installationSiteForm } from './installation-site-form';
 import { observatoryBoard, obsDateRange } from './observatory-board';
 import { observatoryIntake, observatoryPhotos } from './observatory-intake';
+import { slideMoto } from './moto-motion';
 import { observatoryMap } from './observatory-map';
 import { postEmployeePicker } from './post-employee-picker';
 import { employeeReassignForm } from './employee-reassign-form';
@@ -35,6 +36,8 @@ import { opsLiveAlerts } from './ops-live-alerts';
 import { deviceChangeAlerts } from './device-change-alerts';
 import { geoRequestAlerts } from './geo-request-alerts';
 import { opsLiveSurface, opsLivePage, sigBoardLive, companyDashboardLive } from './ops-live-surface';
+
+window.zentraSlideMoto = slideMoto;
 import './employee-document-indexer';
 import './sheet-modal';
 
