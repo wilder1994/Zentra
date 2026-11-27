@@ -56,6 +56,21 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 27 nov 2026 · Brocha de color en el tablero
+Fuentes, Orígenes y Tendencia tienen una brocha en el panel empresa, solo con gestión del Observatorio. Cada porción, barra o línea guarda su color por empresa. Sin elección, la paleta es diferenciada. Delitos y reportes por instalación usan el color del delito. Riesgo sigue en las cuatro bandas. El cliente ve los colores y no los cambia. Commit `db59d72`.
+
+### 26 nov 2026 · PPTX igual al tablero
+La descarga sigue el filtro y el periodo. Láminas: portada, cifras, mapa, atención con fuentes y orígenes, tendencia por mes o por día, delitos con reportes por instalación, riesgo, reportes en texto y cierre. Sin la lámina por delito ni los párrafos largos. Commit `db59d72`.
+
+### 26 nov 2026 · Colores y diseño del tablero
+Las tarjetas del tablero usan el verde y el borde de la ficha. Orígenes y Fuentes salen de los cuatro colores de Riesgos; si hay más, un tono vecino. Delitos y los tramos de la sede usan la banda del delito. Las barras se engruesan o se adelgazan según cuántas haya, y hacen scroll si no caben. Atención de folios sigue con los colores de estado. Commit `db59d72`.
+
+### 26 nov 2026 · Barras del tablero
+Orígenes, delitos y reportes por instalación usan cilindros de 22 px. La tarjeta dice el nombre, Total de reportes y Esta barra, y no se corta. Tendencia queda con Por día o Por mes en la misma fila. Delitos queda con «los más reportados». Riesgo por instalación pierde el subtítulo y gana buscador. Commit `db59d72`.
+
+### 26 nov 2026 · Color del estado en la ficha
+La píldora y la franja de la ficha, y la línea fina de los cuatro contenedores, usan el color del arco: Nuevo rojo, En trámite naranja, Cerrado verde. El mapa lleva ese borde y esquinas redondeadas. Commit `db59d72`.
+
 ### 26 nov 2026 · Ficha compacta
 Los cuatro contenedores quedan más juntos y con el verde del sistema. La ficha de la derecha usa una grilla apretada y el color del estado. «Pasar reporte» es un texto; el clic abre un modal con instalación, folio y el porqué. Commit `58dae44`.
 
