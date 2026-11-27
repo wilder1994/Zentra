@@ -5,13 +5,11 @@
     @include('modules.observatory.partials.event-card', [
         'event' => $event,
         'canUpdateStatus' => $canUpdateStatus,
-        'canMerge' => $canMerge,
-        'canDetach' => $canDetach,
+        'canMove' => $canMove ?? false,
         'statuses' => $statuses,
         'statusAction' => route('company.observatory.events.status', $event),
-        'mergeAction' => route('company.observatory.events.merge', $event),
-        'mergeCandidates' => $mergeCandidates,
-        'detachRoute' => 'company.observatory.events.reports.detach',
+        'moveRoute' => 'company.observatory.events.reports.move',
+        'moveOptions' => $moveOptions ?? [],
         'folioMap' => $folioMap ?? null,
     ])
 </x-company-layout>

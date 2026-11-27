@@ -60,6 +60,11 @@ final class ObservatoryReport extends Model
         return $this->belongsTo(ObservatoryReportType::class, 'observatory_report_type_id');
     }
 
+    public function code(): string
+    {
+        return 'RP-'.str_pad((string) $this->id, 6, '0', STR_PAD_LEFT);
+    }
+
     public function kindLabel(): string
     {
         if ($this->reportType instanceof ObservatoryReportType) {

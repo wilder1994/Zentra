@@ -20,11 +20,9 @@ use App\Services\Observatory\BuildInstallationRiskService;
 use App\Services\Observatory\EnsureObservatoryReportTypesService;
 use App\Services\Observatory\BuildObservatoryExportDataService;
 use App\Services\Observatory\ExportObservatoryBoardService;
-use App\Services\Observatory\MergeObservatoryEventsService;
+use App\Services\Observatory\MoveObservatoryReportService;
 use App\Services\Observatory\PresentObservatoryLiveService;
-use App\Services\Observatory\UnhookObservatoryReportService;
 use App\Services\Observatory\UpdateObservatoryEventStatusService;
-use App\Services\Ops\NotifyOpsSurface;
 use App\Support\Geo\CaliComunaLayer;
 use App\Support\Geo\CaliVeredaCatalog;
 use App\Support\Observatory\ObservatoryFilters;
@@ -42,8 +40,7 @@ final class ObservatoryEventController extends Controller
 {
     public function __construct(
         private readonly UpdateObservatoryEventStatusService $statuses,
-        private readonly MergeObservatoryEventsService $merger,
-        private readonly UnhookObservatoryReportService $unhook,
+        private readonly MoveObservatoryReportService $moves,
     ) {}
 
     public function index(Request $request): View
@@ -209,10 +206,11 @@ final class ObservatoryEventController extends Controller
         return view('modules.observatory.company.show', [
             'event' => $event,
             'canUpdateStatus' => $canUpdate,
-            'canMerge' => $canUpdate && $open,
-            'canDetach' => $canUpdate && $open,
+            'canMove' => $canUpdate && $open,
             'statuses' => ObservatoryEventStatus::options(),
-            'mergeCandidates' => $canUpdate ? $this->mergeCandidates($event) : collect(),
+            'moveOptions' => $canUpdate && $open
+                ? $this->moves->destinations($event, $this->companyId($request))
+                : [],
             'folioMap' => app(BuildObservatoryMapService::class)->forEvent($event),
         ]);
     }
@@ -245,47 +243,38 @@ final class ObservatoryEventController extends Controller
         return redirect()->route('company.observatory.events.show', $event)->with('success', $message);
     }
 
-    public function merge(Request $request, ObservatoryEvent $event): RedirectResponse
-    {
-        $this->assertCompany($request, $event);
-        $this->authorize('update', $event);
-
-        $validated = $request->validate([
-            'source_event_id' => ['required', 'integer', 'exists:observatory_events,id'],
-        ]);
-
-        $source = ObservatoryEvent::query()->findOrFail((int) $validated['source_event_id']);
-        $this->assertCompany($request, $source);
-        $this->authorize('update', $source);
-
-        try {
-            $this->merger->execute($event, $source);
-        } catch (ValidationException $e) {
-            return back()->withErrors($e->errors());
-        }
-
-        app(NotifyOpsSurface::class)->observatory($event, $request->user(), 'Unió folios en '.$event->folio());
-
-        return redirect()->route('company.observatory.events.show', $event)
-            ->with('success', 'Folio '.$source->folio().' unido aquí.');
-    }
-
-    public function detach(Request $request, ObservatoryEvent $event, ObservatoryReport $report): RedirectResponse
+    public function move(Request $request, ObservatoryEvent $event, ObservatoryReport $report): RedirectResponse
     {
         $this->assertCompany($request, $event);
         $this->authorize('update', $event);
         abort_unless((int) $report->event_id === (int) $event->id, 404);
 
+        $validated = $request->validate([
+            'installation_id' => ['required', 'integer', 'exists:installations,id'],
+            'destination' => ['required', 'string', 'max:20'],
+            'note' => ['required', 'string', 'min:10', 'max:2000'],
+        ]);
+
         try {
-            $created = $this->unhook->execute($event, $report);
+            $target = $this->moves->execute(
+                $event,
+                $report,
+                $request->user(),
+                (string) $validated['note'],
+                (int) $validated['installation_id'],
+                (string) $validated['destination'],
+            );
         } catch (ValidationException $e) {
-            return back()->withErrors($e->errors());
+            return back()->withInput()->withErrors($e->errors());
         }
 
-        app(NotifyOpsSurface::class)->observatory($created, $request->user(), 'Sacó un reporte a '.$created->folio());
+        $event->refresh();
+        $message = 'Reporte '.$report->code().' pasó a '.$target->folio().'.';
+        if ($event->status === ObservatoryEventStatus::Cerrado) {
+            $message .= ' Este folio se cerró porque quedó sin reportes.';
+        }
 
-        return redirect()->route('company.observatory.events.show', $event)
-            ->with('success', 'Reporte pasado a '.$created->folio().'.');
+        return redirect()->route('company.observatory.events.show', $event)->with('success', $message);
     }
 
     /**
@@ -382,20 +371,6 @@ final class ObservatoryEventController extends Controller
                 ->map(fn (array $type): array => ['value' => $type['slug'], 'label' => $type['name']])->values()->all(),
             'comunas' => app(CaliComunaLayer::class)->catalog(),
         ];
-    }
-
-    /** @return Collection<int, ObservatoryEvent> */
-    private function mergeCandidates(ObservatoryEvent $event)
-    {
-        return ObservatoryEvent::query()
-            ->where('client_id', $event->client_id)
-            ->where('installation_id', $event->installation_id)
-            ->whereNull('archived_at')
-            ->whereKeyNot($event->id)
-            ->withCount('reports')
-            ->orderByDesc('opened_at')
-            ->limit(30)
-            ->get();
     }
 
     private function assertCompany(Request $request, ObservatoryEvent $event): void

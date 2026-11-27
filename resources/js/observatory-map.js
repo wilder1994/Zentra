@@ -415,13 +415,15 @@ export function observatoryMap(cfg) {
                     }
                     this.map.data.addGeoJson(geo);
                     this.styleComunas();
-                    this.map.data.addListener('click', (event) => {
-                        const code = event.feature?.getProperty('code');
-                        if (!code) {
-                            return;
-                        }
-                        this.goComuna(String(code));
-                    });
+                    if (!cfg.folio) {
+                        this.map.data.addListener('click', (event) => {
+                            const code = event.feature?.getProperty('code');
+                            if (!code) {
+                                return;
+                            }
+                            this.goComuna(String(code));
+                        });
+                    }
                     this.fitLayer();
                 })
                 .catch(() => this.fitSitesFallback());

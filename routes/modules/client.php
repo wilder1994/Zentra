@@ -89,12 +89,9 @@ Route::middleware(['auth', 'password.changed', 'active', 'tenancy.access', 'clie
             Route::patch('/observatory/events/{event}/status', [ObservatoryEventController::class, 'updateStatus'])
                 ->middleware('permission:observatory.events.update')
                 ->name('observatory.events.status');
-            Route::post('/observatory/events/{event}/merge', [ObservatoryEventController::class, 'merge'])
+            Route::post('/observatory/events/{event}/reports/{report}/move', [ObservatoryEventController::class, 'move'])
                 ->middleware('permission:observatory.events.update')
-                ->name('observatory.events.merge');
-            Route::post('/observatory/events/{event}/reports/{report}/detach', [ObservatoryEventController::class, 'detach'])
-                ->middleware('permission:observatory.events.update')
-                ->name('observatory.events.reports.detach');
+                ->name('observatory.events.reports.move');
         });
 
         Route::get('/structures', [StructureController::class, 'index'])

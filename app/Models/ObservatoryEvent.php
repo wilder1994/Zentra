@@ -96,4 +96,24 @@ final class ObservatoryEvent extends Model
     {
         return $this->hasMany(ObservatoryEventStatusLog::class, 'event_id')->orderByDesc('id');
     }
+
+    public function version(): int
+    {
+        $logs = $this->relationLoaded('statusLogs')
+            ? $this->statusLogs->count()
+            : $this->statusLogs()->count();
+
+        return 1 + $logs;
+    }
+
+    public function versionReason(): string
+    {
+        $latest = $this->relationLoaded('statusLogs')
+            ? $this->statusLogs->first()
+            : $this->statusLogs()->first();
+
+        $note = trim((string) ($latest?->note ?? ''));
+
+        return $note !== '' ? $note : 'Apertura del folio.';
+    }
 }

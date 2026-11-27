@@ -10,7 +10,7 @@
     $kpis = $kpis ?? [];
     $kpiLive = $kpiLive ?? false;
 @endphp
-<div class="obs-card overflow-hidden h-full min-h-80 flex flex-col">
+<div class="obs-card overflow-hidden h-full {{ ($folioFocus ?? false) ? 'min-h-0' : 'min-h-80' }} flex flex-col">
     @if (! empty($maps['api_key']))
         <div
             x-data="observatoryMap(@js([
@@ -22,13 +22,14 @@
                 'center' => $maps['center'] ?? ['lat' => 3.4372, 'lng' => -76.5225],
                 'zoom' => $maps['zoom'] ?? 12,
                 'comuna' => $map['comuna'] ?? '',
+                'folio' => (bool) ($folioFocus ?? false),
                 'comunas' => $map['comunas'] ?? [],
                 'layerUrl' => $map['layer_url'] ?? '/geo/cali-comunas.geojson',
                 'crimes' => $map['crimes'] ?? ['year' => (int) now()->year, 'years' => [], 'types' => [], 'byYear' => []],
                 'reportTypes' => $types,
             ]))"
             data-obs-map
-            class="relative flex-1 min-h-80 flex flex-col"
+            class="relative flex-1 {{ ($folioFocus ?? false) ? 'min-h-0' : 'min-h-80' }} flex flex-col"
         >
             @if ($boardMap)
                 <div class="shrink-0 flex flex-wrap items-center gap-x-3 gap-y-1 px-2.5 py-1.5 border-b border-slate-800 bg-slate-950/80">
@@ -123,6 +124,7 @@
                             @click="setMapType('satellite')">Satélite</button>
                 </div>
             </div>
+            @unless ($folioFocus ?? false)
             <div class="shrink-0 flex flex-wrap gap-1 px-2 py-1.5 border-b border-slate-800" x-show="legend().length">
                 <template x-for="type in legend()" :key="type.slug">
                     <button type="button"
@@ -134,6 +136,7 @@
                     </button>
                 </template>
             </div>
+            @endunless
             <div x-ref="map" class="{{ $mapCanvasClass }} w-full flex-1"></div>
             @endif
             @if ($showLegend)

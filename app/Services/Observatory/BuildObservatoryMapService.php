@@ -285,55 +285,54 @@ final class BuildObservatoryMapService
      */
     public function forEvent(ObservatoryEvent $event): array
     {
-        $event->loadMissing(['installation', 'reports.reportType']);
+        $event->loadMissing(['installation.client', 'client', 'reports.reportType']);
         $site = $event->installation;
-        $status = $event->status instanceof ObservatoryEventStatus ? $event->status->value : null;
-        $companyId = (int) ($event->client?->security_company_id ?? 0);
-        $parameters = $companyId > 0 ? RiskModelParameter::forCompany($companyId) : null;
-
-        $points = $event->reports->map(function (ObservatoryReport $report) use ($site, $event, $status, $parameters): ?array {
-            $lat = $report->latitude ?? $site?->latitude;
-            $lng = $report->longitude ?? $site?->longitude;
-            if ($lat === null || $lng === null) {
-                return null;
-            }
-
-            return [
-                'lat' => (float) $lat,
-                'lng' => (float) $lng,
-                'open' => $event->status !== ObservatoryEventStatus::Cerrado,
-                'status' => $status,
-                'status_label' => $event->statusLabel(),
-                'title' => $site?->name ?? $event->folio(),
-                'kind' => $report->kindLabel(),
-                'kind_slug' => $report->typeSlug(),
-                'color' => $report->typeColor(),
-                'score' => $report->typeScore(),
-                'band' => $parameters?->bandOf($report->typeScore()) ?? 'BAJO',
-                'show_url' => null,
-            ];
-        })->filter()->values()->all();
+        $layer = app(CaliComunaLayer::class);
+        $hit = $site?->latitude !== null && $site?->longitude !== null
+            ? $layer->locate((float) $site->latitude, (float) $site->longitude)
+            : null;
+        $comuna = is_array($hit) && ($hit['code'] ?? '') !== '' ? (string) $hit['code'] : 'fuera';
+        $summary = $this->typeSummary($event->reports);
+        $open = $event->status !== ObservatoryEventStatus::Cerrado;
+        $guards = $site instanceof Installation ? $this->guardCounts([(int) $site->id]) : [];
+        if ($site instanceof Installation) {
+            $site->loadCount(['supervisorPosts as posts_count' => fn ($query) => $query->where('is_active', true)->whereNull('archived_at')]);
+        }
 
         return [
             'google_maps' => $this->googleMaps(
                 $site?->latitude !== null && $site?->longitude !== null
                     ? ['lat' => (float) $site->latitude, 'lng' => (float) $site->longitude]
                     : null,
-                16,
+                14,
             ),
-            'types' => collect($points)
-                ->unique('kind_slug')
-                ->map(fn (array $point): array => [
-                    'slug' => $point['kind_slug'],
-                    'name' => $point['kind'],
-                    'color' => $point['color'],
-                    'score' => $point['score'],
-                    'band' => $point['band'],
-                ])
-                ->values()
-                ->all(),
-            'sites' => [],
-            'points' => $points,
+            'folio' => true,
+            'comuna' => $comuna,
+            'comuna_name' => is_array($hit) ? (string) ($hit['name'] ?? '') : '',
+            'layer_url' => route('geo.cali-comunas'),
+            'types' => collect($summary)->map(fn (array $row): array => [
+                'slug' => $row['slug'],
+                'name' => $row['name'],
+                'color' => $row['color'],
+            ])->values()->all(),
+            'sites' => $site instanceof Installation && $site->latitude !== null && $site->longitude !== null ? [[
+                'id' => (int) $site->id,
+                'name' => $site->name,
+                'client' => $site->client?->name,
+                'address' => PlaceLabel::of($site),
+                'dane_code' => $site->dane_code,
+                'lat' => (float) $site->latitude,
+                'lng' => (float) $site->longitude,
+                'comuna_name' => is_array($hit) ? (string) ($hit['name'] ?? 'Sin comuna') : 'Sin comuna',
+                'posts_count' => (int) ($site->posts_count ?? 0),
+                'guards_count' => (int) ($guards[(int) $site->id] ?? 0),
+                'open_count' => $open ? $event->reports->count() : 0,
+                'report_summary' => $summary,
+                'report_count' => $event->reports->count(),
+                'type_slugs' => collect($summary)->pluck('slug')->filter()->values()->all(),
+                'pending' => null,
+            ]] : [],
+            'points' => [],
         ];
     }
 

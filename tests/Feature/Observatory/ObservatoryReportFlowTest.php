@@ -441,9 +441,10 @@ final class ObservatoryReportFlowTest extends TestCase
             ->assertSessionHasErrors('status');
     }
 
-    public function test_site_admin_merges_and_detaches_reports(): void
+    public function test_site_admin_moves_reports_between_folios(): void
     {
         [$client, $colegio, , $otherColegio] = $this->sites();
+        $otherColegio->update(['latitude' => '3.4511000', 'longitude' => '-76.5311000']);
         $company = User::query()->where('email', 'empresa@sj-seguridad.test')->firstOrFail();
         $admin = $this->makeSiteAdmin($company, $client, $colegio, 'une.obs@palmas.test', '1098000885');
         $other = $this->makeSiteAdmin($company, $client, $otherColegio, 'otra.une@palmas.test', '1098000886');
@@ -468,107 +469,120 @@ final class ObservatoryReportFlowTest extends TestCase
             'reporter_role' => 'padre',
         ])->assertRedirect();
         $source = ObservatoryEvent::query()->latest('id')->firstOrFail();
+        $moving = $source->reports()->firstOrFail();
         $this->assertNotSame((int) $keep->id, (int) $source->id);
 
         $this->post(route('observatory.public.store', $client->slug), [
             'installation_id' => $otherColegio->id,
             'kind' => 'hurto',
-            'body' => 'Hurto en otro colegio no se une al primero.',
+            'body' => 'Hurto en otro colegio, destino posible del traslado.',
             'is_anonymous' => '1',
             'reporter_role' => 'padre',
         ])->assertRedirect();
         $foreign = ObservatoryEvent::query()->latest('id')->firstOrFail();
 
+        $payload = [
+            'installation_id' => $colegio->id,
+            'destination' => (string) $keep->id,
+            'note' => 'El reporte corresponde al mismo incidente del muro.',
+        ];
+
         $this->actingAs($clientAdmin)->withSession($session)
-            ->post(route('client.observatory.events.merge', $keep), ['source_event_id' => $source->id])
+            ->post(route('client.observatory.events.reports.move', [$source, $moving]), $payload)
             ->assertForbidden();
-
         $this->actingAs($support)->withSession($session)
-            ->post(route('client.observatory.events.merge', $keep), ['source_event_id' => $source->id])
+            ->post(route('client.observatory.events.reports.move', [$source, $moving]), $payload)
             ->assertForbidden();
-
         $this->actingAs($other)->withSession($session)
-            ->post(route('client.observatory.events.merge', $keep), ['source_event_id' => $source->id])
+            ->post(route('client.observatory.events.reports.move', [$source, $moving]), $payload)
             ->assertForbidden();
 
         $this->actingAs($admin)->withSession($session)
-            ->get(route('client.observatory.events.show', $keep))
+            ->get(route('client.observatory.events.show', $source))
             ->assertOk()
-            ->assertSee('Unir aquí', false)
-            ->assertSee($source->folio(), false);
-
-        $this->actingAs($clientAdmin)->withSession($session)
-            ->get(route('client.observatory.events.show', $keep))
-            ->assertOk()
+            ->assertSee('Pasar reporte', false)
+            ->assertSee($moving->code(), false)
             ->assertDontSee('Unir aquí', false);
 
-        $this->actingAs($company)
-            ->get(route('company.observatory.events.show', $keep))
+        $this->actingAs($clientAdmin)->withSession($session)
+            ->get(route('client.observatory.events.show', $source))
             ->assertOk()
-            ->assertSee('Unir aquí', false);
+            ->assertDontSee('Pasar reporte', false);
+
+        $this->actingAs($company)
+            ->get(route('company.observatory.events.show', $source))
+            ->assertOk()
+            ->assertSee('Pasar reporte', false);
 
         $this->actingAs($admin)->withSession($session)
-            ->post(route('client.observatory.events.merge', $keep), ['source_event_id' => $foreign->id])
-            ->assertForbidden();
+            ->post(route('client.observatory.events.reports.move', [$source, $moving]), [
+                'installation_id' => $colegio->id,
+                'destination' => (string) $keep->id,
+                'note' => 'corto',
+            ])
+            ->assertSessionHasErrors('note');
 
         $this->actingAs($admin)->withSession($session)
-            ->post(route('client.observatory.events.merge', $keep), ['source_event_id' => $source->id])
-            ->assertRedirect(route('client.observatory.events.show', $keep));
+            ->post(route('client.observatory.events.reports.move', [$source, $moving]), $payload)
+            ->assertRedirect(route('client.observatory.events.show', $source));
 
-        $this->assertNull(ObservatoryEvent::query()->find($source->id));
+        $this->assertNotNull(ObservatoryEvent::query()->find($source->id));
+        $this->assertSame(ObservatoryEventStatus::Cerrado, $source->fresh()->status);
+        $this->assertSame(0, $source->fresh()->reports()->count());
         $this->assertSame(2, $keep->fresh()->reports()->count());
-        $this->assertSame(2, ObservatoryEvent::query()->count());
+        $this->assertTrue($source->fresh()->statusLogs()->where('note', 'like', '%'.$moving->code().'%')->exists());
+        $this->assertTrue($keep->fresh()->statusLogs()->where('note', 'like', '%'.$moving->code().'%')->exists());
 
         $firstReport = $keep->fresh()->reports()->orderBy('id')->firstOrFail();
         $this->actingAs($admin)->withSession($session)
-            ->get(route('client.observatory.events.show', $keep))
-            ->assertOk()
-            ->assertSee('Sacar a folio nuevo', false);
-
-        $this->actingAs($admin)->withSession($session)
-            ->post(route('client.observatory.events.reports.detach', [$keep, $firstReport]))
+            ->post(route('client.observatory.events.reports.move', [$keep, $firstReport]), [
+                'installation_id' => $colegio->id,
+                'destination' => 'new',
+                'note' => 'Este reporte se atiende en un folio aparte.',
+            ])
             ->assertRedirect(route('client.observatory.events.show', $keep));
 
-        $this->assertSame(3, ObservatoryEvent::query()->count());
         $this->assertSame(1, $keep->fresh()->reports()->count());
-        $split = ObservatoryEvent::query()->whereKeyNot([$keep->id, $foreign->id])->firstOrFail();
+        $this->assertSame(ObservatoryEventStatus::Nuevo, $keep->fresh()->status);
+        $split = ObservatoryEvent::query()->whereKeyNot([$keep->id, $source->id, $foreign->id])->firstOrFail();
         $this->assertSame(1, $split->reports()->count());
         $this->assertSame(ObservatoryEventStatus::Nuevo, $split->status);
 
-        $remaining = $keep->fresh()->reports()->firstOrFail();
-        $this->actingAs($admin)->withSession($session)
-            ->post(route('client.observatory.events.reports.detach', [$keep, $remaining]))
-            ->assertSessionHasErrors('report');
-        $this->assertSame(1, $keep->fresh()->reports()->count());
-
-        $this->actingAs($admin)->withSession($session)
-            ->patch(route('client.observatory.events.status', $keep), [
+        $this->actingAs($company)
+            ->patch(route('company.observatory.events.status', $foreign), [
                 'status' => 'en_atencion',
-                'note' => 'Se unificó el seguimiento de este colegio.',
+                'note' => 'El otro colegio ya está atendiendo su folio.',
             ])
             ->assertRedirect();
-        $this->actingAs($admin)->withSession($session)
-            ->patch(route('client.observatory.events.status', $keep), [
+        $this->actingAs($company)
+            ->patch(route('company.observatory.events.status', $foreign), [
                 'status' => 'cerrado',
-                'note' => 'El rector cerró el folio tras verificar los hechos.',
+                'note' => 'El otro colegio cerró su folio antes del traslado.',
             ])
             ->assertRedirect();
 
+        $last = $keep->fresh()->reports()->firstOrFail();
         $this->actingAs($admin)->withSession($session)
-            ->post(route('client.observatory.events.merge', $keep), ['source_event_id' => $split->id])
-            ->assertSessionHasErrors('source_event_id');
+            ->post(route('client.observatory.events.reports.move', [$keep, $last]), [
+                'installation_id' => $otherColegio->id,
+                'destination' => (string) $foreign->id,
+                'note' => 'El reporte era del otro colegio, no de este.',
+            ])
+            ->assertRedirect(route('client.observatory.events.show', $keep));
 
-        $this->actingAs($clientAdmin)->withSession($session)
-            ->get(route('client.observatory.events.show', $keep))
-            ->assertOk()
-            ->assertDontSee('Unir aquí', false)
-            ->assertDontSee('Sacar a folio nuevo', false);
+        $moved = $last->fresh();
+        $this->assertSame((int) $foreign->id, (int) $moved->event_id);
+        $this->assertSame((int) $otherColegio->id, (int) $moved->installation_id);
+        $this->assertSame('3.4511000', (string) $moved->latitude);
+        $this->assertSame(ObservatoryEventStatus::Cerrado, $keep->fresh()->status);
+        $this->assertSame(0, $keep->fresh()->reports()->count());
+        $this->assertSame(ObservatoryEventStatus::Cerrado, $foreign->fresh()->status);
+        $this->assertSame(2, $foreign->fresh()->reports()->count());
 
         $this->actingAs($company)
             ->get(route('company.observatory.events.show', $keep))
             ->assertOk()
-            ->assertDontSee('Unir aquí', false)
-            ->assertDontSee('Sacar a folio nuevo', false);
+            ->assertDontSee('Pasar reporte', false);
     }
 
     public function test_cannot_detach_from_closed_event(): void
@@ -614,11 +628,15 @@ final class ObservatoryReportFlowTest extends TestCase
         $this->actingAs($admin)->withSession($session)
             ->get(route('client.observatory.events.show', $event))
             ->assertOk()
-            ->assertDontSee('Sacar a folio nuevo', false)
+            ->assertDontSee('Pasar reporte', false)
             ->assertDontSee('Unir aquí', false);
 
         $this->actingAs($admin)->withSession($session)
-            ->post(route('client.observatory.events.reports.detach', [$event, $report]))
+            ->post(route('client.observatory.events.reports.move', [$event, $report]), [
+                'installation_id' => $colegio->id,
+                'destination' => 'new',
+                'note' => 'No debería salir de un folio cerrado.',
+            ])
             ->assertSessionHasErrors('report');
 
         $this->assertSame(1, ObservatoryEvent::query()->count());

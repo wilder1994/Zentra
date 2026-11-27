@@ -80,10 +80,8 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
         Route::middleware('permission:observatory.events.update')->group(function () {
             Route::patch('/observatory/events/{event}/status', [ObservatoryEventController::class, 'updateStatus'])
                 ->name('observatory.events.status');
-            Route::post('/observatory/events/{event}/merge', [ObservatoryEventController::class, 'merge'])
-                ->name('observatory.events.merge');
-            Route::post('/observatory/events/{event}/reports/{report}/detach', [ObservatoryEventController::class, 'detach'])
-                ->name('observatory.events.reports.detach');
+            Route::post('/observatory/events/{event}/reports/{report}/move', [ObservatoryEventController::class, 'move'])
+                ->name('observatory.events.reports.move');
             Route::post('/observatory/crimes', [ObservatoryCrimeController::class, 'storeType'])
                 ->name('observatory.crimes.store');
             Route::put('/observatory/crimes/{crimeType}', [ObservatoryCrimeController::class, 'updateType'])

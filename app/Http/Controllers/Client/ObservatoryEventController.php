@@ -21,12 +21,10 @@ use App\Services\Observatory\BuildInstallationRiskService;
 use App\Services\Observatory\EnsureObservatoryReportTypesService;
 use App\Services\Observatory\BuildObservatoryExportDataService;
 use App\Services\Observatory\ExportObservatoryBoardService;
-use App\Services\Observatory\MergeObservatoryEventsService;
+use App\Services\Observatory\MoveObservatoryReportService;
 use App\Services\Observatory\PresentObservatoryLiveService;
 use App\Services\Observatory\SubmitObservatoryReportService;
-use App\Services\Observatory\UnhookObservatoryReportService;
 use App\Services\Observatory\UpdateObservatoryEventStatusService;
-use App\Services\Ops\NotifyOpsSurface;
 use App\Support\Auth\AssignableRoles;
 use App\Support\Geo\CaliComunaLayer;
 use App\Support\Observatory\ObservatoryFilters;
@@ -35,7 +33,6 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -46,8 +43,7 @@ final class ObservatoryEventController extends Controller
     public function __construct(
         private readonly TenantContext $tenantContext,
         private readonly UpdateObservatoryEventStatusService $statuses,
-        private readonly MergeObservatoryEventsService $merger,
-        private readonly UnhookObservatoryReportService $unhook,
+        private readonly MoveObservatoryReportService $moves,
         private readonly SubmitObservatoryReportService $submit,
     ) {}
 
@@ -298,10 +294,15 @@ final class ObservatoryEventController extends Controller
         return view('modules.observatory.client.show', [
             'event' => $event,
             'canUpdateStatus' => $canUpdate,
-            'canMerge' => $canUpdate && $event->status !== ObservatoryEventStatus::Cerrado,
-            'canDetach' => $canUpdate && $event->status !== ObservatoryEventStatus::Cerrado,
+            'canMove' => $canUpdate && $event->status !== ObservatoryEventStatus::Cerrado,
             'statuses' => ObservatoryEventStatus::options(),
-            'mergeCandidates' => $this->mergeCandidates($event),
+            'moveOptions' => $canUpdate && $event->status !== ObservatoryEventStatus::Cerrado
+                ? $this->moves->destinations(
+                    $event,
+                    (int) ($event->client?->security_company_id ?? 0),
+                    (int) $this->tenantContext->clientId(),
+                )
+                : [],
             'folioMap' => app(BuildObservatoryMapService::class)->forEvent($event),
         ]);
     }
@@ -336,71 +337,46 @@ final class ObservatoryEventController extends Controller
             ->with('success', $message);
     }
 
-    public function merge(Request $request, ObservatoryEvent $event): RedirectResponse
-    {
-        $this->assertClient($event);
-        $this->authorize('update', $event);
-
-        $validated = $request->validate([
-            'source_event_id' => ['required', 'integer', 'exists:observatory_events,id'],
-        ]);
-
-        $source = ObservatoryEvent::query()->findOrFail((int) $validated['source_event_id']);
-        $this->assertClient($source);
-        $this->authorize('update', $source);
-
-        try {
-            $this->merger->execute($event, $source);
-        } catch (ValidationException $e) {
-            return back()->withErrors($e->errors());
-        }
-
-        app(NotifyOpsSurface::class)->observatory(
-            $event,
-            $request->user(),
-            'Unió folios en '.$event->folio(),
-        );
-
-        return redirect()
-            ->route('client.observatory.events.show', $event)
-            ->with('success', 'Folio '.$source->folio().' unido aquí.');
-    }
-
-    public function detach(Request $request, ObservatoryEvent $event, ObservatoryReport $report): RedirectResponse
+    public function move(Request $request, ObservatoryEvent $event, ObservatoryReport $report): RedirectResponse
     {
         $this->assertClient($event);
         $this->authorize('update', $event);
         abort_unless((int) $report->event_id === (int) $event->id, 404);
 
+        $validated = $request->validate([
+            'installation_id' => ['required', 'integer', 'exists:installations,id'],
+            'destination' => ['required', 'string', 'max:20'],
+            'note' => ['required', 'string', 'min:10', 'max:2000'],
+        ]);
+
+        $installation = Installation::query()->find((int) $validated['installation_id']);
+        abort_unless(
+            $installation instanceof Installation && (int) $installation->client_id === (int) $event->client_id,
+            404,
+        );
+
         try {
-            $created = $this->unhook->execute($event, $report);
+            $target = $this->moves->execute(
+                $event,
+                $report,
+                $request->user(),
+                (string) $validated['note'],
+                (int) $validated['installation_id'],
+                (string) $validated['destination'],
+            );
         } catch (ValidationException $e) {
-            return back()->withErrors($e->errors());
+            return back()->withInput()->withErrors($e->errors());
         }
 
-        app(NotifyOpsSurface::class)->observatory(
-            $created,
-            $request->user(),
-            'Sacó un reporte a '.$created->folio(),
-        );
+        $event->refresh();
+        $message = 'Reporte '.$report->code().' pasó a '.$target->folio().'.';
+        if ($event->status === ObservatoryEventStatus::Cerrado) {
+            $message .= ' Este folio se cerró porque quedó sin reportes.';
+        }
 
         return redirect()
             ->route('client.observatory.events.show', $event)
-            ->with('success', 'Reporte pasado a '.$created->folio().'.');
-    }
-
-    /** @return Collection<int, ObservatoryEvent> */
-    private function mergeCandidates(ObservatoryEvent $event)
-    {
-        return ObservatoryEvent::query()
-            ->where('client_id', $event->client_id)
-            ->where('installation_id', $event->installation_id)
-            ->whereNull('archived_at')
-            ->whereKeyNot($event->id)
-            ->withCount('reports')
-            ->orderByDesc('opened_at')
-            ->limit(30)
-            ->get();
+            ->with('success', $message);
     }
 
     private function assertClient(ObservatoryEvent $event): void
