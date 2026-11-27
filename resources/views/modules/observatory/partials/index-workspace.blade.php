@@ -94,14 +94,14 @@
     .obs-brush-pop p { margin: 0 0 .4rem; font-size: 11px; font-weight: 700; color: var(--ui-accent); }
     .obs-brush-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding: .2rem 0; font-size: 12px; color: var(--ui-text); }
     .obs-brush-row input { width: 1.7rem; height: 1.35rem; padding: 0; border: 0; background: transparent; }
-    .obs-chart-fill { flex: 1; min-height: 9rem; height: auto; display: flex; flex-direction: column; padding-bottom: .35rem; }
-    .obs-chart-fill > .obs-rank-scroll { flex: 1; min-height: 0; }
+    .obs-chart-fill { flex: 1; min-height: 0; height: auto; display: flex; flex-direction: column; padding-bottom: .35rem; overflow: hidden; }
+    .obs-chart-fill > .obs-rank-scroll { flex: 1; min-height: 0; height: 100%; }
     .obs-chart { height: 9.5rem; padding: .35rem .75rem .65rem; }
     .obs-chart-lg { height: 13.5rem; }
     .obs-gauge { height: auto; min-height: 10.5rem; display: flex; flex-direction: column; overflow: hidden; }
     .obs-gauge-plot { height: 7.25rem; position: relative; overflow: hidden; }
-    .obs-card-fill { display: flex; flex-direction: column; }
-    .obs-card-fill > .obs-chart { flex: 1; height: auto; min-height: 12rem; padding-bottom: .35rem; }
+    .obs-card-fill { display: flex; flex-direction: column; height: 16.5rem; max-height: 16.5rem; min-height: 0; overflow: hidden; }
+    .obs-card-fill > .obs-chart { flex: 1; height: auto; min-height: 0; padding-bottom: .35rem; overflow: hidden; }
     .obs-card-fill > .obs-donut { display: flex; flex-direction: column; }
     .obs-card-fill .obs-gauge-plot,
     .obs-card-fill .obs-donut-plot { flex: 1; height: auto; min-height: 10rem; }
@@ -134,7 +134,7 @@
     html[data-theme="light"] .obs-risk-rank thead th { background: var(--ui-surface); }
     .obs-risk-cyl { width: 16.5rem; height: 2.6rem; }
     .obs-chart-row { display: grid; gap: .5rem; }
-    .obs-rank-scroll { height: 100%; overflow-x: hidden; overflow-y: auto; }
+    .obs-rank-scroll { height: 100%; min-height: 0; overflow-x: hidden; overflow-y: auto; }
     .obs-site-search {
         height: 1.75rem; width: 9.5rem; border-radius: .375rem;
         border: 1px solid color-mix(in srgb, var(--ui-accent) 45%, var(--ui-border));

@@ -288,13 +288,10 @@ export function observatoryBoard(payload) {
         },
         barSize(el, count) {
             const rows = Math.max(count, 1);
-            const gap = 8;
-            const floor = 10;
-            const cap = 28;
-            const visible = Math.max(48, el.parentElement?.clientHeight || 160);
-            let thick = Math.min(cap, Math.max(floor, Math.floor(visible / rows) - gap));
-            const pitch = thick + gap;
-            el.style.height = rows * pitch > visible ? `${rows * pitch}px` : '100%';
+            const thick = 22;
+            const pitch = thick + 8;
+            const visible = el.parentElement?.clientHeight || 0;
+            el.style.height = visible > 0 && rows * pitch > visible ? `${rows * pitch}px` : '100%';
 
             return thick;
         },
