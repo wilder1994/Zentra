@@ -56,6 +56,12 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 26 nov 2026 · Ficha compacta
+Los cuatro contenedores quedan más juntos y con el verde del sistema. La ficha de la derecha usa una grilla apretada y el color del estado. «Pasar reporte» es un texto; el clic abre un modal con instalación, folio y el porqué. Commit `58dae44`.
+
+### 26 nov 2026 · Ficha del folio
+El mapa de la ficha encuadra la comuna de esa sede y agrupa solo sus reportes. La ficha deja el riesgo repetido y muestra versión, con el motivo en la burbuja. Cada reporte lleva un `RP-` fijo. Pasar reporte mueve uno a un folio nuevo, a uno existente o a otra instalación, con justificación, y cierra el folio si se queda vacío. Se quitó Unir folio. En pantallas medianas y grandes las cuatro celdas caben; el scroll interno de ficha, novedades y bitácora se mantiene. Commit `58dae44`.
+
 ### 26 nov 2026 · Tarjeta, grupo y fila
 Un clic deja solo la tarjeta de ese pin; la anterior se va aunque el mapa la pinte tarde. La tarjeta queda a 1 px de la cabeza del pin. Reporte e instalación van en la misma fila y miden igual. La de instalación abre con el nombre de la sede. La del reporte muestra la fuente y la observación. El grupo con un folio Nuevo palpita al alejar el zoom. La primera fila del tablero queda un 15 % más alta. Commit `a3c1947`.
 
