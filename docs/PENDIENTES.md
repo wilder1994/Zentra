@@ -56,6 +56,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 27 nov 2026 · Zonas: menú «Compartir con…»
+En Asignar clientes a zonas, la lista de «Compartir con…» y la de cada fila se abren sobre el modal, con alto máximo y scroll propio. Ya no las tapa la tabla ni el borde del modal. Commit `eae4e9b`.
+
 ### 27 nov 2026 · Brocha de color en el tablero
 Fuentes, Orígenes y Tendencia tienen una brocha en el panel empresa, solo con gestión del Observatorio. Cada porción, barra o línea guarda su color por empresa. Sin elección, la paleta es diferenciada. Delitos y reportes por instalación usan el color del delito. Riesgo sigue en las cuatro bandas. El cliente ve los colores y no los cambia. Commit `db59d72`.
 
