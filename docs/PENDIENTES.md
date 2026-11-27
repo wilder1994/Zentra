@@ -4,15 +4,11 @@ Lista viva de lo definido y **no implementado**. Al implementar, mover a «Hecho
 
 ## Abiertos
 
-### 17. VPS: el pool PHP de Zentra puede tumbar MySQL
-Visto 27 nov 2026. Caída por RAM, no por Nginx ni disco. Kernel: OOM mató `mysqld` a las 20:07, 20:09 y 20:11 UTC, y también hijos `php-fpm8.3`. Pool real: `/etc/php/8.3/fpm/pool.d/zentra.wcodex.cloud.conf` (`pm = ondemand`, `pm.max_children = 250`, `request_terminate_timeout = 7200s`). `memory_limit` de PHP 8.3 = 768M. El VPS tiene 7,8 GB; MySQL (Percona) iba en ~1 GB. El reinicio de PHP-FPM dejó el sitio en 200; el tope de 250 sigue igual.
+### 17. Dos cargas que el tope del pool no cubre
+Definido 27 nov 2026. El pool ya está en 10 hijos. Siguen fuera de `5609367`.
 
-- Bajar solo el pool de Zentra: `pm.max_children = 10` (sigue `pm.max_requests = 100`).
-- Bajar `request_terminate_timeout` de 7200s a 120s, para que una petición trabada no ocupe un hijo dos horas.
-- Tope del pool: `php_admin_value[memory_limit] = 256M`, así 10 hijos no pueden llegar a 7,6 GB.
-- No tocar los pools de decowandy ni default (también están en 250) salvo que el usuario lo pida.
-- El mapa, la cache del Observatorio, la miniatura de la ficha y el PPTX en cola están en `5609367`. Falta el tope del pool en este deploy.
-- Siguen fuera de ese commit: si el hash de la ruta en calle ya coincide, no recargar el GPS (`EnsureSnappedSupervisorRouteService`). El tablero de instalaciones y Mi empresa no deben reconstruir el mes por un ping de supervisión.
+- Si el hash de la ruta en calle ya coincide, no recargar el GPS (`EnsureSnappedSupervisorRouteService`).
+- El tablero de instalaciones y Mi empresa no deben reconstruir el mes por un ping de supervisión.
 
 ### 9. Observatorio WhatsApp: entrega 2 (videos + bandeja de revisión)
 Definido 21 nov 2026. La conversación guiada (texto + fotos) ya existe; ver `docs/OBSERVATORIO.md`. Para usarla en producción faltan: migrar en el VPS, `META_OBSERVATORY_CLIENT_ID=82` y `META_ACCESS_TOKEN` permanente (usuario del sistema con la cuenta de WhatsApp, permisos `whatsapp_business_messaging` y `whatsapp_business_management`) en el `.env` del VPS, `config:cache` y `queue:restart`.
@@ -65,6 +61,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 - Detalle: [`EMPLEADOS-Y-CARGOS.md`](EMPLEADOS-Y-CARGOS.md) (Parafiscales).
 
 ## Hecho
+
+### 27 nov 2026 · Pool PHP de Zentra
+Solo `/etc/php/8.3/fpm/pool.d/zentra.wcodex.cloud.conf`: `pm.max_children = 10`, `request_terminate_timeout = 120s`, `php_admin_value[memory_limit] = 256M`. decowandy y default siguen en 250. Nginx, PHP, Reverb y la cola quedaron activos; el sitio respondió 200. El código que cabe en ese tope es `5609367`.
 
 ### 27 nov 2026 · Fichas de guardas y kilometraje
 En Supervisión → Fichas, Guardas y Supervisores van a la izquierda de Periodo, con el botón del panel. Fichas y Kilometraje quedan debajo del header, a la derecha, solo en Supervisores. Kilometraje lista todos los turnos y Editar abre la corrección aunque no haya salto de 1.500 km. Diferencia desde está en el modal de Filtros. Commit `5609367`.
