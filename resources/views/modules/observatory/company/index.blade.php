@@ -31,5 +31,6 @@
         'observatoryLiveUrl' => route('company.observatory.live', $filters->query()),
         'observatoryTrailUrl' => str_replace('/0/', '/__SHIFT__/', route('company.observatory.shifts.trail', ['shift' => 0])),
         'observatoryPositionsUrl' => route('company.observatory.shifts.positions', $filters->query()),
+        'canPaintCharts' => $canPaintCharts ?? false,
     ])
 </x-company-layout>

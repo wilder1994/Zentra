@@ -10,7 +10,7 @@
     $kpis = $kpis ?? [];
     $kpiLive = $kpiLive ?? false;
 @endphp
-<div class="obs-card overflow-hidden h-full {{ ($folioFocus ?? false) ? 'min-h-0' : 'min-h-80' }} flex flex-col">
+<div class="obs-card overflow-hidden h-full {{ ($folioFocus ?? false) ? 'min-h-0 obs-folio-map' : 'min-h-80' }} flex flex-col">
     @if (! empty($maps['api_key']))
         <div
             x-data="observatoryMap(@js([

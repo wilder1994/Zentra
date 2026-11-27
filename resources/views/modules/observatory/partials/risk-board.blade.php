@@ -14,10 +14,11 @@
         ['label' => 'Crítico', 'from' => $cuts[3], 'to' => 100],
     ];
 @endphp
-<section class="obs-card p-3 space-y-3">
-    <div>
+<section class="obs-card p-3 space-y-2">
+    <div class="flex items-center justify-between gap-2">
         <h3 class="text-sm font-semibold text-white">Riesgo por instalación</h3>
-        <p class="text-[11px] text-slate-500">Comuna {{ $risk['year'] ?? now()->year }} y reportes de la sede con decaimiento. Escala 0–100. Las de mayor riesgo final arriba.</p>
+        <input type="search" class="obs-site-search" placeholder="Buscar instalación" autocomplete="off"
+               x-model="riskQuery" @input="filterRisk()" @keydown.enter.prevent>
     </div>
     <div class="obs-risk-rank sidebar-scroll">
         <table class="min-w-full text-xs">
@@ -36,7 +37,7 @@
             </thead>
             <tbody data-obs-risk-body data-show-client="{{ ! empty($showClientColumn) ? '1' : '0' }}">
                 @forelse ($rows as $row)
-                    <tr class="border-t border-slate-800">
+                    <tr class="border-t border-slate-800" data-site="{{ $row['name'] }}">
                         <td class="px-2 py-1.5 text-slate-200">
                             {{ $row['name'] }}
                             @if (! empty($showClientColumn) && ($row['client'] ?? '') !== '')

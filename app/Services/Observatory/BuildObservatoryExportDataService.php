@@ -9,6 +9,7 @@ use App\Models\ObservatoryEvent;
 use App\Models\ObservatoryReport;
 use App\Models\RiskModelParameter;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 
 /**
  * Datos del PPTX del Observatorio a partir de la misma consulta filtrada del tablero
@@ -23,7 +24,8 @@ final class BuildObservatoryExportDataService
      *     total: int,
      *     points: list<array{id: int, folio: string, lat: float, lng: float, slug: string, color: string, site: string}>,
      *     without_coords: int,
-     *     by_type: array<string, array{name: string, color: string, band: string, events: int, reports: int, status: array<string, int>, sites: array<string, int>}>
+     *     by_type: array<string, array{name: string, color: string, band: string, events: int, reports: int, status: array<string, int>, sites: array<string, int>}>,
+     *     reports: list<array{at: string, folio: string, site: string, origin: string, kind: string, excerpt: string}>
      * }
      */
     public function execute(Builder $events, array $types): array
@@ -52,6 +54,7 @@ final class BuildObservatoryExportDataService
 
         $points = [];
         $withoutCoords = 0;
+        $reports = [];
 
         foreach ($rows as $event) {
             /** @var ObservatoryReport|null $latest */
@@ -92,7 +95,24 @@ final class BuildObservatoryExportDataService
                 $withoutCoords++;
             }
 
+            foreach ($event->reports as $report) {
+                $reports[] = [
+                    'sort' => $report->created_at?->getTimestamp() ?? 0,
+                    'at' => $report->created_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?? '',
+                    'folio' => $event->folio(),
+                    'site' => $siteName,
+                    'origin' => $report->originLabel(),
+                    'kind' => $report->kindLabel(),
+                    'excerpt' => Str::limit(trim((string) preg_replace('/\s+/', ' ', (string) $report->body)), 90),
+                ];
+            }
         }
+
+        usort($reports, fn (array $left, array $right): int => $right['sort'] <=> $left['sort']);
+        foreach ($reports as &$report) {
+            unset($report['sort']);
+        }
+        unset($report);
 
         foreach ($byType as &$type) {
             arsort($type['sites']);
@@ -104,6 +124,7 @@ final class BuildObservatoryExportDataService
             'points' => $points,
             'without_coords' => $withoutCoords,
             'by_type' => $byType,
+            'reports' => $reports,
         ];
     }
 }

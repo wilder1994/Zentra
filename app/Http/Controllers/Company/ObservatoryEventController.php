@@ -21,6 +21,7 @@ use App\Services\Observatory\EnsureObservatoryReportTypesService;
 use App\Services\Observatory\BuildObservatoryExportDataService;
 use App\Services\Observatory\ExportObservatoryBoardService;
 use App\Services\Observatory\MoveObservatoryReportService;
+use App\Services\Observatory\ObservatoryChartPalette;
 use App\Services\Observatory\PresentObservatoryLiveService;
 use App\Services\Observatory\UpdateObservatoryEventStatusService;
 use App\Support\Geo\CaliComunaLayer;
@@ -62,6 +63,7 @@ final class ObservatoryEventController extends Controller
             'filterOptions' => $this->filterOptions($companyId, $clients, $filters),
             'shareClients' => $clients,
             'risk' => app(BuildInstallationRiskService::class)->execute($companyId, $filters->clientId, $siteIds),
+            'canPaintCharts' => $request->user()?->can('observatory.events.update') ?? false,
         ]);
     }
 
@@ -140,11 +142,33 @@ final class ObservatoryEventController extends Controller
             'from' => $filters->from,
             'to' => $filters->to,
             'grain' => $filters->grain(),
+            'risk' => app(ExportObservatoryBoardService::class)->riskRows(
+                app(BuildInstallationRiskService::class)->execute($companyId, $filters->clientId, $siteIds),
+            ),
         ]);
 
         return response()
             ->download($file['path'], $file['filename'])
             ->deleteFileAfterSend();
+    }
+
+    public function paint(Request $request): JsonResponse
+    {
+        abort_unless($request->user()?->can('observatory.events.update'), 403);
+
+        $data = $request->validate([
+            'chart' => ['required', 'in:sources,origins,trend'],
+            'colors' => ['required', 'array'],
+            'colors.*' => ['required', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+        ]);
+
+        app(ObservatoryChartPalette::class)->save(
+            $this->companyId($request),
+            (string) $data['chart'],
+            $data['colors'],
+        );
+
+        return response()->json(['ok' => true]);
     }
 
     public function types(Request $request): View

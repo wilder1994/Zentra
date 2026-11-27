@@ -66,6 +66,108 @@ function tip() {
     };
 }
 
+function floatTip() {
+    return { ...tip(), appendToBody: true, confine: false };
+}
+
+function escapeTip(value) {
+    return String(value ?? '').replace(/[&<>]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[char]));
+}
+
+function barCard(title, total, bar, parts = []) {
+    return [
+        `<strong>${escapeTip(title)}</strong>`,
+        `Total de reportes: ${total}`,
+        `Esta barra: ${bar}`,
+        ...parts,
+    ].join('<br>');
+}
+
+const RISK_INKS = ['#14532d', '#854d0e', '#9a3412', '#9f1239'];
+
+function hexChannels(hex) {
+    const value = String(hex || '').replace('#', '');
+    if (value.length !== 6) {
+        return [20, 83, 45];
+    }
+
+    return [0, 2, 4].map((index) => parseInt(value.slice(index, index + 2), 16));
+}
+
+function rgbToHsl(red, green, blue) {
+    const r = red / 255;
+    const g = green / 255;
+    const b = blue / 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const light = (max + min) / 2;
+    if (max === min) {
+        return [0, 0, light * 100];
+    }
+    const delta = max - min;
+    const sat = light > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+    let hue = 0;
+    if (max === r) {
+        hue = ((g - b) / delta) % 6;
+    } else if (max === g) {
+        hue = (b - r) / delta + 2;
+    } else {
+        hue = (r - g) / delta + 4;
+    }
+
+    return [hue * 60, sat * 100, light * 100];
+}
+
+function hslToHex(hue, sat, light) {
+    const s = sat / 100;
+    const l = light / 100;
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const h = ((hue % 360) + 360) % 360;
+    const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+    const m = l - c / 2;
+    const sector = Math.floor(h / 60);
+    const rgb = [
+        [c, x, 0],
+        [x, c, 0],
+        [0, c, x],
+        [0, x, c],
+        [x, 0, c],
+        [c, 0, x],
+    ][sector];
+
+    return `#${rgb.map((channel) => Math.round((channel + m) * 255).toString(16).padStart(2, '0')).join('')}`;
+}
+
+function shiftInk(hex, step) {
+    const [hue, sat, light] = rgbToHsl(...hexChannels(hex));
+    const nextHue = hue + step * 18;
+    const nextLight = Math.min(64, Math.max(28, light + (step % 2 === 0 ? 14 : -10)));
+
+    return hslToHex(nextHue, Math.min(72, sat + 8), nextLight);
+}
+
+function familyInks(bases, count) {
+    const seeds = Array.isArray(bases) && bases.length ? bases : RISK_INKS;
+    return Array.from({ length: Math.max(count, 0) }, (_, index) => {
+        const lap = Math.floor(index / seeds.length);
+        const seed = seeds[index % seeds.length];
+
+        return lap === 0 ? seed : shiftInk(seed, lap);
+    });
+}
+
+function spreadInks(colors) {
+    const seen = new Map();
+
+    return colors.map((color) => {
+        const key = String(color || '').toLowerCase();
+        const used = seen.get(key) || 0;
+        seen.set(key, used + 1);
+
+        return used === 0 ? color : shiftInk(color, used);
+    });
+}
+
 function mixHex(hex, toward, amount) {
     const parse = (value) => [1, 3, 5].map((index) => parseInt(value.slice(index, index + 2), 16));
     const [red, green, blue] = parse(hex);
@@ -96,7 +198,12 @@ export function observatoryBoard(payload) {
     return {
         payload,
         siteQuery: '',
+        riskQuery: '',
         charts: [],
+        canPaint: Boolean(payload?.can_paint),
+        paintUrl: payload?.paint_url || '',
+        brush: null,
+        brushRows: [],
         async init() {
             await (window.whenEcharts ?? import('./echarts'));
             this.draw();
@@ -179,11 +286,100 @@ export function observatoryBoard(payload) {
                 .replace(/\s+/g, ' ')
                 .trim();
         },
-        rankHeight(el, count) {
-            const row = 32;
-            const visible = Math.max(row, el.parentElement?.clientHeight || row * 5);
+        barSize(el, count) {
             const rows = Math.max(count, 1);
-            el.style.height = rows * row > visible ? `${rows * row}px` : '100%';
+            const gap = 8;
+            const floor = 10;
+            const cap = 28;
+            const visible = Math.max(48, el.parentElement?.clientHeight || 160);
+            let thick = Math.min(cap, Math.max(floor, Math.floor(visible / rows) - gap));
+            const pitch = thick + gap;
+            el.style.height = rows * pitch > visible ? `${rows * pitch}px` : '100%';
+
+            return thick;
+        },
+        openBrush(chart) {
+            if (this.brush === chart) {
+                this.brush = null;
+
+                return;
+            }
+            this.brushRows = (this.payload?.paints?.[chart] || []).map((row) => ({ ...row }));
+            this.brush = chart;
+        },
+        previewBrush(key, color) {
+            const row = this.brushRows.find((item) => item.key === key);
+            if (!row || !this.brush) {
+                return;
+            }
+            row.color = color;
+            this.applyBrush(this.brush, this.brushRows);
+        },
+        async saveBrush() {
+            if (!this.paintUrl || !this.brush) {
+                return;
+            }
+            const colors = {};
+            this.brushRows.forEach((row) => {
+                colors[row.key] = row.color;
+            });
+            const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            await fetch(this.paintUrl, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': token,
+                },
+                body: JSON.stringify({ chart: this.brush, colors }),
+            });
+        },
+        applyBrush(chart, rows) {
+            const paints = { ...(this.payload?.paints || {}), [chart]: rows.map((row) => ({ ...row })) };
+            const next = { ...this.payload, paints };
+            const colors = rows.map((row) => row.color);
+            if (chart === 'sources' || chart === 'origins') {
+                next[chart] = { ...(next[chart] || {}), colors };
+            }
+            if (chart === 'trend') {
+                const byKey = Object.fromEntries(rows.map((row) => [row.key, row.color]));
+                next.trend = {
+                    ...(next.trend || {}),
+                    series: (next.trend?.series || []).map((row) => ({ ...row, color: byKey[row.key] || row.color })),
+                };
+            }
+            this.payload = next;
+            this.draw();
+        },
+        filterRisk() {
+            const body = document.querySelector('[data-obs-risk-body]');
+            if (!body) {
+                return;
+            }
+            const query = this.normalize(this.riskQuery);
+            let shown = 0;
+            body.querySelectorAll('tr[data-site]').forEach((row) => {
+                const hit = query === '' || this.normalize(row.dataset.site).includes(query);
+                row.hidden = !hit;
+                if (hit) {
+                    shown += 1;
+                }
+            });
+            let empty = body.querySelector('tr[data-risk-empty]');
+            const needed = query !== '' && shown === 0 && body.querySelector('tr[data-site]');
+            if (needed && !empty) {
+                empty = document.createElement('tr');
+                empty.dataset.riskEmpty = '1';
+                const cell = document.createElement('td');
+                cell.colSpan = 9;
+                cell.className = 'px-2 py-6 text-center text-slate-500';
+                cell.textContent = 'Sin instalaciones';
+                empty.append(cell);
+                body.append(empty);
+            }
+            if (empty) {
+                empty.hidden = !needed;
+            }
         },
         lines(el, series) {
             const chart = this.mount(el);
@@ -220,15 +416,15 @@ export function observatoryBoard(payload) {
                     axisLabel: { color: MUTED, fontSize: 10 },
                     splitLine: { lineStyle: { color: GRID } },
                 },
-                series: rows.map((row) => ({
+                series: rows.map((row, index) => ({
                     type: 'line',
                     name: row.label,
                     data: row.values?.length ? row.values : labels.map(() => 0),
                     smooth: 0.35,
                     symbol: 'circle',
                     symbolSize: 6,
-                    lineStyle: { width: 2, color: row.color },
-                    itemStyle: { color: row.color },
+                    lineStyle: { width: 2, color: row.color || '#94a3b8' },
+                    itemStyle: { color: row.color || '#94a3b8' },
                 })),
             }, true);
         },
@@ -239,7 +435,7 @@ export function observatoryBoard(payload) {
             }
             const labels = series.labels?.length ? series.labels : ['Link público', 'WhatsApp', 'App de patrulla', 'API', 'Panel'];
             const values = series.values?.length ? series.values : labels.map(() => 0);
-            const colors = ['#14b8a6', '#22c55e', '#f59e0b', '#a78bfa', '#818cf8'];
+            const colors = series.colors?.length ? series.colors : labels.map((_, index) => familyInks(this.payload?.inks, labels.length)[index]);
             const empty = values.every((value) => Number(value) === 0);
             const legendH = 34;
             const width = el.clientWidth || 240;
@@ -360,7 +556,8 @@ export function observatoryBoard(payload) {
             const labels = series?.labels?.length ? series.labels : [];
             const values = (series?.values || []).map((value) => Number(value) || 0);
             const colors = series?.colors || [];
-            this.rankHeight(el, labels.length || 1);
+            const thick = this.barSize(el, labels.length || 1);
+            const inks = spreadInks(colors);
             const chart = this.mount(el);
             if (!chart) {
                 return;
@@ -376,14 +573,22 @@ export function observatoryBoard(payload) {
                 chart.resize();
                 return;
             }
-            const width = 12;
-            const cap = 5;
+            const cap = thick;
             const max = Math.max(1, ...values);
+            const total = values.reduce((sum, value) => sum + value, 0);
             const track = isLight() ? '#e2e8f0' : '#1e293b';
             chart.setOption({
                 animation: false,
                 grid: { left: 8, right: 36, top: 4, bottom: 4, containLabel: true },
-                tooltip: { trigger: 'axis', ...tip() },
+                tooltip: {
+                    trigger: 'axis',
+                    ...floatTip(),
+                    formatter(items) {
+                        const list = Array.isArray(items) ? items : [items];
+                        const row = list.find((item) => item.seriesName === 'barra') || list[0];
+                        return barCard(row?.axisValueLabel || row?.name || '', total, Number(row?.value) || 0);
+                    },
+                },
                 xAxis: { type: 'value', min: 0, max, show: false },
                 yAxis: {
                     type: 'category',
@@ -396,7 +601,7 @@ export function observatoryBoard(payload) {
                 series: [
                     {
                         type: 'bar',
-                        barWidth: width,
+                        barWidth: thick,
                         barGap: '-100%',
                         silent: true,
                         z: 1,
@@ -404,8 +609,9 @@ export function observatoryBoard(payload) {
                         itemStyle: { color: track, borderRadius: 0 },
                     },
                     {
+                        name: 'barra',
                         type: 'bar',
-                        barWidth: width,
+                        barWidth: thick,
                         barGap: '-100%',
                         z: 2,
                         label: {
@@ -419,13 +625,13 @@ export function observatoryBoard(payload) {
                         },
                         data: values.map((value, index) => ({
                             value: value > 0 ? value : null,
-                            itemStyle: { color: cylinderGradient(colors[index] || '#94a3b8', false), borderRadius: 0 },
+                            itemStyle: { color: cylinderGradient(inks[index] || '#14532d', false), borderRadius: 0 },
                         })),
                     },
                     {
                         type: 'pictorialBar',
                         symbol: 'circle',
-                        symbolSize: [cap, width],
+                        symbolSize: [cap, thick],
                         symbolPosition: 'end',
                         symbolOffset: [cap / 2, 0],
                         silent: true,
@@ -433,7 +639,7 @@ export function observatoryBoard(payload) {
                         z: 3,
                         data: values.map((value, index) => ({
                             value: value > 0 ? value : null,
-                            itemStyle: { color: colors[index] || '#94a3b8' },
+                            itemStyle: { color: inks[index] || '#14532d' },
                         })),
                     },
                 ],
@@ -447,7 +653,12 @@ export function observatoryBoard(payload) {
             }
             const query = this.normalize(this.siteQuery);
             const rows = (this.payload?.sites?.rows || []).filter((row) => query === '' || this.normalize(row.name).includes(query));
-            this.rankHeight(el, rows.length || 1);
+            rows.forEach((row) => {
+                const parts = row.parts || [];
+                const inks = spreadInks(parts.map((part) => part.color || '#14532d'));
+                row.parts = parts.map((part, index) => ({ ...part, color: inks[index] }));
+            });
+            const thick = this.barSize(el, rows.length || 1);
             const chart = this.mount(el);
             if (!chart) {
                 return;
@@ -470,15 +681,15 @@ export function observatoryBoard(payload) {
                 }
             }));
             const totals = rows.map((row) => Number(row.total) || 0);
+            const grand = totals.reduce((sum, value) => sum + value, 0);
             const max = Math.max(1, ...totals);
-            const width = 12;
-            const cap = 5;
+            const cap = thick;
             const track = isLight() ? '#e2e8f0' : '#1e293b';
             const stacked = names.map((name) => ({
                 name,
                 type: 'bar',
                 stack: 'site',
-                barWidth: width,
+                barWidth: thick,
                 barGap: '-100%',
                 z: 2,
                 data: rows.map((row) => {
@@ -494,15 +705,15 @@ export function observatoryBoard(payload) {
                 grid: { left: 8, right: 36, top: 4, bottom: 4, containLabel: true },
                 tooltip: {
                     trigger: 'axis',
-                    ...tip(),
+                    ...floatTip(),
                     formatter(items) {
                         const list = Array.isArray(items) ? items : [items];
                         const title = list[0]?.axisValueLabel || list[0]?.name || '';
-                        const lines = list
+                        const index = list[0]?.dataIndex ?? 0;
+                        const parts = list
                             .filter((item) => item.seriesName && Number(item.value) > 0)
-                            .map((item) => `${item.marker}${item.seriesName}: ${item.value}`);
-                        const total = totals[list[0]?.dataIndex] ?? 0;
-                        return [title, ...lines, `Total: ${total}`].join('<br>');
+                            .map((item) => `${escapeTip(item.seriesName)}: ${item.value}`);
+                        return barCard(title, grand, totals[index] ?? 0, parts);
                     },
                 },
                 xAxis: { type: 'value', min: 0, max, show: false },
@@ -517,7 +728,7 @@ export function observatoryBoard(payload) {
                 series: [
                     {
                         type: 'bar',
-                        barWidth: width,
+                        barWidth: thick,
                         barGap: '-100%',
                         silent: true,
                         z: 1,
@@ -528,7 +739,7 @@ export function observatoryBoard(payload) {
                     {
                         type: 'pictorialBar',
                         symbol: 'circle',
-                        symbolSize: [cap, width],
+                        symbolSize: [cap, thick],
                         symbolPosition: 'end',
                         symbolOffset: [cap / 2, 0],
                         silent: true,
@@ -544,7 +755,7 @@ export function observatoryBoard(payload) {
                     },
                     {
                         type: 'bar',
-                        barWidth: width,
+                        barWidth: thick,
                         barGap: '-100%',
                         silent: true,
                         z: 5,
@@ -567,22 +778,31 @@ export function observatoryBoard(payload) {
             chart.resize();
         },
         paintOrigins(series) {
-            const node = document.querySelector('.obs-origins');
+            const node = this.$refs.origins || document.querySelector('.obs-origins');
             if (!node || !series) {
                 return;
             }
             const labels = series.labels?.length ? series.labels : ['Sin origen'];
             const values = (series.values?.length ? series.values : [0]).map((value) => Number(value) || 0);
-            const palette = ['#22c55e', '#eab308', '#f97316', '#f43f5e', '#818cf8', '#14b8a6', '#a78bfa', '#94a3b8'];
-            const width = 12;
-            const cap = 5;
+            const inks = series.colors?.length ? series.colors : familyInks(this.payload?.inks, labels.length);
+            const thick = this.barSize(node, labels.length || 1);
+            const cap = thick;
             const max = Math.max(1, ...values);
+            const total = values.reduce((sum, value) => sum + value, 0);
             const track = isLight() ? '#e2e8f0' : '#1e293b';
             const chart = this.mount(node);
             chart.setOption({
                 animation: false,
-                grid: { left: 8, right: 16, top: 4, bottom: 4, containLabel: true },
-                tooltip: { trigger: 'axis', ...tip() },
+                grid: { left: 8, right: 36, top: 4, bottom: 4, containLabel: true },
+                tooltip: {
+                    trigger: 'axis',
+                    ...floatTip(),
+                    formatter(items) {
+                        const list = Array.isArray(items) ? items : [items];
+                        const row = list.find((item) => item.seriesName === 'barra') || list[0];
+                        return barCard(row?.axisValueLabel || row?.name || '', total, Number(row?.value) || 0);
+                    },
+                },
                 xAxis: { type: 'value', min: 0, max, show: false },
                 yAxis: {
                     type: 'category',
@@ -595,7 +815,7 @@ export function observatoryBoard(payload) {
                 series: [
                     {
                         type: 'bar',
-                        barWidth: width,
+                        barWidth: thick,
                         barGap: '-100%',
                         silent: true,
                         z: 1,
@@ -603,19 +823,20 @@ export function observatoryBoard(payload) {
                         itemStyle: { color: track, borderRadius: 0 },
                     },
                     {
+                        name: 'barra',
                         type: 'bar',
-                        barWidth: width,
+                        barWidth: thick,
                         barGap: '-100%',
                         z: 2,
                         data: values.map((value, index) => ({
                             value: value > 0 ? value : null,
-                            itemStyle: { color: cylinderGradient(palette[index % palette.length], false), borderRadius: 0 },
+                            itemStyle: { color: cylinderGradient(inks[index] || '#14532d', false), borderRadius: 0 },
                         })),
                     },
                     {
                         type: 'pictorialBar',
                         symbol: 'circle',
-                        symbolSize: [cap, width],
+                        symbolSize: [cap, thick],
                         symbolPosition: 'end',
                         symbolOffset: [cap / 2, 0],
                         silent: true,
@@ -623,11 +844,12 @@ export function observatoryBoard(payload) {
                         z: 3,
                         data: values.map((value, index) => ({
                             value: value > 0 ? value : null,
-                            itemStyle: { color: palette[index % palette.length] },
+                            itemStyle: { color: inks[index] || '#14532d' },
                         })),
                     },
                 ],
             }, true);
+            chart.resize();
         },
         paintRisk(risk) {
             const body = document.querySelector('[data-obs-risk-body]');
@@ -653,6 +875,7 @@ export function observatoryBoard(payload) {
             risk.rows.forEach((row) => {
                 const tr = document.createElement('tr');
                 tr.className = 'border-t border-slate-800';
+                tr.dataset.site = row.name || '';
                 const name = document.createElement('td');
                 name.className = 'px-2 py-1.5 text-slate-200';
                 name.textContent = row.name || '';
@@ -692,6 +915,7 @@ export function observatoryBoard(payload) {
                 body.append(tr);
             });
             window.obsPaintRiskCylinders?.();
+            this.filterRisk();
         },
     };
 }

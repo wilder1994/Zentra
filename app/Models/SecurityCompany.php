@@ -107,6 +107,7 @@ class SecurityCompany extends Model
     {
         return [
             'is_active' => 'boolean',
+            'observatory_chart_colors' => 'array',
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
             'package_size' => 'integer',

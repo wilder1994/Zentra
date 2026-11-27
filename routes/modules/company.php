@@ -96,6 +96,8 @@ Route::middleware(['auth', 'password.changed', 'active', 'company', 'tenant.unsc
                 ->name('observatory.types.store');
             Route::put('/observatory/risk', [ObservatoryRiskController::class, 'update'])
                 ->name('observatory.risk.update');
+            Route::put('/observatory/charts/colors', [ObservatoryEventController::class, 'paint'])
+                ->name('observatory.charts.paint');
             Route::put('/observatory/types/{type}', [ObservatoryReportTypeController::class, 'update'])
                 ->name('observatory.types.update');
             Route::delete('/observatory/types/{type}', [ObservatoryReportTypeController::class, 'destroy'])

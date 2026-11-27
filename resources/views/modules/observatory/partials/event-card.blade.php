@@ -12,9 +12,9 @@
     $version = $event->version();
     $statusError = $errors->has('note') && old('status') !== null;
     $toneColor = match ($event->status?->value) {
-        'nuevo' => 'var(--ui-caution)',
-        'en_atencion' => '#818cf8',
-        'cerrado' => 'var(--ui-success)',
+        'nuevo' => '#ef4444',
+        'en_atencion' => '#f59e0b',
+        'cerrado' => '#10b981',
         default => 'var(--ui-accent)',
     };
     $moveBase = str_replace('999999999', '__ID__', route($moveRoute, [$event, 999999999]));
@@ -39,7 +39,7 @@
         flex-direction: column;
         overflow: hidden;
         border-radius: 0.75rem;
-        border: 1px solid color-mix(in srgb, var(--ui-accent) 42%, var(--ui-border));
+        border: 1px solid var(--folio-tone);
         background: color-mix(in srgb, var(--ui-accent) 9%, var(--ui-surface));
         padding: 0.55rem 0.7rem 0.6rem;
     }
@@ -103,8 +103,14 @@
         text-underline-offset: 2px;
     }
     .obs-pass:hover { color: var(--ui-accent); }
+    .obs-pane-info { border-top-width: 3px; }
+    .obs-folio-map {
+        border-radius: 0.75rem;
+        border: 1px solid var(--folio-tone);
+        overflow: hidden;
+    }
 </style>
-<div class="obs-folio" x-data="{
+<div class="obs-folio" style="--folio-tone: {{ $toneColor }}" x-data="{
     noteOpen: {{ $statusError && old('status', '') !== 'cerrado' ? 'true' : 'false' }},
     closeOpen: {{ $statusError && old('status') === 'cerrado' ? 'true' : 'false' }},
     versionOpen: false,
@@ -138,7 +144,7 @@
         @endif
     </div>
 
-    <div class="obs-pane" style="--folio-tone: {{ $toneColor }}; border-top: 2px solid var(--folio-tone);">
+    <div class="obs-pane obs-pane-info">
         <div class="min-h-0 flex-1 overflow-y-auto sidebar-scroll pr-1">
             <div class="obs-pane-head">
                 <span class="font-mono normal-case tracking-normal" style="color: var(--ui-text)">{{ $event->folio() }}</span>

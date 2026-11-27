@@ -9,6 +9,7 @@ use App\Models\Client;
 use App\Models\Installation;
 use App\Models\ObservatoryEvent;
 use App\Models\ObservatoryReportType;
+use App\Models\SecurityCompany;
 use App\Models\User;
 use App\Services\Observatory\EnsureObservatoryReportTypesService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -88,15 +89,23 @@ final class ObservatoryCompanyManageTest extends TestCase
             ->assertDownload('Informe_Observatorio_ie-santa-librada_'.now()->startOfYear()->toDateString().'_'.now()->toDateString().'.pptx');
 
         $slides = $this->slideTexts($file->baseResponse->getFile()->getPathname());
-        $this->assertCount(5, $slides);
+        $joined = implode(' ', $slides);
+        $this->assertGreaterThanOrEqual(9, count($slides));
         $this->assertStringContainsString('Eventos y riesgos', $slides[0]);
         $this->assertStringContainsString('Instalación', $slides[0]);
+        $this->assertStringContainsString('Por mes', $slides[0]);
         $this->assertStringContainsString('Endógeno: Amenaza', $slides[0]);
-        $this->assertStringContainsString('Mapa de calor', $slides[2]);
+        $this->assertStringContainsString('Tablero', $slides[1]);
+        $this->assertStringContainsString('Mapa', $slides[2]);
         $this->assertStringContainsString('EV-', $slides[2]);
-        $this->assertStringContainsString('Amenaza · ALTO', $slides[3]);
-        $this->assertStringNotContainsString('IE Republica del Peru', implode(' ', $slides));
-        $this->assertStringContainsString('Gracias', $slides[4]);
+        $this->assertStringContainsString('Atención, fuentes y orígenes', $joined);
+        $this->assertStringContainsString('Tendencia · Por mes', $joined);
+        $this->assertStringContainsString('Delitos y reportes por instalación', $joined);
+        $this->assertStringContainsString('Riesgo por instalación', $joined);
+        $this->assertStringContainsString('entrada principal', $joined);
+        $this->assertStringNotContainsString('Amenaza · ALTO', $joined);
+        $this->assertStringNotContainsString('IE Republica del Peru', $joined);
+        $this->assertStringContainsString('Gracias', $slides[array_key_last($slides)]);
     }
 
     /** @return list<string> Texto de cada diapositiva en orden. */
@@ -151,6 +160,30 @@ final class ObservatoryCompanyManageTest extends TestCase
             ->delete(route('company.observatory.types.destroy', $type))
             ->assertRedirect();
         $this->assertDatabaseMissing('observatory_report_types', ['id' => $type->id]);
+    }
+
+    public function test_company_manager_paints_a_chart_and_the_client_cannot(): void
+    {
+        $this->seedWithPilot();
+        $company = $this->company();
+
+        $this->actingAs($company)
+            ->putJson(route('company.observatory.charts.paint'), [
+                'chart' => 'sources',
+                'colors' => ['whatsapp' => '#112233'],
+            ])
+            ->assertOk();
+
+        $stored = SecurityCompany::query()->findOrFail($company->security_company_id);
+        $this->assertSame('#112233', $stored->observatory_chart_colors['sources']['whatsapp'] ?? null);
+
+        $client = User::query()->where('email', 'admin@palmasdelingenio.test')->firstOrFail();
+        $this->actingAs($client)
+            ->putJson(route('company.observatory.charts.paint'), [
+                'chart' => 'sources',
+                'colors' => ['whatsapp' => '#abcdef'],
+            ])
+            ->assertForbidden();
     }
 
     /** @return list<string> */

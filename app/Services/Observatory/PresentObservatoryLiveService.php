@@ -32,6 +32,8 @@ final class PresentObservatoryLiveService
                 'sites' => $board['sites'] ?? ['rows' => []],
                 'sources' => $board['sources'] ?? ['labels' => [], 'values' => []],
                 'origins' => $board['origins'] ?? ['labels' => [], 'values' => []],
+                'paints' => $board['paints'] ?? ['sources' => [], 'origins' => [], 'trend' => []],
+                'inks' => $board['inks'] ?? ['#14532d', '#854d0e', '#9a3412', '#9f1239'],
                 'risk' => $this->riskBoard($risk),
             ],
             'map' => [

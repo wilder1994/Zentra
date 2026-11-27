@@ -12,6 +12,7 @@ use App\Models\Installation;
 use App\Models\ObservatoryEvent;
 use App\Models\ObservatoryReport;
 use App\Models\ObservatoryReportType;
+use App\Models\RiskModelParameter;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -50,6 +51,9 @@ final class BuildObservatoryBoardService
         $nuevo = (int) ($counts[ObservatoryEventStatus::Nuevo->value] ?? 0);
         $enAtencion = (int) ($counts[ObservatoryEventStatus::EnAtencion->value] ?? 0);
         $cerrado = (int) ($counts[ObservatoryEventStatus::Cerrado->value] ?? 0);
+        $owner = $this->ownerId($companyId, $clientId);
+        $parameters = $owner > 0 ? RiskModelParameter::forCompany($owner) : null;
+        $stored = app(ObservatoryChartPalette::class)->stored($owner);
         $types = $this->types($companyId, $clientId);
         $kinds = $this->seriesByType($query, $types);
 
@@ -60,13 +64,20 @@ final class BuildObservatoryBoardService
             'cerrado' => $cerrado,
             'closed_rate' => $total === 0 ? 0 : (int) round(100 * $cerrado / $total),
             'load_rate' => self::loadRate($nuevo, $enAtencion, $total),
-            'trend' => $this->trendByType($companyId, $clientId, $installationIds, $from, $to, $grain, $types, $status, $typeIds),
+            'trend' => $this->trendByType($companyId, $clientId, $installationIds, $from, $to, $grain, $types, $status, $typeIds, $stored),
             'peaks' => $this->peakDays($companyId, $clientId, $installationIds, $from, $to, $status, $typeIds),
             'kinds' => $kinds,
             'crimes' => $this->crimeRank($kinds),
             'sites' => $this->siteRank($query, $types),
-            'sources' => $this->seriesByReport($query, 'source', ObservatoryReportSource::cases()),
-            'origins' => $this->originSeries($query),
+            'inks' => [
+                $this->ink($parameters, 'BAJO'),
+                $this->ink($parameters, 'MEDIO'),
+                $this->ink($parameters, 'ALTO'),
+                $this->ink($parameters, 'CRITICO'),
+            ],
+            'sources' => $this->paintSeries($this->seriesByReport($query, 'source', ObservatoryReportSource::cases()), 'sources', $stored, array_map(fn (ObservatoryReportSource $source): string => $source->value, ObservatoryReportSource::cases())),
+            'origins' => $this->paintSeries($this->originSeries($query), 'origins', $stored, array_column($this->originDefinitions(), 'value')),
+            'paints' => $this->paints($types, $stored),
             'types' => $types,
             'grain' => $grain,
         ];
@@ -130,6 +141,7 @@ final class BuildObservatoryBoardService
         array $types,
         string $status = '',
         ?array $typeIds = null,
+        array $stored = [],
     ): array {
         [$start, $end] = $this->range($from, $to, $grain);
         [$labels, $keys, $sql] = $this->buckets($start, $end, $grain);
@@ -161,7 +173,8 @@ final class BuildObservatoryBoardService
             }
             $series[] = [
                 'label' => $type['name'],
-                'color' => $type['color'],
+                'key' => (string) $type['slug'],
+                'color' => app(ObservatoryChartPalette::class)->color($stored, 'trend', (string) $type['slug'], count($series)),
                 'values' => $values,
             ];
         }
@@ -226,7 +239,7 @@ final class BuildObservatoryBoardService
             }
             $labels[] = $type['name'];
             $values[] = $count;
-            $colors[] = $type['color'];
+            $colors[] = (string) ($type['color'] ?? '#94a3b8');
         }
 
         return ['labels' => $labels, 'values' => $values, 'colors' => $colors];
@@ -294,7 +307,7 @@ final class BuildObservatoryBoardService
                 if ($count < 1) {
                     continue;
                 }
-                $parts[] = ['name' => $type['name'], 'color' => $type['color'], 'count' => $count];
+                $parts[] = ['name' => $type['name'], 'color' => (string) ($type['color'] ?? '#94a3b8'), 'count' => $count];
                 $matched += $count;
             }
             $leftover = array_sum($counts) - $matched;
@@ -434,5 +447,82 @@ final class BuildObservatoryBoardService
         }
 
         return [$labels, $keys, 'DATE(created_at)'];
+    }
+
+    private function ownerId(?int $companyId, ?int $clientId): int
+    {
+        if ($companyId !== null && $companyId > 0) {
+            return $companyId;
+        }
+        if ($clientId === null) {
+            return 0;
+        }
+
+        return (int) Client::query()->whereKey($clientId)->value('security_company_id');
+    }
+
+    /**
+     * @param  array{labels: list<string>, values: list<int>}  $series
+     * @param  array<string, array<string, string>>  $stored
+     * @param  list<string>  $keys
+     * @return array{labels: list<string>, values: list<int>, keys: list<string>, colors: list<string>}
+     */
+    private function paintSeries(array $series, string $chart, array $stored, array $keys): array
+    {
+        $palette = app(ObservatoryChartPalette::class);
+        $colors = [];
+        foreach ($keys as $index => $key) {
+            $colors[] = $palette->color($stored, $chart, $key, $index);
+        }
+        $series['keys'] = $keys;
+        $series['colors'] = $colors;
+
+        return $series;
+    }
+
+    /**
+     * @param  list<array{slug: string, name: string}>  $types
+     * @param  array<string, array<string, string>>  $stored
+     * @return array{sources: list<array{key: string, label: string, color: string}>, origins: list<array{key: string, label: string, color: string}>, trend: list<array{key: string, label: string, color: string}>}
+     */
+    private function paints(array $types, array $stored): array
+    {
+        $palette = app(ObservatoryChartPalette::class);
+        $sources = [];
+        foreach (ObservatoryReportSource::cases() as $index => $source) {
+            $sources[] = [
+                'key' => $source->value,
+                'label' => $source->label(),
+                'color' => $palette->color($stored, 'sources', $source->value, $index),
+            ];
+        }
+        $origins = [];
+        foreach ($this->originDefinitions() as $index => $origin) {
+            $origins[] = [
+                'key' => $origin['value'],
+                'label' => $origin['label'],
+                'color' => $palette->color($stored, 'origins', $origin['value'], $index),
+            ];
+        }
+        $trend = [];
+        foreach (array_values($types) as $index => $type) {
+            $trend[] = [
+                'key' => (string) $type['slug'],
+                'label' => (string) $type['name'],
+                'color' => $palette->color($stored, 'trend', (string) $type['slug'], $index),
+            ];
+        }
+
+        return ['sources' => $sources, 'origins' => $origins, 'trend' => $trend];
+    }
+
+    private function ink(?RiskModelParameter $parameters, string $band): string
+    {
+        return $parameters?->colorFor($band) ?? match ($band) {
+            'MEDIO' => '#854d0e',
+            'ALTO' => '#9a3412',
+            'CRITICO' => '#9f1239',
+            default => '#14532d',
+        };
     }
 }

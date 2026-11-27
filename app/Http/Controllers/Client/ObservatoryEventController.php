@@ -154,6 +154,9 @@ final class ObservatoryEventController extends Controller
             'from' => $filters->from,
             'to' => $filters->to,
             'grain' => $filters->grain(),
+            'risk' => app(ExportObservatoryBoardService::class)->riskRows(
+                app(BuildInstallationRiskService::class)->execute((int) $client->security_company_id, $clientId, $siteIds),
+            ),
         ]);
 
         return response()

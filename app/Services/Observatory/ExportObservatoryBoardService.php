@@ -16,6 +16,7 @@ use PhpOffice\PhpPresentation\Shape\Chart\Series;
 use PhpOffice\PhpPresentation\Shape\Chart\Type\AbstractType;
 use PhpOffice\PhpPresentation\Shape\Chart\Type\Bar;
 use PhpOffice\PhpPresentation\Shape\Chart\Type\Doughnut;
+use PhpOffice\PhpPresentation\Shape\Chart\Type\Line;
 use PhpOffice\PhpPresentation\Shape\Table\Row;
 use PhpOffice\PhpPresentation\Slide;
 use PhpOffice\PhpPresentation\Slide\Background\Color as BackgroundColor;
@@ -35,7 +36,13 @@ final class ExportObservatoryBoardService
 
     private const SLATE = 'FF334155';
 
-    private const GOLD = 'FFFBBF24';
+    private const GOLD = 'FF14B8A6';
+
+    private const NUEVO = 'FFEF4444';
+
+    private const TRAMITE = 'FFF59E0B';
+
+    private const CERRADO = 'FF10B981';
 
     private const CYAN = 'FF38BDF8';
 
@@ -85,9 +92,11 @@ final class ExportObservatoryBoardService
             $this->coverSlide($ppt->getActiveSlide(), $board, $meta, $logo);
             $this->summarySlide($this->slide($ppt), $board, $meta);
             $this->heatMapSlide($this->slide($ppt), $data, $meta);
-            foreach ($data['by_type'] as $type) {
-                $this->typeSlide($this->slide($ppt), $type, $board, (int) $board['total'], $meta);
-            }
+            $this->mixSlide($this->slide($ppt), $board, $meta);
+            $this->trendSlide($this->slide($ppt), $board, $meta);
+            $this->rankSlide($this->slide($ppt), $board, $meta);
+            $this->riskSlides($ppt, $meta);
+            $this->reportSlides($ppt, $data, $meta);
             $this->closingSlide($this->slide($ppt), $meta, $logo);
 
             $path = $this->save($ppt);
@@ -118,6 +127,29 @@ final class ExportObservatoryBoardService
     }
 
     /** @param  array{scope: string, scope_kind: string, filters: list<string>, from: ?string, to: ?string}  $meta */
+    /**
+     * @param  array{parameters?: \App\Models\RiskModelParameter, rows?: list<array<string, mixed>>}  $risk
+     * @return list<array{name: string, comuna: string, reports: int, score: float, band: string, color: string}>
+     */
+    public function riskRows(array $risk): array
+    {
+        $parameters = $risk['parameters'] ?? null;
+        $rows = [];
+        foreach ($risk['rows'] ?? [] as $row) {
+            $band = (string) ($row['band'] ?? 'BAJO');
+            $rows[] = [
+                'name' => (string) ($row['name'] ?? ''),
+                'comuna' => (string) ($row['comuna'] ?? ''),
+                'reports' => (int) ($row['reports'] ?? 0),
+                'score' => (float) ($row['r_final'] ?? 0),
+                'band' => $band,
+                'color' => $parameters?->colorFor($band) ?? '#14532d',
+            ];
+        }
+
+        return $rows;
+    }
+
     public function fileName(array $meta): string
     {
         $from = $meta['from'] ?: now()->toDateString();
@@ -160,7 +192,7 @@ final class ExportObservatoryBoardService
         $this->text($slide, 'Eventos y riesgos', 60, 228, 840, 60, 40, self::INK, true);
         $scopeSize = mb_strlen($meta['scope']) > 48 ? 15 : (mb_strlen($meta['scope']) > 36 ? 18 : 22);
         $this->text($slide, Str::limit($meta['scope'], 90), 60, 294, 840, 34, $scopeSize, self::CYAN, true);
-        $this->text($slide, $meta['scope_kind'].' · '.$this->periodLabel($meta['from'], $meta['to']), 60, 332, 840, 26, 15, self::MUTED);
+        $this->text($slide, $meta['scope_kind'].' · '.$this->periodLabel($meta['from'], $meta['to']).' · '.$this->grainLabel((string) ($meta['grain'] ?? 'year')), 60, 332, 840, 26, 15, self::MUTED);
         $this->text(
             $slide,
             $meta['filters'] === [] ? 'Sin filtros adicionales' : 'Filtros: '.implode(' · ', $meta['filters']),
@@ -193,7 +225,7 @@ final class ExportObservatoryBoardService
     /** @param  array<string, mixed>  $board */
     private function summarySlide(Slide $slide, array $board, array $meta): void
     {
-        $this->heading($slide, 'Resumen del periodo', $this->caption($meta));
+        $this->heading($slide, 'Tablero', $this->caption($meta));
 
         $total = (int) $board['total'];
         $load = (int) ($board['load_rate'] ?? 0);
@@ -206,9 +238,9 @@ final class ExportObservatoryBoardService
 
         $boxes = [
             [$this->int($total), 'Folios', $this->int((int) array_sum($board['kinds']['values'] ?? [])).' reportes', self::CARD, self::INK],
-            [$this->int((int) $board['nuevo']), 'Nuevos', 'sin atender aún', self::CARD, self::AMBER],
-            [$this->int((int) $board['en_atencion']), 'En atención', 'en seguimiento', self::CARD, self::INDIGO],
-            [$this->int((int) $board['cerrado']), 'Cerrados', $this->pct((int) $board['cerrado'], $total).' del total', self::CARD, self::GREEN],
+            [$this->int((int) $board['nuevo']), 'Nuevos', 'sin atender aún', self::CARD, self::NUEVO],
+            [$this->int((int) $board['en_atencion']), 'En trámite', 'en seguimiento', self::CARD, self::TRAMITE],
+            [$this->int((int) $board['cerrado']), 'Cerrados', $this->pct((int) $board['cerrado'], $total).' del total', self::CARD, self::CERRADO],
             [$load.' %', 'Gestión', $total === 0 ? 'sin folios' : ($load >= 67 ? 'alta' : ($load >= 34 ? 'media' : 'baja')), $loadFill, $loadInk],
         ];
         foreach ($boxes as $index => [$value, $label, $detail, $fill, $ink]) {
@@ -228,66 +260,12 @@ final class ExportObservatoryBoardService
             $run = $shape->createTextRun($detail);
             $run->getFont()->setName('Calibri')->setSize(9)->setColor(new Color($fill === self::CARD ? self::MUTED : self::NAVY));
         }
-
-        $this->donut($slide, 'Estado de los folios', [
-            'Nuevos' => (int) $board['nuevo'],
-            'En atención' => (int) $board['en_atencion'],
-            'Cerrados' => (int) $board['cerrado'],
-        ], [self::AMBER, self::INDIGO, self::GREEN], 40, 208, 284, 206);
-
-        $kinds = $this->combine($board['kinds']['labels'] ?? [], $board['kinds']['values'] ?? []);
-        $kindColors = array_map(fn ($c): string => $this->argb((string) $c), $board['kinds']['colors'] ?? []);
-        $this->coloredBars($slide, 'Riesgo endógeno', $kinds, $kindColors, 338, 208, 284, 206);
-
-        $sources = array_filter($this->combine($board['sources']['labels'] ?? [], $board['sources']['values'] ?? []));
-        $this->coloredBars($slide, 'Canal de origen', $sources, [self::CYAN], 636, 208, 284, 206);
-
-        $this->paragraphs($slide, [[$this->summaryNarrative($board, $kinds, $sources), self::INK]], 40, 424, 880, 96, 12);
-    }
-
-    /**
-     * @param  array<string, mixed>  $board
-     * @param  array<string, int>  $kinds
-     * @param  array<string, int>  $sources
-     */
-    private function summaryNarrative(array $board, array $kinds, array $sources): string
-    {
-        $total = (int) $board['total'];
-        if ($total === 0) {
-            return 'No hubo folios con los filtros y el periodo elegidos.';
-        }
-
-        $text = 'En el periodo se abrieron '.$this->count($total, 'folio', 'folios').': '
-            .$this->int((int) $board['nuevo']).' nuevos, '.$this->int((int) $board['en_atencion']).' en atención y '
-            .$this->int((int) $board['cerrado']).' cerrados ('.$this->pct((int) $board['cerrado'], $total).').';
-        $text .= ' La gestión es de '.((int) $board['load_rate']).' % (cerrar suma el folio completo y pasarlo a trámite suma la mitad).';
-
-        arsort($kinds);
-        if (($top = array_key_first($kinds)) !== null && $kinds[$top] > 0) {
-            $text .= ' El riesgo endógeno con más reportes fue '.$top.' ('.$this->int($kinds[$top]).').';
-        }
-
-        $peaks = array_filter($this->combine($board['peaks']['labels'] ?? [], $board['peaks']['values'] ?? []));
-        if ($peaks !== []) {
-            $items = [];
-            foreach (array_slice($peaks, 0, 3, true) as $day => $value) {
-                $items[] = $day.' ('.$this->int($value).')';
-            }
-            $text .= ' Días con más reportes: '.implode(', ', $items).'.';
-        }
-
-        arsort($sources);
-        if (($channel = array_key_first($sources)) !== null) {
-            $text .= ' La mayoría llegó por '.mb_strtolower($channel).' ('.$this->int($sources[$channel]).').';
-        }
-
-        return $text;
     }
 
     /** @param  array<string, mixed>  $data */
     private function heatMapSlide(Slide $slide, array $data, array $meta): void
     {
-        $this->heading($slide, 'Mapa de calor de los folios', $this->caption($meta));
+        $this->heading($slide, 'Mapa', $this->caption($meta));
 
         $map = $this->heatMap->execute($data['points']);
         if ($map === null) {
@@ -310,11 +288,10 @@ final class ExportObservatoryBoardService
         if ($data['without_coords'] > 0) {
             $note .= ' · '.$this->count($data['without_coords'], 'sin ubicación', 'sin ubicación');
         }
-        $note .= '. Cada mancha es una instalación: más grande y más intensa = más folios; el color es el riesgo endógeno predominante.';
         if ($legend !== []) {
-            $note .= ' Catálogo endógeno: '.implode(' · ', $legend).'.';
+            $note .= ' · '.implode(' · ', $legend);
         }
-        $this->paragraphs($slide, [[$note, self::INK]], 40, 452, 880, 68, 11);
+        $this->text($slide, $note, 40, 456, 880, 48, 12, self::MUTED);
     }
 
     /** @param  list<array{site: string, folios: list<string>, color: string}>  $groups */
@@ -347,72 +324,134 @@ final class ExportObservatoryBoardService
         }
     }
 
-    /**
-     * @param  array{name: string, color: string, level: int, events: int, reports: int, status: array<string, int>, sites: array<string, int>}  $type
-     * @param  array<string, mixed>  $board
-     */
-    private function typeSlide(Slide $slide, array $type, array $board, int $total, array $meta): void
+    /** @param  array<string, mixed>  $board */
+    private function mixSlide(Slide $slide, array $board, array $meta): void
     {
-        $band = ($type['band'] ?? 'BAJO') === 'CRITICO' ? 'CRÍTICO' : (string) ($type['band'] ?? 'BAJO');
-        $this->heading($slide, $type['name'].' · '.$band, $this->caption($meta));
-        $this->box($slide, 40, 66, 6, 22, $this->argb($type['color']));
+        $this->heading($slide, 'Atención, fuentes y orígenes', $this->caption($meta));
 
-        $monthly = ($board['grain'] ?? 'day') !== 'day';
-        $labels = array_values($board['trend']['labels'] ?? []);
-        $series = collect($board['trend']['series'] ?? [])->firstWhere('label', $type['name']);
-        $values = $this->combine($labels, $series['values'] ?? []);
-
-        if ($type['events'] === 0) {
-            $this->box($slide, 40, 100, 880, 285, self::CARD);
-            $this->text($slide, 'Sin folios de '.$type['name'].' con los filtros y el periodo elegidos.', 40, 225, 880, 30, 14, self::MUTED, false, Alignment::HORIZONTAL_CENTER);
-            $this->paragraphs($slide, [['Este riesgo endógeno no tuvo reportes en el periodo. Si se esperaban casos, revisa los filtros del tablero (estado, comuna o instalación).', self::MUTED]], 40, 398, 880, 70, 12);
-
-            return;
+        $attention = [];
+        $attentionColors = [];
+        foreach ([
+            ['Cerrados', (int) ($board['cerrado'] ?? 0), self::CERRADO],
+            ['En trámite', (int) ($board['en_atencion'] ?? 0), self::TRAMITE],
+            ['Nuevos', (int) ($board['nuevo'] ?? 0), self::NUEVO],
+        ] as [$label, $value, $color]) {
+            if ($value < 1) {
+                continue;
+            }
+            $attention[$label] = $value;
+            $attentionColors[] = $color;
         }
+        $this->donut($slide, 'Atención de folios', $attention, $attentionColors, 40, 100, 288, 390);
 
-        $bar = new Bar;
-        $bar->setBarDirection(Bar::DIRECTION_VERTICAL);
-        $bar->setBarGrouping(Bar::GROUPING_CLUSTERED);
-        $bar->setGapWidthPercent(60);
-        $bar->addSeries($this->barSeries('Reportes', $values, $this->argb($type['color']), count($values) <= 16));
-        $this->chart($slide, $bar, 40, 100, 520, 285, $monthly ? 'Reportes por mes' : 'Reportes por día', false);
+        [$labels, $values, $colors] = $this->positiveColored($board['sources']['labels'] ?? [], $board['sources']['values'] ?? [], $board['sources']['colors'] ?? []);
+        $this->donut($slide, 'Fuentes', $this->combine($labels, $values), $colors, 336, 100, 288, 390);
 
-        $this->donut($slide, 'Estado de los folios', [
-            'Nuevos' => (int) ($type['status']['nuevo'] ?? 0),
-            'En atención' => (int) ($type['status']['en_atencion'] ?? 0),
-            'Cerrados' => (int) ($type['status']['cerrado'] ?? 0),
-        ], [self::AMBER, self::INDIGO, self::GREEN], 574, 100, 346, 285);
-
-        $this->paragraphs($slide, [[$this->typeNarrative($type, $values, $total, $monthly), self::INK]], 40, 398, 880, 122, 12);
+        [$labels, $values, $colors] = $this->positiveColored($board['origins']['labels'] ?? [], $board['origins']['values'] ?? [], $board['origins']['colors'] ?? []);
+        $this->coloredBars($slide, 'Orígenes', $this->combine($labels, $values), $colors, 632, 100, 288, 390, true);
     }
 
-    /**
-     * @param  array{name: string, events: int, reports: int, status: array<string, int>, sites: array<string, int>}  $type
-     * @param  array<string, int>  $values
-     */
-    private function typeNarrative(array $type, array $values, int $total, bool $monthly): string
+    /** @param  array<string, mixed>  $board */
+    private function trendSlide(Slide $slide, array $board, array $meta): void
     {
-        $text = 'Hubo '.$this->count($type['events'], 'folio', 'folios').' de '.$type['name']
-            .' ('.$this->pct($type['events'], $total).' del total) con '.$this->count($type['reports'], 'reporte', 'reportes').': '
-            .$this->int((int) ($type['status']['nuevo'] ?? 0)).' nuevos, '
-            .$this->int((int) ($type['status']['en_atencion'] ?? 0)).' en atención y '
-            .$this->int((int) ($type['status']['cerrado'] ?? 0)).' cerrados.';
+        $grain = $this->grainLabel((string) ($board['grain'] ?? $meta['grain'] ?? 'year'));
+        $this->heading($slide, 'Tendencia · '.$grain, $this->caption($meta));
 
-        if ($values !== [] && max($values) > 0) {
-            $peak = array_keys($values, max($values))[0];
-            $text .= ' El '.($monthly ? 'mes' : 'día').' con más reportes fue '.$peak.' ('.$this->int($values[$peak]).').';
+        $labels = array_values($board['trend']['labels'] ?? []);
+        $series = [];
+        foreach ($board['trend']['series'] ?? [] as $row) {
+            $series[] = [
+                'label' => (string) ($row['label'] ?? 'Reportes'),
+                'color' => (string) ($row['color'] ?? '#94a3b8'),
+                'values' => array_map(intval(...), $row['values'] ?? []),
+            ];
         }
+        $this->lines($slide, 'Tendencia', $labels, $series, 40, 100, 880, 390);
+    }
 
-        $sites = array_slice($type['sites'], 0, 3, true);
-        if ($sites !== []) {
-            $items = [];
-            foreach ($sites as $name => $count) {
-                $items[] = $name.' ('.$this->int($count).')';
+    /** @param  array<string, mixed>  $board */
+    private function rankSlide(Slide $slide, array $board, array $meta): void
+    {
+        $this->heading($slide, 'Delitos y reportes por instalación', $this->caption($meta));
+
+        $crimes = $board['crimes'] ?? [];
+        $colors = $this->spreadInks(array_map(strval(...), $crimes['colors'] ?? []));
+        $this->coloredBars(
+            $slide,
+            'Delitos',
+            $this->combine($crimes['labels'] ?? [], $crimes['values'] ?? []),
+            array_map($this->argb(...), $colors),
+            40,
+            100,
+            430,
+            390,
+            true,
+        );
+
+        $rows = array_slice($board['sites']['rows'] ?? [], 0, 8);
+        $this->siteBars($slide, $rows, 486, 100, 434, 390);
+    }
+
+    private function riskSlides(PhpPresentation $ppt, array $meta): void
+    {
+        $rows = array_values($meta['risk'] ?? []);
+        $chunks = $rows === [] ? [[]] : array_chunk($rows, 8);
+        foreach ($chunks as $index => $chunk) {
+            $slide = $this->slide($ppt);
+            $page = count($chunks) > 1 ? ' · '.($index + 1).'/'.count($chunks) : '';
+            $this->heading($slide, 'Riesgo por instalación'.$page, $this->caption($meta));
+            if ($chunk === []) {
+                $this->emptyChart($slide, 'Riesgo por instalación', 40, 110, 880, 360);
+
+                continue;
             }
-            $text .= ' Instalaciones con más folios: '.implode(', ', $items).'.';
+            $body = [];
+            foreach ($chunk as $row) {
+                $body[] = [
+                    'cells' => [
+                        Str::limit((string) $row['name'], 32),
+                        Str::limit((string) ($row['comuna'] ?? ''), 22),
+                        $this->int((int) ($row['reports'] ?? 0)),
+                        number_format((float) ($row['score'] ?? 0), 1),
+                        $this->bandLabel((string) ($row['band'] ?? 'BAJO')),
+                    ],
+                    'inks' => [self::INK, self::MUTED, self::INK, self::INK, $this->argb((string) ($row['color'] ?? '#14532d'))],
+                ];
+            }
+            $this->grid($slide, ['Instalación', 'Comuna', 'Reportes', 'R final', 'Semáforo'], $body, [250, 180, 110, 110, 150]);
         }
+    }
 
-        return $text;
+    /** @param  array<string, mixed>  $data */
+    private function reportSlides(PhpPresentation $ppt, array $data, array $meta): void
+    {
+        $rows = array_values($data['reports'] ?? []);
+        $chunks = $rows === [] ? [[]] : array_chunk($rows, 6);
+        foreach ($chunks as $index => $chunk) {
+            $slide = $this->slide($ppt);
+            $page = count($chunks) > 1 ? ' · '.($index + 1).'/'.count($chunks) : '';
+            $this->heading($slide, 'Reportes'.$page, $this->caption($meta));
+            if ($chunk === []) {
+                $this->emptyChart($slide, 'Reportes', 40, 110, 880, 360);
+
+                continue;
+            }
+            $body = [];
+            foreach ($chunk as $row) {
+                $body[] = [
+                    'cells' => [
+                        (string) $row['at'],
+                        (string) $row['folio'],
+                        Str::limit((string) $row['site'], 22),
+                        Str::limit((string) $row['origin'], 22),
+                        Str::limit((string) $row['kind'], 16),
+                        Str::limit((string) $row['excerpt'], 70),
+                    ],
+                    'inks' => array_fill(0, 6, self::INK),
+                ];
+            }
+            $this->grid($slide, ['Fecha', 'Folio', 'Instalación', 'Origen', 'Delito', 'Extracto'], $body, [110, 100, 140, 130, 100, 300]);
+        }
     }
 
     private function closingSlide(Slide $slide, array $meta, ?string $logo): void
@@ -503,7 +542,7 @@ final class ExportObservatoryBoardService
      * @param  array<string, int>  $values
      * @param  list<string>  $colors
      */
-    private function coloredBars(Slide $slide, string $title, array $values, array $colors, int $x, int $y, int $width, int $height): void
+    private function coloredBars(Slide $slide, string $title, array $values, array $colors, int $x, int $y, int $width, int $height, bool $horizontal = false): void
     {
         if (array_sum($values) === 0) {
             $this->emptyChart($slide, $title, $x, $y, $width, $height);
@@ -519,12 +558,99 @@ final class ExportObservatoryBoardService
         }
 
         $bar = new Bar;
-        $bar->setBarDirection(Bar::DIRECTION_VERTICAL);
+        $bar->setBarDirection($horizontal ? Bar::DIRECTION_HORIZONTAL : Bar::DIRECTION_VERTICAL);
         $bar->setBarGrouping(Bar::GROUPING_CLUSTERED);
         $bar->setGapWidthPercent(70);
         $bar->addSeries($series);
 
         $this->chart($slide, $bar, $x, $y, $width, $height, $title, false);
+    }
+
+    /**
+     * @param  list<string>  $labels
+     * @param  list<array{label: string, color: string, values: list<int>}>  $series
+     */
+    private function lines(Slide $slide, string $title, array $labels, array $series, int $x, int $y, int $width, int $height): void
+    {
+        $has = false;
+        foreach ($series as $row) {
+            if (array_sum($row['values']) > 0) {
+                $has = true;
+            }
+        }
+        if ($labels === [] || ! $has) {
+            $this->emptyChart($slide, $title, $x, $y, $width, $height);
+
+            return;
+        }
+
+        $line = new Line;
+        foreach ($series as $row) {
+            $values = [];
+            foreach (array_values($labels) as $index => $label) {
+                $values[(string) $label] = (int) ($row['values'][$index] ?? 0);
+            }
+            $point = $this->barSeries((string) $row['label'], $values, $this->argb((string) $row['color']), false);
+            $point->setShowValue(false);
+            $line->addSeries($point);
+        }
+
+        $this->chart($slide, $line, $x, $y, $width, $height, $title);
+    }
+
+    /** @param  list<array{name: string, parts: list<array{name: string, color: string, count: int}>}>  $rows */
+    private function siteBars(Slide $slide, array $rows, int $x, int $y, int $width, int $height): void
+    {
+        if ($rows === []) {
+            $this->emptyChart($slide, 'Reportes por instalación', $x, $y, $width, $height);
+
+            return;
+        }
+
+        $sites = [];
+        $matrix = [];
+        $colors = [];
+        foreach ($rows as $row) {
+            $sites[] = (string) $row['name'];
+            $parts = $row['parts'] ?? [];
+            $inks = $this->spreadInks(array_map(fn (array $part): string => (string) ($part['color'] ?? '#14532d'), $parts));
+            foreach ($parts as $index => $part) {
+                $name = (string) $part['name'];
+                $matrix[$name][(string) $row['name']] = (int) $part['count'];
+                $colors[$name] ??= $inks[$index] ?? '#14532d';
+            }
+        }
+
+        $bar = new Bar;
+        $bar->setBarDirection(Bar::DIRECTION_HORIZONTAL);
+        $bar->setBarGrouping(Bar::GROUPING_STACKED);
+        $bar->setGapWidthPercent(40);
+        foreach ($matrix as $crime => $counts) {
+            $values = [];
+            foreach ($sites as $site) {
+                $values[$site] = $counts[$site] ?? 0;
+            }
+            $series = $this->barSeries($crime, $values, $this->argb($colors[$crime]), false);
+            $series->setShowValue(false);
+            $bar->addSeries($series);
+        }
+
+        $this->chart($slide, $bar, $x, $y, $width, $height, 'Reportes por instalación');
+    }
+
+    /**
+     * @param  list<string>  $headers
+     * @param  list<array{cells: list<string>, inks: list<string>}>  $rows
+     * @param  list<int>  $widths
+     */
+    private function grid(Slide $slide, array $headers, array $rows, array $widths): void
+    {
+        $table = $slide->createTableShape(count($headers));
+        $table->setOffsetX(40)->setOffsetY(108);
+        $this->tableRow($table->createRow(), $headers, $widths, self::SLATE, array_fill(0, count($headers), self::INK), true);
+        foreach ($rows as $row) {
+            $this->tableRow($table->createRow(), $row['cells'], $widths, self::CARD, $row['inks']);
+        }
     }
 
     private function emptyChart(Slide $slide, string $title, int $x, int $y, int $width, int $height): void
@@ -554,19 +680,20 @@ final class ExportObservatoryBoardService
      * @param  list<string>  $rows
      * @param  list<int>  $widths
      */
-    private function tableRow(Row $row, array $values, array $widths, string $fill, string $ink, bool $header = false): void
+    private function tableRow(Row $row, array $values, array $widths, string $fill, string|array $ink, bool $header = false): void
     {
-        $row->setHeight(26);
+        $inks = is_array($ink) ? $ink : array_fill(0, count($values), $ink);
+        $row->setHeight($header ? 24 : 32);
         foreach ($values as $index => $value) {
             $cell = $row->nextCell();
             $cell->setWidth($widths[$index]);
             $cell->setFill($this->solid($fill));
             $cell->getActiveParagraph()->getAlignment()
-                ->setHorizontal(in_array($index, [1, 2, 3, 6], true) ? Alignment::HORIZONTAL_LEFT : Alignment::HORIZONTAL_CENTER)
+                ->setHorizontal(Alignment::HORIZONTAL_LEFT)
                 ->setMarginLeft(6)
                 ->setMarginRight(6);
             $run = $cell->createTextRun($value);
-            $run->getFont()->setName('Calibri')->setSize($header ? 9 : 10)->setBold($header || $index === 5)->setColor(new Color($ink));
+            $run->getFont()->setName('Calibri')->setSize($header ? 9 : 10)->setBold($header)->setColor(new Color($inks[$index] ?? self::INK));
             foreach ([$cell->getBorders()->getTop(), $cell->getBorders()->getBottom(), $cell->getBorders()->getLeft(), $cell->getBorders()->getRight()] as $border) {
                 $border->setColor(new Color(self::NAVY));
             }
@@ -610,6 +737,163 @@ final class ExportObservatoryBoardService
         }
 
         return $mapped;
+    }
+
+    private function grainLabel(string $grain): string
+    {
+        return $grain === 'day' ? 'Por día' : 'Por mes';
+    }
+
+    private function bandLabel(string $band): string
+    {
+        return match ($band) {
+            'CRITICO' => 'Crítico',
+            'ALTO' => 'Alto',
+            'MEDIO' => 'Medio',
+            default => 'Bajo',
+        };
+    }
+
+    /**
+     * @param  list<mixed>  $labels
+     * @param  list<mixed>  $values
+     * @return array{0: list<string>, 1: list<int>}
+     */
+    private function positive(array $labels, array $values): array
+    {
+        $keptLabels = [];
+        $keptValues = [];
+        foreach (array_values($labels) as $index => $label) {
+            $value = (int) ($values[$index] ?? 0);
+            if ($value < 1) {
+                continue;
+            }
+            $keptLabels[] = (string) $label;
+            $keptValues[] = $value;
+        }
+
+        return [$keptLabels, $keptValues];
+    }
+
+    /**
+     * @param  list<mixed>  $labels
+     * @param  list<mixed>  $values
+     * @param  list<mixed>  $colors
+     * @return array{0: list<string>, 1: list<int>, 2: list<string>}
+     */
+    private function positiveColored(array $labels, array $values, array $colors): array
+    {
+        $keptLabels = [];
+        $keptValues = [];
+        $keptColors = [];
+        foreach (array_values($labels) as $index => $label) {
+            $value = (int) ($values[$index] ?? 0);
+            if ($value < 1) {
+                continue;
+            }
+            $keptLabels[] = (string) $label;
+            $keptValues[] = $value;
+            $keptColors[] = $this->argb((string) ($colors[$index] ?? '#14b8a6'));
+        }
+
+        return [$keptLabels, $keptValues, $keptColors];
+    }
+
+    /** @param  list<string>  $bases
+     * @return list<string>
+     */
+    private function familyArgb(array $bases, int $count): array
+    {
+        return array_map($this->argb(...), $this->familyInks($bases, $count));
+    }
+
+    /** @param  list<string>  $bases
+     * @return list<string>
+     */
+    private function familyInks(array $bases, int $count): array
+    {
+        $seeds = $bases !== [] ? array_values($bases) : ['#14532d', '#854d0e', '#9a3412', '#9f1239'];
+        $out = [];
+        $size = count($seeds);
+        for ($index = 0; $index < $count; $index++) {
+            $lap = intdiv($index, $size);
+            $seed = $seeds[$index % $size];
+            $out[] = $lap === 0 ? $seed : $this->shiftInk($seed, $lap);
+        }
+
+        return $out;
+    }
+
+    /** @param  list<string>  $colors
+     * @return list<string>
+     */
+    private function spreadInks(array $colors): array
+    {
+        $seen = [];
+        $out = [];
+        foreach ($colors as $color) {
+            $key = strtolower($color);
+            $used = $seen[$key] ?? 0;
+            $seen[$key] = $used + 1;
+            $out[] = $used === 0 ? $color : $this->shiftInk($color, $used);
+        }
+
+        return $out;
+    }
+
+    private function shiftInk(string $hex, int $step): string
+    {
+        [$hue, $sat, $light] = $this->rgbToHsl($hex);
+        $nextLight = min(64, max(28, $light + ($step % 2 === 0 ? 14 : -10)));
+
+        return $this->hslToHex($hue + ($step * 18), min(72, $sat + 8), $nextLight);
+    }
+
+    /** @return array{0: float, 1: float, 2: float} */
+    private function rgbToHsl(string $hex): array
+    {
+        $hex = ltrim($hex, '#');
+        $red = hexdec(substr($hex, 0, 2)) / 255;
+        $green = hexdec(substr($hex, 2, 2)) / 255;
+        $blue = hexdec(substr($hex, 4, 2)) / 255;
+        $max = max($red, $green, $blue);
+        $min = min($red, $green, $blue);
+        $light = ($max + $min) / 2;
+        if ($max === $min) {
+            return [0.0, 0.0, $light * 100];
+        }
+        $delta = $max - $min;
+        $sat = $light > 0.5 ? $delta / (2 - $max - $min) : $delta / ($max + $min);
+        $hue = match (true) {
+            $max === $red => fmod(($green - $blue) / $delta, 6),
+            $max === $green => (($blue - $red) / $delta) + 2,
+            default => (($red - $green) / $delta) + 4,
+        };
+
+        return [$hue * 60, $sat * 100, $light * 100];
+    }
+
+    private function hslToHex(float $hue, float $sat, float $light): string
+    {
+        $sat /= 100;
+        $light /= 100;
+        $chroma = (1 - abs((2 * $light) - 1)) * $sat;
+        $hue = fmod($hue, 360);
+        if ($hue < 0) {
+            $hue += 360;
+        }
+        $x = $chroma * (1 - abs(fmod($hue / 60, 2) - 1));
+        $m = $light - ($chroma / 2);
+        [$red, $green, $blue] = match ((int) floor($hue / 60)) {
+            0 => [$chroma, $x, 0],
+            1 => [$x, $chroma, 0],
+            2 => [0, $chroma, $x],
+            3 => [0, $x, $chroma],
+            4 => [$x, 0, $chroma],
+            default => [$chroma, 0, $x],
+        };
+
+        return sprintf('#%02x%02x%02x', (int) round(($red + $m) * 255), (int) round(($green + $m) * 255), (int) round(($blue + $m) * 255));
     }
 
     private function argb(string $hex): string

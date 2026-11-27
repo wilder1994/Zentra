@@ -14,6 +14,7 @@
         'origins' => ['labels' => [], 'values' => []],
     ];
     $observatoryLiveUrl = $observatoryLiveUrl ?? null;
+    $canPaintCharts = $canPaintCharts ?? false;
     $showClientColumn = $showClientColumn ?? false;
     $eventShowRoute = $eventShowRoute ?? 'client.observatory.events.show';
     $accent = $accent ?? 'teal';
@@ -42,6 +43,9 @@
         'sites' => $board['sites'] ?? ['rows' => []],
         'sources' => $board['sources'] ?? ['labels' => [], 'values' => []],
         'origins' => $board['origins'] ?? ['labels' => [], 'values' => []],
+        'paints' => $board['paints'] ?? ['sources' => [], 'origins' => [], 'trend' => []],
+        'can_paint' => $canPaintCharts,
+        'paint_url' => $canPaintCharts ? route('company.observatory.charts.paint') : '',
     ];
     $liveEventRows = collect($events->items() ?? [])->map(static function ($event) use ($eventShowRoute, $showClientColumn): array {
         return [
@@ -63,13 +67,35 @@
     .obs-board { --obs-line: {{ $accent === 'indigo' ? '#818cf8' : '#2dd4bf' }}; }
     .obs-card {
         border-radius: 0.75rem;
-        border: 1px solid rgb(30 41 59);
-        background: linear-gradient(180deg, rgb(15 23 42 / 0.92), rgb(2 6 23 / 0.88));
+        border: 1px solid color-mix(in srgb, var(--ui-accent) 42%, var(--ui-border));
+        background: color-mix(in srgb, var(--ui-accent) 9%, var(--ui-surface));
         min-width: 0;
     }
     .obs-card-h { padding: 0.55rem 0.75rem 0; }
-    .obs-card-h p { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #64748b; margin: 0; }
-    .obs-card-h h3 { margin: .1rem 0 0; font-size: .85rem; font-weight: 600; color: #e2e8f0; }
+    .obs-card-h p { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ui-accent); margin: 0; }
+    .obs-card-h h3 { margin: .1rem 0 0; font-size: .85rem; font-weight: 600; color: var(--ui-accent-hover); }
+    .obs-title-row { display: flex; align-items: baseline; gap: .45rem; flex-wrap: wrap; }
+    .obs-title-row h3 { margin: 0; color: var(--ui-text); }
+    .obs-title-row span { font-size: 11px; font-weight: 600; color: var(--ui-accent); }
+    .obs-card-tools { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+    .obs-title-row .obs-brush { margin-left: auto; }
+    .obs-brush {
+        width: 1.65rem; height: 1.65rem; border-radius: .4rem; display: grid; place-items: center;
+        border: 1px solid color-mix(in srgb, var(--ui-accent) 45%, var(--ui-border));
+        color: var(--ui-accent); background: color-mix(in srgb, var(--ui-accent) 10%, transparent);
+    }
+    .obs-brush svg { width: .95rem; height: .95rem; }
+    .obs-brush-pop {
+        position: absolute; right: .65rem; top: 2.15rem; z-index: 30; width: 14rem;
+        padding: .55rem .65rem .7rem; border-radius: .65rem;
+        border: 1px solid color-mix(in srgb, var(--ui-accent) 42%, var(--ui-border));
+        background: var(--ui-surface); box-shadow: 0 12px 28px rgb(2 6 23 / .35);
+    }
+    .obs-brush-pop p { margin: 0 0 .4rem; font-size: 11px; font-weight: 700; color: var(--ui-accent); }
+    .obs-brush-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding: .2rem 0; font-size: 12px; color: var(--ui-text); }
+    .obs-brush-row input { width: 1.7rem; height: 1.35rem; padding: 0; border: 0; background: transparent; }
+    .obs-chart-fill { flex: 1; min-height: 9rem; height: auto; display: flex; flex-direction: column; padding-bottom: .35rem; }
+    .obs-chart-fill > .obs-rank-scroll { flex: 1; min-height: 0; }
     .obs-chart { height: 9.5rem; padding: .35rem .75rem .65rem; }
     .obs-chart-lg { height: 13.5rem; }
     .obs-gauge { height: auto; min-height: 10.5rem; display: flex; flex-direction: column; overflow: hidden; }
@@ -96,8 +122,8 @@
     .obs-odo-kicker { color: #7dd3fc; text-shadow: 0 0 6px rgb(125 211 252 / 0.65); }
     .obs-odo-value { color: #f0f9ff; font-variant-numeric: tabular-nums; text-shadow: 0 0 8px rgb(224 242 254 / 0.8); }
     html[data-theme="light"] .obs-card {
-        background: var(--ui-surface);
-        border-color: var(--ui-border);
+        background: color-mix(in srgb, var(--ui-accent) 8%, var(--ui-surface));
+        border-color: color-mix(in srgb, var(--ui-accent) 35%, var(--ui-border));
         box-shadow: 0 1px 2px rgb(15 23 42 / 0.06);
     }
     html[data-theme="light"] .obs-card-h p { color: var(--ui-muted); }
@@ -110,8 +136,9 @@
     .obs-chart-row { display: grid; gap: .5rem; }
     .obs-rank-scroll { height: 100%; overflow-x: hidden; overflow-y: auto; }
     .obs-site-search {
-        height: 1.75rem; width: 9.5rem; border-radius: .375rem; border: 1px solid rgb(51 65 85);
-        background: rgb(2 6 23); color: #e2e8f0; font-size: 11px; padding: 0 .5rem;
+        height: 1.75rem; width: 9.5rem; border-radius: .375rem;
+        border: 1px solid color-mix(in srgb, var(--ui-accent) 45%, var(--ui-border));
+        background: var(--ui-surface); color: var(--ui-text); font-size: 11px; padding: 0 .5rem;
     }
     html[data-theme="light"] .obs-site-search { background: #fff; color: var(--ui-text); border-color: var(--ui-border); }
     .obs-origins, .obs-plot { width: 100%; height: 100%; }
@@ -288,57 +315,59 @@
                     </div>
                 </section>
                 <section class="obs-card obs-card-fill">
-                    <div class="obs-card-h">
+                    <div class="obs-card-h obs-card-tools">
                         <h3>Fuentes</h3>
+                        @include('modules.observatory.partials.chart-brush', ['chart' => 'sources', 'title' => 'Fuentes'])
                     </div>
                     <div class="obs-chart obs-donut"><div class="obs-plot obs-donut-plot" x-ref="sources" role="img" aria-label="Fuentes"></div></div>
                 </section>
-                <section class="obs-card">
-                    <div class="obs-card-h">
+                <section class="obs-card obs-card-fill">
+                    <div class="obs-card-h obs-card-tools">
                         <h3>Orígenes</h3>
+                        @include('modules.observatory.partials.chart-brush', ['chart' => 'origins', 'title' => 'Orígenes'])
                     </div>
-                    <div class="obs-chart"><div class="obs-origins" data-origins='@json($charts['origins'])'></div></div>
+                    <div class="obs-chart obs-chart-fill">
+                        <div class="obs-rank-scroll"><div class="obs-origins" x-ref="origins" role="img" aria-label="Orígenes"></div></div>
+                    </div>
                 </section>
             </div>
             <div class="obs-chart-row">
-                <section class="obs-card">
-                    <div class="obs-card-h">
-                        <p>Tendencia endógena</p>
-                        <h3>{{ $grain === 'year' ? 'Mes a mes' : 'Día a día' }}</h3>
+                <section class="obs-card obs-card-fill">
+                    <div class="obs-card-h obs-title-row">
+                        <h3>Tendencia</h3>
+                        <span>{{ $grain === 'year' ? 'Por mes' : 'Por día' }}</span>
+                        @include('modules.observatory.partials.chart-brush', ['chart' => 'trend', 'title' => 'Tendencia'])
                     </div>
-                    <div class="obs-chart obs-chart-lg"><div class="obs-plot" x-ref="trend" role="img" aria-label="Tendencia endógena"></div></div>
+                    <div class="obs-chart obs-chart-lg"><div class="obs-plot" x-ref="trend" role="img" aria-label="Tendencia"></div></div>
                 </section>
-                <section class="obs-card">
-                    <div class="obs-card-h">
-                        <p>Delitos</p>
-                        <h3>Delitos endógenos por comuna</h3>
+                <section class="obs-card obs-card-fill">
+                    <div class="obs-card-h obs-title-row">
+                        <h3>Delitos</h3>
+                        <span>los más reportados</span>
                     </div>
-                    <div class="obs-chart obs-chart-lg">
-                        <div class="obs-rank-scroll"><div class="obs-plot" x-ref="crimes" role="img" aria-label="Delitos endógenos"></div></div>
+                    <div class="obs-chart obs-chart-fill">
+                        <div class="obs-rank-scroll"><div class="obs-plot" x-ref="crimes" role="img" aria-label="Delitos, los más reportados"></div></div>
                     </div>
                 </section>
-                <section class="obs-card">
-                    <div class="obs-card-h flex items-start justify-between gap-2">
-                        <div>
-                            <p>Sedes</p>
-                            <h3>Instalaciones con más reportes</h3>
-                        </div>
-                        <input type="search" class="obs-site-search" placeholder="Buscar" autocomplete="off"
+                <section class="obs-card obs-card-fill">
+                    <div class="obs-card-h obs-title-row">
+                        <h3>Reportes por instalación</h3>
+                        <input type="search" class="obs-site-search ml-auto" placeholder="Buscar" autocomplete="off"
                                x-model="siteQuery" @input="paintSites()" @keydown.enter.prevent>
                     </div>
-                    <div class="obs-chart obs-chart-lg">
-                        <div class="obs-rank-scroll"><div class="obs-plot" x-ref="sites" role="img" aria-label="Instalaciones con más reportes"></div></div>
+                    <div class="obs-chart obs-chart-fill">
+                        <div class="obs-rank-scroll"><div class="obs-plot" x-ref="sites" role="img" aria-label="Reportes por instalación"></div></div>
                     </div>
                 </section>
             </div>
-        </div>
 
-        @if (! empty($risk))
-            @include('modules.observatory.partials.risk-board', [
-                'risk' => $risk,
-                'showClientColumn' => $showClientColumn ?? false,
-            ])
-        @endif
+            @if (! empty($risk))
+                @include('modules.observatory.partials.risk-board', [
+                    'risk' => $risk,
+                    'showClientColumn' => $showClientColumn ?? false,
+                ])
+            @endif
+        </div>
     @else
         <div class="rounded-xl border border-slate-800 overflow-hidden bg-slate-900/80">
             <table class="min-w-full text-sm">
