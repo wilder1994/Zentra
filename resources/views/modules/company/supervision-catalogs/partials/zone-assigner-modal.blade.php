@@ -28,7 +28,7 @@
                 </div>
             </div>
 
-            <div x-show="selected.length" x-cloak class="flex flex-wrap items-center gap-2 border-b border-slate-800 bg-indigo-500/10 px-4 py-2 text-xs text-slate-200">
+            <div x-show="selected.length" x-cloak class="relative z-30 flex flex-wrap items-center gap-2 border-b border-slate-800 bg-indigo-500/10 px-4 py-2 text-xs text-slate-200">
                 <span class="font-semibold" x-text="selected.length + (selected.length === 1 ? ' seleccionado' : ' seleccionados')"></span>
                 <span class="text-slate-500">·</span>
                 <label class="inline-flex items-center gap-1.5">Asignar a
@@ -39,22 +39,11 @@
                 </label>
                 <button type="button" @click="applyBulkZone()" :disabled="bulkZone === ''" class="h-8 rounded-md bg-indigo-600 px-2.5 font-semibold text-white disabled:opacity-40">Aplicar</button>
                 <span class="text-slate-500">·</span>
-                <div class="relative">
-                    <button type="button" @click="bulkSharedOpen = !bulkSharedOpen" class="h-8 rounded-md border border-slate-700 px-2.5 hover:bg-slate-800">Compartir con…</button>
-                    <div x-show="bulkSharedOpen" x-cloak @click.outside="bulkSharedOpen = false" class="absolute left-0 top-9 z-10 w-52 rounded-lg border border-slate-700 bg-slate-950 p-2 shadow-xl">
-                        <template x-for="zone in zones" :key="'bs'+zone.id">
-                            <label class="flex items-center gap-2 rounded px-1.5 py-1 hover:bg-slate-800">
-                                <input type="checkbox" :checked="bulkShared.includes(zone.id)" @change="toggleBulkShared(zone.id)" class="rounded border-slate-600 bg-slate-950 text-indigo-600">
-                                <span x-text="zone.name"></span>
-                            </label>
-                        </template>
-                        <button type="button" @click="applyBulkShared()" :disabled="!bulkShared.length" class="mt-1 h-8 w-full rounded-md bg-indigo-600 font-semibold text-white disabled:opacity-40">Compartir</button>
-                    </div>
-                </div>
+                <button type="button" @click.stop="placeBulk($event)" class="h-8 rounded-md border border-slate-700 px-2.5 hover:bg-slate-800">Compartir con…</button>
                 <button type="button" @click="selected = []" class="ml-auto text-slate-400 hover:text-white">Quitar selección</button>
             </div>
 
-            <div class="min-h-0 flex-1 overflow-auto">
+            <div class="min-h-0 flex-1 overflow-auto" @scroll="openShared = null; sharedBox = null; bulkSharedOpen = false; bulkBox = null">
                 <table class="w-full text-sm">
                     <thead class="sticky top-0 z-[1] bg-slate-900">
                         <tr class="border-b border-slate-800 text-[11px] uppercase tracking-wide text-slate-500">
@@ -88,21 +77,10 @@
                                     </div>
                                 </td>
                                 <td class="py-2 pr-3">
-                                    <div class="relative">
-                                        <button type="button" @click="openShared = openShared === row.id ? null : row.id" :disabled="row.zone_id === null"
+                                    <div>
+                                        <button type="button" @click.stop="placeShared($event, row)" :disabled="row.zone_id === null"
                                                 class="h-8 max-w-[14rem] truncate rounded-md border border-slate-700 bg-slate-950 px-2 text-left text-xs text-slate-200 disabled:opacity-40"
                                                 x-text="sharedLabel(row)"></button>
-                                        <template x-if="openShared === row.id">
-                                            <div @click.outside="openShared = null"
-                                                 class="absolute left-0 top-9 z-10 w-48 rounded-lg border border-slate-700 bg-slate-950 p-2 shadow-xl">
-                                                <template x-for="zone in zones.filter((z) => z.id !== row.zone_id)" :key="'rs'+row.id+'-'+zone.id">
-                                                    <label class="flex items-center gap-2 rounded px-1.5 py-1 text-xs text-slate-200 hover:bg-slate-800">
-                                                        <input type="checkbox" :checked="row.shared.includes(zone.id)" @change="toggleShared(row, zone.id)" class="rounded border-slate-600 bg-slate-950 text-indigo-600">
-                                                        <span x-text="zone.name"></span>
-                                                    </label>
-                                                </template>
-                                            </div>
-                                        </template>
                                     </div>
                                 </td>
                                 <td class="py-2 pr-4">
@@ -133,6 +111,27 @@
                             x-text="saving ? 'Guardando…' : 'Guardar'"></button>
                 </div>
             </div>
+        </div>
+        <div x-cloak @click.outside="bulkSharedOpen = false; bulkBox = null"
+             :style="{ display: bulkSharedOpen ? 'block' : 'none', top: bulkBox ? bulkBox.top + 'px' : null, left: bulkBox ? bulkBox.left + 'px' : null, maxHeight: bulkBox ? bulkBox.maxH + 'px' : null }"
+             class="fixed z-[80] w-52 overflow-y-auto rounded-lg border border-slate-700 bg-slate-950 p-2 shadow-xl">
+            <template x-for="zone in zones" :key="'bs'+zone.id">
+                <label class="flex items-center gap-2 rounded px-1.5 py-1 text-xs text-slate-200 hover:bg-slate-800">
+                    <input type="checkbox" :checked="bulkShared.includes(zone.id)" @change="toggleBulkShared(zone.id)" class="rounded border-slate-600 bg-slate-950 text-indigo-600">
+                    <span x-text="zone.name"></span>
+                </label>
+            </template>
+            <button type="button" @click="applyBulkShared()" :disabled="!bulkShared.length" class="mt-1 h-8 w-full rounded-md bg-indigo-600 font-semibold text-white disabled:opacity-40">Compartir</button>
+        </div>
+        <div x-cloak @click.outside="openShared = null; sharedBox = null"
+             :style="{ display: sharedRow ? 'block' : 'none', top: sharedBox ? sharedBox.top + 'px' : null, left: sharedBox ? sharedBox.left + 'px' : null, maxHeight: sharedBox ? sharedBox.maxH + 'px' : null }"
+             class="fixed z-[80] w-48 overflow-y-auto rounded-lg border border-slate-700 bg-slate-950 p-2 shadow-xl">
+            <template x-for="zone in zones.filter((z) => sharedRow && z.id !== sharedRow.zone_id)" :key="'rs'+openShared+'-'+zone.id">
+                <label class="flex items-center gap-2 rounded px-1.5 py-1 text-xs text-slate-200 hover:bg-slate-800">
+                    <input type="checkbox" :checked="sharedRow && sharedRow.shared.includes(zone.id)" @change="sharedRow && toggleShared(sharedRow, zone.id)" class="rounded border-slate-600 bg-slate-950 text-indigo-600">
+                    <span x-text="zone.name"></span>
+                </label>
+            </template>
         </div>
     </div>
 </template>

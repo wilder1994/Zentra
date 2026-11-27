@@ -25,9 +25,11 @@ export function zoneAssigner(config = {}) {
         contextZone: null,
         selected: [],
         openShared: null,
+        sharedBox: null,
         bulkZone: '',
         bulkShared: [],
         bulkSharedOpen: false,
+        bulkBox: null,
         saving: false,
         error: '',
         unassigned: Number(config.unassigned || 0),
@@ -63,6 +65,54 @@ export function zoneAssigner(config = {}) {
             });
             this.selected = [];
             this.openShared = null;
+            this.sharedBox = null;
+            this.bulkSharedOpen = false;
+            this.bulkBox = null;
+        },
+
+        anchorMenu(rect, width) {
+            const gap = 4;
+            const edge = 8;
+            const below = window.innerHeight - rect.bottom - gap - edge;
+            const above = rect.top - gap - edge;
+            const openUp = below < 160 && above > below;
+            const maxH = Math.max(96, Math.min(240, openUp ? above : below));
+
+            return {
+                top: openUp ? Math.max(edge, rect.top - gap - maxH) : rect.bottom + gap,
+                left: Math.max(edge, Math.min(rect.left, window.innerWidth - width - edge)),
+                maxH,
+            };
+        },
+
+        placeShared(event, row) {
+            if (this.openShared === row.id) {
+                this.openShared = null;
+                this.sharedBox = null;
+
+                return;
+            }
+            this.bulkSharedOpen = false;
+            this.bulkBox = null;
+            this.sharedBox = this.anchorMenu(event.currentTarget.getBoundingClientRect(), 192);
+            this.openShared = row.id;
+        },
+
+        placeBulk(event) {
+            if (this.bulkSharedOpen) {
+                this.bulkSharedOpen = false;
+                this.bulkBox = null;
+
+                return;
+            }
+            this.openShared = null;
+            this.sharedBox = null;
+            this.bulkBox = this.anchorMenu(event.currentTarget.getBoundingClientRect(), 208);
+            this.bulkSharedOpen = true;
+        },
+
+        get sharedRow() {
+            return this.rows.find((row) => row.id === this.openShared) || null;
         },
 
         zoneName(id) {
@@ -162,6 +212,7 @@ export function zoneAssigner(config = {}) {
                 r.shared = [...new Set([...r.shared, ...this.bulkShared])].filter((id) => id !== r.zone_id);
             });
             this.bulkSharedOpen = false;
+            this.bulkBox = null;
             this.error = missing.length ? 'Sin zona principal, no se compartieron: ' + missing.slice(0, 3).join(', ') + (missing.length > 3 ? '…' : '') : '';
         },
 
