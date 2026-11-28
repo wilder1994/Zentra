@@ -62,6 +62,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 27 nov 2026 · Orden del chat del 310
+La primera pregunta es la política (`/privacidad`): Sí acepto queda en ese teléfono y No acepto cancela. Luego quién eres, mayoría de edad y si se guardan esos datos con el número y el nombre. Sede, situación, evidencia y anónimo van después. El cierre cita `RP-` y el folio `EV-`. El detalle está en `docs/OBSERVATORIO.md`. Commit `b82fcd3`.
+
 ### 27 nov 2026 · El 310 contesta en texto
 La primera pregunta sale en texto («¿Quién eres? Responde Alumno, Padre o Vecino.») y después los botones. Si el acuse de Meta es `failed`, se anota código y título y se reenvía esa frase. Un reporte con fotos y video ya no llama `askWho` con la conversación. Commit `a7835ab`.
 

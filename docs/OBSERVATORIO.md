@@ -2,7 +2,7 @@
 
 Intake de reportes escolares y seguimiento de eventos. No es portería ni PQRS de Supervisión.
 
-**Última actualización:** 25 noviembre 2026
+**Última actualización:** 27 noviembre 2026
 
 ## Piezas
 
@@ -124,11 +124,23 @@ App **Observatorio SJ** (`114531311572242`), cuenta `1563910605572064`, número 
 
 La cuenta tiene que estar suscrita a la app (`POST /{cuenta}/subscribed_apps`). El botón de prueba de Meta no usa el 310.
 
-### Conversación guiada (21 nov 2026)
+### Conversación guiada (27 nov 2026)
 
-Cada mensaje nuevo del 310 dispara `ProcessMetaWebhookMessage` (cola) → `MetaObservatoryBot`. Estado en `meta_conversations` (una abierta por `wa_id`; vence a los `META_CONVERSATION_TTL_MINUTES`, 120 por defecto; «cancelar» la cierra).
+Cada mensaje nuevo del 310 dispara `ProcessMetaWebhookMessage` (cola) → `MetaObservatoryBot`. Estado en `meta_conversations` (una abierta por `wa_id`; vence a los `META_CONVERSATION_TTL_MINUTES`, 120 por defecto; «cancelar» la cierra). La pregunta sale en texto y, si cabe, con botones. Graph devuelve un id; si el acuse es `failed`, se anota código y título y se reenvía el texto guardado (`WhatsAppOutboundReceipt`).
 
-Pasos: una pregunta («¿en qué colegio y qué pasó?»; el tipo se lee si viene en el texto, si no se pide) → hasta 2 fotos y 1 video de 30 s / 20 MB, o «Listo» → quién eres y anónimo en la misma lista. «Qué pasó» acepta una palabra. Si la misma persona repite sede y tipo dentro de la ventana de 1 h, no se crea otro reporte. Al final llama a `SubmitObservatoryReportService` con `source=whatsapp`. Responde el folio `EV-…`. Solo colegios con perfil Observatorio comunidad.
+Un mensaje por paso:
+
+1. Política. «Hola, el Observatorio de SJ Seguridad Privada está disponible para atenderte…» y el enlace `/privacidad`. Botones: Sí acepto, No acepto. Si acepta, no se vuelve a preguntar en ese teléfono (`authorization_accepted_at`). No acepto cancela.
+2. ¿Quién eres? Alumno, Padre o Vecino (`ObservatoryReporterRole::publicOptions()`). Rector, apoyo y campo no salen aquí.
+3. ¿Eres mayor de edad?
+4. ¿Guardamos quién eres, si eres mayor de edad, el número y el nombre de contacto? Si sí, el siguiente reporte salta los pasos 2, 3 y 4. Si no, se preguntan otra vez. El nombre va en `observatory_reporter_memories.contact_name`. Un adulto guardado vence a los 12 meses; un menor no vence.
+5. Sede: escribe el nombre o envía la ubicación y elige de la lista. Solo colegios con perfil Observatorio comunidad.
+6. ¿Por qué situación quieres reportar? Los riesgos activos de la empresa. No hay texto libre: el cuerpo del reporte queda con el nombre del riesgo.
+7. Evidencia: hasta 2 fotos y 1 video de 30 s / 20 MB, o Listo.
+8. ¿Cómo deseas realizar el reporte? Anónimo o Con mi nombre. Un menor no va en anónimo.
+9. Cierre: «Gracias por tu reporte RP-000151. Fue registrado con éxito en la instalación [nombre], en el folio EV-000151.»
+
+Si la misma persona repite sede y tipo dentro de la ventana de 1 h, no se crea otro reporte. Al final llama a `SubmitObservatoryReportService` con `source=whatsapp`.
 
 Si es anónimo, al cerrar se borran nombre y teléfono de `meta_conversations` y `meta_webhook_messages`.
 
@@ -176,4 +188,4 @@ Texto literal: fuentes diversas + origen. Visita: Secretaría de Educación de C
 
 ## Siguiente
 
-v1 del Anexo 7.5 cerrada. El WhatsApp guiado abre folios con texto y fotos. Faltan videos y la bandeja de revisión (ver `PENDIENTES.md`).
+v1 del Anexo 7.5 cerrada. El WhatsApp guiado abre folios con texto, fotos y un video. Falta la bandeja de revisión (ver `PENDIENTES.md`).
