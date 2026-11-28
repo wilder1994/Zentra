@@ -62,6 +62,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 27 nov 2026 · PPTX del Observatorio
+El informe del tablero, en empresa y cliente, queda en 8 láminas claras: portada, resumen, atención y fuentes, orígenes y tendencia, delitos y reportes, top 20 de riesgo por instalación, riesgo delictivo por comuna y cierre. Se arma solo al descargar. El PPTX de Supervisión no cambia. Commit `81a4e1e`.
+
 ### 27 nov 2026 · Orden del chat del 310
 La primera pregunta es la política (`/privacidad`): Sí acepto queda en ese teléfono y No acepto cancela. Luego quién eres, mayoría de edad y si se guardan esos datos con el número y el nombre. Sede, situación, evidencia y anónimo van después. El cierre cita `RP-` y el folio `EV-`. El detalle está en `docs/OBSERVATORIO.md`. Commit `b82fcd3`.
 
