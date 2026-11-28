@@ -63,7 +63,7 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 ## Hecho
 
 ### 28 nov 2026 · PPTX del Observatorio sin reparación ni página negra
-Los gráficos usan el mismo formato de ejes y etiquetas que Supervisión (`#,##0`). PowerPoint abre el archivo sin reparar. El botón «Descargar PPTX» se queda en el tablero, pasa a «Descargando» con el borde en giro y baja el archivo por JSON; un segundo clic no lanza otra descarga. Commit `2fffba7`.
+Los gráficos usan el mismo formato de ejes y etiquetas que Supervisión (`#,##0`). PowerPoint abre el archivo sin reparar. El botón «Descargar PPTX» se queda en el tablero, pasa a «Descargando» con el borde en giro y baja el archivo por JSON; un segundo clic no lanza otra descarga. Commit `2fffba7`. El JSON del export ya no rompe por el tipo de retorno y el destello corre sobre la línea del borde: `32fc984`.
 
 ### 27 nov 2026 · PPTX del Observatorio
 El informe del tablero, en empresa y cliente, queda en 8 láminas claras: portada, resumen, atención y fuentes, orígenes y tendencia, delitos y reportes, top 20 de riesgo por instalación, riesgo delictivo por comuna y cierre. Se arma solo al descargar. El PPTX de Supervisión no cambia. Commit `81a4e1e`.
