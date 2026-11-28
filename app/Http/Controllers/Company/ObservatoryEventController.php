@@ -114,7 +114,7 @@ final class ObservatoryEventController extends Controller
         return response()->json($trail);
     }
 
-    public function export(Request $request): BinaryFileResponse|\Illuminate\View\View
+    public function export(Request $request): BinaryFileResponse|\Illuminate\View\View|JsonResponse
     {
         $this->authorize('viewAny', ObservatoryEvent::class);
 
