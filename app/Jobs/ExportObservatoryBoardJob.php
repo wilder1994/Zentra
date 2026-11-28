@@ -13,6 +13,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
+use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Illuminate\View\View;
 use Throwable;
@@ -61,7 +62,7 @@ final class ExportObservatoryBoardJob implements ShouldQueue
     /**
      * @param  array<string, mixed>  $payload
      */
-    public static function start(Request $request, array $payload, string $statusRoute, string $fileRoute): BinaryFileResponse|View
+    public static function start(Request $request, array $payload, string $statusRoute, string $fileRoute): BinaryFileResponse|View|JsonResponse
     {
         $token = (string) Str::uuid();
         $payload['user_id'] = (int) $request->user()->id;
@@ -69,14 +70,26 @@ final class ExportObservatoryBoardJob implements ShouldQueue
         $payload['query'] = $request->query->all();
         Cache::put(self::key($token), $payload, now()->addHour());
         self::dispatch($token);
+        $statusUrl = route($statusRoute, $token);
+        $fileUrl = route($fileRoute, $token);
         $fresh = Cache::get(self::key($token));
-        if (is_array($fresh) && ($fresh['status'] ?? '') === 'ready' && is_string($fresh['path'] ?? null) && is_file($fresh['path'])) {
+        $ready = is_array($fresh) && ($fresh['status'] ?? '') === 'ready' && is_string($fresh['path'] ?? null) && is_file($fresh['path']);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => $ready ? 'ready' : 'queued',
+                'status_url' => $statusUrl,
+                'file_url' => $fileUrl,
+            ]);
+        }
+
+        if ($ready) {
             return response()->download($fresh['path'], (string) $fresh['filename'])->deleteFileAfterSend();
         }
 
         return view('modules.observatory.partials.export-wait', [
-            'statusUrl' => route($statusRoute, $token),
-            'fileUrl' => route($fileRoute, $token),
+            'statusUrl' => $statusUrl,
+            'fileUrl' => $fileUrl,
         ]);
     }
 }

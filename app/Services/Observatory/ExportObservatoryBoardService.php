@@ -12,6 +12,7 @@ use PhpOffice\PhpPresentation\IOFactory;
 use PhpOffice\PhpPresentation\PhpPresentation;
 use PhpOffice\PhpPresentation\Shape\Chart\Gridlines;
 use PhpOffice\PhpPresentation\Shape\Chart\Legend;
+use PhpOffice\PhpPresentation\Shape\Chart\Marker;
 use PhpOffice\PhpPresentation\Shape\Chart\Series;
 use PhpOffice\PhpPresentation\Shape\Chart\Type\AbstractType;
 use PhpOffice\PhpPresentation\Shape\Chart\Type\Bar;
@@ -23,6 +24,7 @@ use PhpOffice\PhpPresentation\Slide\Background\Color as BackgroundColor;
 use PhpOffice\PhpPresentation\Style\Alignment;
 use PhpOffice\PhpPresentation\Style\Color;
 use PhpOffice\PhpPresentation\Style\Fill;
+use PhpOffice\PhpPresentation\Style\Outline;
 
 /**
  * Informe PPTX del tablero del Observatorio.
@@ -466,6 +468,8 @@ final class ExportObservatoryBoardService
             $grid->getOutline()->setWidth(1);
             $grid->getOutline()->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor(new Color(self::SLATE));
             $plot->getAxisY()->setMajorGridlines($grid);
+            $plot->getAxisX()->setFormatCode('#,##0');
+            $plot->getAxisY()->setFormatCode('#,##0');
         }
     }
 
@@ -487,7 +491,7 @@ final class ExportObservatoryBoardService
         $series->setShowLegendKey(false);
         $series->setShowValue(true);
         $series->setShowPercentage(false);
-        $series->setDlblNumFormat('0;-0;;');
+        $series->setDlblNumFormat('#,##0;-#,##0;;');
         $series->getFont()->setName('Calibri')->setSize(10)->setBold(true)->setColor(new Color(self::WHITE));
         foreach (array_values($colors) as $index => $color) {
             $series->getDataPointFill($index)->setFillType(Fill::FILL_SOLID)->setStartColor(new Color($color));
@@ -554,9 +558,7 @@ final class ExportObservatoryBoardService
             foreach (array_values($labels) as $index => $label) {
                 $values[(string) $label] = (int) ($row['values'][$index] ?? 0);
             }
-            $point = $this->barSeries((string) $row['label'], $values, $this->argb((string) $row['color']), false);
-            $point->setShowValue(false);
-            $line->addSeries($point);
+            $line->addSeries($this->lineSeries((string) $row['label'], $values, $this->argb((string) $row['color']), false));
         }
 
         $this->chart($slide, $line, $x, $y, $width, $height, $title);
@@ -594,7 +596,7 @@ final class ExportObservatoryBoardService
             foreach ($sites as $site) {
                 $values[$site] = $counts[$site] ?? 0;
             }
-            $series = $this->barSeries($crime, $values, $this->argb($colors[$crime]), false);
+            $series = $this->barSeries($crime, $values, $this->argb($colors[$crime]), false, true);
             $series->setShowValue(false);
             $bar->addSeries($series);
         }
@@ -625,7 +627,7 @@ final class ExportObservatoryBoardService
     }
 
     /** @param  array<string, int>  $values */
-    private function barSeries(string $title, array $values, string $color, bool $showValues): Series
+    private function barSeries(string $title, array $values, string $color, bool $showValues, bool $stacked = false): Series
     {
         $series = new Series($title, $this->chartValues($values));
         $series->setShowSeriesName(false);
@@ -633,9 +635,31 @@ final class ExportObservatoryBoardService
         $series->setShowLegendKey(false);
         $series->setShowValue($showValues);
         $series->setFill($this->solid($color));
-        $series->setLabelPosition(Series::LABEL_OUTSIDEEND);
-        $series->setDlblNumFormat('0;-0;;');
+        $series->setLabelPosition($stacked ? Series::LABEL_CENTER : Series::LABEL_OUTSIDEEND);
+        $series->setDlblNumFormat('#,##0;-#,##0;;');
+        $series->getFont()->setName('Calibri')->setSize(9)->setBold($stacked)->setColor(new Color($stacked ? self::NAVY : self::INK));
+
+        return $series;
+    }
+
+    /** @param  array<string, int>  $values */
+    private function lineSeries(string $title, array $values, string $color, bool $showValues): Series
+    {
+        $series = new Series($title, $this->chartValues($values));
+        $series->setShowSeriesName(false);
+        $series->setShowCategoryName(false);
+        $series->setShowLegendKey(false);
+        $series->setShowValue($showValues);
+        $series->setLabelPosition(Series::LABEL_TOP);
+        $series->setDlblNumFormat('#,##0;-#,##0;;');
         $series->getFont()->setName('Calibri')->setSize(9)->setColor(new Color(self::INK));
+
+        $outline = new Outline;
+        $outline->setWidth(3);
+        $outline->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor(new Color($color));
+        $series->setOutline($outline);
+        $series->getMarker()->setSymbol(Marker::SYMBOL_CIRCLE)->setSize(6);
+        $series->getMarker()->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor(new Color($color));
 
         return $series;
     }
