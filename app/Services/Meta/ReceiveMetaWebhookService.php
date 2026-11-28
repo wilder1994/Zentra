@@ -12,6 +12,10 @@ use Illuminate\Support\Facades\Log;
 
 final class ReceiveMetaWebhookService
 {
+    public function __construct(
+        private readonly WhatsAppGateway $gateway,
+    ) {}
+
     public function challenge(Request $request): ?string
     {
         $expected = (string) config('services.meta.webhook_verify_token');
@@ -56,6 +60,7 @@ final class ReceiveMetaWebhookService
         }
 
         $saved = 0;
+        $noted = $this->noteStatuses($decoded);
         foreach ($this->messages($decoded) as $message) {
             if ($message['phone_number_id'] !== $allowed || $message['message_id'] === '') {
                 continue;
@@ -79,7 +84,7 @@ final class ReceiveMetaWebhookService
             }
         }
 
-        if ($saved === 0) {
+        if ($saved === 0 && ! $noted) {
             $this->skip($this->trace($decoded));
         }
 
@@ -134,6 +139,67 @@ final class ReceiveMetaWebhookService
             'messages' => $messages,
             'statuses' => $statuses,
         ];
+    }
+
+    /** @param  array<string, mixed>  $decoded */
+    private function noteStatuses(array $decoded): bool
+    {
+        $allowed = (string) config('services.meta.phone_number_id');
+        $noted = false;
+        $entries = is_array($decoded['entry'] ?? null) ? $decoded['entry'] : [];
+
+        foreach ($entries as $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+            $changes = is_array($entry['changes'] ?? null) ? $entry['changes'] : [];
+            foreach ($changes as $change) {
+                if (! is_array($change)) {
+                    continue;
+                }
+                $value = is_array($change['value'] ?? null) ? $change['value'] : [];
+                $metadata = is_array($value['metadata'] ?? null) ? $value['metadata'] : [];
+                $phone = trim((string) ($metadata['phone_number_id'] ?? ''));
+                if ($phone === '' || $phone !== $allowed) {
+                    continue;
+                }
+                $statuses = is_array($value['statuses'] ?? null) ? $value['statuses'] : [];
+                foreach ($statuses as $status) {
+                    if (! is_array($status)) {
+                        continue;
+                    }
+                    $noted = true;
+                    $this->status($status);
+                }
+            }
+        }
+
+        return $noted;
+    }
+
+    /** @param  array<string, mixed>  $status */
+    private function status(array $status): void
+    {
+        $id = trim((string) ($status['id'] ?? ''));
+        $name = trim((string) ($status['status'] ?? ''));
+        $error = is_array($status['errors'][0] ?? null) ? $status['errors'][0] : [];
+        $code = is_numeric($error['code'] ?? null) ? (int) $error['code'] : null;
+        $title = trim((string) ($error['title'] ?? ''));
+        $context = ['id' => $id, 'status' => $name, 'code' => $code, 'title' => $title !== '' ? $title : null];
+
+        if ($name !== 'failed') {
+            Log::info('meta.whatsapp.status', $context);
+
+            return;
+        }
+
+        Log::error('meta.whatsapp.status', $context);
+        $fallback = $id !== '' ? WhatsAppOutboundReceipt::pull($id) : null;
+        if ($fallback === null) {
+            return;
+        }
+
+        $this->gateway->send(OutboundMessage::text($fallback['to'], $fallback['text']));
     }
 
     /**

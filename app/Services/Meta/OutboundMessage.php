@@ -22,7 +22,13 @@ final readonly class OutboundMessage
         public string $to,
         public string $body,
         public array $options = [],
+        public ?string $fallback = null,
     ) {}
+
+    public function whenFailed(string $text): self
+    {
+        return new self($this->kind, $this->to, $this->body, $this->options, $text);
+    }
 
     public static function text(string $to, string $body): self
     {

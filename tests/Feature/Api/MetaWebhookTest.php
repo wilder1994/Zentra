@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature\Api;
 
 use App\Models\MetaWebhookMessage;
+use App\Services\Meta\OutboundMessage;
+use App\Services\Meta\WhatsAppGateway;
+use App\Services\Meta\WhatsAppOutboundReceipt;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Log;
+use Tests\Support\FakeWhatsAppGateway;
 use Tests\TestCase;
 
 final class MetaWebhookTest extends TestCase
@@ -76,6 +80,38 @@ final class MetaWebhookTest extends TestCase
         $this->assertStringContainsString('1149223651039175', $encoded);
         $this->assertStringNotContainsString('No guardar', $encoded);
         $this->assertStringNotContainsString('573001112233', $encoded);
+    }
+
+    public function test_a_failed_status_resends_the_question_as_text(): void
+    {
+        $gateway = new FakeWhatsAppGateway();
+        $this->app->instance(WhatsAppGateway::class, $gateway);
+        WhatsAppOutboundReceipt::put('wamid.out', '573001112233', '¿Quién eres? Responde Alumno, Padre o Vecino.');
+
+        $body = json_encode([
+            'object' => 'whatsapp_business_account',
+            'entry' => [[
+                'changes' => [[
+                    'field' => 'messages',
+                    'value' => [
+                        'metadata' => ['phone_number_id' => self::PHONE],
+                        'statuses' => [[
+                            'id' => 'wamid.out',
+                            'status' => 'failed',
+                            'recipient_id' => '573001112233',
+                            'errors' => [['code' => 131026, 'title' => 'Message undeliverable']],
+                        ]],
+                    ],
+                ]],
+            ]],
+        ], JSON_THROW_ON_ERROR);
+
+        $this->callWebhook($body)->assertOk();
+
+        $this->assertCount(1, $gateway->sent);
+        $this->assertSame(OutboundMessage::TEXT, $gateway->sent[0]->kind);
+        $this->assertSame('¿Quién eres? Responde Alumno, Padre o Vecino.', $gateway->sent[0]->body);
+        $this->assertNull($gateway->sent[0]->fallback);
     }
 
     public function test_meta_webhook_rejects_a_bad_signature(): void

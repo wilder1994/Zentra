@@ -67,6 +67,8 @@ final class MetaObservatoryBotTest extends TestCase
     public function test_full_conversation_creates_an_identified_report_with_photo(): void
     {
         $this->say('hola');
+        $this->assertSame(OutboundMessage::TEXT, $this->gateway->sent[0]->kind);
+        $this->assertSame('¿Quién eres? Responde Alumno, Padre o Vecino.', $this->gateway->sent[0]->body);
         $this->assertSame(OutboundMessage::BUTTONS, $this->gateway->last()->kind);
         $this->assertStringContainsString('Quién eres', $this->gateway->last()->body);
 

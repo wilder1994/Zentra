@@ -32,6 +32,8 @@ final class MetaObservatoryBot
 {
     private const CANCEL_WORDS = ['cancelar', 'salir', 'cancel'];
 
+    private const WHO_PLAIN = '¿Quién eres? Responde Alumno, Padre o Vecino.';
+
     private const MAX_PHOTOS = ObservatoryMediaLimits::MAX_PHOTOS;
 
     private const MIN_BODY = ObservatoryMediaLimits::MIN_BODY;
@@ -469,7 +471,7 @@ final class MetaObservatoryBot
                 $images++;
             }
             if ($images >= self::MAX_PHOTOS && $hasVideo) {
-                return $this->askWho($conversation, $in->from, 'Recibí las fotos y el video.');
+                return $this->askWho($in->from, 'Recibí las fotos y el video.');
             }
 
             return [OutboundMessage::buttons(
@@ -487,7 +489,7 @@ final class MetaObservatoryBot
             $items[] = ['id' => $in->mediaId, 'mime' => (string) ($in->mediaMime ?: 'video/mp4')];
             $conversation->media = $items;
             if ($images >= self::MAX_PHOTOS) {
-                return $this->askWho($conversation, $in->from, 'Recibí el video.');
+                return $this->askWho($in->from, 'Recibí el video.');
             }
 
             return [OutboundMessage::buttons(
@@ -547,13 +549,20 @@ final class MetaObservatoryBot
     }
 
     /** @return list<OutboundMessage> */
-    private function askWho(string $to): array
+    private function askWho(string $to, ?string $lead = null): array
     {
-        return [OutboundMessage::buttons($to, '¿Quién eres? «cancelar» sale.', [
+        $messages = [];
+        if ($lead !== null && $lead !== '') {
+            $messages[] = OutboundMessage::text($to, $lead);
+        }
+        $messages[] = OutboundMessage::text($to, self::WHO_PLAIN)->whenFailed(self::WHO_PLAIN);
+        $messages[] = OutboundMessage::buttons($to, '¿Quién eres? «cancelar» sale.', [
             ['id' => 'who:alumno', 'title' => 'Alumno'],
             ['id' => 'who:padre', 'title' => 'Padre'],
             ['id' => 'who:vecino', 'title' => 'Vecino'],
-        ])];
+        ])->whenFailed(self::WHO_PLAIN);
+
+        return $messages;
     }
 
     /** @return list<OutboundMessage> */

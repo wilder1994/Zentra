@@ -31,6 +31,14 @@ final class CloudApiWhatsAppGateway implements WhatsAppGateway
                 'kind' => $message->kind,
                 'error' => $response->json('error.message'),
             ]);
+
+            return;
+        }
+
+        $id = trim((string) $response->json('messages.0.id'));
+        Log::info('meta.whatsapp.sent', ['id' => $id, 'kind' => $message->kind]);
+        if ($message->fallback !== null) {
+            WhatsAppOutboundReceipt::put($id, $message->to, $message->fallback);
         }
     }
 
