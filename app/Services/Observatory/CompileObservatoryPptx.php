@@ -61,6 +61,7 @@ final class CompileObservatoryPptx
             'risk' => app(ExportObservatoryBoardService::class)->riskRows(
                 app(BuildInstallationRiskService::class)->execute($companyId, $filters->clientId, $siteIds),
             ),
+            'comunas' => app(BuildInstallationRiskService::class)->comunaBoard($companyId, $filters->comuna),
         ]);
     }
 
@@ -100,6 +101,7 @@ final class CompileObservatoryPptx
             'risk' => app(ExportObservatoryBoardService::class)->riskRows(
                 app(BuildInstallationRiskService::class)->execute((int) $client->security_company_id, $clientId, $siteIds),
             ),
+            'comunas' => app(BuildInstallationRiskService::class)->comunaBoard((int) $client->security_company_id, $filters->comuna),
         ]);
     }
 }

@@ -90,22 +90,24 @@ final class ObservatoryCompanyManageTest extends TestCase
 
         $slides = $this->slideTexts($file->baseResponse->getFile()->getPathname());
         $joined = implode(' ', $slides);
-        $this->assertGreaterThanOrEqual(9, count($slides));
-        $this->assertStringContainsString('Eventos y riesgos', $slides[0]);
+        $this->assertCount(8, $slides);
+        $this->assertStringContainsString('INFORME DEL OBSERVATORIO', $slides[0]);
         $this->assertStringContainsString('Instalación', $slides[0]);
         $this->assertStringContainsString('Por mes', $slides[0]);
         $this->assertStringContainsString('Endógeno: Amenaza', $slides[0]);
-        $this->assertStringContainsString('Tablero', $slides[1]);
-        $this->assertStringContainsString('Mapa', $slides[2]);
-        $this->assertStringContainsString('EV-', $slides[2]);
-        $this->assertStringContainsString('Atención, fuentes y orígenes', $joined);
-        $this->assertStringContainsString('Tendencia · Por mes', $joined);
-        $this->assertStringContainsString('Delitos y reportes por instalación', $joined);
-        $this->assertStringContainsString('Riesgo por instalación', $joined);
-        $this->assertStringContainsString('entrada principal', $joined);
-        $this->assertStringNotContainsString('Amenaza · ALTO', $joined);
+        $this->assertStringContainsString('Resumen', $slides[1]);
+        $this->assertStringContainsString('Atención y fuentes', $slides[2]);
+        $this->assertStringContainsString('La atención se concentra en', $slides[2]);
+        $this->assertStringContainsString('La fuente principal es', $slides[2]);
+        $this->assertStringContainsString('Orígenes y tendencia', $slides[3]);
+        $this->assertStringContainsString('El punto más alto de la tendencia es', $slides[3]);
+        $this->assertStringContainsString('Delitos y reportes', $slides[4]);
+        $this->assertStringContainsString('La instalación con más reportes es', $slides[4]);
+        $this->assertStringContainsString('Riesgo por instalación', $slides[5]);
+        $this->assertStringContainsString('Riesgo delictivo', $slides[6]);
+        $this->assertStringNotContainsString('entrada principal', $joined);
         $this->assertStringNotContainsString('IE Republica del Peru', $joined);
-        $this->assertStringContainsString('Gracias', $slides[array_key_last($slides)]);
+        $this->assertStringContainsString('Gracias', $slides[7]);
     }
 
     /** @return list<string> Texto de cada diapositiva en orden. */

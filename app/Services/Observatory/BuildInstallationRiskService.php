@@ -167,6 +167,33 @@ final class BuildInstallationRiskService
         return $rows;
     }
 
+    /**
+     * Comunas de Cali en el orden del catálogo, con el índice exógeno del año en curso.
+     *
+     * @return list<array{name: string, score: float, band: string, color: string}>
+     */
+    public function comunaBoard(int $companyId, string $onlyCode = ''): array
+    {
+        $parameters = RiskModelParameter::forCompany($companyId);
+        $scores = $this->communeScores($companyId, (int) now()->year);
+        $rows = [];
+        foreach ($this->comunas->catalog() as $comuna) {
+            if ($onlyCode !== '' && $comuna['code'] !== $onlyCode) {
+                continue;
+            }
+            $score = (float) ($scores[$comuna['code']] ?? 0);
+            $band = RiskMath::band($score, $parameters);
+            $rows[] = [
+                'name' => $comuna['name'],
+                'score' => $score,
+                'band' => $band,
+                'color' => $parameters->colorFor($band),
+            ];
+        }
+
+        return $rows;
+    }
+
     /** @return array<string, float> */
     private function communeScores(int $companyId, int $year): array
     {
