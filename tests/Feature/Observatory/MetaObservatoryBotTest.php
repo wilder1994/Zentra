@@ -68,15 +68,23 @@ final class MetaObservatoryBotTest extends TestCase
     {
         $this->say('hola');
         $this->assertSame(OutboundMessage::TEXT, $this->gateway->sent[0]->kind);
-        $this->assertSame('¿Quién eres? Responde Alumno, Padre o Vecino.', $this->gateway->sent[0]->body);
+        $this->assertStringContainsString('Observatorio de SJ Seguridad Privada', $this->gateway->sent[0]->body);
+        $this->assertStringContainsString('/privacidad', $this->gateway->sent[0]->body);
         $this->assertSame(OutboundMessage::BUTTONS, $this->gateway->last()->kind);
+        $this->assertStringContainsString('Sí acepto', $this->gateway->last()->options['buttons'][0]['title']);
+
+        $this->reply('privacy:yes');
         $this->assertStringContainsString('Quién eres', $this->gateway->last()->body);
 
         $this->reply('who:padre');
+        $this->assertStringContainsString('mayor de edad', $this->gateway->last()->body);
+        $this->reply('age:yes');
+        $this->reply('remember:no');
         $this->assertSame(OutboundMessage::LOCATION_REQUEST, $this->gateway->last()->kind);
-        $this->assertStringContainsString('qué pasó', $this->gateway->last()->body);
+        $this->assertStringContainsString('sede', $this->gateway->last()->body);
 
-        $this->say('santa librada hurto. Vieron a alguien saltando el muro del colegio.');
+        $this->say('santa librada');
+        $this->reply('type:'.$this->typeId('hurto'));
         $this->assertSame(OutboundMessage::BUTTONS, $this->gateway->last()->kind);
 
         $this->image('media-1');
@@ -87,14 +95,17 @@ final class MetaObservatoryBotTest extends TestCase
         $this->assertStringContainsString('anónimo', $this->gateway->last()->body);
 
         $this->reply('anon:no');
+        $this->assertStringContainsString('RP-', $this->gateway->last()->body);
         $this->assertStringContainsString('folio EV-', $this->gateway->last()->body);
+        $this->assertStringContainsString('instalación', $this->gateway->last()->body);
 
         $report = ObservatoryReport::query()->firstOrFail();
         $this->assertSame('whatsapp', $report->source->value);
         $this->assertSame('padre', $report->reporter_role->value);
         $this->assertSame('hurto', $report->kind);
+        $this->assertSame('Hurto', $report->body);
         $this->assertFalse($report->is_anonymous);
-        $this->assertNull($report->is_adult);
+        $this->assertTrue($report->is_adult);
         $this->assertSame('Ana', $report->reporter_name);
         $this->assertSame(self::SENDER, $report->reporter_phone);
         $this->assertSame((int) $this->santa->id, (int) $report->installation_id);
@@ -115,7 +126,7 @@ final class MetaObservatoryBotTest extends TestCase
         $this->assertTrue($report->is_anonymous);
         $this->assertNull($report->reporter_name);
         $this->assertNull($report->reporter_phone);
-        $this->assertStringContainsString('no quedan guardados', $this->gateway->last()->body);
+        $this->assertStringContainsString('Gracias por tu reporte RP-', $this->gateway->last()->body);
 
         $this->assertSame(0, MetaWebhookMessage::query()->whereNotNull('sender')->count());
         $this->assertSame(0, MetaWebhookMessage::query()->whereNotNull('sender_name')->count());
@@ -131,7 +142,10 @@ final class MetaObservatoryBotTest extends TestCase
     public function test_location_offers_the_nearest_schools_first(): void
     {
         $this->say('hola');
+        $this->reply('privacy:yes');
         $this->reply('who:padre');
+        $this->reply('age:yes');
+        $this->reply('remember:no');
         $this->location(3.4517, -76.5321);
 
         $this->assertSame(
@@ -144,9 +158,11 @@ final class MetaObservatoryBotTest extends TestCase
     public function test_types_come_from_the_client_catalog_and_paginate(): void
     {
         $this->say('hola');
+        $this->reply('privacy:yes');
         $this->reply('who:padre');
+        $this->reply('age:yes');
+        $this->reply('remember:no');
         $this->say('santa librada');
-        $this->say('x');
         $this->assertCount(4, $this->gateway->rowIds());
 
         foreach (range(1, 10) as $n) {
@@ -204,7 +220,7 @@ final class MetaObservatoryBotTest extends TestCase
 
         $this->say('santa');
         $this->assertSame(OutboundMessage::BUTTONS, $this->gateway->last()->kind);
-        $this->assertStringContainsString('Quién eres', $this->gateway->last()->body);
+        $this->assertStringContainsString('/privacidad', $this->gateway->last()->body);
         $this->assertSame(2, MetaConversation::query()->count());
     }
 
@@ -220,21 +236,21 @@ final class MetaObservatoryBotTest extends TestCase
         $this->assertTrue($memory->expires_at?->greaterThan(now()->addMonths(11)));
 
         $this->say('hola');
-        $this->reply('who:alumno');
 
         $this->assertSame(OutboundMessage::LOCATION_REQUEST, $this->gateway->last()->kind);
-        $this->assertStringContainsString('qué pasó', $this->gateway->last()->body);
+        $this->assertStringContainsString('sede', $this->gateway->last()->body);
+        $this->assertSame('Ana', $memory->contact_name);
     }
 
     public function test_a_minor_student_is_remembered_without_expiry_and_stays_identified(): void
     {
         $this->say('hola');
+        $this->reply('privacy:yes');
         $this->reply('who:alumno');
-        $this->reply('remember:yes');
         $this->reply('age:no');
-        $this->assertStringContainsString('artículo 7', $this->gateway->last()->body);
-        $this->say('acepto');
-        $this->say('santa librada hurto en el patio');
+        $this->reply('remember:yes');
+        $this->say('santa librada');
+        $this->reply('type:'.$this->typeId('hurto'));
         $this->reply('media:done');
 
         $report = ObservatoryReport::query()->firstOrFail();
@@ -246,29 +262,27 @@ final class MetaObservatoryBotTest extends TestCase
         $this->assertNull($memory->expires_at);
 
         $this->say('hola');
-        $this->reply('who:alumno');
         $this->assertSame(OutboundMessage::LOCATION_REQUEST, $this->gateway->last()->kind);
     }
 
     public function test_declining_memory_warns_and_asks_again_next_time(): void
     {
         $this->say('hola');
+        $this->reply('privacy:yes');
         $this->reply('who:alumno');
+        $this->reply('age:yes');
         $this->reply('remember:no');
 
         $warning = $this->gateway->sent[count($this->gateway->sent) - 2]->body;
         $this->assertSame(RememberObservatoryReporterService::DECLINE_NOTICE, $warning);
-        $this->assertStringContainsString('mayor de edad', $this->gateway->last()->body);
-        $this->assertSame(0, ObservatoryReporterMemory::query()->count());
+        $this->assertStringContainsString('sede', $this->gateway->last()->body);
+        $this->assertSame(1, ObservatoryReporterMemory::query()->where('remember', false)->count());
 
-        $this->reply('age:yes');
-        $this->say('acepto');
         $this->say('Cancelar');
         $this->say('hola');
-        $this->reply('who:alumno');
 
-        $this->assertStringContainsString('Recordamos', $this->gateway->last()->body);
-        $this->assertSame(0, ObservatoryReporterMemory::query()->count());
+        $this->assertStringContainsString('Quién eres', $this->gateway->last()->body);
+        $this->assertSame(0, ObservatoryReporterMemory::query()->where('remember', true)->count());
     }
 
     public function test_an_expired_adult_authorization_is_asked_again(): void
@@ -277,9 +291,8 @@ final class MetaObservatoryBotTest extends TestCase
         ObservatoryReporterMemory::query()->update(['expires_at' => now()->subDay()]);
 
         $this->say('hola');
-        $this->reply('who:alumno');
 
-        $this->assertStringContainsString('Recordamos', $this->gateway->last()->body);
+        $this->assertStringContainsString('Quién eres', $this->gateway->last()->body);
     }
 
     public function test_a_local_phone_matches_the_whatsapp_number(): void
@@ -303,11 +316,12 @@ final class MetaObservatoryBotTest extends TestCase
     private function completeFlow(bool $anonymous): void
     {
         $this->say('hola');
+        $this->reply('privacy:yes');
         $this->reply('who:alumno');
-        $this->reply('remember:yes');
         $this->reply('age:yes');
-        $this->say('acepto');
-        $this->say('santa librada hurto en el patio');
+        $this->reply('remember:yes');
+        $this->say('santa librada');
+        $this->reply('type:'.$this->typeId('hurto'));
         $this->reply('media:done');
         $this->reply($anonymous ? 'anon:yes' : 'anon:no');
     }

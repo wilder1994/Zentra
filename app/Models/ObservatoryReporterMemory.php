@@ -11,6 +11,7 @@ final class ObservatoryReporterMemory extends Model
     protected $fillable = [
         'client_id',
         'phone',
+        'contact_name',
         'role',
         'is_adult',
         'remember',
