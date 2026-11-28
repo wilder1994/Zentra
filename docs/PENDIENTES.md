@@ -62,6 +62,9 @@ Definido 15 oct 2026. Código: `app/Services/Personnel/PilaPlanillaClipper.php`.
 
 ## Hecho
 
+### 27 nov 2026 · El 310 contesta en texto
+La primera pregunta sale en texto («¿Quién eres? Responde Alumno, Padre o Vecino.») y después los botones. Si el acuse de Meta es `failed`, se anota código y título y se reenvía esa frase. Un reporte con fotos y video ya no llama `askWho` con la conversación. Commit `a7835ab`.
+
 ### 27 nov 2026 · Pool PHP de Zentra
 Solo `/etc/php/8.3/fpm/pool.d/zentra.wcodex.cloud.conf`: `pm.max_children = 10`, `request_terminate_timeout = 120s`, `php_admin_value[memory_limit] = 256M`. decowandy y default siguen en 250. Nginx, PHP, Reverb y la cola quedaron activos; el sitio respondió 200. El código que cabe en ese tope es `5609367`.
 
