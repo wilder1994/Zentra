@@ -184,7 +184,7 @@ Texto literal: fuentes diversas + origen. Visita: Secretaría de Educación de C
 | Maestro, mapa, pines, calor, intake, folio, bitácora, tablero, API | Hecho |
 | Priorización configurable | Hecho: catálogo tipo + nivel + color |
 | Filtros/capas territoriales | Hecho: comunas urbanas Cali (IDESC). No cubren el Valle |
-| Salida de resultados (export) | PPTX del tablero filtrado, fondo claro, 8 láminas: portada, resumen con tarjetas, atención y fuentes, orígenes y tendencia, delitos y reportes, top 20 de riesgo por instalación, riesgo delictivo por comuna y cierre. Se arma solo al descargar. |
+| Salida de resultados (export) | PPTX del tablero filtrado, fondo claro, 8 láminas: portada, resumen, atención y fuentes, orígenes y tendencia, delitos y reportes, top 20 de riesgo por instalación, riesgo delictivo por comuna y cierre. Gráficos con el mismo formato de ejes/etiquetas que Supervisión. Se arma solo al descargar. El botón baja el archivo sin salir del tablero. |
 
 ## Siguiente
 
